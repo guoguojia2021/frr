@@ -3153,6 +3153,7 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 	bgp->rib_stale_time = BGP_DEFAULT_RIB_STALE_TIME;
 	bgp->dynamic_neighbors_limit = BGP_DYNAMIC_NEIGHBORS_LIMIT_DEFAULT;
 	bgp->dynamic_neighbors_count = 0;
+	bgp->peer_adv_lprio = 0;
 	bgp->lb_ref_bw = BGP_LINK_BW_REF_BW;
 	bgp->lb_handling = BGP_LINK_BW_ECMP;
 	bgp->reject_as_sets = false;
@@ -3583,6 +3584,7 @@ int bgp_delete(struct bgp *bgp)
 	THREAD_OFF(bgp->t_maxmed_onstartup);
 	THREAD_OFF(bgp->t_update_delay);
 	THREAD_OFF(bgp->t_establish_wait);
+	THREAD_OFF(bgp->t_adv_to_all);
 
 	/* Set flag indicating bgp instance delete in progress */
 	SET_FLAG(bgp->flags, BGP_FLAG_DELETE_IN_PROGRESS);

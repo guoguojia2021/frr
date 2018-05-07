@@ -3904,6 +3904,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 	int send_as4_aggregator = 0;
 	bool use32bit = CHECK_FLAG(peer->cap, PEER_CAP_AS4_RCV)
 			&& CHECK_FLAG(peer->cap, PEER_CAP_AS4_ADV);
+	int adv_lprio = 0;
+	u_int32_t maxmed_value = 0;
 
 	if (!bgp)
 		bgp = peer->bgp;
@@ -3922,6 +3924,29 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 					 num_labels, addpath_capable,
 					 addpath_tx_id, attr);
 		bgp_packet_mpattr_end(s, mpattrlen_pos);
+	}
+	/*
+	 * If this is a new up neighbor and still in the
+	 * state of advertising low priority, and the neighbor
+	 * is NOT in GR forwarding preserved state, or if BGP
+	 * is configured to advertise low priority, modify
+	 * advertised routes with attributes:
+	 * - longer as-path
+	 * - max MED
+	 * - min local_pref
+	 * This overrides the value set by route-map, which
+	 * is called early when a route is added into
+	 * advertisement attribute list.
+	 */
+
+	if ((peer->t_adv_lprio &&
+	     !(CHECK_FLAG(peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_PRESERVE_RCV))) ||
+	    (bgp && CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY))) {
+		adv_lprio = 1;
+		if (BGP_DEBUG (update, UPDATE_OUT)) {
+			zlog_debug ("Advertise routes to %s with low priority",
+				    peer->host);
+		}
 	}
 
 	/* Origin attribute. */
@@ -3992,6 +4017,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 	stream_putw(s, 0);
 	stream_putw_at(s, aspath_sizep, aspath_put(s, aspath, use32bit));
 
+
 	/* OLD session may need NEW_AS_PATH sent, if there are 4-byte ASNs
 	 * in the path
 	 */
@@ -4035,12 +4061,18 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
 	/* MED attribute. */
 	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)
-	    || bgp->maxmed_active) {
+        || bgp->maxmed_active || adv_lprio) {
 		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
 		stream_putc(s, BGP_ATTR_MULTI_EXIT_DISC);
 		stream_putc(s, 4);
-		stream_putl(s, (bgp->maxmed_active ? bgp->maxmed_value
-						   : attr->med));
+		if (bgp->maxmed_active) {
+			stream_putl(s, maxmed_value);
+		} else if (adv_lprio) {
+			stream_putl(s, BGP_MED_MAX);
+		} else {
+			stream_putl(s, attr->med);
+		}
+
 	}
 
 	/* Local preference. */
@@ -4048,7 +4080,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 		stream_putc(s, BGP_ATTR_FLAG_TRANS);
 		stream_putc(s, BGP_ATTR_LOCAL_PREF);
 		stream_putc(s, 4);
-		stream_putl(s, attr->local_pref);
+		stream_putl(s, (adv_lprio ? 0x0 : attr->local_pref));
 	}
 
 	/* Atomic aggregate. */

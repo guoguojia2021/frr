@@ -116,6 +116,13 @@ int bgp_peer_reg_with_nht(struct peer *peer)
 		SAFI_UNICAST, NULL, peer, connected, NULL);
 }
 
+static void bgp_peer_adv_lprio_t_off (struct peer *peer)
+{
+
+	BGP_TIMER_OFF(peer->t_adv_lprio);
+	update_group_adjust_peer_afs(peer);
+}
+
 static void peer_xfer_stats(struct peer *peer_dst, struct peer *peer_src)
 {
 	/* Copy stats over. These are only the pre-established state stats */
@@ -182,12 +189,14 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	BGP_TIMER_OFF(peer->t_delayopen);
 	BGP_TIMER_OFF(peer->t_connect_check_r);
 	BGP_TIMER_OFF(peer->t_connect_check_w);
+	bgp_peer_adv_lprio_t_off(peer);
 	BGP_TIMER_OFF(from_peer->t_routeadv);
 	BGP_TIMER_OFF(from_peer->t_connect);
 	BGP_TIMER_OFF(from_peer->t_delayopen);
 	BGP_TIMER_OFF(from_peer->t_connect_check_r);
 	BGP_TIMER_OFF(from_peer->t_connect_check_w);
 	BGP_TIMER_OFF(from_peer->t_process_packet);
+	bgp_peer_adv_lprio_t_off(from_peer);
 
 	/*
 	 * At this point in time, it is possible that there are packets pending
@@ -374,6 +383,7 @@ void bgp_timer_set(struct peer *peer)
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
+		bgp_peer_adv_lprio_t_off(peer);
 		break;
 
 	case Connect:
@@ -391,6 +401,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_holdtime);
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
+		bgp_peer_adv_lprio_t_off(peer);
 		break;
 
 	case Active:
@@ -413,6 +424,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_holdtime);
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
+		bgp_peer_adv_lprio_t_off(peer);
 		break;
 
 	case OpenSent:
@@ -428,6 +440,7 @@ void bgp_timer_set(struct peer *peer)
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
+		bgp_peer_adv_lprio_t_off(peer);
 		break;
 
 	case OpenConfirm:
@@ -447,6 +460,7 @@ void bgp_timer_set(struct peer *peer)
 		}
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
+		bgp_peer_adv_lprio_t_off(peer);
 		break;
 
 	case Established:
@@ -484,6 +498,7 @@ void bgp_timer_set(struct peer *peer)
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
+		bgp_peer_adv_lprio_t_off(peer);
 		break;
 	case BGP_STATUS_MAX:
 		flog_err(EC_LIB_DEVELOPMENT,
@@ -609,6 +624,22 @@ int bgp_delayopen_timer(struct thread *thread)
 
 	THREAD_VAL(thread) = DelayOpen_timer_expired;
 	bgp_event(thread); /* bgp_event unlocks peer */
+	return 0;
+}
+static int
+bgp_adv_lprio_timer (struct thread *thread)
+{
+	struct peer *peer;
+
+	peer = THREAD_ARG (thread);
+	bgp_peer_adv_lprio_t_off(peer);
+
+	if (BGP_DEBUG (update, UPDATE_OUT))
+		zlog_debug("%s advertise-low-priority timer expired, "
+			   "advertise routes with unmodified attribute value",
+			   peer->host);
+
+	bgp_announce_route_all(peer);
 
 	return 0;
 }
@@ -1081,6 +1112,15 @@ bool bgp_maxmed_onstartup_configured(struct bgp *bgp)
 	return false;
 }
 
+
+int bgp_maxmed_onpeerup_configured(struct bgp *bgp)
+{
+	if (bgp->v_maxmed_onpeerup != BGP_MAXMED_ONPEERUP_UNCONFIGURED)
+                return 1;
+
+        return 0;
+}
+
 bool bgp_maxmed_onstartup_active(struct bgp *bgp)
 {
 	if (bgp->t_maxmed_onstartup)
@@ -1132,6 +1172,33 @@ int bgp_fsm_error_subcode(int status)
 	}
 
 	return fsm_err_subcode;
+}
+
+/*
+ * A callback to advertise routes to all peers.
+ * It's now only triggered by "advertise-low-priority"
+ * CLI, but can be extended to other cases in the
+ * future.
+ */
+int
+bgp_adv_to_all (struct thread *thread)
+{
+	struct bgp *bgp;
+	int lprio_set;
+
+	bgp = THREAD_ARG (thread);
+	bgp->t_adv_to_all = NULL;
+
+	lprio_set = CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY);
+	if (BGP_DEBUG(update, UPDATE_OUT)) {
+		zlog_debug("%s advertise-low-priority flag, "
+			   "advertise routes with %s attribute value",
+			   lprio_set ? "Set" : "Unset",
+			   lprio_set ? "modified" : "unmodified");
+	}
+
+	update_group_announce(bgp);
+	return 0;
 }
 
 /* The maxmed onstartup timer expiry callback. */
@@ -1524,6 +1591,7 @@ int bgp_stop(struct peer *peer)
 	BGP_TIMER_OFF(peer->t_holdtime);
 	BGP_TIMER_OFF(peer->t_routeadv);
 	BGP_TIMER_OFF(peer->t_delayopen);
+	bgp_peer_adv_lprio_t_off(peer);
 
 	/* Clear input and output buffer.  */
 	frr_with_mutex(&peer->io_mtx) {
@@ -2091,6 +2159,7 @@ static int bgp_establish(struct peer *peer)
 	int ret = 0;
 	struct peer *other;
 	int status;
+	struct bgp *bgp;
 
 	other = peer->doppelganger;
 	peer = peer_xfer_conn(peer);
@@ -2106,6 +2175,12 @@ static int bgp_establish(struct peer *peer)
 	/* Reset capability open status flag. */
 	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_CAPABILITY_OPEN))
 		SET_FLAG(peer->sflags, PEER_STATUS_CAPABILITY_OPEN);
+
+	/* Do this before 1st update */
+	if ((bgp = peer->bgp) && bgp->peer_adv_lprio) {
+			BGP_TIMER_ON (peer->t_adv_lprio, bgp_adv_lprio_timer,
+                bgp->peer_adv_lprio);
+	}
 
 	/* Clear start timer value to default. */
 	peer->v_start = BGP_INIT_START_TIMER;

@@ -162,6 +162,7 @@ static void conf_copy(struct peer *dst, struct peer *src, afi_t afi,
 	memcpy(&(dst->nexthop), &(src->nexthop), sizeof(struct bgp_nexthop));
 
 	dst->group = src->group;
+	dst->t_adv_lprio = src->t_adv_lprio;
 
 	if (src->default_rmap[afi][safi].name) {
 		dst->default_rmap[afi][safi].name =
@@ -479,6 +480,10 @@ static bool updgrp_hash_cmp(const void *p1, const void *p2)
 
 	if (pe1->group != pe2->group)
 		return false;
+	
+	if (pe1->t_adv_lprio != pe2->t_adv_lprio)
+		return false;
+
 
 	/* route-map names should be the same */
 	if ((fl1->map[RMAP_OUT].name && !fl2->map[RMAP_OUT].name)

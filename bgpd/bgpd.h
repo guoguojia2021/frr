@@ -404,6 +404,7 @@ struct bgp {
 
 	struct thread
 		*t_startup; /* start-up timer on only once at the beginning */
+	struct thread *t_adv_to_all;
 
 	uint32_t v_maxmed_onstartup; /* Duration of max-med on start-up */
 #define BGP_MAXMED_ONSTARTUP_UNCONFIGURED  0 /* 0 means off, its the default */
@@ -416,6 +417,14 @@ struct bgp {
 	bool v_maxmed_admin; /* true/false if max-med administrative is on/off
 			      */
 #define BGP_MAXMED_ADMIN_UNCONFIGURED false /* Off by default */
+	/*
+	 * Fields to handle max med announcment
+	 * when a peer comes up
+	 */
+        u_int32_t v_maxmed_onpeerup;        /* Duration of max-med on peer-up */
+#define BGP_MAXMED_ONPEERUP_UNCONFIGURED  0 /* 0 means off, its the default */
+        u_int32_t maxmed_onpeerup_value;    /* Max-med value when active on peer-up */
+
 	uint32_t maxmed_admin_value; /* Max-med value when administrative in on
 				      */
 #define BGP_MAXMED_VALUE_DEFAULT  4294967294 /* Maximum by default */
@@ -518,6 +527,9 @@ struct bgp {
 /* vrf-route leaking flags */
 #define BGP_CONFIG_VRF_TO_VRF_IMPORT (1 << 9)
 #define BGP_CONFIG_VRF_TO_VRF_EXPORT (1 << 10)
+	/* alibgp flags. */
+	uint32_t alibgp_flags;
+#define BGP_FLAG_ADV_LOW_PRIORITY         (1 << 0)
 
 	/* BGP per AF peer count */
 	uint32_t af_peer_count[AFI_MAX][SAFI_MAX];
@@ -618,6 +630,9 @@ struct bgp {
 		uint16_t ibgp_flags;
 #define BGP_FLAG_IBGP_MULTIPATH_SAME_CLUSTERLEN (1 << 0)
 	} maxpaths[AFI_MAX][SAFI_MAX];
+	
+	/* BGP advertise-low-priority peer-up time */
+	u_int32_t peer_adv_lprio;
 
 	_Atomic uint32_t wpkt_quanta; // max # packets to write per i/o cycle
 	_Atomic uint32_t rpkt_quanta; // max # packets to read per i/o cycle
@@ -1443,6 +1458,7 @@ struct peer {
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
 	struct thread *t_refresh_stalepath;
+	struct thread *t_adv_lprio; /* non-null when max-med onpeerup is on */
 
 	/* Thread flags. */
 	_Atomic uint32_t thread_flags;

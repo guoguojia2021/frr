@@ -1952,6 +1952,43 @@ DEFUN (no_bgp_maxmed_admin,
 	return CMD_SUCCESS;
 }
 
+DEFUN (bgp_adv_lprio,
+       bgp_adv_lprio_cmd,
+       "bgp advertise-low-priority",
+       BGP_STR
+       "Advertise routes with low priority\n")
+{
+    VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	/* If already set, return */
+	if (CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY)) {
+		return CMD_SUCCESS;
+	}
+
+	SET_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY);
+	thread_add_timer(bm->master, bgp_adv_to_all, bgp, 1, &bgp->t_adv_to_all);
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_adv_lprio, 
+       no_bgp_adv_lprio_cmd,
+       "no bgp advertise-low-priority",
+       NO_STR
+       BGP_STR
+       "Advertise routes with low priority\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	/* If already unset, return */
+	if (!CHECK_FLAG (bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY))  {
+		return CMD_SUCCESS;
+	}
+
+	UNSET_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY);
+	thread_add_timer(bm->master, bgp_adv_to_all, bgp, 1, &bgp->t_adv_to_all);
+    return CMD_SUCCESS;
+}
+
 DEFUN (bgp_maxmed_onstartup,
        bgp_maxmed_onstartup_cmd,
        "bgp max-med on-startup (5-86400) [(0-4294967295)]",
@@ -2053,6 +2090,43 @@ static int bgp_global_update_delay_config_vty(struct vty *vty,
 		bgp->v_update_delay = bm->v_update_delay;
 		bgp->v_establish_wait = bm->v_establish_wait;
 	}
+	return CMD_SUCCESS;
+}
+
+DEFUN (bgp_maxmed_onpeerup,
+       bgp_maxmed_onpeerup_cmd,
+       "bgp max-med on-peerup (1-600) [(0-4294967295)]",
+       BGP_STR
+       "Advertise routes with max-med\n"
+       "Effective on a peer-up\n"
+       "Time (seconds) period for max-med\n"
+       "Max MED value to be used\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+	int idx = 0;
+
+	argv_find(argv, argc, "(1-600)", &idx);
+	bgp->v_maxmed_onpeerup = strtoul(argv[idx]->arg, NULL, 10);
+	if (argv_find(argv, argc, "(0-4294967295)", &idx))
+		bgp->maxmed_onpeerup_value = strtoul(argv[idx]->arg, NULL, 10);
+	else
+		bgp->maxmed_onpeerup_value = BGP_MAXMED_VALUE_DEFAULT;
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_maxmed_onpeerup,
+       no_bgp_maxmed_onpeerup_cmd,
+       "no bgp max-med on-peerup",
+       NO_STR 
+       BGP_STR
+       "Advertise routes with max-med\n"
+       "Effective on a peer-up\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	bgp->v_maxmed_onpeerup = BGP_MAXMED_ONPEERUP_UNCONFIGURED;
+	bgp->maxmed_onpeerup_value = BGP_MAXMED_VALUE_DEFAULT;
 
 	return CMD_SUCCESS;
 }
@@ -2073,8 +2147,40 @@ static int bgp_global_update_delay_deconfig_vty(struct vty *vty)
 	return CMD_SUCCESS;
 }
 
-static int bgp_update_delay_config_vty(struct vty *vty, uint16_t update_delay,
-				       uint16_t establish_wait)
+
+DEFUN (bgp_peer_adv_lprio,
+       bgp_peer_adv_lprio_cmd,
+       "bgp advertise-low-priority peer-up (1-600)",
+       BGP_STR
+       "Advertise routes with low priority\n"
+       "After a new peer is up\n"
+       "Time in seconds\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+	int idx = 0;
+
+	argv_find(argv, argc, "(1-600)", &idx);
+    bgp->peer_adv_lprio = strtoul(argv[idx]->arg, NULL, 10);
+
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_peer_adv_lprio,
+       no_bgp_peer_adv_lprio_cmd,
+       "no bgp advertise-low-priority peer-up",
+       NO_STR
+       BGP_STR
+       "Advertise routes with low priority\n"
+       "After a new peer is up\n")
+{
+    VTY_DECLVAR_CONTEXT(bgp, bgp);
+    bgp->peer_adv_lprio = 0;
+
+    return CMD_SUCCESS;
+}
+
+static int bgp_update_delay_config_vty(struct vty *vty, const char *update_delay,
+				       const char *establish_wait)
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
 
@@ -10454,6 +10560,9 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 				    && bgp->maxmed_active)
 					json_object_boolean_true_add(
 						json, "maxMedOnStartup");
+				if (bgp_maxmed_onpeerup_configured(bgp))
+                                        json_object_boolean_true_add(
+								     json, "maxMedOnPeerup");
 				if (bgp->v_maxmed_admin)
 					json_object_boolean_true_add(
 						json, "maxMedAdministrative");
@@ -10492,6 +10601,9 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 					    && bgp->maxmed_active)
 						vty_out(vty,
 							"Max-med on-startup active\n");
+                    if (bgp_maxmed_onpeerup_configured(bgp))
+                        vty_out(vty,
+                                "Max-med on-peerup active\n");
 					if (bgp->v_maxmed_admin)
 						vty_out(vty,
 							"Max-med administrative active\n");
@@ -10504,6 +10616,7 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 
 					ents = bgp_table_count(
 						bgp->rib[afi][safi]);
+
 					vty_out(vty,
 						"RIB entries %ld, using %s of memory\n",
 						ents,
@@ -17191,11 +17304,33 @@ int bgp_config_write(struct vty *vty)
 					bgp->maxmed_onstartup_value);
 			vty_out(vty, "\n");
 		}
+		
+		if (bgp->v_maxmed_onpeerup
+			!= BGP_MAXMED_ONPEERUP_UNCONFIGURED) {
+				vty_out(vty, " bgp max-med on-peerup %u",
+					bgp->v_maxmed_onpeerup);
+				if (bgp->maxmed_onpeerup_value
+					!= BGP_MAXMED_VALUE_DEFAULT)
+						vty_out(vty, " %u",
+								bgp->maxmed_onpeerup_value);
+				vty_out(vty, "\n");
+		}
+
 		if (bgp->v_maxmed_admin != BGP_MAXMED_ADMIN_UNCONFIGURED) {
 			vty_out(vty, " bgp max-med administrative");
 			if (bgp->maxmed_admin_value != BGP_MAXMED_VALUE_DEFAULT)
 				vty_out(vty, " %u", bgp->maxmed_admin_value);
 			vty_out(vty, "\n");
+		}
+		/* BGP advertise-low-priority configuration */
+		if (CHECK_FLAG (bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY)) {
+			vty_out (vty, " bgp advertise-low-priority\n");
+		}
+
+		/* BGP advertise-low-priority peer-up configuration */
+		if (bgp->peer_adv_lprio) {
+			vty_out (vty, " bgp advertise-low-priority peer-up %d\n",
+				 bgp->peer_adv_lprio);
 		}
 
 		/* write quanta */
@@ -17693,6 +17828,14 @@ void bgp_vty_init(void)
 	install_element(BGP_NODE, &bgp_maxmed_admin_medv_cmd);
 	install_element(BGP_NODE, &bgp_maxmed_onstartup_cmd);
 	install_element(BGP_NODE, &no_bgp_maxmed_onstartup_cmd);
+	install_element(BGP_NODE, &bgp_maxmed_onpeerup_cmd);
+    install_element(BGP_NODE, &no_bgp_maxmed_onpeerup_cmd);
+
+	/* Deprecated "advertise-low-priority [peer-up <>]" commmand */
+	install_element(BGP_NODE, &bgp_adv_lprio_cmd);
+	install_element(BGP_NODE, &no_bgp_adv_lprio_cmd);
+	install_element(BGP_NODE, &bgp_peer_adv_lprio_cmd);
+	install_element(BGP_NODE, &no_bgp_peer_adv_lprio_cmd);
 
 	/* bgp disable-ebgp-connected-nh-check */
 	install_element(BGP_NODE, &bgp_disable_connected_route_check_cmd);
