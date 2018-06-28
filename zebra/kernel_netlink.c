@@ -130,6 +130,7 @@ static const struct message rtproto_str[] = {
 	{RTPROT_RIP, "RIP"},
 	{RTPROT_RIPNG, "RIPNG"},
 	{RTPROT_ZSTATIC, "static"},
+	{RTPROT_ARPHOST, "ARP host"},
 	{0}};
 
 static const struct message family_str[] = {{AF_INET, "ipv4"},
