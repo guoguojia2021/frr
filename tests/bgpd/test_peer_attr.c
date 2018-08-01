@@ -1403,7 +1403,7 @@ static void bgp_shutdown(void)
 	bgp_terminate();
 	bgp_close();
 	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp))
-		bgp_delete(bgp);
+		bgp_delete(bgp, 0);
 	bgp_dump_finish();
 	bgp_route_finish();
 	bgp_route_map_terminate();

@@ -183,7 +183,7 @@ static int run_bgp_cfg_maximum_paths(testcase_t *t)
 
 static int cleanup_bgp_cfg_maximum_paths(testcase_t *t)
 {
-	return bgp_delete((struct bgp *)t->tmp_data);
+	return bgp_delete((struct bgp *)t->tmp_data, 0);
 }
 
 testcase_t test_bgp_cfg_maximum_paths = {
@@ -365,7 +365,7 @@ static int cleanup_bgp_path_info_mpath_update(testcase_t *t)
 	for (i = 0; i < test_mp_list_peer_count; i++)
 		sockunion_free(test_mp_list_peer[i].su_remote);
 
-	return bgp_delete((struct bgp *)t->tmp_data);
+	return bgp_delete((struct bgp *)t->tmp_data, 0);
 }
 
 testcase_t test_bgp_path_info_mpath_update = {

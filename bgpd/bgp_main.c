@@ -204,12 +204,12 @@ static __attribute__((__noreturn__)) void bgp_exit(int status)
 	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
 		if (bgp_default == bgp || bgp_evpn == bgp)
 			continue;
-		bgp_delete(bgp);
+		bgp_delete(bgp, 1);
 	}
 	if (bgp_evpn && bgp_evpn != bgp_default)
-		bgp_delete(bgp_evpn);
+		bgp_delete(bgp_evpn, 1);
 	if (bgp_default)
-		bgp_delete(bgp_default);
+		bgp_delete(bgp_default, 1);
 
 	bgp_evpn_mh_finish();
 	bgp_l3nhg_finish();

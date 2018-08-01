@@ -5753,7 +5753,7 @@ int bgp_evpn_local_l3vni_del(vni_t l3vni, vrf_id_t vrf_id)
 
 	/* Delete the instance if it was autocreated */
 	if (CHECK_FLAG(bgp_vrf->vrf_flags, BGP_VRF_AUTO))
-		bgp_delete(bgp_vrf);
+		bgp_delete(bgp_vrf, 0);
 
 	return 0;
 }

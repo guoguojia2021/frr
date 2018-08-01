@@ -2075,7 +2075,7 @@ extern void bgp_option_norib_unset_runtime(void);
 extern int bgp_get(struct bgp **, as_t *, const char *, enum bgp_instance_type);
 extern void bgp_instance_up(struct bgp *);
 extern void bgp_instance_down(struct bgp *);
-extern int bgp_delete(struct bgp *);
+extern int bgp_delete(struct bgp *, int);
 
 extern int bgp_handle_socket(struct bgp *bgp, struct vrf *vrf,
 			     vrf_id_t old_vrf_id, bool create);

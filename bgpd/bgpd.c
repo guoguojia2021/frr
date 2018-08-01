@@ -3555,7 +3555,7 @@ void bgp_instance_down(struct bgp *bgp)
 }
 
 /* Delete BGP instance. */
-int bgp_delete(struct bgp *bgp)
+int bgp_delete(struct bgp *bgp, int check_gr)
 {
 	struct peer *peer;
 	struct peer_group *group;
@@ -3563,8 +3563,9 @@ int bgp_delete(struct bgp *bgp)
 	struct vrf *vrf;
 	afi_t afi;
 	safi_t safi;
-	int i;
+
 	struct graceful_restart_info *gr_info;
+	int i, stop_notify;
 
 	assert(bgp);
 
@@ -3633,9 +3634,10 @@ int bgp_delete(struct bgp *bgp)
 				    why? */
 	}
 
+	stop_notify = (check_gr) && (CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART));
 	/* Inform peers we're going down. */
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, next, peer)) {
-		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
+		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status) && !(stop_notify))
 			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN);
 	}

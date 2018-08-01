@@ -1552,8 +1552,7 @@ DEFUN (no_router_bgp,
 			}
 		}
 	}
-
-	bgp_delete(bgp);
+	bgp_delete(bgp, 0);
 
 	return CMD_SUCCESS;
 }
