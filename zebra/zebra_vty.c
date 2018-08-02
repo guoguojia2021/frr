@@ -2358,6 +2358,7 @@ static void vty_show_ip_route_summary(struct vty *vty,
 {
 	struct route_node *rn;
 	struct route_entry *re;
+	struct nexthop *nexthop;
 #define ZEBRA_ROUTE_IBGP  ZEBRA_ROUTE_MAX
 #define ZEBRA_ROUTE_TOTAL (ZEBRA_ROUTE_IBGP + 1)
 	uint32_t rib_cnt[ZEBRA_ROUTE_TOTAL + 1];
@@ -2383,22 +2384,24 @@ static void vty_show_ip_route_summary(struct vty *vty,
 
 	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
 		RNODE_FOREACH_RE (rn, re) {
-			is_ibgp = (re->type == ZEBRA_ROUTE_BGP
-				   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
+			for (nexthop = re->ng.nexthop; nexthop; nexthop = nexthop->next) {
+				is_ibgp = (re->type == ZEBRA_ROUTE_BGP
+					   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
 
-			rib_cnt[ZEBRA_ROUTE_TOTAL]++;
-			if (is_ibgp)
-				rib_cnt[ZEBRA_ROUTE_IBGP]++;
-			else
-				rib_cnt[re->type]++;
-
-			if (CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED)) {
-				fib_cnt[ZEBRA_ROUTE_TOTAL]++;
-
+				rib_cnt[ZEBRA_ROUTE_TOTAL]++;
 				if (is_ibgp)
-					fib_cnt[ZEBRA_ROUTE_IBGP]++;
+					rib_cnt[ZEBRA_ROUTE_IBGP]++;
 				else
-					fib_cnt[re->type]++;
+					rib_cnt[re->type]++;
+
+				if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED)) {
+					fib_cnt[ZEBRA_ROUTE_TOTAL]++;
+
+					if (is_ibgp)
+						fib_cnt[ZEBRA_ROUTE_IBGP]++;
+					else
+						fib_cnt[re->type]++;
+				}
 			}
 
 			if (CHECK_FLAG(re->flags, ZEBRA_FLAG_TRAPPED)) {
