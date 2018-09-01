@@ -8026,11 +8026,12 @@ void bgp_terminate(void)
 		list_delete(&bm->listen_sockets);
 
 	for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp))
-		for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer))
-			if (peer_established(peer) || peer->status == OpenSent
-			    || peer->status == OpenConfirm)
-				bgp_notify_send(peer, BGP_NOTIFY_CEASE,
-						BGP_NOTIFY_CEASE_PEER_UNCONFIG);
+        if (!CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) 
+            for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer))
+                if (peer_established(peer) || peer->status == OpenSent
+                    || peer->status == OpenConfirm)
+                    bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+                            BGP_NOTIFY_CEASE_PEER_UNCONFIG);
 
 	BGP_TIMER_OFF(bm->t_rmap_update);
 
