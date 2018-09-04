@@ -1852,6 +1852,7 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 	int samepeer_safe = 0; /* for synthetic mplsvpns routes */
 	bool nh_reset = false;
 	uint64_t cum_bw;
+	char buf[PREFIX_STRLEN];
 
 	if (DISABLE_BGP_ANNOUNCE)
 		return false;
@@ -2077,6 +2078,27 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 		*attr = *post_attr;
 	else
 		*attr = *piattr;
+    /*
+    * For BGP "network" statement,  check if the network is reachable as
+    * a connected interface addr before advertising it to a neighbor
+    */
+    if ((pi->peer == bgp->peer_self) &&
+            (pi->type == ZEBRA_ROUTE_BGP) &&
+            (pi->sub_type == BGP_ROUTE_STATIC)) {
+        if (p->family == AF_INET) {
+            dest = bgp_node_match_ipv4(bgp->connected_table[AFI_IP], &p->u.prefix4);
+            if (dest) {
+                bgp_dest_unlock_node (dest);
+            } else {
+                if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
+                            peer->host,
+                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+                            p->prefixlen);
+                return 0;
+            }
+        }
+    }
 
 	/* If local-preference is not set. */
 	if ((peer->sort == BGP_PEER_IBGP || peer->sort == BGP_PEER_CONFED)
@@ -2421,6 +2443,65 @@ static int bgp_route_select_timer_expire(struct thread *thread)
 
 	/* Best path selection */
 	return bgp_best_path_select_defer(bgp, afi, safi);
+}
+
+void
+bgp_process_update_v4 (struct bgp *bgp, struct prefix *p, int add)
+{
+  struct bgp_node *network_rn, *rn;
+  struct bgp_path_info *pi;
+  struct prefix *network_p;
+  afi_t afi;
+  safi_t safi;
+  char buf[SU_ADDRSTRLEN];
+
+  afi = AFI_IP;
+  safi = SAFI_UNICAST;
+  if (bgp == NULL) return;
+
+  if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS)) {
+    zlog_debug ("%s(): interface prefix %s/%d - %s",
+		__func__,
+		inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+		p->prefixlen, add ? "add" : "delete");
+  }
+
+  /*
+   * Go through "network" table to see if the interface prefix
+   * covers any of the networks configured under BGP
+   */
+  for (network_rn = bgp_table_top(bgp->route[afi][safi]);
+       network_rn;
+       network_rn = bgp_route_next(network_rn)) {
+    if (!network_rn->info)
+      continue;
+
+    network_p = &network_rn->p;  /* prefix under network statement */
+    if (!prefix_match (p, network_p)) /* whether p includes network */
+      continue;
+
+    /* For covered network prefix */
+    rn = bgp_node_lookup(bgp->rib[afi][safi], network_p);
+    if (!rn)
+      continue;
+
+    for (pi = bgp_dest_get_bgp_path_info(rn); pi;
+	 pi = pi->next) {
+	if (pi->peer == bgp->peer_self &&
+	    pi->type == ZEBRA_ROUTE_BGP &&
+	  pi->sub_type == BGP_ROUTE_STATIC) {
+	if (BGP_DEBUG (neighbor_events, NEIGHBOR_EVENTS)) {
+	  zlog_debug ("%s(): update network %s/%d - %s",
+		      __func__,
+		      inet_ntop (network_p->family, &network_p->u.prefix, buf, SU_ADDRSTRLEN),
+		      network_p->prefixlen, add ? "add" : "delete");
+	}
+	bgp_path_info_set_flag (rn, pi, BGP_PATH_ATTR_CHANGED);
+        bgp_process (bgp, rn, afi, safi);
+	break;
+      }
+    }
+  }
 }
 
 void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,

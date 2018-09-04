@@ -411,6 +411,9 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 			bgp_dest_set_bgp_connected_ref_info(dest, bc);
 		}
 
+        /* We may need to announce this prefix to our neighbors */
+        bgp_process_update_v4(bgp, &dest->p, 1);
+
 		for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
 			if (peer->conf_if
 			    && (strcmp(peer->conf_if, ifc->ifp->name) == 0)
@@ -466,6 +469,11 @@ void bgp_connected_delete(struct bgp *bgp, struct connected *ifc)
 		bgp_address_del(bgp, ifc, addr);
 
 		dest = bgp_node_lookup(bgp->connected_table[AFI_IP], &p);
+
+		/* We may have to withdraw this prefix from our neighbors */
+		if (dest)
+			bgp_process_update_v4(bgp, &dest->p, 0);
+
 	} else if (addr->family == AF_INET6) {
 		if (IN6_IS_ADDR_UNSPECIFIED(&p.u.prefix6))
 			return;

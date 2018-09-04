@@ -2384,7 +2384,7 @@ static void vty_show_ip_route_summary(struct vty *vty,
 
 	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
 		RNODE_FOREACH_RE (rn, re) {
-			for (nexthop = re->ng.nexthop; nexthop; nexthop = nexthop->next) {
+			for (nexthop = re->nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
 				is_ibgp = (re->type == ZEBRA_ROUTE_BGP
 					   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
 
