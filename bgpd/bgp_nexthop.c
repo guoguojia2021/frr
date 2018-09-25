@@ -1015,6 +1015,63 @@ DEFUN (show_ip_bgp_instance_all_nexthop,
 	return CMD_SUCCESS;
 }
 
+static void bgp_show_connected (struct vty *vty, struct bgp *bgp, afi_t input_afi)
+{
+	struct bgp_node *rn;
+	char buf[PREFIX2STR_BUFFER];
+	afi_t afi;
+	struct bgp_connected_ref *bc;
+
+	vty_out(vty, "Current BGP connected routes:\n");
+	for (afi = AFI_IP; afi < AFI_MAX; afi++) {
+		if ((afi != input_afi) && (input_afi != AFI_MAX))
+			continue;
+
+		if (!bgp->connected_table[afi])
+			continue;
+
+		for (rn = bgp_table_top(bgp->connected_table[afi]);
+		     rn;
+		     rn = bgp_route_next(rn)) {
+
+			if (rn->info == NULL) continue;
+
+			bc = rn->info;
+			vty_out (vty, " %s/%d, counter %d\n",
+				 inet_ntop(rn->p.family, &rn->p.u.prefix,
+					   buf, sizeof(buf)),
+				 rn->p.prefixlen,
+				 bc ? bc->refcnt : 9999);
+		}
+	}
+}
+
+DEFUN (show_ip_bgp_instance_all_connected,
+       show_ip_bgp_instance_all_connected_cmd,
+       "show [ip] bgp connected",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       "BGP connected route\n")
+{
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+	afi_t input_afi = AFI_MAX;;
+	int idx = 0;
+
+	if (argv_find(argv, argc, "ip", &idx))
+		input_afi = AFI_IP;
+
+	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
+		vty_out(vty, "\nInstance %s:\n",
+			(bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) ?
+			"Default" : bgp->name);
+		bgp_show_connected(vty, bgp, input_afi);
+	}
+
+	return CMD_SUCCESS;
+}
+
 void bgp_scan_init(struct bgp *bgp)
 {
 	afi_t afi;
@@ -1032,6 +1089,7 @@ void bgp_scan_vty_init(void)
 	install_element(VIEW_NODE, &show_ip_bgp_nexthop_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_import_check_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_instance_all_nexthop_cmd);
+	install_element(VIEW_NODE, &show_ip_bgp_instance_all_connected_cmd);
 }
 
 void bgp_scan_finish(struct bgp *bgp)
