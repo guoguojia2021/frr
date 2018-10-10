@@ -1088,8 +1088,9 @@ int evpn_route_select_install(struct bgp *bgp, struct bgpevpn *vpn,
 	int ret = 0;
 
 	/* Compute the best path. */
+
 	bgp_best_selection(bgp, dest, &bgp->maxpaths[afi][safi], &old_and_new,
-			   afi, safi);
+			   afi, safi, 0);
 	old_select = old_and_new.old;
 	new_select = old_and_new.new;
 

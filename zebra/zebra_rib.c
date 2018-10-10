@@ -837,6 +837,17 @@ void zebra_rtable_node_cleanup(struct route_table *table,
 		XFREE(MTYPE_RIB_DEST, node->info);
 	}
 }
+#ifdef ARP2HOST_BACKUP
+int rib_if_arp2host_route(struct route_entry *i_rib)
+{
+   if ( i_rib && (i_rib->type == ZEBRA_ROUTE_KERNEL)
+        && (i_rib->metric == ARP2HOST_METRIC) ) {
+     return 1;
+   }
+
+   return 0;
+}
+#endif
 
 static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 				struct route_entry *new)
@@ -903,6 +914,17 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 	 * We have to install or update if a new route has been selected or
 	 * something has changed.
 	 */
+	if (new == old)
+	{
+#ifdef ARP2HOST_BACKUP
+        //select route has no change, but backup route maybe have changed.
+        if (rib_if_arp2host_route(new)) {
+            if (IS_ZEBRA_DEBUG_RIB)
+                rnode_debug (rn, zvrf_id(zvrf), "Select==fib is arp2host, trigger update.");
+                hook_call(rib_update, rn, "updating existing arp2host route");
+        }
+#endif
+	}
 	if (new != old || CHECK_FLAG(new->status, ROUTE_ENTRY_CHANGED)) {
 		hook_call(rib_update, rn, "updating existing route");
 

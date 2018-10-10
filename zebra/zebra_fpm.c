@@ -923,6 +923,103 @@ struct route_entry *zfpm_route_for_update(rib_dest_t *dest)
 	return dest->selected_fib;
 }
 
+
+#ifdef ARP2HOST_BACKUP
+static struct route_entry *
+zfpm_route_for_update_exclude_arp2host (rib_dest_t *dest)
+{
+  struct route_entry *rib;
+
+  RE_DEST_FOREACH_ROUTE (dest, rib)
+  {
+	if (CHECK_FLAG (rib->flags, ZEBRA_FLAG_BACKUP_SELECTED))
+	  return rib;
+  }
+
+  /*
+   * No route for this destination.
+   */
+  return NULL;
+}
+
+/*
+* Check if any update on non arp2host route, and set the flag on selected route to
+* speed up selecting best route nexttime.
+*/
+static int
+zfpm_if_any_update_on_non_arp2host_route (rib_dest_t *dest)
+{
+  struct route_entry *rib;
+  struct route_entry *select = NULL;
+  int if_update = 0;
+
+  RE_DEST_FOREACH_ROUTE (dest, rib)
+  {
+    //unset SELECTED on all routes except select route.
+    if (select) {
+      if (rib != select) {
+        UNSET_FLAG (rib->flags, ZEBRA_FLAG_BACKUP_SELECTED);
+        continue;
+      }
+      else
+      {
+        zlog_err("Loop in rib list.");
+        break;
+      }
+    }
+
+    //ignore arp2host route and non-bgp route.
+    if ( (rib->type != ZEBRA_ROUTE_BGP) ||
+         rib_if_arp2host_route(rib) ) {
+      continue;
+	}
+
+	if (CHECK_FLAG (rib->status, ROUTE_ENTRY_REMOVED) ||
+	    rib->nexthop_active_num == 0) {
+      UNSET_FLAG (rib->flags, ZEBRA_FLAG_BACKUP_SELECTED);
+      continue;
+	}
+
+    select = rib;
+    if (CHECK_FLAG(select->flags, ZEBRA_FLAG_BACKUP_SELECTED)) {
+       if (CHECK_FLAG(select->flags, ROUTE_ENTRY_CHANGED)) {
+         if_update = 1;
+       }
+    }
+    else {
+      SET_FLAG (select->flags, ZEBRA_FLAG_BACKUP_SELECTED);
+      if_update = 1;
+    }
+  }
+
+  if (!select) {
+    if_update = 1;
+  }
+
+  return if_update;
+}
+
+static int
+zfpm_if_dest_is_arp2host (rib_dest_t *dest)
+{
+  struct route_entry *rib;
+
+  RE_DEST_FOREACH_ROUTE (dest, rib)
+  {
+	if (CHECK_FLAG (rib->flags, ZEBRA_FLAG_BACKUP_SELECTED))
+	  return 1;
+
+	if (rib_if_arp2host_route(rib))
+	  return 1;
+  }
+
+  return 0;
+}
+
+#endif
+
+
+
 /*
  * Define an enum for return codes for queue processing functions
  *
@@ -987,6 +1084,20 @@ static int zfpm_build_route_updates(void)
 		data = fpm_msg_data(hdr);
 
 		re = zfpm_route_for_update(dest);
+
+#ifdef ARP2HOST_BACKUP
+        /*Select BGP route as the best route instead of arp2host route.*/
+        if ( rib_if_arp2host_route(re) ) {
+            zfpm_debug ("Select route is ARP2Host, select again.");
+            re = zfpm_route_for_update_exclude_arp2host(dest);
+            if (re && IS_ZEBRA_DEBUG_RIB) {
+                zfpm_debug ("Apart from ARP2HOST route, get new route %p", re);
+                route_entry_dump (&dest->rnode->p, NULL, re);
+            }
+        }
+#endif
+
+
 		is_add = re ? 1 : 0;
 
 		write_msg = 1;
@@ -1463,6 +1574,17 @@ static int zfpm_trigger_update(struct route_node *rn, const char *reason)
 		zfpm_g->stats.redundant_triggers++;
 		return 0;
 	}
+
+#ifdef ARP2HOST_BACKUP
+      if (zfpm_if_dest_is_arp2host(dest) &&
+          !zfpm_if_any_update_on_non_arp2host_route(dest))
+      {
+        zfpm_debug ("%s/%d is arp2host, no update on BGP, ignore it.",
+              inet_ntop (rn->p.family, &rn->p.u.prefix, buf, sizeof (buf)),
+              rn->p.prefixlen);
+        return 0;
+      }
+#endif
 
 	if (reason) {
 		zfpm_debug("%pFX triggering update to FPM - Reason: %s", &rn->p,

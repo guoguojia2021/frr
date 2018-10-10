@@ -98,6 +98,7 @@ printf <<EOF, $ARGV[0];
 #ifndef _FRR_ROUTE_TYPES_H
 #define _FRR_ROUTE_TYPES_H
 
+#define ARP2HOST_METRIC 999
 /* Zebra route's' types. */
 EOF
 

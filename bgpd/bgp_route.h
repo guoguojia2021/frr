@@ -280,6 +280,7 @@ struct bgp_path_info {
 	int lock;
 
 	/* BGP information status.  */
+
 	uint16_t flags;
 #define BGP_PATH_IGP_CHANGED (1 << 0)
 #define BGP_PATH_DAMPED (1 << 1)
@@ -297,6 +298,7 @@ struct bgp_path_info {
 #define BGP_PATH_RIB_ATTR_CHG (1 << 13)
 #define BGP_PATH_ANNC_NH_SELF (1 << 14)
 #define BGP_PATH_LINK_BW_CHG (1 << 15)
+#define BGP_PATH_BACKUP_SELECTED (1 << 16)
 
 	/* BGP route type.  This can be static, RIP, OSPF, BGP etc.  */
 	uint8_t type;
@@ -722,6 +724,10 @@ extern int bgp_withdraw(struct peer *peer, const struct prefix *p,
 			struct prefix_rd *prd, mpls_label_t *label,
 			uint32_t num_labels, struct bgp_route_evpn *evpn);
 
+#ifdef ARP2HOST_BACKUP
+extern int is_arp2host_route(struct bgp_info *binfo);
+#endif
+
 /* for bgp_nexthop and bgp_damp */
 extern void bgp_process(struct bgp *, struct bgp_dest *, afi_t, safi_t);
 
@@ -809,7 +815,7 @@ extern void bgp_attr_add_gshut_community(struct attr *attr);
 extern void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 			       struct bgp_maxpaths_cfg *mpath_cfg,
 			       struct bgp_path_info_pair *result, afi_t afi,
-			       safi_t safi);
+			       safi_t safi, int select_backup);
 extern void bgp_zebra_clear_route_change_flags(struct bgp_dest *dest);
 extern bool bgp_zebra_has_route_changed(struct bgp_path_info *selected);
 

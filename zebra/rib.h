@@ -489,6 +489,11 @@ extern void rib_unlink(struct route_node *rn, struct route_entry *re);
 extern int rib_gc_dest(struct route_node *rn);
 extern struct route_table *rib_tables_iter_next(rib_tables_iter_t *iter);
 
+#ifdef ARP2HOST_BACKUP
+extern int rib_if_arp2host_route(struct route_entry *i_rib);
+#endif
+
+
 extern uint8_t route_distance(int type);
 
 extern void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,

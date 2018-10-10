@@ -1802,6 +1802,12 @@ else
   WATCHFRR="watchfrr"
 fi
 
+if test "${enable_arp2host_backup}" = "yes"; then
+    AC_DEFINE(ARP2HOST_BACKUP,,ARP2HOST)
+fi
+
+
+
 OSPFCLIENT=""
 if test "$enable_ospfapi" != "no";then
     AC_DEFINE([SUPPORT_OSPF_API], [1], [OSPFAPI])
