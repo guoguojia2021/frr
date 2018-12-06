@@ -98,6 +98,11 @@ struct list *bgp_debug_update_prefixes = NULL;
 struct list *bgp_debug_bestpath_prefixes = NULL;
 struct list *bgp_debug_zebra_prefixes = NULL;
 
+/* alibaba begin */
+unsigned int conf_bgp_debug_update_strict;
+unsigned int term_bgp_debug_update_strict;
+/* alibaba end */
+
 /* messages for BGP-4 status */
 const struct message bgp_status_msg[] = {{Idle, "Idle"},
 					 {Connect, "Connect"},
@@ -1126,6 +1131,43 @@ DEFUN (debug_bgp_update,
 	}
 	return CMD_SUCCESS;
 }
+
+/* alibaba begin */
+DEFUN (debug_bgp_update_strict,
+       debug_bgp_update_strict_cmd,
+       "debug bgp updates strict",
+       DEBUG_STR
+       BGP_STR
+       "BGP updates\n"
+       "Strict match messages both in peers AND prefixes\n")
+{
+    if (vty->node == CONFIG_NODE) {
+        conf_bgp_debug_update_strict = 1;
+        term_bgp_debug_update_strict = 1;
+    } else {
+        term_bgp_debug_update_strict = 1;
+    }
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_bgp_update_strict,
+       no_debug_bgp_update_strict_cmd,
+       "no debug bgp updates strict",
+       NO_STR
+       DEBUG_STR
+       BGP_STR
+       "BGP updates\n"
+       "Strict match messages both in peers AND prefixes\n")
+{
+    if (vty->node == CONFIG_NODE) {
+        conf_bgp_debug_update_strict = 0;
+        term_bgp_debug_update_strict = 0;
+    } else {
+        term_bgp_debug_update_strict = 0;
+    }
+    return CMD_SUCCESS;
+}
+/* alibaba end */
 
 DEFUN (debug_bgp_update_direct,
        debug_bgp_update_direct_cmd,
@@ -2222,6 +2264,9 @@ DEFUN_NOSH (show_debugging_bgp,
 				     "  BGP updates debugging is on (outbound)",
 				     bgp_debug_update_out_peers);
 
+    if (term_bgp_debug_update_strict)
+        vty_out(vty, "  BGP updates debugging is strict");
+
 	if (BGP_DEBUG(zebra, ZEBRA))
 		bgp_debug_list_print(vty, "  BGP zebra debugging is on",
 				     bgp_debug_zebra_prefixes);
@@ -2390,7 +2435,15 @@ static int bgp_config_write_debug(struct vty *vty)
 		write++;
 	}
 
-	return write;
+
+    /* alibaba begin */
+    if (conf_bgp_debug_update_strict) {
+        vty_out(vty, "debug bgp updates strict\n");
+        write++;
+    }
+    /* alibaba end */
+
+    return write;
 }
 
 static int bgp_config_write_debug(struct vty *vty);
@@ -2437,6 +2490,14 @@ void bgp_debug_init(void)
 	install_element(CONFIG_NODE, &debug_bgp_update_direct_cmd);
 	install_element(ENABLE_NODE, &no_debug_bgp_update_direct_cmd);
 	install_element(CONFIG_NODE, &no_debug_bgp_update_direct_cmd);
+
+    /* alibaba begin */
+    /* debug bgp updates strict */
+    install_element(ENABLE_NODE, &debug_bgp_update_strict_cmd);
+    install_element(CONFIG_NODE, &debug_bgp_update_strict_cmd);
+    install_element(ENABLE_NODE, &no_debug_bgp_update_strict_cmd);
+    install_element(CONFIG_NODE, &no_debug_bgp_update_strict_cmd);
+    /* alibaba end */
 
 	/* debug bgp updates (in|out) A.B.C.D */
 	install_element(ENABLE_NODE, &debug_bgp_update_direct_peer_cmd);
@@ -2617,6 +2678,12 @@ bool bgp_debug_update(struct peer *peer, const struct prefix *p,
 {
 	char *host = NULL;
 
+    /* alibaba begin */
+    if (term_bgp_debug_update_strict) {
+        return bgp_debug_update_strict(peer, p, updgrp, inbound);
+    }
+    /* alibaba end */
+
 	if (peer)
 		host = peer->host;
 
@@ -2650,6 +2717,45 @@ bool bgp_debug_update(struct peer *peer, const struct prefix *p,
 
 	return false;
 }
+
+
+/* alibaba begin */
+int bgp_debug_update_strict(struct peer *peer, struct prefix *p,
+		     struct update_group *updgrp, unsigned int inbound)
+{
+	char *host = NULL;
+
+	if (peer)
+		host = peer->host;
+
+	if (inbound) {
+		if (!bgp_debug_per_peer(host, term_bgp_debug_update,
+				       BGP_DEBUG_UPDATE_IN,
+				       bgp_debug_update_in_peers))
+			return 0;
+	}
+
+	/* outbound */
+	else {
+		if (!bgp_debug_per_peer(host, term_bgp_debug_update,
+				       BGP_DEBUG_UPDATE_OUT,
+				       bgp_debug_update_out_peers) && 
+                !(updgrp && UPDGRP_DBG_ON(updgrp)))
+			return 0;
+
+	}
+
+
+	if (BGP_DEBUG(update, UPDATE_PREFIX)) {
+		if (!bgp_debug_per_prefix(p, term_bgp_debug_update,
+					 BGP_DEBUG_UPDATE_PREFIX,
+					 bgp_debug_update_prefixes))
+			return 0;
+	}
+
+	return 1;
+}
+/* alibaba end */
 
 bool bgp_debug_bestpath(struct bgp_dest *dest)
 {

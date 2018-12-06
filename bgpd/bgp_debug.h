@@ -107,6 +107,11 @@ extern struct list *bgp_debug_update_prefixes;
 extern struct list *bgp_debug_bestpath_prefixes;
 extern struct list *bgp_debug_zebra_prefixes;
 
+/* alibaba begin */
+unsigned int conf_bgp_debug_update_strict;
+unsigned int term_bgp_debug_update_strict;
+/* alibaba end */
+
 struct bgp_debug_filter {
 	char *host;
 	struct prefix *p;
@@ -185,6 +190,12 @@ extern const char *bgp_debug_rdpfxpath2str(
 	union prefixconstptr pu, mpls_label_t *label, uint32_t num_labels,
 	int addpath_valid, uint32_t addpath_id,
 	struct bgp_route_evpn *overlay_index, char *str, int size);
+
+/* alibaba begin */
+extern int bgp_debug_update_strict(struct peer *peer, struct prefix *p,
+			    struct update_group *updgrp, unsigned int inbound);
+/* alibaba end */
+
 const char *bgp_notify_admin_message(char *buf, size_t bufsz, uint8_t *data,
 				     size_t datalen);
 
