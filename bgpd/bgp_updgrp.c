@@ -1724,6 +1724,11 @@ int update_group_adjust_soloness(struct peer *peer, int set)
 		if (peer_established(peer))
 			bgp_announce_route_all(peer);
 	} else {
+		/*shoud set peer-group's flag so that its new binded member can inherit solo*/
+		if (set)
+			SET_FLAG(peer->flags, PEER_FLAG_LONESOUL);
+		else
+			UNSET_FLAG(peer->flags, PEER_FLAG_LONESOUL);
 		group = peer->group;
 		for (ALL_LIST_ELEMENTS(group->peer, node, nnode, peer)) {
 			peer_lonesoul_or_not(peer, set);
