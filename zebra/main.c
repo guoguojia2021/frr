@@ -80,7 +80,7 @@ bool v6_rr_semantics = false;
 
 /* Receive buffer size for kernel control sockets */
 #ifdef HAVE_NETLINK
-uint32_t rcvbufsize = 4194304;
+uint32_t rcvbufsize = 8388608;
 #else
 uint32_t rcvbufsize = 128 * 1024;
 #endif

@@ -793,18 +793,19 @@ static int netlink_recv_msg(const struct nlsock *nl, struct msghdr msg,
 
 	do {
 		status = recvmsg(nl->sock, &msg, 0);
-	} while (status == -1 && errno == EINTR);
+	} while (status == -1 && (errno == EINTR || errno == ENOBUFS));
 
 	if (status == -1) {
 		if (errno == EWOULDBLOCK || errno == EAGAIN)
 			return 0;
 		flog_err(EC_ZEBRA_RECVMSG_OVERRUN, "%s recvmsg overrun: %s",
 			 nl->name, safe_strerror(errno));
+		
 		/*
 		 * In this case we are screwed. There is no good way to recover
 		 * zebra at this point.
 		 */
-		exit(-1);
+		return -1;
 	}
 
 	if (status == 0) {
