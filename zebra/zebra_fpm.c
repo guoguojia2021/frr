@@ -952,6 +952,14 @@ zfpm_if_any_update_on_non_arp2host_route (rib_dest_t *dest)
   struct route_entry *rib;
   struct route_entry *select = NULL;
   int if_update = 0;
+  bool v6_host_route = false;
+
+  if (dest &&
+      dest->rnode &&
+      dest->rnode->p.family == AF_INET6 &&
+      dest->rnode->p.prefixlen == 128) {
+    v6_host_route = true;
+  }
 
   RE_DEST_FOREACH_ROUTE (dest, rib)
   {
@@ -979,6 +987,12 @@ zfpm_if_any_update_on_non_arp2host_route (rib_dest_t *dest)
       UNSET_FLAG (rib->flags, ZEBRA_FLAG_BACKUP_SELECTED);
       continue;
 	}
+
+    //Due to ASIC resource limitation, don't support v6 128 route
+    //selected as backup route.
+    if (v6_host_route) {
+      continue;
+    }
 
     select = rib;
     if (CHECK_FLAG(select->flags, ZEBRA_FLAG_BACKUP_SELECTED)) {
