@@ -412,7 +412,9 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 		}
 
         /* We may need to announce this prefix to our neighbors */
-        bgp_process_update_v4(bgp, &dest->p, 1);
+
+		/* We may need to announce this prefix to our neighbors */
+		bgp_process_update(bgp, &dest->p, AFI_IP, SAFI_UNICAST, 1);
 
 		for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
 			if (peer->conf_if
@@ -448,6 +450,8 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 			bc->refcnt = 1;
 			bgp_dest_set_bgp_connected_ref_info(dest, bc);
 		}
+
+		bgp_process_update(bgp, &dest->p, AFI_IP6, SAFI_UNICAST, 1);
 	}
 }
 
@@ -470,9 +474,6 @@ void bgp_connected_delete(struct bgp *bgp, struct connected *ifc)
 
 		dest = bgp_node_lookup(bgp->connected_table[AFI_IP], &p);
 
-		/* We may have to withdraw this prefix from our neighbors */
-		if (dest)
-			bgp_process_update_v4(bgp, &dest->p, 0);
 
 	} else if (addr->family == AF_INET6) {
 		if (IN6_IS_ADDR_UNSPECIFIED(&p.u.prefix6))
@@ -489,7 +490,10 @@ void bgp_connected_delete(struct bgp *bgp, struct connected *ifc)
 	if (!dest)
 		return;
 
+	/* We may have to withdraw this prefix from our neighbors */
+	bgp_process_update(bgp, &dest->p, family2afi(addr->family), SAFI_UNICAST, 0);
 	bc = bgp_dest_get_bgp_connected_ref_info(dest);
+
 	bc->refcnt--;
 	if (bc->refcnt == 0) {
 		XFREE(MTYPE_BGP_CONN, bc);

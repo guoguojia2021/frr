@@ -709,7 +709,7 @@ extern int bgp_static_set_safi(afi_t afi, safi_t safi, struct vty *vty,
 extern int bgp_static_unset_safi(afi_t afi, safi_t safi, struct vty *,
 				 const char *, const char *, const char *, int,
 				 const char *, const char *, const char *);
-extern void bgp_process_update_v4 (struct bgp *, struct prefix *, int);
+extern void bgp_process_update (struct bgp *, struct prefix *, afi_t, safi_t, int);
 
 /* this is primarily for MPLS-VPN */
 extern int bgp_update(struct peer *peer, const struct prefix *p,

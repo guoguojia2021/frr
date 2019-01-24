@@ -2097,6 +2097,19 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
                             p->prefixlen);
                 return 0;
             }
+        } else if (p->family == AF_INET6) {
+            dest = bgp_node_match_ipv6(bgp->connected_table[AFI_IP6], &p->u.prefix6);
+            if (dest) {
+                bgp_dest_unlock_node (dest);
+            } else {
+                if (bgp_debug_update(NULL, p, subgrp->update_group, 0)) {
+                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
+                            peer->host,
+                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+                            p->prefixlen);
+                }
+                return 0;
+            }
         }
     }
 
@@ -2446,17 +2459,13 @@ static int bgp_route_select_timer_expire(struct thread *thread)
 }
 
 void
-bgp_process_update_v4 (struct bgp *bgp, struct prefix *p, int add)
+bgp_process_update (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi, int add)
 {
   struct bgp_node *network_rn, *rn;
   struct bgp_path_info *pi;
   struct prefix *network_p;
-  afi_t afi;
-  safi_t safi;
   char buf[SU_ADDRSTRLEN];
 
-  afi = AFI_IP;
-  safi = SAFI_UNICAST;
   if (bgp == NULL) return;
 
   if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS)) {
@@ -2987,12 +2996,12 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			    afi_t afi, safi_t safi,
 			    struct bgp_path_info *new_select, struct bgp_path_info *old_select)
 {
-    struct prefix *p = &rn->p;
-    struct bgp_path_info *new_select_backup = NULL;
-    struct bgp_path_info *old_select_backup = NULL;
-    struct bgp_path_info_pair old_and_new_arp;
-    int goto_fib = 0;
-    int unset_later = 0;
+	struct prefix *p = &rn->p;
+	struct bgp_path_info *new_select_backup = NULL;
+	struct bgp_path_info *old_select_backup = NULL;
+	struct bgp_path_info_pair old_and_new_arp;
+	int goto_fib = 0;
+	int unset_later = 0;
 
 	if (old_select && old_select == new_select
 	    && !CHECK_FLAG(rn->flags, BGP_NODE_USER_CLEAR)
@@ -3031,117 +3040,111 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 		}
 
 		UNSET_FLAG(rn->flags, BGP_NODE_PROCESS_SCHEDULED);
-        /*If best route is active route and nothing changed, contine to check backup route for FIB.*/
-        zlog_debug("Old equal to new, it's arp2host, continue to fib.");
-        /*As no change on best route, do not announce peers.*/
-        goto_fib = 1;
-
+		/*If best route is active route and nothing changed, contine to check backup route for FIB.*/
+		zlog_debug("Old equal to new, it's arp2host, continue to fib.");
+		/*As no change on best route, do not announce peers.*/
+		goto_fib = 1;
 	}
 
 	/* If the user did "clear ip bgp prefix x.x.x.x" this flag will be set
 	 */
 	if (!goto_fib) {
-	    UNSET_FLAG(rn->flags, BGP_NODE_USER_CLEAR);
+		UNSET_FLAG(rn->flags, BGP_NODE_USER_CLEAR);
 
-	    /* bestpath has changed; bump version */
-    	if (old_select || new_select) {
-    		bgp_bump_version(rn);
+		/* bestpath has changed; bump version */
+		if (old_select || new_select) {
+			bgp_bump_version(rn);
 
-    		if (!bgp->t_rmap_def_originate_eval) {
-    			bgp_lock(bgp);
-    			thread_add_timer(
-    				bm->master,
-    				update_group_refresh_default_originate_route_map,
-    				bgp, RMAP_DEFAULT_ORIGINATE_EVAL_TIMER,
-    				&bgp->t_rmap_def_originate_eval);
-    		}
-    	}
-	    if (old_select)
-	    {
-            /*If it's active route acording to backup route, will do best_selection again in FIB processing.
-                    * so don't unset BGP_INFO_SELECTED to avoid deleting it by best_selection.*/
-            if ( CHECK_FLAG (old_select->flags, BGP_PATH_REMOVED) &&
-		 is_primary_route(old_select) ) {
-                zlog_debug("Avoid best_selection to del this rib, unset SELECTED later.");
-                unset_later = 1;
-            }
-            else {
-                bgp_path_info_unset_flag (rn, old_select, BGP_PATH_SELECTED);
-            }
-
-        }
-	    if (new_select) {
-		    bgp_path_info_set_flag(rn, new_select, BGP_PATH_SELECTED);
-		    bgp_path_info_unset_flag(rn, new_select, BGP_PATH_ATTR_CHANGED);
-		    UNSET_FLAG(new_select->flags, BGP_PATH_MULTIPATH_CHG);
-	    }
+			if (!bgp->t_rmap_def_originate_eval) {
+				bgp_lock(bgp);
+				thread_add_timer(
+						 bm->master,
+						 update_group_refresh_default_originate_route_map,
+						 bgp, RMAP_DEFAULT_ORIGINATE_EVAL_TIMER,
+						 &bgp->t_rmap_def_originate_eval);
+			}
+		}
+		if (old_select) {
+			/*If it's active route acording to backup route, will do best_selection again in FIB processing.
+			 * so don't unset BGP_INFO_SELECTED to avoid deleting it by best_selection.*/
+			if ( CHECK_FLAG (old_select->flags, BGP_PATH_REMOVED) &&
+			     is_primary_route(old_select) ) {
+				zlog_debug("Avoid best_selection to del this rib, unset SELECTED later.");
+				unset_later = 1;
+			} else {
+				bgp_path_info_unset_flag (rn, old_select, BGP_PATH_SELECTED);
+			}
+		}
+		if (new_select) {
+			bgp_path_info_set_flag(rn, new_select, BGP_PATH_SELECTED);
+			bgp_path_info_unset_flag(rn, new_select, BGP_PATH_ATTR_CHANGED);
+			UNSET_FLAG(new_select->flags, BGP_PATH_MULTIPATH_CHG);
+		}
 
 #if ENABLE_BGP_VNC
-    	if ((afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST)) {
-    		if (old_select != new_select) {
-    			if (old_select) {
-    				vnc_import_bgp_exterior_del_route(bgp, p,
-    								  old_select);
-    				vnc_import_bgp_del_route(bgp, p, old_select);
-    			}
-    			if (new_select) {
-    				vnc_import_bgp_exterior_add_route(bgp, p,
-    								  new_select);
-    				vnc_import_bgp_add_route(bgp, p, new_select);
-    			}
-    		}
-    	}
+		if ((afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST)) {
+			if (old_select != new_select) {
+				if (old_select) {
+					vnc_import_bgp_exterior_del_route(bgp, p,
+									  old_select);
+					vnc_import_bgp_del_route(bgp, p, old_select);
+				}
+				if (new_select) {
+					vnc_import_bgp_exterior_add_route(bgp, p,
+									  new_select);
+					vnc_import_bgp_add_route(bgp, p, new_select);
+				}
+			}
+		}
 #endif
 
-	    group_announce_route(bgp, afi, safi, rn, new_select);
+		group_announce_route(bgp, afi, safi, rn, new_select);
 
-	/* unicast routes must also be annouced to labeled-unicast update-groups
-	 */
-	    if (safi == SAFI_UNICAST)
-		    group_announce_route(bgp, afi, SAFI_LABELED_UNICAST, rn,
-		    		     new_select);
-    }
+		/* unicast routes must also be annouced to labeled-unicast update-groups
+		 */
+		if (safi == SAFI_UNICAST)
+			group_announce_route(bgp, afi, SAFI_LABELED_UNICAST, rn,
+					     new_select);
+	}
 	/* FIB update. */
 	if (bgp_fibupd_safi(safi) && (bgp->inst_type != BGP_INSTANCE_TYPE_VIEW)
 	    && !bgp_option_check(BGP_OPT_NO_FIB)) {
 
-        /*In order to set bgp route as backup route for arp2host route in FIB,
-        * ASIC sdk will generate arp2host route, so just select bgp route as the best route to FIB.*/
-        zlog_debug("FIB processing, best is ARP2Host, try to select backup route.");
-        bgp_best_selection (bgp, rn, &bgp->maxpaths[afi][safi], &old_and_new_arp, afi, safi, 1);
-        old_select_backup = old_and_new_arp.old;
-        new_select_backup = old_and_new_arp.new;
-        if (BGP_DEBUG (zebra, ZEBRA)) {
-            print_bgp_info(p, old_select_backup);
-            print_bgp_info(p, new_select_backup);
-        }
+		/*In order to set bgp route as backup route for arp2host route in FIB,
+		 * ASIC sdk will generate arp2host route, so just select bgp route as the best route to FIB.*/
+		zlog_debug("FIB processing, best is ARP2Host, try to select backup route.");
+		bgp_best_selection (bgp, rn, &bgp->maxpaths[afi][safi], &old_and_new_arp, afi, safi, 1);
+		old_select_backup = old_and_new_arp.old;
+		new_select_backup = old_and_new_arp.new;
+		if (BGP_DEBUG (zebra, ZEBRA)) {
+			print_bgp_info(p, old_select_backup);
+			print_bgp_info(p, new_select_backup);
+		}
 
-        if (old_select_backup && old_select_backup == new_select_backup) {
-            zlog_debug("old_select_backup equal to new_select_backup.");
-            if (CHECK_FLAG (old_select_backup->flags, BGP_PATH_IGP_CHANGED) ||
-                    CHECK_FLAG (old_select_backup->flags, BGP_PATH_MULTIPATH_CHG)) {
-                zlog_debug("old_select_backup has MULTIPATH_CHG, update to zebra.");
-                bgp_zebra_announce (rn, p, old_select_backup, bgp, afi, safi);
-            }
-            else {
-                zlog_debug("nothing to do");
-            }
-            UNSET_FLAG (old_select_backup->flags, BGP_PATH_MULTIPATH_CHG);
+		if (old_select_backup && old_select_backup == new_select_backup) {
+			zlog_debug("old_select_backup equal to new_select_backup.");
+			if (CHECK_FLAG (old_select_backup->flags, BGP_PATH_IGP_CHANGED) ||
+			    CHECK_FLAG (old_select_backup->flags, BGP_PATH_MULTIPATH_CHG)) {
+				zlog_debug("old_select_backup has MULTIPATH_CHG, update to zebra.");
+				bgp_zebra_announce (rn, p, old_select_backup, bgp, afi, safi);
+			} else {
+				zlog_debug("nothing to do");
+			}
+			UNSET_FLAG (old_select_backup->flags, BGP_PATH_MULTIPATH_CHG);
 
-            if (goto_fib) {
-                return;
-            }
-            goto end;
-        }
+			if (goto_fib) {
+				return;
+			}
+			goto end;
+		}
 
-        if (old_select_backup)
-            bgp_info_unset_flag (rn, old_select_backup, BGP_PATH_BACKUP_SELECTED);
-        if (new_select_backup) {
-            bgp_info_set_flag (rn, new_select_backup, BGP_PATH_BACKUP_SELECTED);
-            bgp_info_unset_flag (rn, new_select_backup, BGP_PATH_ATTR_CHANGED);
-            UNSET_FLAG (new_select_backup->flags, BGP_PATH_MULTIPATH_CHG);
-        }
-
+		if (old_select_backup)
+			bgp_path_info_unset_flag (rn, old_select_backup, BGP_PATH_BACKUP_SELECTED);
+		if (new_select_backup) {
+			bgp_path_info_set_flag (rn, new_select_backup, BGP_PATH_BACKUP_SELECTED);
+			bgp_path_info_unset_flag (rn, new_select_backup, BGP_PATH_ATTR_CHANGED);
+			UNSET_FLAG (new_select_backup->flags, BGP_PATH_MULTIPATH_CHG);
+		}
 
 		if (new_select_backup && new_select_backup->type == ZEBRA_ROUTE_BGP
 		    && (new_select_backup->sub_type == BGP_ROUTE_NORMAL
@@ -3157,32 +3160,30 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	}
 
 end:
-    if(!goto_fib){
-    	/* advertise/withdraw type-5 routes */
-    	if ((afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST)) {
-    		if (new_select)
-    			bgp_evpn_advertise_type5_route(bgp, &rn->p, new_select->attr, afi, safi);
-    		else if (old_select)
-    			bgp_evpn_withdraw_type5_route(bgp, &rn->p, afi, safi);
-    	}
-    }
+	if(!goto_fib){
+		/* advertise/withdraw type-5 routes */
+		if ((afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST)) {
+			if (new_select)
+				bgp_evpn_advertise_type5_route(bgp, &rn->p, new_select->attr, afi, safi);
+			else if (old_select)
+				bgp_evpn_withdraw_type5_route(bgp, &rn->p, afi, safi);
+		}
+	}
 	/* Clear any route change flags. */
 	bgp_zebra_clear_route_change_flags(rn);
-    if (unset_later && old_select) {
-        bgp_path_info_unset_flag (rn, old_select, BGP_PATH_SELECTED);
-    }
-
+	if (unset_later && old_select) {
+		bgp_path_info_unset_flag (rn, old_select, BGP_PATH_SELECTED);
+	}
 
 	/* Reap old select bgp_info, if it has been removed */
 	if (old_select && CHECK_FLAG(old_select->flags, BGP_PATH_REMOVED)&& old_select->lock > 0)
 		bgp_info_reap(rn, old_select);
 
-    if (old_select_backup
+	if (old_select_backup
             && old_select_backup != old_select
             && CHECK_FLAG (old_select_backup->flags, BGP_PATH_REMOVED)
             && old_select_backup->lock > 0)
-        bgp_info_reap (rn, old_select_backup);
-
+		bgp_info_reap (rn, old_select_backup);
 
 	UNSET_FLAG(rn->flags, BGP_NODE_PROCESS_SCHEDULED);
 	return;
