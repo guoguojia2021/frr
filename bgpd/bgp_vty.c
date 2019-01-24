@@ -19442,12 +19442,16 @@ static const char *community_list_config_str(struct community_entry *entry)
 	return str;
 }
 
-static void community_list_show(struct vty *vty, struct community_list *list)
+static void community_list_show(struct vty *vty, struct community_list *list, u_char use_json, json_object *cl_json)
 {
 	struct community_entry *entry;
+	char buf[128];
+	json_object *action_arr = json_object_new_array();
+	json_object *rule = json_object_new_object();
 
 	for (entry = list->head; entry; entry = entry->next) {
-		if (entry == list->head) {
+
+		if (!use_json && entry == list->head) {
 			if (all_digit(list->name))
 				vty_out(vty, "Community %s list %s\n",
 					entry->style == COMMUNITY_LIST_STANDARD
@@ -19461,22 +19465,42 @@ static void community_list_show(struct vty *vty, struct community_list *list)
 						: "expanded",
 					list->name);
 		}
-		if (entry->any)
-			vty_out(vty, "    %s\n",
-				community_direct_str(entry->direct));
-		else
-			vty_out(vty, "    %s %s\n",
-				community_direct_str(entry->direct),
-				community_list_config_str(entry));
+		if (entry->any) {
+			if (use_json) {
+				json_object *r = json_object_new_string(community_direct_str(entry->direct));
+				json_object_array_add(action_arr, r);
+			} else {
+				vty_out(vty, "    %s\n",
+					community_direct_str(entry->direct));
+			}
+		} else {
+			if (use_json) {
+				sprintf(buf, "%s %s", community_direct_str(entry->direct),
+					                                        entry->style == COMMUNITY_LIST_STANDARD
+					? community_str(entry->u.com, false)
+					: entry->config);
+				json_object *r = json_object_new_string(buf);
+				json_object_array_add(action_arr, r);
+
+			} else {
+				vty_out(vty, "    %s %s\n",
+					community_direct_str(entry->direct),
+					community_list_config_str(entry));
+			}
+		}
 	}
+
+	json_object_object_add(rule, "rule", action_arr);
+	json_object_object_add(cl_json, list->name, rule);
 }
 
 DEFUN (show_community_list,
        show_bgp_community_list_cmd,
-       "show bgp community-list",
+       "show bgp community-list [json]",
        SHOW_STR
        BGP_STR
-       "List community-list\n")
+       "List community-list\n"
+       JSON_STR)
 {
 	struct community_list *list;
 	struct community_list_master *cm;
@@ -19485,36 +19509,63 @@ DEFUN (show_community_list,
 	if (!cm)
 		return CMD_SUCCESS;
 
+	u_char is_json = use_json(argc, argv);
+	json_object *cl_json = json_object_new_object();
+	json_object *lists_json = json_object_new_object();
+
 	for (list = cm->num.head; list; list = list->next)
-		community_list_show(vty, list);
+		community_list_show(vty, list, is_json, cl_json);
 
 	for (list = cm->str.head; list; list = list->next)
-		community_list_show(vty, list);
+		community_list_show(vty, list, is_json, cl_json);
+
+	json_object_object_add(lists_json, "COMMUNITY_LIST", cl_json);
+
+	if (is_json)
+		vty_out(vty, "%s\n", json_object_to_json_string_ext(lists_json, JSON_C_TO_STRING_PRETTY));
+
+	json_object_free(lists_json);
 
 	return CMD_SUCCESS;
 }
 
 DEFUN (show_community_list_arg,
        show_bgp_community_list_arg_cmd,
-       "show bgp community-list <(1-500)|COMMUNITY_LIST_NAME> detail",
+       "show bgp community-list <(1-500)|COMMUNITY_LIST_NAME> detail [json]",
        SHOW_STR
        BGP_STR
        "List community-list\n"
        "Community-list number\n"
        "Community-list name\n"
-       "Detailed information on community-list\n")
+       "Detailed information on community-list\n"
+       JSON_STR)
 {
 	int idx_comm_list = 3;
 	struct community_list *list;
+	u_char is_json = use_json(argc, argv);
 
 	list = community_list_lookup(bgp_clist, argv[idx_comm_list]->arg, 0,
 				     COMMUNITY_LIST_MASTER);
 	if (!list) {
-		vty_out(vty, "%% Can't find community-list\n");
+		if (is_json) {
+			vty_out(vty, " { %% Can't find community-list }\n");
+		} else {
+			vty_out(vty, "%% Can't find community-list\n");
+		}
 		return CMD_WARNING;
 	}
 
-	community_list_show(vty, list);
+	json_object *cl_json = json_object_new_object();
+	json_object *lists_json = json_object_new_object();
+
+	community_list_show(vty, list, is_json, cl_json);
+
+	json_object_object_add(lists_json, "COMMUNITY_LIST", cl_json);
+
+	if (is_json)
+		vty_out(vty, "%s\n", json_object_to_json_string_ext(lists_json, JSON_C_TO_STRING_PRETTY));
+
+	json_object_free(lists_json);
 
 	return CMD_SUCCESS;
 }
