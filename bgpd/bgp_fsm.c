@@ -1480,7 +1480,8 @@ int bgp_stop(struct peer *peer)
 			       BGP_FLAG_LOG_NEIGHBOR_CHANGES)) {
 			struct vrf *vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
 
-			zlog_info(
+
+			zlog_warn(
 				"%%ADJCHANGE: neighbor %s(%s) in vrf %s Down %s",
 				peer->host,
 				(peer->hostname) ? peer->hostname : "Unknown",
@@ -2192,12 +2193,14 @@ static int bgp_establish(struct peer *peer)
 	/* bgp log-neighbor-changes of neighbor Up */
 	if (CHECK_FLAG(peer->bgp->flags, BGP_FLAG_LOG_NEIGHBOR_CHANGES)) {
 		struct vrf *vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
-		zlog_info(
-			"%%ADJCHANGE: neighbor %s(%s) in vrf %s Up", peer->host,
-			(peer->hostname) ? peer->hostname : "Unknown",
-			vrf ? ((vrf->vrf_id != VRF_DEFAULT) ? vrf->name
-							    : VRF_DEFAULT_NAME)
-			    : "");
+
+		zlog_warn("%%ADJCHANGE: neighbor %s(%s) in vrf %s Up",
+			  peer->host,
+			  (peer->hostname) ? peer->hostname : "Unknown",
+			  vrf ? ((vrf->vrf_id != VRF_DEFAULT)
+					? vrf->name
+					: VRF_DEFAULT_NAME)
+			      : "");
 	}
 	/* assign update-group/subgroup */
 	update_group_adjust_peer_afs(peer);
