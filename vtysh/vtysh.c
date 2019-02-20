@@ -3229,24 +3229,27 @@ DEFUN (vtysh_write_terminal,
 {
 	unsigned int i;
 	char line[] = "do write terminal\n";
+	u_char is_json = use_json(argc, argv);
 
 	if (!strcmp(argv[argc - 1]->arg, "no-header"))
 		argc--;
 	else {
-		vty_out(vty, "Building configuration...\n");
-		vty_out(vty, "\nCurrent configuration:\n");
-		vty_out(vty, "!\n");
+		if (!is_json) {
+			vty_out(vty, "Building configuration...\n");
+			vty_out(vty, "\nCurrent configuration:\n");
+			vty_out(vty, "!\n");
+		}
 	}
 
 	for (i = 0; i < array_size(vtysh_client); i++)
-		if ((argc < 3)
+		if ((argc < 3 || (argc == 3 && strmatch(argv[2]->text, "json")))
 		    || (strmatch(vtysh_client[i].name, argv[2]->text)))
 			vtysh_client_config(&vtysh_client[i], line);
 
 	/* Integrate vtysh specific configuration. */
 	vty_open_pager(vty);
 	vtysh_config_write();
-	vtysh_config_dump();
+	vtysh_config_dump(is_json);
 	vty_close_pager(vty);
 	vty_out(vty, "end\n");
 
@@ -3255,11 +3258,12 @@ DEFUN (vtysh_write_terminal,
 
 DEFUN (vtysh_show_running_config,
        vtysh_show_running_config_cmd,
-       "show running-config ["DAEMONS_LIST"] [no-header]",
+       "show running-config ["DAEMONS_LIST"] [no-header] [json]",
        SHOW_STR
        "Current operating configuration\n"
        DAEMONS_STR
-       "Skip \"Building configuration...\" header\n")
+       "Skip \"Building configuration...\" header\n"
+       JSON_STR)
 {
 	return vtysh_write_terminal(self, vty, argc, argv);
 }
@@ -3339,7 +3343,7 @@ int vtysh_write_config_integrated(void)
 	vtysh_config_write();
 	vty->of_saved = vty->of;
 	vty->of = fp;
-	vtysh_config_dump();
+	vtysh_config_dump(false);
 	vty->of = vty->of_saved;
 
 	if (fchmod(fd, CONFIGFILE_MASK) != 0) {

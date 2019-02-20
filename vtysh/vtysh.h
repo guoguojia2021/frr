@@ -21,6 +21,7 @@
 #ifndef VTYSH_H
 #define VTYSH_H
 
+#include "json.h"
 #include "memory.h"
 DECLARE_MGROUP(MVTYSH);
 
@@ -99,12 +100,14 @@ int vtysh_write_config_integrated(void);
 
 void vtysh_config_parse_line(void *, const char *);
 
-void vtysh_config_dump(void);
+void vtysh_config_dump(u_char);
 
 void vtysh_config_init(void);
 
 void suid_on(void);
 void suid_off(void);
+
+json_object* vtysh_config_dump_nested_json_objs(struct listnode **, int);
 
 /* Child process execution flag. */
 extern int execute_flag;

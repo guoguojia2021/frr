@@ -31,6 +31,8 @@
 DEFINE_MGROUP(MVTYSH, "vtysh");
 DEFINE_MTYPE_STATIC(MVTYSH, VTYSH_CONFIG, "Vtysh configuration");
 DEFINE_MTYPE_STATIC(MVTYSH, VTYSH_CONFIG_LINE, "Vtysh configuration line");
+#include "json.h"
+
 
 vector configvec;
 
@@ -507,20 +509,90 @@ void vtysh_config_parse_line(void *arg, const char *line)
 	 || (I) == RMAP_DEBUG_NODE || (I) == RESOLVER_DEBUG_NODE               \
 	 || (I) == MPLS_NODE || (I) == KEYCHAIN_KEY_NODE)
 
-static void configvec_dump(vector vec, bool nested)
+/* list stores a group of cmds under the root cmd,
+ * for example, 
+ * root_cmd
+ *  layer11_cmd
+ *  layer12_cmd
+ *   layer21_cmd
+ *   layer22_cmd
+ *  layer13_cmd
+ * above root_cmd has three direct sub cmd and two non-direct sub cmd
+ * those two non-direct sub cmds are direct cmds of the layer12_cmd
+ *
+ * in the list, root_cmd is the head, layer1x_cmd and layer2x_cmd are stored as next listnodes
+ * in memory, like this, "root_cmd"->" layer11_cmd"->" layer12_cmd"->"  layer21_cmd"->"  layer22_cmd"->" layer13_cmd"
+ *
+ * for showing, vtysh is using heading spaces to tell which is root, which is at layer1 or layer2
+ * to keep the same layer struct for json output, we use those heading spaces to tell which layer that cmd belongs to.
+ * since all the sub cmds are in one list, we have to use recursion to handle next layer of cmds first and come back to
+ * use the return value as current layer element 
+ * we are using pointer's pointer to make sure after each return of recursion, the processed node will no be processed
+ * again  
+ */
+json_object* vtysh_config_dump_nested_json_objs(struct listnode **node, int layer)
+{
+	char *cur_line = NULL, *last_line = NULL;
+	json_object *jelems = NULL;
+	while (*node != NULL && ((cur_line) = listgetdata(*node))) {
+		int len = strlen(cur_line);
+		int sp_cnt = 0;
+		json_object *jelem = NULL;
+
+		if (NULL == jelems) {
+			jelems = json_object_new_object();
+		}
+
+		while (sp_cnt < len && isspace(cur_line[sp_cnt])) {
+			sp_cnt++;
+		}
+
+		if (cur_line[sp_cnt] == '!') {
+			*node = (*node)->next;
+			continue;
+		}
+
+		if (sp_cnt > layer) {
+			jelem = vtysh_config_dump_nested_json_objs(node, layer + 1);
+			if (last_line) {
+				json_object_object_add(jelems, last_line, jelem);
+				last_line = NULL;
+			}
+		} else if (sp_cnt <= layer) {
+			if (last_line) {
+				json_object_boolean_true_add(jelems, last_line);
+			}
+			if (sp_cnt < layer) {
+				return jelems;
+			} else {
+				last_line = cur_line + sp_cnt;
+				*node = (*node)->next;
+			}
+		}
+	}
+	if (last_line) {
+		json_object_boolean_true_add(jelems, last_line);
+	}
+	return jelems;
+}
+
+/* Display configuration to file pointer. */
+static void configvec_dump(vector vec, bool nested, u_char use_json, struct json_object *jall)
 {
 	struct listnode *mnode, *mnnode;
 	struct config *config;
 	struct configuration *configuration;
 	char *line;
 	unsigned int i;
+	char key[128];
 
-	for (i = 0; i < vector_active(vec); i++)
+	for (i = 0; i < vector_active(vec); i++) {
 		if ((configuration = vector_slot(vec, i)) != NULL) {
 			while ((config = config_master_pop(
 					&configuration->master))) {
 				config_master_hash_del(
 					&configuration->hash_master, config);
+
 				/* Don't print empty sections for interface.
 				 * Route maps on the
 				 * other hand could have a legitimate empty
@@ -537,20 +609,41 @@ static void configvec_dump(vector vec, bool nested)
 					continue;
 				}
 
-				vty_out(vty, "%s\n", config->name);
+				json_object *jelems = NULL;
+				if (use_json) {
+					sprintf(key, "%s", config->name);
+				} else {
+					vty_out(vty, "%s\n", config->name);
+				}
+				if (use_json) {
+					mnode = listhead(config->line);
+					jelems = vtysh_config_dump_nested_json_objs(&mnode, 1);
+				} else {
+					for (ALL_LIST_ELEMENTS(config->line, mnode,
+								mnnode, line))
+						vty_out(vty, "%s\n", line);
+				}
+				configvec_dump(config->nested, true, use_json, jall);
 
-				for (ALL_LIST_ELEMENTS(config->line, mnode,
-						       mnnode, line))
-					vty_out(vty, "%s\n", line);
+				if (!use_json) {
+					if (config->exit)
+						vty_out(vty, "%s\n", config->exit);
+				}
 
-				configvec_dump(config->nested, true);
+				if (use_json) {
+					if (jelems) {
+						json_object_object_add(jall, key, jelems);
+						jelems = NULL;
+					} else {
+						json_object_boolean_true_add(jall, key);
+					}
+				}
 
-				if (config->exit)
-					vty_out(vty, "%s\n", config->exit);
-
-				if (!NO_DELIMITER(i))
-					vty_out(vty, "!\n");
-
+				if (!NO_DELIMITER(i)) {
+					if (!use_json) {
+						vty_out(vty, "!\n");
+					}
+				}
 				config_del(config);
 			}
 			config_master_fini(&configuration->master);
@@ -558,23 +651,42 @@ static void configvec_dump(vector vec, bool nested)
 			XFREE(MTYPE_VTYSH_CONFIG, configuration);
 			vector_slot(vec, i) = NULL;
 			if (!nested && NO_DELIMITER(i))
-				vty_out(vty, "!\n");
+				if (!use_json) 
+					vty_out(vty, "!\n");
 		}
+	}
 }
 
-void vtysh_config_dump(void)
+void vtysh_config_dump(u_char use_json)
 {
 	struct listnode *node, *nnode;
 	char *line;
+	json_object *jall = NULL;
 
-	for (ALL_LIST_ELEMENTS(config_top, node, nnode, line))
-		vty_out(vty, "%s\n", line);
+	if (use_json) {
+		jall = json_object_new_object();
+	}
 
+	for (ALL_LIST_ELEMENTS(config_top, node, nnode, line)) {
+		if (use_json) {
+			json_object_boolean_true_add(jall, line);
+		} else {
+			vty_out(vty, "%s\n", line);
+		}
+
+	}
 	list_delete_all_node(config_top);
 
-	vty_out(vty, "!\n");
+	if (!use_json) {
+		vty_out(vty, "!\n");
+	}
 
-	configvec_dump(configvec, false);
+	configvec_dump(configvec, false, use_json, jall);
+
+	if (use_json) {
+		vty_out(vty, "%s\n", json_object_to_json_string_ext(jall, JSON_C_TO_STRING_PRETTY));
+		json_object_free(jall);
+	}
 }
 
 /* Read up configuration file from file_name. */
