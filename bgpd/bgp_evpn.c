@@ -4402,6 +4402,9 @@ void bgp_evpn_withdraw_type5_route(struct bgp *bgp_vrf, const struct prefix *p,
 	int ret = 0;
 	struct prefix_evpn evp;
 
+	if (!advertise_type5_routes(bgp_vrf, afi))
+		return;
+
 	build_type5_prefix_from_ip_prefix(&evp, p);
 	ret = delete_evpn_type5_route(bgp_vrf, &evp);
 	if (ret)
