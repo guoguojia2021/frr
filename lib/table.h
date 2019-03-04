@@ -74,6 +74,10 @@ struct route_table {
 
 	unsigned long count;
 
+	/*add max downloaded fib threshold: route counts that send to fpm succeed*/
+	unsigned long sent_fib_count;
+	/*add max downloaded fib threshold: routes pending counts because of exceeding threshold*/
+	unsigned long pending_fib_count;
 	/*
 	 * User data.
 	 */

@@ -82,6 +82,7 @@ struct rnh {
 };
 
 #define DISTANCE_INFINITY  255
+#define ZEBRA_TABLE_FIB_MAX		51200 /*FIB max threshold for each table*/
 #define ZEBRA_KERNEL_TABLE_MAX 252 /* support for no more than this rt tables */
 
 PREDECL_LIST(re_list);
@@ -257,6 +258,11 @@ DECLARE_LIST(re_list, struct route_entry, next);
 
 #define RIB_DEST_UPDATE_LSPS   (1 << (ZEBRA_MAX_QINDEX + 3))
 
+/*
+* This flag is set when dest num sent to fpm exceeds threshold:
+* zebra_table_fib_max
+*/
+#define RIB_DEST_PENDING_FPM	(1 << (ZEBRA_MAX_QINDEX + 4))
 /*
  * Macro to iterate over each route for a destination (prefix).
  */

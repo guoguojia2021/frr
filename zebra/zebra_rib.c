@@ -852,7 +852,27 @@ int rib_if_arp2host_route(struct route_entry *i_rib)
 static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 				struct route_entry *new)
 {
-	hook_call(rib_update, rn, "new route selected");
+	rib_dest_t *dest = rib_dest_from_rnode(rn);
+	struct route_table *  table = srcdest_rnode_table(rn);
+	if (IS_ZEBRA_DEBUG_RIB_DETAILED){
+		char buf[SRCDEST2STR_BUFFER];
+		srcdest_rnode2str(rn, buf, sizeof(buf));
+		zlog_debug("%u:%s: rib_process_add_fib rn %p", zvrf_id(zvrf), buf, rn);
+	}
+	if (table->sent_fib_count < ZEBRA_TABLE_FIB_MAX)
+	{
+		(table->sent_fib_count)++;
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("sent_fib_count < ZEBRA_TABLE_FIB_MAX, add: %lu %lu",table->sent_fib_count,table->pending_fib_count);
+		UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+		hook_call(rib_update, rn, "new route selected");
+	}
+	else
+	{
+		(table->pending_fib_count)++;
+		zlog_crit("sent_fib_count >= ZEBRA_TABLE_FIB_MAX, pending: %lu %lu",table->sent_fib_count,table->pending_fib_count);
+		SET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+	}
 
 	/* Update real nexthop. This may actually determine if nexthop is active
 	 * or not. */
@@ -878,6 +898,14 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 				struct route_entry *old)
 {
+
+	rib_dest_t *dest = rib_dest_from_rnode(rn);
+	struct route_table * table = srcdest_rnode_table(rn);
+	if (IS_ZEBRA_DEBUG_RIB_DETAILED){
+		char buf[SRCDEST2STR_BUFFER];
+		srcdest_rnode2str(rn, buf, sizeof(buf));
+		zlog_debug("%u:%s: rib_process_del_fib rn %p", zvrf_id(zvrf), buf, rn);
+	}
 	hook_call(rib_update, rn, "removing existing route");
 
 	/* Uninstall from kernel. */
@@ -901,6 +929,17 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		SET_FLAG(old->status, ROUTE_ENTRY_REMOVED);
 	else
 		UNSET_FLAG(old->status, ROUTE_ENTRY_CHANGED);
+
+	if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
+		(table->pending_fib_count)--;
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("deleting pending fib, decrease pending_fib_count: %lu %lu",table->sent_fib_count,table->pending_fib_count);
+		UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+	} else {
+		(table->sent_fib_count)--;
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("deleting sent fib, decrease sent_fib_count: %lu %lu",table->sent_fib_count,table->pending_fib_count);
+	}
 }
 
 static void rib_process_update_fib(struct zebra_vrf *zvrf,
@@ -910,24 +949,29 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 {
 	int nh_active = 0;
 
+	if (IS_ZEBRA_DEBUG_RIB_DETAILED){
+		char buf[SRCDEST2STR_BUFFER];
+		srcdest_rnode2str(rn, buf, sizeof(buf));
+		zlog_debug("%u:%s: rib_process_update_fib rn %p", zvrf_id(zvrf), buf, rn);
+	}
+
 	/*
 	 * We have to install or update if a new route has been selected or
 	 * something has changed.
 	 */
-	if (new == old)
-	{
+	if (new == old) {
+
 #ifdef ARP2HOST_BACKUP
-        //select route has no change, but backup route maybe have changed.
-        if (rib_if_arp2host_route(new)) {
-            if (IS_ZEBRA_DEBUG_RIB)
-                rnode_debug (rn, zvrf_id(zvrf), "Select==fib is arp2host, trigger update.");
-                hook_call(rib_update, rn, "updating existing arp2host route");
-        }
+		//select route has no change, but backup route maybe have changed.
+		if (rib_if_arp2host_route(new)) {
+			if (IS_ZEBRA_DEBUG_RIB)
+				rnode_debug (rn, zvrf_id(zvrf), "Select==fib is arp2host, trigger update.");
+			hook_call(rib_update, rn, "updating existing arp2host route");
+		}
 #endif
 	}
 	if (new != old || CHECK_FLAG(new->status, ROUTE_ENTRY_CHANGED)) {
 		hook_call(rib_update, rn, "updating existing route");
-
 		/* Update the nexthop; we could determine here that nexthop is
 		 * inactive. */
 		if (nexthop_group_active_nexthop_num(&(new->nhe->nhg)))
@@ -1291,6 +1335,43 @@ static void rib_process(struct route_node *rn)
 	 * fib == selected */
 	bool selected_changed = new_selected && CHECK_FLAG(new_selected->status,
 							   ROUTE_ENTRY_CHANGED);
+
+	/* Update fib according to selection results */
+	struct route_table * table = srcdest_rnode_table(rn);
+	struct rib_table_info *info = srcdest_rnode_table_info(rn);
+	if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+		zlog_debug("table:%p, afi: %d, safi: %d, sent_fib_count: %lu , pending_fib_count: %lu ",table,(int)(info->afi),(int)(info->safi), table->sent_fib_count,table->pending_fib_count);
+
+	//handle the pending rn, trigger them to fpm if not exceeds threshold
+	struct route_node * it_rn;
+	rib_dest_t * it_dest;
+	//only release pending fib to fpm when there is pending fib and sent_fib_count not exceed threshold
+	if((table->pending_fib_count>0) && ((table->pending_fib_count + table->sent_fib_count) <= ZEBRA_TABLE_FIB_MAX))
+	{
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("release all pending routes");
+		for (it_rn = route_top(table); it_rn; it_rn = srcdest_route_next(it_rn))
+		{
+			if(!(it_rn->info))
+				continue;
+			it_dest = rib_dest_from_rnode(it_rn);
+			if(!it_dest)
+				continue;
+			if(CHECK_FLAG(it_dest->flags,RIB_DEST_PENDING_FPM))
+			{
+				if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+					zlog_debug("handle pending rn %p", it_rn);
+				UNSET_FLAG(it_dest->flags,RIB_DEST_PENDING_FPM);
+				table->pending_fib_count--;
+				table->sent_fib_count++;
+				hook_call(rib_update, it_rn, "pending route release to fpm");
+				if((table->pending_fib_count==0)||(table->sent_fib_count>=ZEBRA_TABLE_FIB_MAX))
+					break;
+			}
+		}
+		zlog_notice("after handle all pending routes, sent_fib_count: %lu , pending_fib_count: %lu ",table->sent_fib_count,table->pending_fib_count);
+	}
+
 
 	/* Update SELECTED entry */
 	if (old_selected != new_selected || selected_changed) {

@@ -1583,9 +1583,15 @@ static int zfpm_trigger_update(struct route_node *rn, const char *reason)
 		return 0;
 
 	dest = rib_dest_from_rnode(rn);
-
+	zfpm_debug("Reason: %s", reason);
 	if (CHECK_FLAG(dest->flags, RIB_DEST_UPDATE_FPM)) {
+		zfpm_debug("redundant_triggers, return");
 		zfpm_g->stats.redundant_triggers++;
+		return 0;
+	}
+	if (CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM))
+	{
+		zfpm_debug("pending because of threshold");
 		return 0;
 	}
 
