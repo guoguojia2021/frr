@@ -936,6 +936,7 @@ void _thread_add_read_write(const struct xref_threadsched *xref,
 	int dir = xref->thread_type;
 	struct thread *thread = NULL;
 	struct thread **thread_array;
+	bool new_fd = true;
 
 	if (dir == THREAD_READ)
 		frrtrace(9, frr_libfrr, schedule_read, m,
@@ -977,12 +978,20 @@ void _thread_add_read_write(const struct xref_threadsched *xref,
 				if (thread_array[fd])
 					assert(!"Thread already scheduled for file descriptor");
 #endif
+
+				new_fd = false;
 				break;
 			}
 
 		/* make sure we have room for this fd + pipe poker fd */
 		assert(queuepos + 1 < m->handler.pfdsize);
-
+		
+		if (new_fd)
+		{
+			m->handler.pfds[queuepos].events = 0x00;
+			m->handler.pfds[queuepos].revents = 0x00;
+		}
+		
 		thread = thread_get(m, dir, func, arg, xref);
 
 		m->handler.pfds[queuepos].fd = fd;
