@@ -5914,7 +5914,11 @@ static void bgp_cleanup_table(struct bgp *bgp, struct bgp_table *table,
 				bgp_evpn_unimport_route(bgp, AFI_L2VPN,
 							SAFI_EVPN, p, pi);
 
+#ifdef ARP2HOST_BACKUP
+			if ((CHECK_FLAG(ri->flags, BGP_PATH_SELECTED) || CHECK_FLAG(ri->flags, BGP_PATH_BACKUP_SELECTED)))
+#else
 			if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED)
+#endif
 			    && pi->type == ZEBRA_ROUTE_BGP
 			    && (pi->sub_type == BGP_ROUTE_NORMAL
 				|| pi->sub_type == BGP_ROUTE_AGGREGATE
