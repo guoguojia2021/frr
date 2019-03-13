@@ -11296,6 +11296,36 @@ const char *get_afi_safi_str(afi_t afi, safi_t safi, bool for_json)
 		return get_afi_safi_vty_str(afi, safi);
 }
 
+/* `show [ipv6] bgp summary' commands. */
+DEFUN (show_ipv6_bgp_summary,
+       show_ipv6_bgp_summary_cmd,
+       "show ipv6 bgp [<view|vrf> VIEWVRFNAME] ["BGP_SAFI_WITH_LABEL_CMD_STR"] summary [json]",
+       SHOW_STR
+       IPV6_STR
+       BGP_STR
+       BGP_INSTANCE_HELP_STR
+       BGP_SAFI_WITH_LABEL_HELP_STR
+       "Summary of BGP neighbor status\n"
+       JSON_STR)
+{
+	char *vrf = NULL;
+	afi_t afi = AFI_IP6;
+	safi_t safi = SAFI_MAX;
+
+	int idx = 0;
+
+	/* [<view|vrf> VIEWVRFNAME] */
+	if (argv_find(argv, argc, "view", &idx)
+	    || argv_find(argv, argc, "vrf", &idx))
+		vrf = argv[++idx]->arg;
+	/* ["BGP_SAFI_CMD_STR"] */
+	argv_find_and_parse_safi(argv, argc, &idx, &safi);
+
+	int uj = use_json(argc, argv);
+
+	return bgp_show_summary_vty(vty, vrf, afi, safi, uj);
+}
+
 
 static void bgp_show_peer_afi_orf_cap(struct vty *vty, struct peer *p,
 				      afi_t afi, safi_t safi,
@@ -19018,6 +19048,7 @@ void bgp_vty_init(void)
 	install_element(VIEW_NODE, &show_bgp_updgrps_stats_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_instance_updgrps_adj_s_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_summary_cmd);
+	install_element(VIEW_NODE, &show_ipv6_bgp_summary_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_updgrps_cmd);
 
 	/* "show [ip] bgp neighbors" commands. */
