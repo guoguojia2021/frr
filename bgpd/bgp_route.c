@@ -4245,6 +4245,15 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 
 	new_attr = *attr;
 
+	/*set ipv6 next-hop prefer-global by default,
+	 * TODO: add set ipv6 next-hop prefer-local command*/
+	if(peer->su_remote && sockunion_family(peer->su_remote) == AF_INET6)
+	{
+		if(bgp_debug_update(peer, p, NULL, 1))
+			zlog_debug("%s: set ipv6 next-hop prefer-global by default", peer->host);
+		new_attr.mp_nexthop_prefer_global = TRUE;
+	}
+
 	/* Apply incoming route-map.
 	 * NB: new_attr may now contain newly allocated values from route-map
 	 * "set"
