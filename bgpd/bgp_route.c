@@ -4252,6 +4252,8 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		if(bgp_debug_update(peer, p, NULL, 1))
 			zlog_debug("%s: set ipv6 next-hop prefer-global by default", peer->host);
 		new_attr.mp_nexthop_prefer_global = TRUE;
+		SET_FLAG(new_attr.rmap_change_flags,
+			BATTR_RMAP_IPV6_PREFER_GLOBAL_CHANGED);
 	}
 
 	/* Apply incoming route-map.
