@@ -71,6 +71,9 @@ struct thread_master *master;
 /* Route retain mode flag. */
 int retain_mode = 0;
 
+/* BGP Route preserve mode flag. */
+int preserve_bgp = 0;
+
 /* Allow non-frr entities to delete frr routes */
 int allow_delete = 0;
 
@@ -97,6 +100,7 @@ const struct option longopts[] = {
 	{"retain", no_argument, NULL, 'r'},
 	{"graceful_restart", required_argument, NULL, 'K'},
 	{"asic-offload", optional_argument, NULL, OPTION_ASIC_OFFLOAD},
+	{"preserve_bgp", no_argument, NULL, 'p'},
 #ifdef HAVE_NETLINK
 	{"vrfwnetns", no_argument, NULL, 'n'},
 	{"nl-bufsize", required_argument, NULL, 's'},
@@ -296,7 +300,7 @@ int main(int argc, char **argv)
 	frr_preinit(&zebra_di, argc, argv);
 
 	frr_opt_add(
-		"baz:e:rK:s:"
+		"baz:e:rKp:s:"
 #ifdef HAVE_NETLINK
 		"n"
 #endif
@@ -309,6 +313,7 @@ int main(int argc, char **argv)
 		"  -r, --retain             When program terminates, retain added route by zebra.\n"
 		"  -K, --graceful_restart   Graceful restart at the kernel level, timer in seconds for expiration\n"
 		"  -A, --asic-offload       FRR is interacting with an asic underneath the linux kernel\n"
+		"  -p, --preserve_bgp When bgp client is down, preserve routes added by bgp.\n"
 #ifdef HAVE_NETLINK
 		"  -s, --nl-bufsize         Set netlink receive buffer size\n"
 		"  -n, --vrfwnetns          Use NetNS as VRF backend\n"
@@ -363,10 +368,13 @@ int main(int argc, char **argv)
 		case 'K':
 			graceful_restart = atoi(optarg);
 			break;
+		case 'p':
+			preserve_bgp = 1;
+			break;
+#ifdef HAVE_NETLINK
 		case 's':
 			rcvbufsize = atoi(optarg);
 			break;
-#ifdef HAVE_NETLINK
 		case 'n':
 			vrf_configure_backend(VRF_BACKEND_NETNS);
 			break;

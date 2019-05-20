@@ -68,6 +68,9 @@
 /* privileges */
 extern struct zebra_privs_t zserv_privs;
 
+/* BGP Route preserve mode flag. */
+extern int preserve_bgp;
+
 /* The listener socket for clients connecting to us */
 static int zsock;
 
@@ -593,25 +596,30 @@ static void zserv_client_free(struct zserv *client)
 		unsigned long nnhgs;
 
 		close(client->sock);
+        if (DYNAMIC_CLIENT_GR_DISABLED(client)) {
+            if(preserve_bgp && client->proto == ZEBRA_ROUTE_BGP) {
+                zlog_notice(
+                    "client %d disconnected. Don't remove %s routes with preserve_bgp enabled",
+                    client->sock, zebra_route_string(client->proto));
+            } else {
+                zebra_mpls_client_cleanup_vrf_label(client->proto);
 
-		if (DYNAMIC_CLIENT_GR_DISABLED(client)) {
-			zebra_mpls_client_cleanup_vrf_label(client->proto);
+                nroutes = rib_score_proto(client->proto,
+                                client->instance);
+                zlog_notice(
+                    "client %d disconnected %lu %s routes removed from the rib",
+                    client->sock, nroutes,
+                    zebra_route_string(client->proto));
 
-			nroutes = rib_score_proto(client->proto,
-						  client->instance);
-			zlog_notice(
-				"client %d disconnected %lu %s routes removed from the rib",
-				client->sock, nroutes,
-				zebra_route_string(client->proto));
-
-			/* Not worrying about instance for now */
-			nnhgs = zebra_nhg_score_proto(client->proto);
-			zlog_notice(
-				"client %d disconnected %lu %s nhgs removed from the rib",
-				client->sock, nnhgs,
-				zebra_route_string(client->proto));
-		}
-		client->sock = -1;
+                /* Not worrying about instance for now */
+                nnhgs = zebra_nhg_score_proto(client->proto);
+                zlog_notice(
+                    "client %d disconnected %lu %s nhgs removed from the rib",
+                    client->sock, nnhgs,
+                    zebra_route_string(client->proto));
+            }
+        }
+        client->sock = -1;
 	}
 
 	/* Free stream buffers. */
