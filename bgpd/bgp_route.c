@@ -2522,7 +2522,8 @@ int is_arp2host_route(struct bgp_path_info *binfo)
     if (b_attr && (aspath_count_hops (b_attr->aspath) == 0)) {
       //ARP2Host route has metric 999
       if ( (b_attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) &&
-           (b_attr->med == ARP2HOST_METRIC ) )
+           (b_attr->med == ARP2HOST_METRIC ) &&
+           (0 == b_attr->nexthop.s_addr))
         return 1;
     }
   }
