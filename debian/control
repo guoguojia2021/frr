@@ -126,3 +126,15 @@ Description: FRRouting suite - Python tools
  .
  Without this package installed, "reload" (as a systemd or init script
  invocation) will not work for the FRR daemons.
+
+Package: frr-dbg
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, frr (= ${binary:Version})
+Priority: extra
+Section: debug
+Description: BGP/OSPF/RIP/RIPng/ISIS/PIM/LDP routing daemon (debug symbols)
+ This package provides debugging symbols for all binary packages built
+ from frr source package. It's highly recommended to have this package
+ installed before reporting any FRR crashes to either FRR developers or
+ Debian
+

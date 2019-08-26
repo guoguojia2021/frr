@@ -2322,7 +2322,16 @@ done_with_match:
 					__func__);
 
 			return resolved;
-		} else {
+		} 
+		#ifdef ARP2HOST_BACKUP
+				else if (type == ZEBRA_ROUTE_BGP &&
+					match->type == ZEBRA_ROUTE_KERNEL &&
+					match->metric == ARP2HOST_METRIC) {
+					zlog_debug("Nexthop of BGP route match ARP2HOST route, ignore it.");
+					return 1;
+				}
+		#endif
+		else {
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED) {
 				zlog_debug(
 					"        %s: Route Type %s has not turned on recursion",

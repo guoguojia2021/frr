@@ -287,7 +287,14 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
 		ri->nlmsg_pid = zvrf->zns->netlink_dplane_out.snl.nl_pid;
 
 	ri->nlmsg_type = cmd;
-	ri->rtm_table = table_info->table_id;
+	/*
+	 * Revert above code temporarily until
+	 * tableid is supported by sonic fpmsyncd
+	 * See FRR #4365, SONIC #15, and #3280, #3704
+	 * for more details, aloha
+	 */
+	ri->rtm_table = zvrf_id(rib_dest_vrf(dest));
+
 	ri->rtm_protocol = RTPROT_UNSPEC;
 
 	/*

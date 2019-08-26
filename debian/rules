@@ -51,6 +51,7 @@ override_dh_auto_configure:
 		--enable-doc-html \
 		--enable-snmp \
 		--enable-fpm \
+	  --enable-arp2host-backup=yes \
 		--disable-protobuf \
 		--disable-zeromq \
 		--enable-ospfapi \

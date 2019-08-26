@@ -2689,7 +2689,8 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 		cmd = RTM_NEWROUTE;
 	} else if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_UPDATE) {
 
-		if (p->family == AF_INET || v6_rr_semantics) {
+		if ((p->family == AF_INET || v6_rr_semantics) &&
+		    (!RSYSTEM_ROUTE(dplane_ctx_get_type(ctx)))) {
 			/* Single 'replace' operation */
 
 			/*

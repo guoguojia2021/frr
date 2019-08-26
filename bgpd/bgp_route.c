@@ -2599,7 +2599,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 				continue;
 			if (BGP_PATH_HOLDDOWN(pi1))
 				continue;
-			if (pi1->peer != bgp->peer_self)
+			if (pi1->peer && (pi1->peer != bgp->peer_self))
 				if (!peer_established(pi1->peer))
 					continue;
 
@@ -2611,7 +2611,8 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 						continue;
 					if (BGP_PATH_HOLDDOWN(pi2))
 						continue;
-					if (pi2->peer != bgp->peer_self
+					if (pi2->peer
+					    && (pi2->peer != bgp->peer_self)
 					    && !CHECK_FLAG(
 						    pi2->peer->sflags,
 						    PEER_STATUS_NSF_WAIT))
@@ -2666,10 +2667,11 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 	for (pi = bgp_dest_get_bgp_path_info(dest);
 		(pi != NULL) && (nextpi = pi->next, 1); pi = nextpi) {
 		 enum bgp_path_selection_reason reason;
+
 #ifdef ARP2HOST_BACKUP
 		if(select_backup) {
-		    if (CHECK_FLAG (pi->flags, BGP_PATH_BACKUP_SELECTED))
-			old_select = pi;
+			if (CHECK_FLAG (pi->flags, BGP_PATH_BACKUP_SELECTED))
+				old_select = pi;
 		} else {
 #endif
 			if (CHECK_FLAG (pi->flags, BGP_PATH_SELECTED))
@@ -2680,11 +2682,11 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 			/* reap REMOVED routes, if needs be
 			 * selected route must stay for a while longer though
 			 */
-			if (CHECK_FLAG (pi->flags, BGP_INFO_REMOVED)
+			if (CHECK_FLAG (pi->flags, BGP_PATH_REMOVED)
 			    && (pi != old_select)
 			    && !CHECK_FLAG (pi->flags, BGP_PATH_SELECTED)
 			    && !CHECK_FLAG (pi->flags, BGP_PATH_BACKUP_SELECTED)) {
-				bgp_info_reap (rn, pi);
+				bgp_path_info_reap (dest, pi);
 			}
 
 			continue;
@@ -3178,13 +3180,13 @@ end:
 
 	/* Reap old select bgp_info, if it has been removed */
 	if (old_select && CHECK_FLAG(old_select->flags, BGP_PATH_REMOVED)&& old_select->lock > 0)
-		bgp_info_reap(rn, old_select);
+		bgp_path_info_reap(rn, old_select);
 
 	if (old_select_backup
             && old_select_backup != old_select
             && CHECK_FLAG (old_select_backup->flags, BGP_PATH_REMOVED)
             && old_select_backup->lock > 0)
-		bgp_info_reap (rn, old_select_backup);
+		bgp_path_info_reap (rn, old_select_backup);
 
 	UNSET_FLAG(rn->flags, BGP_NODE_PROCESS_SCHEDULED);
 	return;
@@ -5927,7 +5929,8 @@ static void bgp_cleanup_table(struct bgp *bgp, struct bgp_table *table,
 							SAFI_EVPN, p, pi);
 
 #ifdef ARP2HOST_BACKUP
-			if ((CHECK_FLAG(ri->flags, BGP_PATH_SELECTED) || CHECK_FLAG(ri->flags, BGP_PATH_BACKUP_SELECTED)))
+			if ((CHECK_FLAG(pi->flags, BGP_PATH_SELECTED) ||
+			     CHECK_FLAG(pi->flags, BGP_PATH_BACKUP_SELECTED))
 #else
 			if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED)
 #endif

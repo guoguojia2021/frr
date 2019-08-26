@@ -11299,13 +11299,14 @@ const char *get_afi_safi_str(afi_t afi, safi_t safi, bool for_json)
 /* `show [ipv6] bgp summary' commands. */
 DEFUN (show_ipv6_bgp_summary,
        show_ipv6_bgp_summary_cmd,
-       "show ipv6 bgp [<view|vrf> VIEWVRFNAME] ["BGP_SAFI_WITH_LABEL_CMD_STR"] summary [json]",
+       "show ipv6 bgp [<view|vrf> VIEWVRFNAME] ["BGP_SAFI_WITH_LABEL_CMD_STR"] summary [failed] [json]",
        SHOW_STR
        IPV6_STR
        BGP_STR
        BGP_INSTANCE_HELP_STR
        BGP_SAFI_WITH_LABEL_HELP_STR
        "Summary of BGP neighbor status\n"
+       "Show only sessions not in Established state\n"
        JSON_STR)
 {
     char *vrf = NULL;
@@ -11314,6 +11315,7 @@ DEFUN (show_ipv6_bgp_summary,
     char *neighbor = NULL;
     as_t as = 0; /* 0 means AS filter not set */
     int as_type = AS_UNSPECIFIED;
+	uint8_t show_flags = 0;
 
     int idx = 0;
 
@@ -11324,9 +11326,13 @@ DEFUN (show_ipv6_bgp_summary,
     /* ["BGP_SAFI_CMD_STR"] */
     argv_find_and_parse_safi(argv, argc, &idx, &safi);
 
-    int uj = use_json(argc, argv);
+	if (argv_find(argv, argc, "failed", &idx))
+		SET_FLAG(show_flags, BGP_SHOW_OPT_FAILED);
 
-    return bgp_show_summary_vty(vty, vrf, afi, safi, neighbor, as_type, as, uj);
+	if (argv_find(argv, argc, "json", &idx))
+		SET_FLAG(show_flags, BGP_SHOW_OPT_JSON);
+
+    return bgp_show_summary_vty(vty, vrf, afi, safi, neighbor, as_type, as, show_flags);
 }
 
 

@@ -983,7 +983,7 @@ zfpm_if_any_update_on_non_arp2host_route (rib_dest_t *dest)
 	}
 
 	if (CHECK_FLAG (rib->status, ROUTE_ENTRY_REMOVED) ||
-	    rib->nexthop_active_num == 0) {
+	    nexthop_group_active_nexthop_num(&(rib->nhe->nhg)) == 0) {
       UNSET_FLAG (rib->flags, ZEBRA_FLAG_BACKUP_SELECTED);
       continue;
 	}
@@ -1574,6 +1574,7 @@ static inline int zfpm_conn_is_up(void)
 static int zfpm_trigger_update(struct route_node *rn, const char *reason)
 {
 	rib_dest_t *dest;
+	char buf[PREFIX_STRLEN];
 
 	/*
 	 * Ignore if the connection is down. We will update the FPM about

@@ -725,7 +725,7 @@ extern int bgp_withdraw(struct peer *peer, const struct prefix *p,
 			uint32_t num_labels, struct bgp_route_evpn *evpn);
 
 #ifdef ARP2HOST_BACKUP
-extern int is_arp2host_route(struct bgp_info *binfo);
+extern int is_arp2host_route(struct bgp_path_info *binfo);
 #endif
 
 /* for bgp_nexthop and bgp_damp */

@@ -3942,9 +3942,9 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 	if ((peer->t_adv_lprio &&
 	     !(CHECK_FLAG(peer->af_cap[afi][safi], PEER_CAP_RESTART_AF_PRESERVE_RCV))) ||
 	    (bgp && CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY))) {
-		adv_lprio = 1;
-		if (BGP_DEBUG (update, UPDATE_OUT)) {
-			zlog_debug ("Advertise routes to %s with low priority",
+			adv_lprio = 1;
+			if (BGP_DEBUG (update, UPDATE_OUT)) {
+				zlog_debug ("Advertise routes to %s with low priority",
 				    peer->host);
 		}
 	}
