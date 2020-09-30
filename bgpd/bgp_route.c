@@ -2523,7 +2523,15 @@ int is_arp2host_route(struct bgp_path_info *binfo)
       //ARP2Host route has metric 999
       if ( (b_attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) &&
            (b_attr->med == ARP2HOST_METRIC ) &&
-           (0 == b_attr->nexthop.s_addr))
+           (0 == b_attr->nexthop.s_addr) &&
+           (0 == b_attr->mp_nexthop_global.s6_addr32[0]) &&
+           (0 == b_attr->mp_nexthop_global.s6_addr32[1]) &&
+           (0 == b_attr->mp_nexthop_global.s6_addr32[2]) &&
+           (0 == b_attr->mp_nexthop_global.s6_addr32[3]) &&
+           (0 == b_attr->mp_nexthop_local.s6_addr32[0]) &&
+           (0 == b_attr->mp_nexthop_local.s6_addr32[1]) &&
+           (0 == b_attr->mp_nexthop_local.s6_addr32[2]) &&
+           (0 == b_attr->mp_nexthop_local.s6_addr32[3]))
         return 1;
     }
   }
