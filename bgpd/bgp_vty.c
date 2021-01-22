@@ -14763,7 +14763,7 @@ static int bgp_show_route_leak_vty(struct vty *vty, const char *name,
 		}
 
 		/* Provide context for the block */
-		json_object_string_add(json, "vrf", name ? name : "default");
+		json_object_string_add(json, "vrf", name ? name : "Default");
 		json_object_string_add(json, "afiSafi",
 				       get_afi_safi_str(afi, safi, true));
 

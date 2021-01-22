@@ -36,8 +36,9 @@
 #include "northbound.h"
 #include "northbound_cli.h"
 
-/* default VRF name value used when VRF backend is not NETNS */
-#define VRF_DEFAULT_NAME_INTERNAL "default"
+
+/* default VRF ID value used when VRF backend is not NETNS */
+#define VRF_DEFAULT_NAME_INTERNAL "Default"
 
 DEFINE_MTYPE_STATIC(LIB, VRF, "VRF");
 DEFINE_MTYPE_STATIC(LIB, VRF_BITMAP, "VRF bit-map");
