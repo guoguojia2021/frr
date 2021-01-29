@@ -1732,8 +1732,7 @@ static void bgp_peer_as_override(struct bgp *bgp, afi_t afi, safi_t safi,
 {
 	if (peer->sort == BGP_PEER_EBGP
 	    && peer_af_flag_check(peer, afi, safi, PEER_FLAG_AS_OVERRIDE)) {
-		if (aspath_single_asn_check(attr->aspath, peer->as))
-			attr->aspath = aspath_replace_specific_asn(
+		attr->aspath = aspath_replace_specific_asn(
 				attr->aspath, peer->as, bgp->as);
 	}
 }
