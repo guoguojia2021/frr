@@ -15187,6 +15187,7 @@ DEFPY(show_ip_bgp_instance_updgrps_adj_s,
       "Packet queue\n")
 {
 	uint64_t subgrp_id = 0;
+	int idx = 0;
 	afi_t afiz;
 	safi_t safiz;
 	if (sgid)
@@ -15207,7 +15208,14 @@ DEFPY(show_ip_bgp_instance_updgrps_adj_s,
 	}
 
 	safiz = safi ? bgp_vty_safi_from_str(safi) : SAFI_UNICAST;
-
+	if (argv_find(argv, argc, "vrf", &idx)) {
+		char *vrfname;
+		vrfname = argv[idx + 1]->arg;
+		if (vrfname && strmatch(vrfname, VRF_DEFAULT_NAME)){
+			show_bgp_updgrps_adj_info_aux(vty, NULL, afiz, safiz, rtq, subgrp_id);
+			return CMD_SUCCESS;
+		}
+	}
 	show_bgp_updgrps_adj_info_aux(vty, vrf, afiz, safiz, rtq, subgrp_id);
 	return CMD_SUCCESS;
 }
