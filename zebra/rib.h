@@ -82,7 +82,6 @@ struct rnh {
 };
 
 #define DISTANCE_INFINITY  255
-#define ZEBRA_TABLE_FIB_MAX		51200 /*FIB max threshold for each table*/
 #define ZEBRA_KERNEL_TABLE_MAX 252 /* support for no more than this rt tables */
 
 PREDECL_LIST(re_list);

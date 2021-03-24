@@ -79,6 +79,7 @@ DEFINE_HOOK(rib_update, (struct route_node * rn, const char *reason),
 
 /* Should we allow non FRR processes to delete our routes */
 extern int allow_delete;
+extern int ZEBRA_TABLE_FIB_MAX;
 
 /* Each route type's string and default distance value. */
 static const struct {
