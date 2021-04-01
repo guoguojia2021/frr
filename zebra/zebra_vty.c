@@ -569,7 +569,8 @@ static void show_nexthop_detail_helper(struct vty *vty,
 		vty_out(vty, ", label %s",
 			mpls_label2str(nexthop->nh_label->num_labels,
 				       nexthop->nh_label->label, buf,
-				       sizeof(buf), 1 /*pretty*/));
+				       sizeof(buf), nexthop->nh_label_type,
+				       1 /*pretty*/));
 	}
 
     if (nexthop->nh_srv6) {
@@ -934,7 +935,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 		vty_out(vty, ", label %s",
 			mpls_label2str(nexthop->nh_label->num_labels,
 				       nexthop->nh_label->label, buf,
-				       sizeof(buf), 1));
+				       sizeof(buf), nexthop->nh_label_type, 1));
 	}
 
 	if (nexthop->nh_srv6) {
