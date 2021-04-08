@@ -303,7 +303,7 @@ int main(int argc, char **argv)
 	frr_preinit(&zebra_di, argc, argv);
 
 	frr_opt_add(
-		"bLaz:e:rKp:s:"
+		"bLpaz:e:rK:s:"
 #ifdef HAVE_NETLINK
 		"n"
 #endif
