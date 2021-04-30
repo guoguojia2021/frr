@@ -1196,6 +1196,9 @@ struct peer_connection {
 	struct stream_fifo *obuf; // packets waiting to be written
 
 	struct ringbuf *ibuf_work; // WiP buffer used by bgp_read() only
+
+	struct thread *t_read;
+	struct thread *t_write;
 };
 extern void bgp_peer_connection_buffers_free(struct peer_connection *connection);
 
@@ -1572,8 +1575,6 @@ struct peer {
 	_Atomic uint32_t v_gr_restart;
 
 	/* Threads. */
-	struct thread *t_read;
-	struct thread *t_write;
 	struct thread *t_start;
 	struct thread *t_connect_check_r;
 	struct thread *t_connect_check_w;
