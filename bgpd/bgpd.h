@@ -1183,6 +1183,8 @@ struct packet_queue {
 	time_t pkt_time[PACKET_QUEUE_MAXSIZE];
 };
 struct peer_connection {
+	struct peer *peer;
+
 	int fd;
 
 	/* Packet receive and send buffer. */
