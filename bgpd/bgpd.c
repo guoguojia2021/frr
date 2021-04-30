@@ -1200,8 +1200,8 @@ static void peer_free(struct peer *peer)
 	 * but just to be sure..
 	 */
 	bgp_timer_set(peer);
-	bgp_reads_off(peer);
-	bgp_writes_off(peer);
+	bgp_reads_off(&peer->connection);
+	bgp_writes_off(&peer->connection);
 	assert(!peer->t_write);
 	assert(!peer->t_read);
 	BGP_EVENT_FLUSH(peer);
@@ -2566,8 +2566,8 @@ int peer_delete(struct peer *peer)
 	bgp_soft_reconfig_table_task_cancel(bgp, NULL, peer);
 
 	bgp_keepalives_off(peer);
-	bgp_reads_off(peer);
-	bgp_writes_off(peer);
+	bgp_reads_off(&peer->connection);
+	bgp_writes_off(&peer->connection);
 	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON));
 	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_READS_ON));
 	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_KEEPALIVES_ON));
@@ -2696,8 +2696,8 @@ int peer_quick_delete(struct peer *peer)
 	bgp = peer->bgp;
 	accept_peer = CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
 
-	bgp_reads_off(peer);
-	bgp_writes_off(peer);
+	bgp_reads_off(&peer->connection);
+	bgp_writes_off(&peer->connection);
 	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON));
 	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_READS_ON));
 

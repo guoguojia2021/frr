@@ -170,10 +170,10 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 			   from_peer->host, from_peer, from_peer->connection.fd,
 			   peer, peer->connection.fd);
 
-	bgp_writes_off(peer);
-	bgp_reads_off(peer);
-	bgp_writes_off(from_peer);
-	bgp_reads_off(from_peer);
+	bgp_writes_off(&peer->connection);
+	bgp_reads_off(&peer->connection);
+	bgp_writes_off(&from_peer->connection);
+	bgp_reads_off(&from_peer->connection);
 
 	/*
 	 * Before exchanging FD remove doppelganger from
@@ -354,10 +354,10 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	if (from_peer)
 		bgp_replace_nexthop_by_peer(from_peer, peer);
 
-	bgp_reads_on(peer);
-	bgp_writes_on(peer);
-	thread_add_event(bm->master, bgp_process_packet, peer, 0,
-			 &peer->t_process_packet);
+	bgp_reads_on(&peer->connection);
+	bgp_writes_on(&peer->connection);
+	thread_add_event(bm->master, bgp_process_packet, &peer->connection, 0,
+			&peer->t_process_packet);
 
 	return (peer);
 }
@@ -1869,8 +1869,8 @@ int bgp_stop(struct peer *peer)
 	bgp_keepalives_off(peer);
 
 	/* Stop read and write threads. */
-	bgp_writes_off(peer);
-	bgp_reads_off(peer);
+	bgp_writes_off(&peer->connection);
+	bgp_reads_off(&peer->connection);
 
 	THREAD_OFF(peer->t_connect_check_r);
 	THREAD_OFF(peer->t_connect_check_w);
@@ -2078,11 +2078,11 @@ static int bgp_connect_success(struct peer *peer)
 			     __func__, peer->host, peer->connection.fd);
 		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(peer->status));
-		bgp_writes_on(peer);
+		bgp_writes_on(&peer->connection);
 		return -1;
 	}
 
-	bgp_reads_on(peer);
+	bgp_reads_on(&peer->connection);
 
 	if (bgp_debug_neighbor_events(peer)) {
 		if (!CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER))
@@ -2116,11 +2116,11 @@ static int bgp_connect_success_w_delayopen(struct peer *peer)
 			     __func__, peer->host, peer->connection.fd);
 		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(peer->status));
-		bgp_writes_on(peer);
+		bgp_writes_on(&peer->connection);
 		return -1;
 	}
 
-	bgp_reads_on(peer);
+	bgp_reads_on(&peer->connection);
 
 	if (bgp_debug_neighbor_events(peer)) {
 		if (!CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER))
