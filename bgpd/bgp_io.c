@@ -52,6 +52,7 @@ static bool validate_header(struct peer *);
 /* generic i/o status codes */
 #define BGP_IO_TRANS_ERR (1 << 0) // EAGAIN or similar occurred
 #define BGP_IO_FATAL_ERR (1 << 1) // some kind of fatal TCP error
+#define BGP_IO_WORK_FULL_ERR (1 << 2) /* No room in work buffer */
 
 /* Thread external API ----------------------------------------------------- */
 
@@ -61,15 +62,15 @@ void bgp_writes_on(struct peer *peer)
 	assert(fpt->running);
 
 	assert(peer->status != Deleted);
-	assert(peer->obuf);
-	assert(peer->ibuf);
-	assert(peer->ibuf_work);
+	assert(peer->connection.obuf);
+	assert(peer->connection.ibuf);
+	assert(peer->connection.ibuf_work);
 	assert(!peer->t_connect_check_r);
 	assert(!peer->t_connect_check_w);
-	assert(peer->fd);
+	assert(peer->connection.fd);
 
-	thread_add_write(fpt->master, bgp_process_writes, peer, peer->fd,
-			 &peer->t_write);
+	thread_add_write(fpt->master, bgp_process_writes, peer,
+			peer->connection.fd, &peer->t_write);
 	SET_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON);
 }
 
@@ -90,16 +91,16 @@ void bgp_reads_on(struct peer *peer)
 	assert(fpt->running);
 
 	assert(peer->status != Deleted);
-	assert(peer->ibuf);
-	assert(peer->fd);
-	assert(peer->ibuf_work);
-	assert(peer->obuf);
+	assert(peer->connection.ibuf);
+	assert(peer->connection.fd);
+	assert(peer->connection.ibuf_work);
+	assert(peer->connection.obuf);
 	assert(!peer->t_connect_check_r);
 	assert(!peer->t_connect_check_w);
-	assert(peer->fd);
+	assert(peer->connection.fd);
 
-	thread_add_read(fpt->master, bgp_process_reads, peer, peer->fd,
-			&peer->t_read);
+	thread_add_read(fpt->master, bgp_process_reads, peer,
+		       peer->connection.fd, &peer->t_read);
 
 	SET_FLAG(peer->thread_flags, PEER_THREAD_READS_ON);
 }
@@ -129,15 +130,14 @@ static int bgp_process_writes(struct thread *thread)
 	bool reschedule;
 	bool fatal = false;
 
-	if (peer->fd < 0)
+	if (peer->connection.fd < 0)
 		return -1;
 
 	struct frr_pthread *fpt = bgp_pth_io;
 
-	frr_with_mutex(&peer->io_mtx) {
+	frr_with_mutex (&peer->connection.io_mtx) {
 		status = bgp_write(peer);
-		reschedule = (stream_fifo_head(peer->obuf) != NULL ||
-				stream_fifo_head(peer->obuf_hprio));
+		reschedule = (stream_fifo_head(peer->connection.obuf) != NULL);
 	}
 
 	/* no problem */
@@ -157,7 +157,7 @@ static int bgp_process_writes(struct thread *thread)
 	 */
 	if (reschedule) {
 		thread_add_write(fpt->master, bgp_process_writes, peer,
-				 peer->fd, &peer->t_write);
+				peer->connection.fd, &peer->t_write);
 	} else if (!fatal) {
 		BGP_UPDATE_GROUP_TIMER_ON(&peer->t_generate_updgrp_packets,
 					  bgp_generate_updgrp_packets);
@@ -165,33 +165,33 @@ static int bgp_process_writes(struct thread *thread)
 
 	return 0;
 }
-
 /*
  * Called from I/O pthread when a file descriptor has become ready for reading,
  * or has hung up.
  *
  * We read as much data as possible, process as many packets as we can and
- * place them on peer->ibuf for secondary processing by the main thread.
+ * place them on peer->connection.ibuf for secondary processing by the main
+ * thread.
  */
 static int bgp_process_reads(struct thread *thread)
 {
 	/* clang-format off */
-	static struct peer *peer;	// peer to read from
-	uint16_t status;		// bgp_read status code
+	static struct peer *peer;       /* peer to read from */
+	uint16_t status;                /* bgp_read status code */
 	bool more = true;		// whether we got more data
-	bool fatal = false;		// whether fatal error occurred
-	bool added_pkt = false;		// whether we pushed onto ->ibuf
-	int code = 0;			// FSM code if error occurred
+	bool fatal = false;             /* whether fatal error occurred */
+	bool added_pkt = false;         /* whether we pushed onto ->connection.ibuf */
+	int code = 0;                   /* FSM code if error occurred */
 	/* clang-format on */
 
 	peer = THREAD_ARG(thread);
 
-	if (peer->fd < 0 || bm->terminating)
+	if (bm->terminating || peer->connection.fd < 0)
 		return -1;
 
 	struct frr_pthread *fpt = bgp_pth_io;
 
-	frr_with_mutex(&peer->io_mtx) {
+	frr_with_mutex (&peer->connection.io_mtx) {
 		status = bgp_read(peer, &code);
 	}
 
@@ -216,7 +216,7 @@ static int bgp_process_reads(struct thread *thread)
 	while (more) {
 		/* static buffer for transferring packets */
 		/* shorter alias to peer's input buffer */
-		struct ringbuf *ibw = peer->ibuf_work;
+		struct ringbuf *ibw = peer->connection.ibuf_work;
 		/* packet size as given by header */
 		uint16_t pktsize = 0;
 
@@ -250,8 +250,8 @@ static int bgp_process_reads(struct thread *thread)
 			stream_set_endp(pkt, pktsize);
 
 			frrtrace(2, frr_bgp, packet_read, peer, pkt);
-			frr_with_mutex(&peer->io_mtx) {
-				stream_fifo_push(peer->ibuf, pkt);
+			frr_with_mutex(&peer->connection.io_mtx) {
+				stream_fifo_push(peer->connection.ibuf, pkt);
 			}
 
 			added_pkt = true;
@@ -262,11 +262,11 @@ static int bgp_process_reads(struct thread *thread)
 	/* handle invalid header */
 	if (fatal) {
 		/* wipe buffer just in case someone screwed up */
-		ringbuf_wipe(peer->ibuf_work);
+		ringbuf_wipe(peer->connection.ibuf_work);
 	} else {
-		assert(ringbuf_space(peer->ibuf_work) >= peer->max_packet_size);
+		assert(ringbuf_space(peer->connection.ibuf_work) >= peer->max_packet_size);
 
-		thread_add_read(fpt->master, bgp_process_reads, peer, peer->fd,
+		thread_add_read(fpt->master, bgp_process_reads, peer, peer->connection.fd,
 				&peer->t_read);
 		if (added_pkt)
 			thread_add_event(bm->master, bgp_process_packet,
@@ -279,9 +279,10 @@ static int bgp_process_reads(struct thread *thread)
 /*
  * Flush peer output buffer.
  *
- * This function pops packets off of peer->obuf and writes them to peer->fd.
- * The amount of packets written is equal to the minimum of peer->wpkt_quanta
- * and the number of packets on the output buffer, unless an error occurs.
+ * This function pops packets off of peer->connection.obuf and writes them to
+ * peer->connection.fd. The amount of packets written is equal to the minimum of
+ * peer->wpkt_quanta and the number of packets on the output buffer, unless an
+ * error occurs.
  *
  * If write() returns an error, the appropriate FSM event is generated.
  *
@@ -292,7 +293,6 @@ static uint16_t bgp_write(struct peer *peer)
 {
 	uint8_t type;
 	struct stream *s;
-    struct stream *s_hprio;
 	int update_last_write = 0;
 	unsigned int count;
 	uint32_t uo = 0;
@@ -304,7 +304,6 @@ static uint16_t bgp_write(struct peer *peer)
 	unsigned int iovsz;
 	unsigned int strmsz;
 	unsigned int total_written;
-    bool from_obuf_hprio = false;
 
 	wpkt_quanta_old = atomic_load_explicit(&peer->bgp->wpkt_quanta,
 					       memory_order_relaxed);
@@ -312,19 +311,7 @@ static uint16_t bgp_write(struct peer *peer)
 	struct stream **streams = ostreams;
 	struct iovec iov[wpkt_quanta_old];
 
-    s_hprio = stream_fifo_head(peer->obuf_hprio); 
-	s = stream_fifo_head(peer->obuf);
-
-	if (s_hprio) 
-	{
-		if (s && stream_get_getp(s)) {
-			zlog_info("Last pkt hasn't sent out completely, cannot insert keepalive data.");
-		}
-		else {
-			s = s_hprio;
-			from_obuf_hprio = true;
-		}
-	}
+	s = stream_fifo_head(peer->connection.obuf);
 
 	if (!s)
 		goto done;
@@ -344,7 +331,7 @@ static uint16_t bgp_write(struct peer *peer)
 	total_written = 0;
 
 	do {
-		num = writev(peer->fd, iov, iovsz);
+		num = writev(peer->connection.fd, iov, iovsz);
 
 		if (num < 0) {
 			if (!ERRNO_IO_RETRY(errno)) {
@@ -393,12 +380,7 @@ static uint16_t bgp_write(struct peer *peer)
 
 	/* Handle statistics */
 	for (unsigned int i = 0; i < total_written; i++) {
-		if (from_obuf_hprio)
-			s = stream_fifo_pop(peer->obuf_hprio);
-		else
-			s = stream_fifo_pop(peer->obuf);
-		
-		bgp_packet_record_queue_enque(&peer->outque, s);
+		s = stream_fifo_pop(peer->connection.obuf);
 
 		assert(s == ostreams[i]);
 
@@ -473,22 +455,32 @@ done : {
 }
 
 /*
- * Reads a chunk of data from peer->fd into peer->ibuf_work.
+ * Reads a chunk of data from peer->connection.fd into
+ * peer->connection.ibuf_work.
  *
  * code_p
  *    Pointer to location to store FSM event code in case of fatal error.
  *
  * @return status flag (see top-of-file)
  */
+uint8_t ibuf_scratch[BGP_EXTENDED_MESSAGE_MAX_PACKET_SIZE * BGP_READ_PACKET_MAX];
 static uint16_t bgp_read(struct peer *peer, int *code_p)
 {
 	size_t readsize; // how many bytes we want to read
 	ssize_t nbytes;  // how many bytes we actually read
+	size_t ibuf_work_space; /* space we can read into the work buf */
 	uint16_t status = 0;
 
-	readsize =
-		MIN(ringbuf_space(peer->ibuf_work), sizeof(peer->ibuf_scratch));
-	nbytes = read(peer->fd, peer->ibuf_scratch, readsize);
+	ibuf_work_space = ringbuf_space(peer->connection.ibuf_work);
+
+	if (ibuf_work_space == 0) {
+		SET_FLAG(status, BGP_IO_WORK_FULL_ERR);
+		return status;
+	}
+
+	readsize = MIN(ibuf_work_space, sizeof(ibuf_scratch));
+
+	nbytes = read(peer->connection.fd, ibuf_scratch, readsize);
 
 	/* EAGAIN or EWOULDBLOCK; come back later */
 	if (nbytes < 0 && ERRNO_IO_RETRY(errno)) {
@@ -509,7 +501,7 @@ static uint16_t bgp_read(struct peer *peer, int *code_p)
 		/* Received EOF / TCP session closed */
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s [Event] BGP connection closed fd %d",
-				   peer->host, peer->fd);
+				   peer->host, peer->connection.fd);
 
 		/* Handle the error in the main pthread. */
 		if (code_p)
@@ -517,8 +509,8 @@ static uint16_t bgp_read(struct peer *peer, int *code_p)
 
 		SET_FLAG(status, BGP_IO_FATAL_ERR);
 	} else {
-		assert(ringbuf_put(peer->ibuf_work, peer->ibuf_scratch, nbytes)
-		       == (size_t)nbytes);
+		assert(ringbuf_put(peer->connection.ibuf_work, ibuf_scratch,
+				   nbytes) == (size_t)nbytes);
 	}
 
 	return status;
@@ -535,7 +527,7 @@ static bool validate_header(struct peer *peer)
 {
 	uint16_t size;
 	uint8_t type;
-	struct ringbuf *pkt = peer->ibuf_work;
+	struct ringbuf *pkt = peer->connection.ibuf_work;
 
 	static const uint8_t m_correct[BGP_MARKER_SIZE] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,

@@ -11410,12 +11410,14 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 						    PEER_TOTAL_TX(peer));
 
 				atomic_size_t outq_count, inq_count;
-				outq_count = atomic_load_explicit(
-					&peer->obuf->count,
-					memory_order_relaxed);
-				inq_count = atomic_load_explicit(
-					&peer->ibuf->count,
-					memory_order_relaxed);
+				outq_count =
+					atomic_load_explicit(&peer->connection
+								      .obuf->count,
+							     memory_order_relaxed);
+				inq_count =
+					atomic_load_explicit(&peer->connection
+								      .ibuf->count,
+							     memory_order_relaxed);
 
 				json_object_int_add(json_peer, "tableVersion",
 						    peer->version[afi][safi]);
@@ -11579,12 +11581,14 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 						" ");
 
 				atomic_size_t outq_count, inq_count;
-				outq_count = atomic_load_explicit(
-					&peer->obuf->count,
-					memory_order_relaxed);
-				inq_count = atomic_load_explicit(
-					&peer->ibuf->count,
-					memory_order_relaxed);
+				outq_count =
+					atomic_load_explicit(&peer->connection
+								      .obuf->count,
+							     memory_order_relaxed);
+				inq_count =
+					atomic_load_explicit(&peer->connection
+								      .ibuf->count,
+							     memory_order_relaxed);
 
 				if (show_wide)
 					vty_out(vty,
@@ -13418,7 +13422,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 
 		/* Configured and Synced tcp-mss value for peer */
 		if (CHECK_FLAG(p->flags, PEER_FLAG_TCP_MSS)) {
-			sync_tcp_mss = sockopt_tcp_mss_get(p->fd);
+			sync_tcp_mss = sockopt_tcp_mss_get(p->connection.fd);
 			json_object_int_add(json_neigh, "bgpTcpMssConfigured",
 					    p->tcp_mss);
 			json_object_int_add(json_neigh, "bgpTcpMssSynced",
@@ -13519,7 +13523,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 
 		/* Configured and synced tcp-mss value for peer */
 		if (CHECK_FLAG(p->flags, PEER_FLAG_TCP_MSS)) {
-			sync_tcp_mss = sockopt_tcp_mss_get(p->fd);
+			sync_tcp_mss = sockopt_tcp_mss_get(p->connection.fd);
 			vty_out(vty, "  Configured tcp-mss is %d", p->tcp_mss);
 			vty_out(vty, ", synced tcp-mss is %d\n", sync_tcp_mss);
 		}
@@ -14456,9 +14460,9 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		/* Packet counts. */
 
 		atomic_size_t outq_count, inq_count;
-		outq_count = atomic_load_explicit(&p->obuf->count,
+		outq_count = atomic_load_explicit(&p->connection.obuf->count,
 						  memory_order_relaxed);
-		inq_count = atomic_load_explicit(&p->ibuf->count,
+		inq_count = atomic_load_explicit(&p->connection.ibuf->count,
 						 memory_order_relaxed);
 
 		json_object_int_add(json_stat, "depthInq",
@@ -14506,9 +14510,9 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		json_object_object_add(json_neigh, "messageStats", json_stat);
 	} else {
 		atomic_size_t outq_count, inq_count;
-		outq_count = atomic_load_explicit(&p->obuf->count,
+		outq_count = atomic_load_explicit(&p->connection.obuf->count,
 						  memory_order_relaxed);
-		inq_count = atomic_load_explicit(&p->ibuf->count,
+		inq_count = atomic_load_explicit(&p->connection.ibuf->count,
 						 memory_order_relaxed);
 
 		/* Packet counts. */
@@ -14850,7 +14854,8 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			p->t_read ? "on" : "off",
 			CHECK_FLAG(p->thread_flags, PEER_THREAD_WRITES_ON)
 				? "on"
-				: "off", p->fd);
+				: "off",
+			p->connection.fd);
 	}
 
 	if (bgp_advertise_delay_configured(p->bgp)) {

@@ -1150,7 +1150,7 @@ static void peer_free(struct peer *peer)
 	assert(!peer->t_read);
 	BGP_EVENT_FLUSH(peer);
 
-	pthread_mutex_destroy(&peer->io_mtx);
+	pthread_mutex_destroy(&peer->connection.io_mtx);
 
 	/* Free connected nexthop, if present */
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE)
@@ -1467,7 +1467,7 @@ struct peer *peer_new(struct bgp *bgp)
 	peer = XCALLOC(MTYPE_BGP_PEER, sizeof(struct peer));
 
 	/* Set default value. */
-	peer->fd = -1;
+	peer->connection.fd = -1;
 	peer->v_start = bgp->default_start;
 	peer->v_connect = bgp->default_connect_retry;
 	peer->status = Idle;
@@ -1505,27 +1505,12 @@ struct peer *peer_new(struct bgp *bgp)
 	bgp_peer_gr_init(peer);
 
 	/* Create buffers.  */
-	peer->ibuf = stream_fifo_new();
-	peer->obuf = stream_fifo_new();
-    peer->obuf_hprio = stream_fifo_new();
-	pthread_mutex_init(&peer->io_mtx, NULL);
+	peer->connection.ibuf = stream_fifo_new();
+	peer->connection.obuf = stream_fifo_new();
+	pthread_mutex_init(&peer->connection.io_mtx, NULL);
 
-	/* We use a larger buffer for peer->obuf_work in the event that:
-	 * - We RX a BGP_UPDATE where the attributes alone are just
-	 *   under BGP_EXTENDED_MESSAGE_MAX_PACKET_SIZE.
-	 * - The user configures an outbound route-map that does many as-path
-	 *   prepends or adds many communities. At most they can have
-	 *   CMD_ARGC_MAX args in a route-map so there is a finite limit on how
-	 *   large they can make the attributes.
-	 *
-	 * Having a buffer with BGP_MAX_PACKET_SIZE_OVERFLOW allows us to avoid
-	 * bounds checking for every single attribute as we construct an
-	 * UPDATE.
-	 */
-	peer->obuf_work =
-		stream_new(BGP_MAX_PACKET_SIZE + BGP_MAX_PACKET_SIZE_OVERFLOW);
-	peer->ibuf_work =
-		ringbuf_new(BGP_MAX_PACKET_SIZE * BGP_READ_PACKET_MAX);
+	peer->connection.ibuf_work =
+		ringbuf_new(BGP_MAX_PACKET_SIZE + BGP_MAX_PACKET_SIZE / 2);
 
 	peer->scratch = stream_new(BGP_MAX_PACKET_SIZE);
 
@@ -2600,29 +2585,19 @@ int peer_delete(struct peer *peer)
 	}
 
 	/* Buffers.  */
-	if (peer->ibuf) {
-		stream_fifo_free(peer->ibuf);
-		peer->ibuf = NULL;
+	if (peer->connection.ibuf) {
+		stream_fifo_free(peer->connection.ibuf);
+		peer->connection.ibuf = NULL;
 	}
 
-	if (peer->obuf) {
-		stream_fifo_free(peer->obuf);
-		peer->obuf = NULL;
+	if (peer->connection.obuf) {
+		stream_fifo_free(peer->connection.obuf);
+		peer->connection.obuf = NULL;
 	}
 
-	if (peer->obuf_hprio) {
-		stream_fifo_free(peer->obuf_hprio);
-		peer->obuf_hprio = NULL;
-	}
-
-	if (peer->ibuf_work) {
-		ringbuf_del(peer->ibuf_work);
-		peer->ibuf_work = NULL;
-	}
-
-	if (peer->obuf_work) {
-		stream_free(peer->obuf_work);
-		peer->obuf_work = NULL;
+	if (peer->connection.ibuf_work) {
+		ringbuf_del(peer->connection.ibuf_work);
+		peer->connection.ibuf_work = NULL;
 	}
 
 	if (peer->scratch) {
@@ -2753,24 +2728,19 @@ int peer_quick_delete(struct peer *peer)
 	}
 
 	/* Buffers.  */
-	if (peer->ibuf) {
-		stream_fifo_free(peer->ibuf);
-		peer->ibuf = NULL;
+	if (peer->connection.ibuf) {
+		stream_fifo_free(peer->connection.ibuf);
+		peer->connection.ibuf = NULL;
 	}
 
-	if (peer->obuf) {
-		stream_fifo_free(peer->obuf);
-		peer->obuf = NULL;
+	if (peer->connection.obuf) {
+		stream_fifo_free(peer->connection.obuf);
+		peer->connection.obuf = NULL;
 	}
 
-	if (peer->ibuf_work) {
-		ringbuf_del(peer->ibuf_work);
-		peer->ibuf_work = NULL;
-	}
-
-	if (peer->obuf_work) {
-		stream_free(peer->obuf_work);
-		peer->obuf_work = NULL;
+	if (peer->connection.ibuf_work) {
+		ringbuf_del(peer->connection.ibuf_work);
+		peer->connection.ibuf_work = NULL;
 	}
 
 	if (peer->scratch) {
@@ -5298,7 +5268,7 @@ int peer_ebgp_multihop_unset(struct peer *peer)
 
 			peer->ttl = BGP_DEFAULT_TTL;
 
-			if (peer->fd >= 0) {
+			if (peer->connection.fd >= 0) {
 				if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
 					bgp_notify_send(
 						peer, BGP_NOTIFY_CEASE,
@@ -8394,13 +8364,14 @@ int peer_ttl_security_hops_set(struct peer *peer, int gtsm_hops)
 		if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
 			peer->gtsm_hops = gtsm_hops;
 
-			if (peer->fd >= 0)
-				sockopt_minttl(peer->su.sa.sa_family, peer->fd,
-					       MAXTTL + 1 - gtsm_hops);
-			if ((peer->status < Established) && peer->doppelganger
-			    && (peer->doppelganger->fd >= 0))
+			if (peer->connection.fd >= 0)
 				sockopt_minttl(peer->su.sa.sa_family,
-					       peer->doppelganger->fd,
+					       peer->connection.fd,
+					       MAXTTL + 1 - gtsm_hops);
+			if ((peer->status < Established) && peer->doppelganger &&
+			    (peer->doppelganger->connection.fd >= 0))
+				sockopt_minttl(peer->su.sa.sa_family,
+					       peer->doppelganger->connection.fd,
 					       MAXTTL + 1 - gtsm_hops);
 		} else {
 			group = peer->group;
@@ -8417,18 +8388,18 @@ int peer_ttl_security_hops_set(struct peer *peer, int gtsm_hops)
 				 *   no session then do nothing (will get
 				 * handled by next connection)
 				 */
-				if (gpeer->fd >= 0
-				    && gpeer->gtsm_hops
-					       != BGP_GTSM_HOPS_DISABLED)
-					sockopt_minttl(
-						gpeer->su.sa.sa_family,
-						gpeer->fd,
-						MAXTTL + 1 - gpeer->gtsm_hops);
-				if ((gpeer->status < Established)
-				    && gpeer->doppelganger
-				    && (gpeer->doppelganger->fd >= 0))
+				if (gpeer->connection.fd >= 0 &&
+				    gpeer->gtsm_hops != BGP_GTSM_HOPS_DISABLED)
 					sockopt_minttl(gpeer->su.sa.sa_family,
-						       gpeer->doppelganger->fd,
+						       gpeer->connection.fd,
+						       MAXTTL + 1 -
+							       gpeer->gtsm_hops);
+				if ((gpeer->status < Established) &&
+				    gpeer->doppelganger &&
+				    (gpeer->doppelganger->connection.fd >= 0))
+					sockopt_minttl(gpeer->su.sa.sa_family,
+						       gpeer->doppelganger
+							       ->connection.fd,
 						       MAXTTL + 1 - gtsm_hops);
 			}
 		}
@@ -8461,14 +8432,15 @@ int peer_ttl_security_hops_unset(struct peer *peer)
 		if (peer->sort == BGP_PEER_EBGP)
 			ret = peer_ebgp_multihop_unset(peer);
 		else {
-			if (peer->fd >= 0)
-				sockopt_minttl(peer->su.sa.sa_family, peer->fd,
-					       0);
-
-			if ((peer->status < Established) && peer->doppelganger
-			    && (peer->doppelganger->fd >= 0))
+			if (peer->connection.fd >= 0)
 				sockopt_minttl(peer->su.sa.sa_family,
-					       peer->doppelganger->fd, 0);
+					       peer->connection.fd, 0);
+
+			if ((peer->status < Established) && peer->doppelganger &&
+			    (peer->doppelganger->connection.fd >= 0))
+				sockopt_minttl(peer->su.sa.sa_family,
+					       peer->doppelganger->connection.fd,
+					       0);
 		}
 	} else {
 		group = peer->group;
@@ -8477,15 +8449,16 @@ int peer_ttl_security_hops_unset(struct peer *peer)
 			if (peer->sort == BGP_PEER_EBGP)
 				ret = peer_ebgp_multihop_unset(peer);
 			else {
-				if (peer->fd >= 0)
+				if (peer->connection.fd >= 0)
 					sockopt_minttl(peer->su.sa.sa_family,
-						       peer->fd, 0);
+						       peer->connection.fd, 0);
 
-				if ((peer->status < Established)
-				    && peer->doppelganger
-				    && (peer->doppelganger->fd >= 0))
+				if ((peer->status < Established) &&
+				    peer->doppelganger &&
+				    (peer->doppelganger->connection.fd >= 0))
 					sockopt_minttl(peer->su.sa.sa_family,
-						       peer->doppelganger->fd,
+						       peer->doppelganger
+							       ->connection.fd,
 						       0);
 			}
 		}
@@ -8559,7 +8532,7 @@ int peer_clear_soft(struct peer *peer, afi_t afi, safi_t safi,
 	if (!peer->afc[afi][safi])
 		return BGP_ERR_AF_UNCONFIGURED;
 
-	peer->rtt = sockopt_tcp_rtt(peer->fd);
+	peer->rtt = sockopt_tcp_rtt(peer->connection.fd);
 
 	if (stype == BGP_CLEAR_SOFT_OUT || stype == BGP_CLEAR_SOFT_BOTH) {
 		/* Clear the "neighbor x.x.x.x default-originate" flag */
