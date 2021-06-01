@@ -3793,6 +3793,8 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 
 	if (!CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX))
 		return false;
+	
+	struct vrf *vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
 
 	if (pcount > peer->pmax[afi][safi]) {
 		if (CHECK_FLAG(peer->af_sflags[afi][safi],
@@ -3801,8 +3803,14 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 			return false;
 
 		zlog_info(
-			"%%MAXPFXEXCEED: No. of %s prefix received from %s %u exceed, limit %u",
-			get_afi_safi_str(afi, safi, false), peer->host, pcount,
+			"%%MAXPFXEXCEED: No. of %s prefix received from %s in vrf %s %u exceed, limit %u",
+			get_afi_safi_str(afi, safi, false),
+			peer->host,
+			vrf ? ((vrf->vrf_id != VRF_DEFAULT)
+					? vrf->name
+					: VRF_DEFAULT_NAME)
+				: "",
+			pcount,
 			peer->pmax[afi][safi]);
 		SET_FLAG(peer->af_sflags[afi][safi], PEER_STATUS_PREFIX_LIMIT);
 
@@ -3862,8 +3870,14 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 			return false;
 
 		zlog_info(
-			"%%MAXPFX: No. of %s prefix received from %s reaches %u, max %u",
-			get_afi_safi_str(afi, safi, false), peer->host, pcount,
+			"%%MAXPFX: No. of %s prefix received from %s in vrf %s reaches %u, max %u",
+			get_afi_safi_str(afi, safi, false),
+			peer->host,
+			vrf ? ((vrf->vrf_id != VRF_DEFAULT)
+					? vrf->name
+					: VRF_DEFAULT_NAME)
+				: "",
+			pcount,
 			peer->pmax[afi][safi]);
 		SET_FLAG(peer->af_sflags[afi][safi],
 			 PEER_STATUS_PREFIX_THRESHOLD);
