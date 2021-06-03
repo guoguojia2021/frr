@@ -68,6 +68,7 @@ static void bfd_session_status_update(struct bfd_session_params *bsp,
 			return;
 		}
 		peer->last_reset = PEER_DOWN_BFD_DOWN;
+
 		BGP_EVENT_ADD(peer, BGP_Stop);
 	}
 

@@ -256,16 +256,16 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	peer->v_delayopen = from_peer->v_delayopen;
 	peer->v_gr_restart = from_peer->v_gr_restart;
 	peer->cap = from_peer->cap;
-	status = peer->status;
-	pstatus = peer->ostatus;
+	status = peer->connection.status;
+	pstatus = peer->connection.ostatus;
 	last_evt = peer->last_event;
 	last_maj_evt = peer->last_major_event;
-	peer->status = from_peer->status;
-	peer->ostatus = from_peer->ostatus;
+	peer->connection.status = from_peer->connection.status;
+	peer->connection.ostatus = from_peer->connection.ostatus;
 	peer->last_event = from_peer->last_event;
 	peer->last_major_event = from_peer->last_major_event;
-	from_peer->status = status;
-	from_peer->ostatus = pstatus;
+	from_peer->connection.status = status;
+	from_peer->connection.ostatus = pstatus;
 	from_peer->last_event = last_evt;
 	from_peer->last_major_event = last_maj_evt;
 	peer->remote_id = from_peer->remote_id;
@@ -326,7 +326,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 		BGP_EVENT_ADD(from_peer, BGP_Stop);
 		return NULL;
 	}
-	if (from_peer->status > Active) {
+	if (from_peer->connection.status > Active) {
 		if (bgp_getsockname(from_peer) < 0) {
 			flog_err(EC_LIB_SOCKET,
 				 "%%bgp_getsockname() failed for %s from_peer %s fd %d (peer fd %d)",
@@ -370,7 +370,7 @@ void bgp_timer_set(struct peer *peer)
 	afi_t afi;
 	safi_t safi;
 
-	switch (peer->status) {
+	switch (peer->connection.status) {
 	case Idle:
 		/* First entry point of peer's finite state machine.  In Idle
 		   status start timer is on unless peer is shutdown or peer is
@@ -1457,8 +1457,8 @@ static void bgp_update_delay_process_status_change(struct peer *peer)
 		if (CHECK_FLAG(peer->cap, PEER_CAP_RESTART_BIT_RCV))
 			bgp_update_restarted_peers(peer);
 	}
-	if (peer->ostatus == Established
-	    && bgp_update_delay_active(peer->bgp)) {
+	if (peer->connection.ostatus == Established &&
+	    bgp_update_delay_active(peer->bgp)) {
 		/* Adjust the update-delay state to account for this flap.
 		   NOTE: Intentionally skipping adjusting implicit_eors or
 		   explicit_eors
@@ -1583,7 +1583,7 @@ bool bgp_advertise_delay_applicable(struct peer *peer)
 
 static void bgp_advertise_delay_process_status_change(struct peer *peer)
 {
-	if (peer->status == Established) {
+	if (peer->connection.status == Established) {
 		bgp_advertise_delay_begin(peer);
 		zlog_info(
 			"Begin read-only mode - advertise-delay timer %d seconds",
@@ -1616,7 +1616,7 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 			   bgp->established_peers);
 	}
 
-	if ((status != Established) && (peer->status == Established)) {
+	if ((status != Established) && (peer->connection.status == Established)) {
 		bgp_packet_record_queue_show(peer, true);
 		bgp_packet_record_queue_show(peer, false);
 		bgp_packet_record_queue_init(peer);
@@ -1660,14 +1660,14 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 	}
 
 	/* Preserve old status and change into new status. */
-	peer->ostatus = peer->status;
-	peer->status = status;
+	peer->connection.ostatus = peer->connection.status;
+	peer->connection.status = status;
 
 	/* Reset received keepalives counter on every FSM change */
 	peer->rtt_keepalive_rcv = 0;
 
 	/* Fire backward transition hook if that's the case */
-	if (peer->ostatus > peer->status)
+	if (peer->connection.ostatus > peer->connection.status)
 		hook_call(peer_backward_transition, peer);
 
 	/* Save event that caused status change. */
@@ -1709,8 +1709,10 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug("%s fd %d went from %s to %s", peer->host,
 			   peer->connection.fd,
-			   lookup_msg(bgp_status_msg, peer->ostatus, NULL),
-			   lookup_msg(bgp_status_msg, peer->status, NULL));
+			   lookup_msg(bgp_status_msg, peer->connection.ostatus,
+				      NULL),
+			   lookup_msg(bgp_status_msg, peer->connection.status,
+				      NULL));
 }
 
 /* Flush the event queue and ensure the peer is shut down */
@@ -1752,7 +1754,7 @@ int bgp_stop(struct peer *peer)
 	}
 
 	/* Can't do this in Clearing; events are used for state transitions */
-	if (peer->status != Clearing) {
+	if (peer->connection.status != Clearing) {
 		/* Delete all existing events of the peer */
 		BGP_EVENT_FLUSH(peer);
 	}
@@ -1924,7 +1926,8 @@ int bgp_stop(struct peer *peer)
 		/* Received ORF prefix-filter */
 		peer->orf_plist[afi][safi] = NULL;
 
-		if ((peer->status == OpenConfirm) || (peer_established(peer))) {
+		if ((peer->connection.status == OpenConfirm) ||
+		    peer_established(peer)) {
 			/* ORF received prefix-filter pnt */
 			snprintf(orf_name, sizeof(orf_name), "%s.%d.%d",
 				 peer->host, afi, safi);
@@ -2079,7 +2082,7 @@ static int bgp_connect_success(struct peer *peer)
 			     "%s: bgp_getsockname(): failed for peer %s, fd %d",
 			     __func__, peer->host, peer->connection.fd);
 		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
-				bgp_fsm_error_subcode(peer->status));
+				bgp_fsm_error_subcode(peer->connection.status));
 		bgp_writes_on(&peer->connection);
 		return -1;
 	}
@@ -2117,7 +2120,7 @@ static int bgp_connect_success_w_delayopen(struct peer *peer)
 			     "%s: bgp_getsockname(): failed for peer %s, fd %d",
 			     __func__, peer->host, peer->connection.fd);
 		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
-				bgp_fsm_error_subcode(peer->status));
+				bgp_fsm_error_subcode(peer->connection.status));
 		bgp_writes_on(&peer->connection);
 		return -1;
 	}
@@ -2316,7 +2319,8 @@ static int bgp_reconnect(struct peer *peer)
 static int bgp_fsm_open(struct peer *peer)
 {
 	/* If DelayOpen is active, we may still need to send an open message */
-	if ((peer->status == Connect) || (peer->status == Active))
+	if ((peer->connection.status == Connect) ||
+	    (peer->connection.status == Active))
 		bgp_open_send(peer);
 
 	/* Send keepalive and make keepalive timer */
@@ -2330,10 +2334,12 @@ static int bgp_fsm_open(struct peer *peer)
 static int bgp_fsm_event_error(struct peer *peer)
 {
 	flog_err(EC_BGP_FSM, "%s [FSM] unexpected packet received in state %s",
-		 peer->host, lookup_msg(bgp_status_msg, peer->status, NULL));
+		 peer->host,
+		 lookup_msg(bgp_status_msg, peer->connection.status, NULL));
 
 	return bgp_stop_with_notify(peer, BGP_NOTIFY_FSM_ERR,
-				    bgp_fsm_error_subcode(peer->status));
+				    bgp_fsm_error_subcode(
+					    peer->connection.status));
 }
 
 /* Hold timer expire.  This is error of BGP connection. So cut the
@@ -2634,13 +2640,14 @@ static int bgp_establish(struct peer *peer)
 		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
 	}
 
-	if (peer->doppelganger && (peer->doppelganger->status != Deleted)) {
+	if (peer->doppelganger &&
+	    (peer->doppelganger->connection.status != Deleted)) {
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug(
 				"[Event] Deleting stub connection for peer %s",
 				peer->host);
 
-		if (peer->doppelganger->status > Active)
+		if (peer->doppelganger->connection.status > Active)
 			bgp_notify_send(peer->doppelganger, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 		else
@@ -2683,7 +2690,7 @@ static int bgp_ignore(struct peer *peer)
 	flog_err(EC_BGP_FSM,
 		 "%s [FSM] Ignoring event %s in state %s, prior events %s, %s, fd %d",
 		 peer->host, bgp_event_str[peer->cur_event],
-		 lookup_msg(bgp_status_msg, peer->status, NULL),
+		 lookup_msg(bgp_status_msg, peer->connection.status, NULL),
 		 bgp_event_str[peer->last_event],
 		 bgp_event_str[peer->last_major_event], peer->connection.fd);
 	return 0;
@@ -2695,7 +2702,7 @@ static int bgp_fsm_exeption(struct peer *peer)
 	flog_err(EC_BGP_FSM,
 		 "%s [FSM] Unexpected event %s in state %s, prior events %s, %s, fd %d",
 		 peer->host, bgp_event_str[peer->cur_event],
-		 lookup_msg(bgp_status_msg, peer->status, NULL),
+		 lookup_msg(bgp_status_msg, peer->connection.status, NULL),
 		 bgp_event_str[peer->last_event],
 		 bgp_event_str[peer->last_major_event], peer->connection.fd);
 	return (bgp_stop(peer));
@@ -2710,7 +2717,7 @@ static int bgp_tracking_delay_timer(struct thread *thread)
 		zlog_debug("%s [FSM] Timer (tracking timer expire)",
 			   peer->host);
 
-	if (peer->status == OpenSent || peer->status == OpenConfirm || peer->status == Established)
+	if (peer->connection.status == OpenSent || peer->connection.status == OpenConfirm || peer->connection.status == Established)
 	{
 		BGP_EVENT_ADD(peer, TCP_fatal_error);
 	}
@@ -2722,7 +2729,7 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	if (!peer)
 		return;
 
-	switch (peer->status) {
+	switch (peer->connection.status) {
 	case Idle:
 		if (has_valid_nexthops) {
 			if (!peer->t_start)
@@ -2965,12 +2972,13 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 	dyn_nbr = peer_dynamic_neighbor(peer);
 
 	/* Logging this event. */
-	next = FSM[peer->status - 1][event - 1].next_state;
+	next = FSM[peer->connection.status - 1][event - 1].next_state;
 
-	if (bgp_debug_neighbor_events(peer) && peer->status != next)
+	if (bgp_debug_neighbor_events(peer) && peer->connection.status != next)
 		zlog_debug("%s [FSM] %s (%s->%s), fd %d", peer->host,
 			   bgp_event_str[event],
-			   lookup_msg(bgp_status_msg, peer->status, NULL),
+			   lookup_msg(bgp_status_msg, peer->connection.status,
+				      NULL),
 			   lookup_msg(bgp_status_msg, next, NULL),
 			   peer->connection.fd);
 
@@ -2978,8 +2986,9 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 	peer->cur_event = event;
 
 	/* Call function. */
-	if (FSM[peer->status - 1][event - 1].func)
-		ret = (*(FSM[peer->status - 1][event - 1].func))(peer);
+	if (FSM[peer->connection.status - 1][event - 1].func)
+		ret = (*(FSM[peer->connection.status - 1][event - 1].func))(
+			peer);
 
 	if (ret >= 0) {
 		if (ret == 1 && next == Established) {
@@ -2991,7 +3000,7 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 		}
 
 		/* If status is changed. */
-		if (next != peer->status) {
+		if (next != peer->connection.status) {
 			bgp_fsm_change_status(peer, next);
 
 			/*
@@ -3020,7 +3029,8 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 			flog_err(EC_BGP_FSM,
 				 "%s [FSM] Failure handling event %s in state %s, prior events %s, %s, fd %d, last reset: %s",
 				 peer->host, bgp_event_str[peer->cur_event],
-				 lookup_msg(bgp_status_msg, peer->status, NULL),
+				 lookup_msg(bgp_status_msg,
+					    peer->connection.status, NULL),
 				 bgp_event_str[peer->last_event],
 				 bgp_event_str[peer->last_major_event],
 				 peer->connection.fd,

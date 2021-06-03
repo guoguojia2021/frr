@@ -1554,7 +1554,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				memcpy(&api_nh->seg6_segs, &mpinfo->attr->srv6_l3vpn->sid,
 					sizeof(api_nh->seg6_segs));
 
-				if (peer->status == Established && peer->su_local->sa.sa_family == AF_INET6)
+				if (peer->connection.status == Established && peer->su_local->sa.sa_family == AF_INET6)
 					memcpy(&api_nh->seg6_src, &peer->su_local->sin6.sin6_addr,
 						sizeof(api_nh->seg6_src));
 
