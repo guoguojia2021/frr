@@ -2025,8 +2025,10 @@ static int bgp_connect_check(struct thread *thread)
 	struct peer *peer;
 
 	peer = THREAD_ARG(thread);
-	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_READS_ON));
-	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON));
+	assert(!CHECK_FLAG(peer->connection.thread_flags,
+			   PEER_THREAD_READS_ON));
+	assert(!CHECK_FLAG(peer->connection.thread_flags,
+			   PEER_THREAD_WRITES_ON));
 	assert(!peer->connection.t_read);
 	assert(!peer->connection.t_write);
 
@@ -2249,8 +2251,10 @@ int bgp_start(struct peer *peer)
 
 	assert(!peer->connection.t_write);
 	assert(!peer->connection.t_read);
-	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON));
-	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_READS_ON));
+	assert(!CHECK_FLAG(peer->connection.thread_flags,
+			   PEER_THREAD_WRITES_ON));
+	assert(!CHECK_FLAG(peer->connection.thread_flags,
+			   PEER_THREAD_READS_ON));
 	status = bgp_connect(peer);
 
 	switch (status) {

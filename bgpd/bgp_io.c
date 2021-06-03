@@ -73,7 +73,7 @@ void bgp_writes_on(struct peer_connection *connection)
 
 	thread_add_write(fpt->master, bgp_process_writes, connection,
 			connection->fd, &connection->t_write);
-	SET_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON);
+	SET_FLAG(connection->thread_flags, PEER_THREAD_WRITES_ON);
 }
 
 void bgp_writes_off(struct peer_connection *connection)
@@ -85,7 +85,7 @@ void bgp_writes_off(struct peer_connection *connection)
 	thread_cancel_async(fpt->master, &connection->t_write, NULL);
 	THREAD_OFF(peer->t_generate_updgrp_packets);
 
-	UNSET_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON);
+	UNSET_FLAG(peer->connection.thread_flags, PEER_THREAD_WRITES_ON);
 }
 
 void bgp_reads_on(struct peer_connection *connection)
@@ -106,7 +106,7 @@ void bgp_reads_on(struct peer_connection *connection)
 	thread_add_read(fpt->master, bgp_process_reads, connection,
 		       connection->fd, &connection->t_read);
 
-	SET_FLAG(peer->thread_flags, PEER_THREAD_READS_ON);
+	SET_FLAG(connection->thread_flags, PEER_THREAD_READS_ON);
 }
 
 void bgp_reads_off(struct peer_connection *connection)
@@ -119,7 +119,7 @@ void bgp_reads_off(struct peer_connection *connection)
 	THREAD_OFF(peer->t_process_packet);
 	THREAD_OFF(peer->t_process_packet_error);
 
-	UNSET_FLAG(peer->thread_flags, PEER_THREAD_READS_ON);
+	UNSET_FLAG(connection->thread_flags, PEER_THREAD_READS_ON);
 }
 
 /* Thread internal functions ----------------------------------------------- */
