@@ -1144,14 +1144,10 @@ def test_bgp_with_loopback_with_same_subnet_p1(request):
     dut = "r1"
     protocol = "bgp"
     for addr_type in ADDR_TYPES:
-        result = verify_fib_routes(
-            tgen, addr_type, dut, input_dict_r1, expected=False
-        )  # pylint: disable=E1123
-        assert result is not True, (
-            "Testcase {} : Failed \n".format(tc_name)
-            + "Expected behavior: routes should not present in fib \n"
-            + "Error: {}".format(result)
-        )
+        result = verify_fib_routes(tgen, addr_type, dut, input_dict_r1, expected=False)
+        assert result is not True, "Testcase {} : Failed \n"
+        "Expected behavior: routes should not present in fib \n"
+        "Error: {}".format(tc_name, result)
 
     step("Verify Ipv4 and Ipv6 network installed in r3 RIB but not in FIB")
     input_dict_r3 = {
@@ -1165,14 +1161,10 @@ def test_bgp_with_loopback_with_same_subnet_p1(request):
     dut = "r3"
     protocol = "bgp"
     for addr_type in ADDR_TYPES:
-        result = verify_fib_routes(
-            tgen, addr_type, dut, input_dict_r1, expected=False
-        )  # pylint: disable=E1123
-        assert result is not True, (
-            "Testcase {} : Failed \n".format(tc_name)
-            + "Expected behavior: routes should not present in fib \n"
-            + "Error: {}".format(result)
-        )
+        result = verify_fib_routes(tgen, addr_type, dut, input_dict_r1, expected=False)
+        assert result is not True, "Testcase {} : Failed \n"
+        "Expected behavior: routes should not present in fib \n"
+        "Error: {}".format(tc_name, result)
 
     write_test_footer(tc_name)
 
