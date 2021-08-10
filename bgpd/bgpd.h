@@ -1204,6 +1204,9 @@ struct peer_connection {
 	struct thread *t_read;
 	struct thread *t_write;
 
+	struct thread *t_process_packet;
+	struct thread *t_process_packet_error;
+
 	/* Thread flags */
 	_Atomic uint32_t thread_flags;
 #define PEER_THREAD_WRITES_ON (1U << 0)

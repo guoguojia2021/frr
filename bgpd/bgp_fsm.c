@@ -195,7 +195,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	BGP_TIMER_OFF(from_peer->t_delayopen);
 	BGP_TIMER_OFF(from_peer->t_connect_check_r);
 	BGP_TIMER_OFF(from_peer->t_connect_check_w);
-	BGP_TIMER_OFF(from_peer->t_process_packet);
+	BGP_TIMER_OFF(from_peer->connection.t_process_packet);
 	bgp_peer_adv_lprio_t_off(from_peer);
 	BGP_TIMER_OFF(from_peer->t_advertise_delay);
 
@@ -357,7 +357,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	bgp_reads_on(&peer->connection);
 	bgp_writes_on(&peer->connection);
 	thread_add_event(bm->master, bgp_process_packet, &peer->connection, 0,
-			&peer->t_process_packet);
+			&peer->connection.t_process_packet);
 
 	return (peer);
 }

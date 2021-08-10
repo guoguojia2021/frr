@@ -3023,7 +3023,7 @@ int bgp_process_packet(struct thread *thread)
 			if (connection->ibuf->count > 0)
 				thread_add_event(bm->master, bgp_process_packet,
 						connection, 0,
-						&peer->t_process_packet);
+						&connection->t_process_packet);
 		}
 	}
 
