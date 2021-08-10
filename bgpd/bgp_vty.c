@@ -2778,7 +2778,7 @@ DEFUN(bgp_reject_as_sets, bgp_reject_as_sets_cmd,
 	 * with aspath containing AS_SET or AS_CONFED_SET.
 	 */
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
-		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection.status)) {
+		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection->status)) {
 			peer->last_reset = PEER_DOWN_AS_SETS_REJECT;
 			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_CONFIG_CHANGE);
@@ -2804,7 +2804,7 @@ DEFUN(no_bgp_reject_as_sets, no_bgp_reject_as_sets_cmd,
 	 * with aspath containing AS_SET or AS_CONFED_SET.
 	 */
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
-		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection.status)) {
+		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection->status)) {
 			peer->last_reset = PEER_DOWN_AS_SETS_REJECT;
 			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_CONFIG_CHANGE);
@@ -2879,7 +2879,7 @@ static void bgp_restart_dyn_capability_update (struct bgp *bgp, int set)
 	struct listnode *node, *nnode;
  
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
-		if ((peer->connection.status == Established) &&
+		if ((peer->connection->status == Established) &&
 		    (CHECK_FLAG(peer->cap, PEER_CAP_DYNAMIC_RCV))) {
 			bgp_capability_send(peer, AFI_MAX, SAFI_MAX,
 					    CAPABILITY_CODE_RESTART,
@@ -4652,7 +4652,7 @@ static int peer_conf_interface_get(struct vty *vty, const char *conf_if,
 			peer_flag_unset(peer, PEER_FLAG_IFPEER_V6ONLY);
 
 		/* v6only flag changed. Reset bgp seesion */
-		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection.status)) {
+		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection->status)) {
 			peer->last_reset = PEER_DOWN_V6ONLY_CHANGE;
 			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_CONFIG_CHANGE);
@@ -4841,7 +4841,7 @@ DEFUN (no_neighbor,
 
 			peer_notify_unconfig(peer);
 			peer_delete(peer);
-			if (other && other->connection.status != Deleted) {
+			if (other && other->connection->status != Deleted) {
 				peer_notify_unconfig(other);
 				peer_delete(other);
 			}
@@ -11412,11 +11412,13 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 				atomic_size_t outq_count, inq_count;
 				outq_count =
 					atomic_load_explicit(&peer->connection
-								      .obuf->count,
+								      ->obuf
+								      ->count,
 							     memory_order_relaxed);
 				inq_count =
 					atomic_load_explicit(&peer->connection
-								      .ibuf->count,
+								      ->ibuf
+								      ->count,
 							     memory_order_relaxed);
 
 				json_object_int_add(json_peer, "tableVersion",
@@ -11450,7 +11452,7 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 					json_object_string_add(
 						json_peer, "state",
 						lookup_msg(bgp_status_msg,
-							   peer->connection.status,
+							   peer->connection->status,
 							   NULL));
 				else if (CHECK_FLAG(
 						 peer->sflags,
@@ -11462,7 +11464,7 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 					json_object_string_add(
 						json_peer, "state",
 						lookup_msg(bgp_status_msg,
-							   peer->connection.status,
+							   peer->connection->status,
 							   NULL));
 
 				/* BGP peer state */
@@ -11585,11 +11587,13 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 				atomic_size_t outq_count, inq_count;
 				outq_count =
 					atomic_load_explicit(&peer->connection
-								      .obuf->count,
+								      ->obuf
+								      ->count,
 							     memory_order_relaxed);
 				inq_count =
 					atomic_load_explicit(&peer->connection
-								      .ibuf->count,
+								      ->ibuf
+								      ->count,
 							     memory_order_relaxed);
 
 				if (show_wide)
@@ -11670,7 +11674,7 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 						vty_out(vty, " %12s",
 							lookup_msg(bgp_status_msg,
 								   peer->connection
-									   .status,
+									   ->status,
 								   NULL));
 
 					vty_out(vty, " %8u", 0);
@@ -13355,7 +13359,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		/* Status. */
 		json_object_string_add(json_neigh, "bgpState",
 				       lookup_msg(bgp_status_msg,
-						  p->connection.status, NULL));
+						  p->connection->status, NULL));
 
 		if (peer_established(p)) {
 			time_t uptime;
@@ -13373,7 +13377,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			json_object_int_add(json_neigh,
 					    "bgpTimerUpEstablishedEpoch",
 					    epoch_tbuf);
-		} else if (p->connection.status == Active) {
+		} else if (p->connection->status == Active) {
 			if (CHECK_FLAG(p->flags, PEER_FLAG_PASSIVE))
 				json_object_string_add(json_neigh, "bgpStateIs",
 						       "passive");
@@ -13424,7 +13428,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 
 		/* Configured and Synced tcp-mss value for peer */
 		if (CHECK_FLAG(p->flags, PEER_FLAG_TCP_MSS)) {
-			sync_tcp_mss = sockopt_tcp_mss_get(p->connection.fd);
+			sync_tcp_mss = sockopt_tcp_mss_get(p->connection->fd);
 			json_object_int_add(json_neigh, "bgpTcpMssConfigured",
 					    p->tcp_mss);
 			json_object_int_add(json_neigh, "bgpTcpMssSynced",
@@ -13479,13 +13483,13 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 
 		/* Status. */
 		vty_out(vty, "  BGP state = %s",
-			lookup_msg(bgp_status_msg, p->connection.status, NULL));
+			lookup_msg(bgp_status_msg, p->connection->status, NULL));
 
 		if (peer_established(p))
 			vty_out(vty, ", up for %8s",
 				peer_uptime(p->uptime, timebuf, BGP_UPTIME_LEN,
 					    0, NULL));
-		else if (p->connection.status == Active) {
+		else if (p->connection->status == Active) {
 			if (CHECK_FLAG(p->flags, PEER_FLAG_PASSIVE))
 				vty_out(vty, " (passive)");
 			else if (CHECK_FLAG(p->sflags, PEER_STATUS_NSF_WAIT))
@@ -13524,7 +13528,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 
 		/* Configured and synced tcp-mss value for peer */
 		if (CHECK_FLAG(p->flags, PEER_FLAG_TCP_MSS)) {
-			sync_tcp_mss = sockopt_tcp_mss_get(p->connection.fd);
+			sync_tcp_mss = sockopt_tcp_mss_get(p->connection->fd);
 			vty_out(vty, "  Configured tcp-mss is %d", p->tcp_mss);
 			vty_out(vty, ", synced tcp-mss is %d\n", sync_tcp_mss);
 		}
@@ -14461,9 +14465,9 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		/* Packet counts. */
 
 		atomic_size_t outq_count, inq_count;
-		outq_count = atomic_load_explicit(&p->connection.obuf->count,
+		outq_count = atomic_load_explicit(&p->connection->obuf->count,
 						  memory_order_relaxed);
-		inq_count = atomic_load_explicit(&p->connection.ibuf->count,
+		inq_count = atomic_load_explicit(&p->connection->ibuf->count,
 						 memory_order_relaxed);
 
 		json_object_int_add(json_stat, "depthInq",
@@ -14511,9 +14515,9 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		json_object_object_add(json_neigh, "messageStats", json_stat);
 	} else {
 		atomic_size_t outq_count, inq_count;
-		outq_count = atomic_load_explicit(&p->connection.obuf->count,
+		outq_count = atomic_load_explicit(&p->connection->obuf->count,
 						  memory_order_relaxed);
-		inq_count = atomic_load_explicit(&p->connection.ibuf->count,
+		inq_count = atomic_load_explicit(&p->connection->ibuf->count,
 						 memory_order_relaxed);
 
 		/* Packet counts. */
@@ -14821,12 +14825,12 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			json_object_int_add(json_neigh, "authenticationEnabled",
 					    1);
 
-		if (p->connection.t_read)
+		if (p->connection->t_read)
 			json_object_string_add(json_neigh, "readThread", "on");
 		else
 			json_object_string_add(json_neigh, "readThread", "off");
 
-		if (CHECK_FLAG(p->connection.thread_flags,
+		if (CHECK_FLAG(p->connection->thread_flags,
 			       PEER_THREAD_WRITES_ON))
 			json_object_string_add(json_neigh, "writeThread", "on");
 		else
@@ -14853,12 +14857,12 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			vty_out(vty, "Peer Authentication Enabled\n");
 
 		vty_out(vty, "Read thread: %s  Write thread: %s  FD used: %d\n",
-			p->connection.t_read ? "on" : "off",
-			CHECK_FLAG(p->connection.thread_flags,
+			p->connection->t_read ? "on" : "off",
+			CHECK_FLAG(p->connection->thread_flags,
 				   PEER_THREAD_WRITES_ON)
 				? "on"
 				: "off",
-			p->connection.fd);
+			p->connection->fd);
 	}
 
 	if (bgp_advertise_delay_configured(p->bgp)) {
@@ -16205,9 +16209,10 @@ static int bgp_show_one_peer_group(struct vty *vty, struct peer_group *group,
 					    PEER_STATUS_PREFIX_OVERFLOW))
 				peer_status = "Idle (PfxCt)";
 			else
-				peer_status = lookup_msg(bgp_status_msg,
-							 peer->connection.status,
-							 NULL);
+				peer_status =
+					lookup_msg(bgp_status_msg,
+						   peer->connection->status,
+						   NULL);
 
 			dynamic = peer_dynamic_neighbor(peer);
 

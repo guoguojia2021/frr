@@ -85,7 +85,7 @@ void bgp_writes_off(struct peer_connection *connection)
 	thread_cancel_async(fpt->master, &connection->t_write, NULL);
 	THREAD_OFF(peer->t_generate_updgrp_packets);
 
-	UNSET_FLAG(peer->connection.thread_flags, PEER_THREAD_WRITES_ON);
+	UNSET_FLAG(peer->connection->thread_flags, PEER_THREAD_WRITES_ON);
 }
 
 void bgp_reads_on(struct peer_connection *connection)

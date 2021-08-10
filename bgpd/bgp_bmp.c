@@ -1012,7 +1012,7 @@ static void bmp_statistics_peer_state_update(struct peer *peer, bool down)
 	{
 		frr_each(bmp_session, &bt->sessions, bmp)
 		{
-			if (peer->connection.status == Established && !down) 
+			if (peer->connection->status == Established && !down)
 			{
 				bmp->bmp_stat.bmp_stat_peer_up ++;
 			}
@@ -1031,7 +1031,7 @@ static int bmp_peer_established(struct peer *peer)
 
 	frrtrace(1, frr_bgp, bmp_peer_status_changed, peer);
 
-	if (peer->connection.status == Deleted) {
+	if (peer->connection->status == Deleted) {
 		bbpeer = bmp_bgp_peer_find(peer->qobj_node.nid);
 		if (bbpeer) {
 			XFREE(MTYPE_BMP_OPEN, bbpeer->open_rx);
@@ -1043,12 +1043,12 @@ static int bmp_peer_established(struct peer *peer)
 	}
 
 	/* Check if this peer just went to Established */
-	if ((peer->connection.ostatus != OpenConfirm) ||
+	if ((peer->connection->ostatus != OpenConfirm) ||
 	    !(peer_established(peer)))
 		return 0;
 
 	if (peer->doppelganger &&
-	    (peer->doppelganger->connection.status != Deleted)) {
+	    (peer->doppelganger->connection->status != Deleted)) {
 		bbpeer = bmp_bgp_peer_get(peer);
 		bbdopp = bmp_bgp_peer_find(peer->doppelganger->qobj_node.nid);
 		if (bbdopp) {
@@ -1571,7 +1571,7 @@ static struct bmp_queue_entry *bmp_pull_by_valid_peerid(struct bmp *bmp) {
 	while (bqe) {
 		// If the peer of node is established, it's valid node, return it.
 		peer = QOBJ_GET_TYPESAFE(bqe->peerid, peer);
-		if ((peer != NULL) && (peer->connection.status == Established)) {
+		if ((peer != NULL) && (peer->connection->status == Established)) {
 			break;
 		}
 
@@ -1881,7 +1881,7 @@ static int bmp_stats(struct thread *thread)
 	{
 		for (ALL_LIST_ELEMENTS_RO(bm->bgp, lnbgp, bgp)) {
 			for (ALL_LIST_ELEMENTS_RO(bgp->peer, lnpeer, peer)) {
-				if (peer->connection.status != Established)
+				if (peer->connection->status != Established)
 					continue;
 
 				bmp_send_state(bt->bmpbgp, peer, &tv);
@@ -1892,7 +1892,7 @@ static int bmp_stats(struct thread *thread)
 	{
 		for (ALL_LIST_ELEMENTS_RO(bt->bgp->peer, node, peer)) {
 
-			if (peer->connection.status != Established)
+			if (peer->connection->status != Established)
 				continue;
 
 			bmp_send_state(bt->bmpbgp, peer, &tv);

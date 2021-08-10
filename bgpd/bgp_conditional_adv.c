@@ -491,7 +491,7 @@ void bgp_notify_condition_peer(struct bgp_nexthop_cache *bnc)
             filter->advmap.update_type = WITHDRAW;
 
         /* Skip non established peer. */
-        if (peer->connection.status != Established)
+        if (peer->connection->status != Established)
             continue;
         /*
          * Update condadv update type so
