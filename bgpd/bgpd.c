@@ -1573,9 +1573,6 @@ struct peer *peer_new(struct bgp *bgp)
 	/* Initialize per peer bgp GR FSM */
 	bgp_peer_gr_init(peer);
 
-	/* Create buffers.  */
-	peer->connection = bgp_peer_connection_new(peer);
-
 	peer->scratch = stream_new(BGP_MAX_PACKET_SIZE);
 
 	bgp_sync_init(peer);
@@ -2616,7 +2613,7 @@ int peer_delete(struct peer *peer)
 	 * executed after peer structure is deleted.
 	 */
 	peer->last_reset = PEER_DOWN_NEIGHBOR_DELETE;
-	bgp_stop(peer);
+	bgp_stop(peer->connection);
 	UNSET_FLAG(peer->flags, PEER_FLAG_DELETE);
 
 	if (peer->doppelganger) {
@@ -2741,7 +2738,7 @@ int peer_quick_delete(struct peer *peer)
 	 * executed after peer structure is deleted.
 	 */
 	peer->last_reset = PEER_DOWN_NEIGHBOR_DELETE;
-	bgp_stop(peer);
+	bgp_stop(peer->connection);
 	UNSET_FLAG(peer->flags, PEER_FLAG_DELETE);
 
 	if (peer->doppelganger) {
