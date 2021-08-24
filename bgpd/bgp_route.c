@@ -2663,8 +2663,8 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 	new_select = NULL;
 
 
-	for (pi = bgp_dest_get_bgp_path_info(dest); pi;
-	     pi = pi->next) {
+	for (pi = bgp_dest_get_bgp_path_info(dest);
+		(pi != NULL) && (nextpi = pi->next, 1); pi = nextpi) {
 		 enum bgp_path_selection_reason reason;
 #ifdef ARP2HOST_BACKUP
 		if(select_backup) {
