@@ -314,7 +314,7 @@ static int bgp_interface_address_add(ZAPI_CALLBACK_ARGS)
 
 	bgp = bgp_lookup_by_vrf_id(vrf_id);
 
-	ifc = zebra_interface_address_read(cmd, zclient->ibuf, vrf_id);
+	ifc = zebra_interface_address_read_when_up(cmd, zclient->ibuf, vrf_id);
 
 	if (ifc == NULL)
 		return 0;

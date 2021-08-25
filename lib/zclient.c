@@ -4318,3 +4318,83 @@ int zclient_send_zebra_gre_request(struct zclient *client,
 	zclient_send_message(client);
 	return 0;
 }
+
+struct connected *zebra_interface_address_read_when_up(int type, struct stream *s,
+					       vrf_id_t vrf_id)
+{
+	ifindex_t ifindex;
+	struct interface *ifp;
+	struct connected *ifc;
+	struct prefix p, d, *dp;
+	int plen;
+	u_char ifc_flags;
+
+	memset(&p, 0, sizeof(p));
+	memset(&d, 0, sizeof(d));
+
+	/* Get interface index. */
+	ifindex = stream_getl(s);
+
+	/* Lookup index. */
+	ifp = if_lookup_by_index(ifindex, vrf_id);
+	if (ifp == NULL) {
+		zlog_warn("INTERFACE_ADDRESS_%s: Cannot find IF %u in VRF %d",
+			  (type == ZEBRA_INTERFACE_ADDRESS_ADD) ? "ADD" : "DEL",
+			  ifindex, vrf_id);
+		return NULL;
+	}
+
+    if (type == ZEBRA_INTERFACE_ADDRESS_ADD && !if_is_operative(ifp)) {
+        zlog_debug("INTERFACE_ADDRESS_ADD: IF %u in VRF %d is not operative, ignore",
+                ifindex, vrf_id);
+        return NULL;
+    }
+
+	/* Fetch flag. */
+	ifc_flags = stream_getc(s);
+
+	/* Fetch interface address. */
+	d.family = p.family = stream_getc(s);
+	plen = prefix_blen(&d);
+
+	zclient_stream_get_prefix(s, &p);
+
+	/* Fetch destination address. */
+	stream_get(&d.u.prefix, s, plen);
+
+	/* N.B. NULL destination pointers are encoded as all zeroes */
+	dp = memconstant(&d.u.prefix, 0, plen) ? NULL : &d;
+
+	if (type == ZEBRA_INTERFACE_ADDRESS_ADD) {
+		ifc = connected_lookup_prefix_exact(ifp, &p);
+		if (!ifc) {
+			/* N.B. NULL destination pointers are encoded as all
+			 * zeroes */
+			ifc = connected_add_by_prefix(ifp, &p, dp);
+		}
+		if (ifc) {
+			ifc->flags = ifc_flags;
+			if (ifc->destination)
+				ifc->destination->prefixlen =
+					ifc->address->prefixlen;
+			else if (CHECK_FLAG(ifc->flags, ZEBRA_IFA_PEER)) {
+				/* carp interfaces on OpenBSD with 0.0.0.0/0 as
+				 * "peer" */
+				char buf[PREFIX_STRLEN];
+				zlog_warn(
+					"warning: interface %s address %s "
+					"with peer flag set, but no peer address!",
+					ifp->name, prefix2str(ifc->address, buf,
+							      sizeof buf));
+				UNSET_FLAG(ifc->flags, ZEBRA_IFA_PEER);
+			}
+		}
+	} else {
+		assert(type == ZEBRA_INTERFACE_ADDRESS_DELETE);
+		ifc = connected_delete_by_prefix(ifp, &p);
+	}
+
+	return ifc;
+
+}
+

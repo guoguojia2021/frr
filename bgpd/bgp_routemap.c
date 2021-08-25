@@ -4103,6 +4103,34 @@ static void bgp_route_map_event(const char *rmap_name)
 	route_map_notify_dependencies(rmap_name, RMAP_EVENT_MATCH_ADDED);
 }
 
+
+static route_map_result_t
+route_set_aspath_overwrite (void *rule, struct prefix *dummy, void *object)
+{
+	struct aspath *new_path;
+  	struct bgp_path_info *path;
+
+	new_path = rule;
+    if (new_path) {
+    	path = object;
+    	if (!path->attr->aspath->refcnt)
+			aspath_free(path->attr->aspath);
+
+    	path->attr->aspath = aspath_dup (new_path);
+    	path->attr->aspath_overwrite = 1;
+    }
+
+  return RMAP_OKAY;
+}
+
+struct route_map_rule_cmd route_set_aspath_overwrite_cmd =
+  {
+    "as-path overwrite",
+    route_set_aspath_overwrite,
+    route_aspath_compile,
+    route_aspath_free,
+  };
+
 DEFUN_YANG (match_mac_address,
 	    match_mac_address_cmd,
 	    "match mac address ACCESSLIST_MAC_NAME",
@@ -6617,6 +6645,44 @@ DEFUN_YANG (no_set_originator_id,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFUN_YANG (set_aspath_overwrite,
+       set_aspath_overwrite_cmd,
+       "set as-path overwrite (1-4294967295)...",
+       SET_STR
+       "Transform BGP AS-path attribute\n"
+       "Overwrite the as-path\n"
+       "AS number\n")
+{
+	int idx_number = 3;
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:as-path-overwrite']";
+	char xpath_value[XPATH_MAXLEN];
+	char *str = argv_concat(argv, argc, idx_number);
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:overwrite-as-path", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY,
+			      str);
+	return nb_cli_apply_changes(vty, NULL);
+
+}
+
+DEFUN_YANG (no_set_aspath_overwrite,
+       no_set_aspath_overwrite_cmd,
+       "no set as-path overwrite",
+       NO_STR
+       SET_STR
+       "Transform BGP AS_PATH attribute\n"
+       "Overwrite the as-path\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:as-path-overwrite']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 /* Initialization of route map. */
 void bgp_route_map_init(void)
 {
@@ -6850,6 +6916,7 @@ void bgp_route_map_init(void)
 	route_map_install_set(&route_set_ipv6_nexthop_prefer_global_cmd);
 	route_map_install_set(&route_set_ipv6_nexthop_local_cmd);
 	route_map_install_set(&route_set_ipv6_nexthop_peer_cmd);
+	route_map_install_set(&route_set_aspath_overwrite_cmd);
 
 	install_element(RMAP_NODE, &match_ipv6_next_hop_cmd);
 	install_element(RMAP_NODE, &match_ipv6_next_hop_address_cmd);
@@ -6867,6 +6934,8 @@ void bgp_route_map_init(void)
 	install_element(RMAP_NODE, &no_set_ipv6_nexthop_prefer_global_cmd);
 	install_element(RMAP_NODE, &set_ipv6_nexthop_peer_cmd);
 	install_element(RMAP_NODE, &no_set_ipv6_nexthop_peer_cmd);
+	install_element(RMAP_NODE, &set_aspath_overwrite_cmd);
+	install_element(RMAP_NODE, &no_set_aspath_overwrite_cmd);
 #ifdef HAVE_SCRIPTING
 	install_element(RMAP_NODE, &match_script_cmd);
 #endif

@@ -185,6 +185,9 @@ struct attr {
 	/* PMSI tunnel type (RFC 6514). */
 	enum pta_type pmsi_tnl_type;
 
+	/* Flag of overwrite aspath */
+	u_char aspath_overwrite;
+
 	/* has the route-map changed any attribute?
 	   Used on the peer outbound side. */
 	uint32_t rmap_change_flags;

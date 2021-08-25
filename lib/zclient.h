@@ -1252,6 +1252,9 @@ extern int zapi_client_close_notify_decode(struct stream *s,
 
 extern int zclient_send_zebra_gre_request(struct zclient *client,
 					  struct interface *ifp);
+	
+extern struct connected *zebra_interface_address_read_when_up(
+	int, struct stream *, vrf_id_t);
 #ifdef __cplusplus
 }
 #endif

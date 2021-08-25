@@ -385,6 +385,9 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(A, "frr-bgp-route-map:set-evpn-gateway-ip-ipv4"))
 #define IS_SET_BGP_EVPN_GATEWAY_IP_IPV6(A)                                     \
 	(strmatch(A, "frr-bgp-route-map:set-evpn-gateway-ip-ipv6"))
+#define IS_SET_AS_OVERWRITE(A)                                                 \
+	(strmatch(A, "frr-bgp-route-map:as-path-overwrite"))
+
 
 enum ecommunity_lb_type {
 	EXPLICIT_BANDWIDTH,

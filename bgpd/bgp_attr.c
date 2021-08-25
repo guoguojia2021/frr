@@ -3987,6 +3987,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 							aspath, peer->local_as);
 				aspath = aspath_add_seq(aspath,
 							peer->change_local_as);
+			} else if (attr->aspath_overwrite ) {
+				aspath = attr->aspath;
 			} else {
 				aspath = aspath_add_seq(aspath, peer->local_as);
 			}
