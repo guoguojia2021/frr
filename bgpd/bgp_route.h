@@ -333,6 +333,9 @@ struct bgp_static {
 	/* Backdoor configuration.  */
 	int backdoor;
 
+	/*Nonconnected configuration*/
+	int nonconnected;
+
 	/* Label index configuration; applies to LU prefixes. */
 	uint32_t label_index;
 #define BGP_INVALID_LABEL_INDEX   0xFFFFFFFF
@@ -807,6 +810,7 @@ extern void bgp_path_info_restore(struct bgp_dest *dest,
 extern int bgp_path_info_cmp_compatible(struct bgp *bgp,
 					struct bgp_path_info *new,
 					struct bgp_path_info *exist,
+					struct prefix *prefix,
 					char *pfx_buf, afi_t afi, safi_t safi,
 					enum bgp_path_selection_reason *reason);
 extern void bgp_attr_add_llgr_community(struct attr *attr);

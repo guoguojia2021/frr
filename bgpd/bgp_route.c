@@ -536,7 +536,6 @@ void bgp_path_info_path_with_addpath_rx_str(struct bgp_path_info *pi, char *buf,
 		snprintf(buf, buf_len, "path %s", pi->peer->host);
 }
 
-
 /*
  * Get the ultimate path info.
  */
@@ -554,11 +553,75 @@ struct bgp_path_info *bgp_get_imported_bpi_ultimate(struct bgp_path_info *info)
 
 	return bpi_ultimate;
 }
+/*
+ * For route set by "network" statement,
+ * make sure the link is really up, return 1
+ */
+static int
+bgp_static_check (struct bgp *bgp, struct bgp_path_info *pi,
+		  struct prefix *p, afi_t afi, safi_t safi, int debug)
+{
+	char buf[SU_ADDRSTRLEN];
+	struct bgp_static * bgp_static;
+	struct bgp_node * tmp_rn;
+	int nonconnected;
+
+
+	if (debug) {
+		zlog_debug("%s(): %s/%d:nexthop %s",
+			   __func__,
+			   inet_ntop (p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+			   p->prefixlen, inet_ntoa (pi->attr->nexthop));
+	}
+
+	/* Not static, or not v4 */
+	if (pi->sub_type != BGP_ROUTE_STATIC) {
+		return 1;
+	}
+
+	tmp_rn = bgp_node_get(bgp->route[afi][safi], p);
+	bgp_static = tmp_rn->info;
+	if (bgp_static) {
+		nonconnected = bgp_static->nonconnected;
+		bgp_dest_unlock_node(tmp_rn);
+		if(debug)
+		{
+			zlog_debug("%s(): %s/%d:nexthop %s, %s",
+				   __func__,
+				   inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+				   p->prefixlen, inet_ntoa (pi->attr->nexthop),
+				 nonconnected? "nonconnected type, ignore link state" : "connected type");
+		}
+		if(nonconnected)
+			return 1;
+	}
+
+	/* Only consider "network" if it's up */
+	if (p->family == AF_INET) {
+		if (bgp_node_lookup(bgp->connected_table[AFI_IP], p)) {
+			return 1;
+		}
+	} else if (p->family == AF_INET6) {
+		if (bgp_node_lookup(bgp->connected_table[AFI_IP6], p)) {
+			return 1;
+		}
+	}
+
+	if (debug) {
+		zlog_debug("%s(): %s/%d:nexthop %s, link is down",
+			   __func__,
+			   inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+			   p->prefixlen, inet_ntoa (pi->attr->nexthop));
+	}
+
+	return 0;
+}
 
 /* Compare two bgp route entity.  If 'new' is preferable over 'exist' return 1.
  */
 static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
-			     struct bgp_path_info *exist, int *paths_eq,
+			     struct bgp_path_info *exist, 
+				 struct prefix *prefix,int *paths_eq,
 			     struct bgp_maxpaths_cfg *mpath_cfg, int debug,
 			     char *pfx_buf, afi_t afi, safi_t safi,
 			     enum bgp_path_selection_reason *reason)
@@ -585,6 +648,7 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	int peer_sort_ret = -1;
 	char new_buf[PATH_ADDPATH_STR_BUFFER];
 	char exist_buf[PATH_ADDPATH_STR_BUFFER];
+	char buf[SU_ADDRSTRLEN];
 	uint32_t new_mm_seq;
 	uint32_t exist_mm_seq;
 	int nh_cmp;
@@ -818,7 +882,26 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 			return 0;
 		}
 	}
+	if (safi == SAFI_EVPN) {
+		if (debug) {
+			zlog_debug ("%s(): %s/%d:",  __func__,
+			    inet_ntop(prefix->family,
+				      &prefix->u.prefix, buf, SU_ADDRSTRLEN),
+			    prefix->prefixlen);
+			zlog_debug("  new nexthop %s",
+			   inet_ntoa (newattr->nexthop));
+	        zlog_debug("  exist nexthop %s",
+			   inet_ntoa (existattr->nexthop));
+		}
 
+		/* Don't consider BGP "network" if it's not up */
+		if (!bgp_static_check(bgp, new, prefix, afi, safi, debug))
+			return 0;
+
+	    if (!bgp_static_check(bgp, exist, prefix, afi, safi, debug))
+			return 1;
+	}
+	
 	/* 1. Weight check. */
 	new_weight = newattr->weight;
 	exist_weight = existattr->weight;
@@ -1373,8 +1456,9 @@ int bgp_evpn_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 {
 	enum bgp_path_selection_reason reason;
 	char pfx_buf[PREFIX2STR_BUFFER];
+	struct prefix prefix;
 
-	return bgp_path_info_cmp(bgp, new, exist, paths_eq, NULL, 0, pfx_buf,
+	return bgp_path_info_cmp(bgp, new, exist, &prefix, paths_eq, NULL, 0, pfx_buf,
 				AFI_L2VPN, SAFI_EVPN, &reason);
 }
 
@@ -1383,13 +1467,13 @@ int bgp_evpn_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
  * multipath is enabled
  * This version is compatible with */
 int bgp_path_info_cmp_compatible(struct bgp *bgp, struct bgp_path_info *new,
-				 struct bgp_path_info *exist, char *pfx_buf,
-				 afi_t afi, safi_t safi,
+				 struct bgp_path_info *exist, struct prefix *prefix,
+				 char *pfx_buf, afi_t afi, safi_t safi,
 				 enum bgp_path_selection_reason *reason)
 {
 	int paths_eq;
 	int ret;
-	ret = bgp_path_info_cmp(bgp, new, exist, &paths_eq, NULL, 0, pfx_buf,
+	ret = bgp_path_info_cmp(bgp, new, exist, prefix, &paths_eq, NULL, 0, pfx_buf,
 				afi, safi, reason);
 
 	if (paths_eq)
@@ -1852,6 +1936,9 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 	bool nh_reset = false;
 	uint64_t cum_bw;
 	char buf[PREFIX_STRLEN];
+	struct bgp_static * bgp_static;
+	struct bgp_node * tmp_rn;
+
 
 	if (DISABLE_BGP_ANNOUNCE)
 		return false;
@@ -2084,32 +2171,44 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
     if ((pi->peer == bgp->peer_self) &&
             (pi->type == ZEBRA_ROUTE_BGP) &&
             (pi->sub_type == BGP_ROUTE_STATIC)) {
-        if (p->family == AF_INET) {
-            dest = bgp_node_match_ipv4(bgp->connected_table[AFI_IP], &p->u.prefix4);
-            if (dest) {
-                bgp_dest_unlock_node (dest);
-            } else {
-                if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
-                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
-                            peer->host,
-                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-                            p->prefixlen);
-                return 0;
-            }
-        } else if (p->family == AF_INET6) {
-            dest = bgp_node_match_ipv6(bgp->connected_table[AFI_IP6], &p->u.prefix6);
-            if (dest) {
-                bgp_dest_unlock_node (dest);
-            } else {
-                if (bgp_debug_update(NULL, p, subgrp->update_group, 0)) {
-                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
-                            peer->host,
-                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-                            p->prefixlen);
-                }
-                return 0;
-            }
-        }
+		tmp_rn = bgp_node_get(bgp->route[afi][safi], p);
+		bgp_static = tmp_rn->info;
+		if (bgp_static && !bgp_static->nonconnected) {
+			bgp_dest_unlock_node(tmp_rn);
+			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+				zlog_debug("network route connected,should check connectivity");
+
+	        if (p->family == AF_INET) {
+	            dest = bgp_node_match_ipv4(bgp->connected_table[AFI_IP], &p->u.prefix4);
+	            if (dest) {
+	                bgp_dest_unlock_node (dest);
+	            } else {
+	                if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+	                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
+	                            peer->host,
+	                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+	                            p->prefixlen);
+	                return 0;
+	            }
+	        } else if (p->family == AF_INET6) {
+	            dest = bgp_node_match_ipv6(bgp->connected_table[AFI_IP6], &p->u.prefix6);
+	            if (dest) {
+	                bgp_dest_unlock_node (dest);
+	            } else {
+	                if (bgp_debug_update(NULL, p, subgrp->update_group, 0)) {
+	                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
+	                            peer->host,
+	                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+	                            p->prefixlen);
+	                }
+	                return 0;
+	            }
+	        }
+		} else {
+			bgp_dest_unlock_node(tmp_rn);
+			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+				zlog_debug("network route nonconnected, do not check connectivity");
+		}
     }
 
 	/* If local-preference is not set. */
@@ -2493,11 +2592,13 @@ bgp_process_update (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi, i
     if (!rn)
       continue;
 
+    struct bgp_static * bgp_static = network_rn->info;
+
     for (pi = bgp_dest_get_bgp_path_info(rn); pi;
 	 pi = pi->next) {
 	if (pi->peer == bgp->peer_self &&
 	    pi->type == ZEBRA_ROUTE_BGP &&
-	  pi->sub_type == BGP_ROUTE_STATIC) {
+	    pi->sub_type == BGP_ROUTE_STATIC&&(!bgp_static->nonconnected)) {
 	if (BGP_DEBUG (neighbor_events, NEIGHBOR_EVENTS)) {
 	  zlog_debug ("%s(): update network %s/%d - %s",
 		      __func__,
@@ -2636,7 +2737,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 						continue;
 
 					if (bgp_path_info_cmp(
-						    bgp, pi2, new_select,
+						    bgp, pi2, new_select, &dest->p,
 						    &paths_eq, mpath_cfg, debug,
 						    pfx_buf, afi, safi,
 						    &dest->reason)) {
@@ -2741,7 +2842,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 		bgp_path_info_unset_flag(dest, pi, BGP_PATH_DMED_CHECK);
 
 		reason = dest->reason;
-		if (bgp_path_info_cmp(bgp, pi, new_select, &paths_eq, mpath_cfg,
+		if (bgp_path_info_cmp(bgp, pi, new_select, &dest->p, &paths_eq, mpath_cfg,
 				      debug, pfx_buf, afi, safi,
 				      &dest->reason)) {
 			if (new_select == NULL &&
@@ -2802,7 +2903,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 				continue;
 			}
 
-			bgp_path_info_cmp(bgp, pi, new_select, &paths_eq,
+			bgp_path_info_cmp(bgp, pi, new_select, &dest->p, &paths_eq,
 					  mpath_cfg, debug, pfx_buf, afi, safi,
 					  &dest->reason);
 
@@ -6682,7 +6783,8 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
    route should be installed as valid.  */
 static int bgp_static_set(struct vty *vty, const char *negate,
 			  const char *ip_str, afi_t afi, safi_t safi,
-			  const char *rmap, int backdoor, uint32_t label_index)
+			  const char *rmap, int backdoor, uint32_t label_index,
+			  int nonconnected)
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
 	int ret;
@@ -6732,6 +6834,13 @@ static int bgp_static_set(struct vty *vty, const char *negate,
 			return CMD_WARNING_CONFIG_FAILED;
 		}
 
+		if (nonconnected != bgp_static->nonconnected)
+		{
+			vty_out(vty,
+				"%% network type error, please confirm nonconnected type\n");
+			return CMD_WARNING_CONFIG_FAILED;
+		}
+
 		/* Update BGP RIB. */
 		if (!bgp_static->backdoor)
 			bgp_static_withdraw(bgp, &p, afi, safi);
@@ -6751,6 +6860,12 @@ static int bgp_static_set(struct vty *vty, const char *negate,
 			/* Label index cannot be changed. */
 			if (bgp_static->label_index != label_index) {
 				vty_out(vty, "%% cannot change label-index\n");
+				return CMD_WARNING_CONFIG_FAILED;
+			}
+
+			if (bgp_static->nonconnected != nonconnected)
+			{
+				vty_out(vty, "%% cannot change nonconnected type\n");
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 
@@ -6785,6 +6900,7 @@ static int bgp_static_set(struct vty *vty, const char *negate,
 			/* New configuration. */
 			bgp_static = bgp_static_new();
 			bgp_static->backdoor = backdoor;
+            bgp_static->nonconnected = nonconnected;
 			bgp_static->valid = 0;
 			bgp_static->igpmetric = 0;
 			bgp_static->igpnexthop.s_addr = INADDR_ANY;
@@ -7270,7 +7386,7 @@ DEFPY(bgp_network,
 	"[no] network \
 	<A.B.C.D/M$prefix|A.B.C.D$address [mask A.B.C.D$netmask]> \
 	[{route-map WORD$map_name|label-index (0-1048560)$label_index| \
-	backdoor$backdoor}]",
+    backdoor$backdoor|nonconnected$nonconnected}]",
 	NO_STR
 	"Specify a network to announce via BGP\n"
 	"IPv4 prefix\n"
@@ -7281,7 +7397,8 @@ DEFPY(bgp_network,
 	"Name of the route map\n"
 	"Label index to associate with the prefix\n"
 	"Label index value\n"
-	"Specify a BGP backdoor route\n")
+	"Specify a BGP backdoor route\n"
+	"Specify a BGP nonconnected route\n")
 {
 	char addr_prefix_str[BUFSIZ];
 
@@ -7300,24 +7417,27 @@ DEFPY(bgp_network,
 	return bgp_static_set(
 		vty, no, address_str ? addr_prefix_str : prefix_str, AFI_IP,
 		bgp_node_safi(vty), map_name, backdoor ? 1 : 0,
-		label_index ? (uint32_t)label_index : BGP_INVALID_LABEL_INDEX);
+		label_index ? (uint32_t)label_index : BGP_INVALID_LABEL_INDEX,
+		nonconnected ? 1 : 0);
 }
 
 DEFPY(ipv6_bgp_network,
 	ipv6_bgp_network_cmd,
 	"[no] network X:X::X:X/M$prefix \
-	[{route-map WORD$map_name|label-index (0-1048560)$label_index}]",
+	[{route-map WORD$map_name|label-index (0-1048560)$label_index|nonconnected$nonconnected}]",
 	NO_STR
 	"Specify a network to announce via BGP\n"
 	"IPv6 prefix\n"
 	"Route-map to modify the attributes\n"
 	"Name of the route map\n"
 	"Label index to associate with the prefix\n"
-	"Label index value\n")
+	"Label index value\n"
+	"Specify a BGP nonconnected route\n")
 {
 	return bgp_static_set(
 		vty, no, prefix_str, AFI_IP6, bgp_node_safi(vty), map_name, 0,
-		label_index ? (uint32_t)label_index : BGP_INVALID_LABEL_INDEX);
+		label_index ? (uint32_t)label_index : BGP_INVALID_LABEL_INDEX,
+		nonconnected ? 1 : 0);
 }
 
 static struct bgp_aggregate *bgp_aggregate_new(void)
@@ -15492,6 +15612,9 @@ void bgp_config_write_network(struct vty *vty, struct bgp *bgp, afi_t afi,
 
 		if (bgp_static->backdoor)
 			vty_out(vty, " backdoor");
+
+		if (bgp_static->nonconnected)
+			vty_out(vty, " nonconnected");
 
 		vty_out(vty, "\n");
 	}

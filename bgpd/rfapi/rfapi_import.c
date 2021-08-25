@@ -1967,7 +1967,7 @@ static void rfapiBgpInfoAttachSorted(struct agg_node *rn,
 		if (!bgp
 		    || (!CHECK_FLAG(info_new->flags, BGP_PATH_REMOVED)
 			&& CHECK_FLAG(next->flags, BGP_PATH_REMOVED))
-		    || bgp_path_info_cmp_compatible(bgp, info_new, next,
+		    || bgp_path_info_cmp_compatible(bgp, info_new, next, &rn->p,
 						    pfx_buf, afi, safi,
 						    &reason)
 			       == -1) { /* -1 if 1st is better */
