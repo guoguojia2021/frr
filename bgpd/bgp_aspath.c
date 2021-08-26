@@ -2271,4 +2271,26 @@ void bgp_remove_aspath_from_aggregate_hash(struct bgp_aggregate *aggregate,
 		}
 	}
 }
+/* Replace all instances of the all ASN with our own ASN */
+struct aspath *aspath_replace_all_asn(struct aspath *aspath,
+					   as_t our_asn)
+{
+	struct aspath *new;
+	struct assegment *seg;
+
+	new = aspath_dup(aspath);
+	seg = new->segments;
+
+	while (seg) {
+		int i;
+
+		for (i = 0; i < seg->length; i++) {
+			seg->as[i] = our_asn;
+		}
+		seg = seg->next;
+	}
+
+	aspath_str_update(new, false);
+	return new;
+}
 

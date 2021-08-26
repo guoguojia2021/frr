@@ -4131,6 +4131,39 @@ struct route_map_rule_cmd route_set_aspath_overwrite_cmd =
     route_aspath_free,
   };
 
+static route_map_result_t
+route_set_aspath_replace (void *rule, struct prefix *prefix, void *object)
+{
+ 	struct aspath *new, *old;
+	struct bgp_path_info *path;
+	struct assegment *seg;
+    new = rule;
+    if (new) {
+		path = object;
+		old = path->attr->aspath;
+    	seg = new->segments;
+		if (aspath_size(old) == 0) {
+			path->attr->aspath = aspath_dup(new);
+		} else {
+			path->attr->aspath = aspath_replace_all_asn(old, seg->as[0]);
+		}
+    	path->attr->aspath_overwrite = 1;
+    	if (!old->refcnt)
+		aspath_free(old);
+    }
+
+  return RMAP_OKAY;
+}
+
+/* Set ASn replace rule structure. */
+struct route_map_rule_cmd route_set_aspath_replace_cmd =
+  {
+    "as-path replace",
+    route_set_aspath_replace,
+    route_aspath_compile,
+    route_aspath_free,
+  };
+
 DEFUN_YANG (match_mac_address,
 	    match_mac_address_cmd,
 	    "match mac address ACCESSLIST_MAC_NAME",
@@ -6683,6 +6716,43 @@ DEFUN_YANG (no_set_aspath_overwrite,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFUN_YANG (set_aspath_replace,
+       set_aspath_replace_cmd,
+       "set as-path replace (1-4294967295)",
+       SET_STR
+       "Transform BGP AS-path attribute\n"
+       "Replace the as-path\n"
+       "AS number\n")
+{
+	int idx_number = 3;
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:as-path-replace']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:replace-as-path", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY,
+			      argv[idx_number]->arg);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFUN_YANG (no_set_aspath_replace,
+       no_set_aspath_replace_cmd,
+       "no set as-path replace",
+       NO_STR
+       SET_STR
+       "Transform BGP AS_PATH attribute\n"
+       "Replace the as-path\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:as-path-replace']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+
 /* Initialization of route map. */
 void bgp_route_map_init(void)
 {
@@ -6917,6 +6987,7 @@ void bgp_route_map_init(void)
 	route_map_install_set(&route_set_ipv6_nexthop_local_cmd);
 	route_map_install_set(&route_set_ipv6_nexthop_peer_cmd);
 	route_map_install_set(&route_set_aspath_overwrite_cmd);
+	route_map_install_set(&route_set_aspath_replace_cmd);
 
 	install_element(RMAP_NODE, &match_ipv6_next_hop_cmd);
 	install_element(RMAP_NODE, &match_ipv6_next_hop_address_cmd);
@@ -6936,6 +7007,8 @@ void bgp_route_map_init(void)
 	install_element(RMAP_NODE, &no_set_ipv6_nexthop_peer_cmd);
 	install_element(RMAP_NODE, &set_aspath_overwrite_cmd);
 	install_element(RMAP_NODE, &no_set_aspath_overwrite_cmd);
+	install_element(RMAP_NODE, &set_aspath_replace_cmd);
+	install_element(RMAP_NODE, &no_set_aspath_replace_cmd);
 #ifdef HAVE_SCRIPTING
 	install_element(RMAP_NODE, &match_script_cmd);
 #endif
