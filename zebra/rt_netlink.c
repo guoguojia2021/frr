@@ -3826,6 +3826,11 @@ static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 		}
 
 		is_ext = !!(ndm->ndm_flags & NTF_EXT_LEARNED);
+		// since kernel ver4.9 not support NTF_EXT_LEARNED. we use NUD_NOARP to distinguish ext learn by vxlan
+		if(ndm->ndm_state == NUD_NOARP)
+		{
+			is_ext = true;
+		}
 		is_router = !!(ndm->ndm_flags & NTF_ROUTER);
 
 		if (tb[NDA_EXT_FLAGS]) {
