@@ -3515,6 +3515,10 @@ void bgp_instance_up(struct bgp *bgp)
 
 	/* Kick off any peers that may have been configured. */
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, next, peer)) {
+		if ((bgp->inst_type == BGP_INSTANCE_TYPE_VRF) && CHECK_FLAG(peer->flags, PEER_FLAG_PASSWORD))
+		{
+			bgp_md5_set(peer);
+		}
 		if (!BGP_PEER_START_SUPPRESSED(peer))
 			BGP_EVENT_ADD(peer, BGP_Start);
 	}
