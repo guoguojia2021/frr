@@ -227,10 +227,9 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 	return UPDWALK_CONTINUE;
 }
 
-static void subgrp_show_adjq_vty(struct update_subgroup *subgrp,
-				 struct vty *vty, uint8_t flags)
+static void subgrp_show_adjq_route_vty(struct update_subgroup *subgrp,
+	struct bgp_table *table, struct vty *vty, uint8_t flags)
 {
-	struct bgp_table *table;
 	struct bgp_adj_out *adj;
 	unsigned long output_count;
 	struct bgp_dest *dest;
@@ -242,7 +241,8 @@ static void subgrp_show_adjq_vty(struct update_subgroup *subgrp,
 	if (!bgp)
 		return;
 
-	table = bgp->rib[SUBGRP_AFI(subgrp)][SUBGRP_SAFI(subgrp)];
+	if (!table)
+		table = bgp->rib[SUBGRP_AFI(subgrp)][SUBGRP_SAFI(subgrp)];
 
 	output_count = 0;
 
@@ -285,6 +285,27 @@ static void subgrp_show_adjq_vty(struct update_subgroup *subgrp,
 	}
 	if (output_count != 0)
 		vty_out(vty, "\nTotal number of prefixes %ld\n", output_count);
+}
+
+static void subgrp_show_adjq_vty(struct update_subgroup *subgrp,
+				 struct vty *vty, uint8_t flags)
+{
+	struct bgp_dest *dest;
+	struct bgp_table *table;
+	if (!subgrp || !vty)
+		return;
+    safi_t safi = SUBGRP_SAFI(subgrp);
+    if (SAFI_MPLS_VPN == safi || SAFI_ENCAP == safi || SAFI_EVPN == safi) {
+		for (dest = bgp_table_top(update_subgroup_rib(subgrp)); dest;
+			dest = bgp_route_next(dest)) {
+			table = bgp_dest_get_bgp_table_info(dest);
+			if (!table)
+				continue;
+			subgrp_show_adjq_route_vty(subgrp, table, vty, flags);
+		}
+		return;
+	}
+	subgrp_show_adjq_route_vty(subgrp, NULL, vty, flags);
 }
 
 static int updgrp_show_adj_walkcb(struct update_group *updgrp, void *arg)
@@ -657,13 +678,11 @@ void subgroup_announce_table(struct update_subgroup *subgrp,
 	afi_t afi;
 	safi_t safi;
 	bool addpath_capable;
-	struct bgp *bgp;
 	bool advertise;
 
 	peer = SUBGRP_PEER(subgrp);
 	afi = SUBGRP_AFI(subgrp);
 	safi = SUBGRP_SAFI(subgrp);
-	bgp = SUBGRP_INST(subgrp);
 	addpath_capable = bgp_addpath_encode_tx(peer, afi, safi);
 
 	if (safi == SAFI_LABELED_UNICAST)
@@ -999,4 +1018,26 @@ void update_group_announce(struct bgp *bgp)
 void update_group_announce_rrclients(struct bgp *bgp)
 {
 	update_group_walk(bgp, update_group_announce_rrc_walkcb, NULL);
+}
+
+void show_bgp_updgrps_adj_info_aux(struct vty *vty, const char *name,
+					  afi_t afi, safi_t safi,
+					  const char *what, uint64_t subgrp_id)
+{
+	struct bgp *bgp;
+	if (name)
+		bgp = bgp_lookup_by_name(name);
+	else
+		bgp = bgp_get_default();
+	if (bgp) {
+		if (!strcmp(what, "advertise-queue"))
+			update_group_show_adj_queue(bgp, afi, safi, vty,
+						    subgrp_id);
+		else if (!strcmp(what, "advertised-routes"))
+			update_group_show_advertised(bgp, afi, safi, vty,
+						     subgrp_id);
+		else if (!strcmp(what, "packet-queue"))
+			update_group_show_packet_queue(bgp, afi, safi, vty,
+						       subgrp_id);
+	}
 }

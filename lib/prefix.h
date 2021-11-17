@@ -48,6 +48,7 @@ typedef enum {
 	BGP_EVPN_IP_PREFIX_ROUTE, /* IP Prefix route */
 } bgp_evpn_route_type;
 
+#define BGP_EVPN_MAC_ROUTE 6
 /* value of first byte of ESI */
 #define ESI_TYPE_ARBITRARY 0  /* */
 #define ESI_TYPE_LACP      1  /* <> */
@@ -511,6 +512,7 @@ extern int str_to_esi(const char *str, esi_t *esi);
 extern char *esi_to_str(const esi_t *esi, char *buf, int size);
 extern char *evpn_es_df_alg2str(uint8_t df_alg, char *buf, int buf_len);
 extern void prefix_evpn_hexdump(const struct prefix_evpn *p);
+extern int evpn_str2prefix(char *str, int type, struct prefix_evpn *p, char *buf, int len);
 
 static inline int ipv6_martian(const struct in6_addr *addr)
 {

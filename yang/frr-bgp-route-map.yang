@@ -542,19 +542,24 @@ module frr-bgp-route-map {
       leaf evpn-route-type {
         type enumeration {
           enum "macip" {
-            value 0;
+            value 2;
             description
               "Mac-IP route";
           }
           enum "multicast" {
-            value 1;
+            value 3;
             description
               "IMET route";
           }
           enum "prefix" {
-            value 2;
+            value 5;
             description
               "Prefix route";
+          }
+	        enum "mac" {
+            value 6;
+            description
+              "Mac route";
           }
         }
       }

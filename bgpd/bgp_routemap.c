@@ -1026,8 +1026,21 @@ route_match_evpn_route_type(void *rule, const struct prefix *pfx, void *object)
 
 	route_type = *((uint8_t *)rule);
 
-	if (route_type == pfx->u.prefix_evpn.route_type)
+	if (route_type == 0) {
 		return RMAP_MATCH;
+	}
+	if (route_type == BGP_EVPN_MAC_ROUTE) {
+		if (is_evpn_prefix_ipaddr_none((struct prefix_evpn *)pfx))
+			return RMAP_MATCH;
+	}
+	if (route_type == pfx->u.prefix_evpn.route_type) {
+		if (route_type == BGP_EVPN_MAC_IP_ROUTE) {
+			if (!is_evpn_prefix_ipaddr_none((struct prefix_evpn *)pfx))
+				return RMAP_MATCH;
+		}
+		else
+			return RMAP_MATCH;
+	}
 
 	return RMAP_NOMATCH;
 }
@@ -1039,12 +1052,16 @@ static void *route_match_evpn_route_type_compile(const char *arg)
 
 	route_type = XMALLOC(MTYPE_ROUTE_MAP_COMPILED, sizeof(uint8_t));
 
-	if (strncmp(arg, "ma", 2) == 0)
+	if (strncmp(arg, "maci", 4) == 0)
 		*route_type = BGP_EVPN_MAC_IP_ROUTE;
 	else if (strncmp(arg, "mu", 2) == 0)
 		*route_type = BGP_EVPN_IMET_ROUTE;
-	else
+	else if (strncmp(arg, "pr", 2) == 0)
 		*route_type = BGP_EVPN_IP_PREFIX_ROUTE;
+	else if (strncmp(arg, "ma", 2) == 0)
+		*route_type = BGP_EVPN_MAC_ROUTE;
+	else
+		*route_type = 0;
 
 	return route_type;
 }
@@ -4301,6 +4318,8 @@ static const char *parse_evpn_rt_type(const char *num_rt_type)
 		return "es";
 	case '5':
 		return "prefix";
+	case '6':
+		return "mac";
 	default:
 		break;
 	}
@@ -4311,7 +4330,7 @@ static const char *parse_evpn_rt_type(const char *num_rt_type)
 
 DEFUN_YANG (match_evpn_route_type,
 	    match_evpn_route_type_cmd,
-	    "match evpn route-type <macip|2|multicast|3|prefix|5>",
+	    "match evpn route-type <macip|2|multicast|3|prefix|5|mac|6>",
 	    MATCH_STR
 	    EVPN_HELP_STR
 	    EVPN_TYPE_HELP_STR
@@ -4320,7 +4339,9 @@ DEFUN_YANG (match_evpn_route_type,
 	    EVPN_TYPE_3_HELP_STR
 	    EVPN_TYPE_3_HELP_STR
 	    EVPN_TYPE_5_HELP_STR
-	    EVPN_TYPE_5_HELP_STR)
+	    EVPN_TYPE_5_HELP_STR
+	    EVPN_TYPE_6_HELP_STR
+	    EVPN_TYPE_6_HELP_STR)
 {
 	const char *xpath =
 		"./match-condition[condition='frr-bgp-route-map:evpn-route-type']";
@@ -4338,7 +4359,7 @@ DEFUN_YANG (match_evpn_route_type,
 
 DEFUN_YANG (no_match_evpn_route_type,
 	    no_match_evpn_route_type_cmd,
-	    "no match evpn route-type <macip|2|multicast|3|prefix|5>",
+	    "no match evpn route-type <macip|2|multicast|3|prefix|5|mac|6>",
 	    NO_STR
 	    MATCH_STR
 	    EVPN_HELP_STR
@@ -4348,7 +4369,9 @@ DEFUN_YANG (no_match_evpn_route_type,
 	    EVPN_TYPE_3_HELP_STR
 	    EVPN_TYPE_3_HELP_STR
 	    EVPN_TYPE_5_HELP_STR
-	    EVPN_TYPE_5_HELP_STR)
+	    EVPN_TYPE_5_HELP_STR
+	    EVPN_TYPE_6_HELP_STR
+	    EVPN_TYPE_6_HELP_STR)
 {
 	const char *xpath =
 		"./match-condition[condition='frr-bgp-route-map:evpn-route-type']";

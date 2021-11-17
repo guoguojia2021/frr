@@ -15199,30 +15199,6 @@ DEFUN (show_bgp_instance_updgrps_stats,
 	return CMD_SUCCESS;
 }
 
-static void show_bgp_updgrps_adj_info_aux(struct vty *vty, const char *name,
-					  afi_t afi, safi_t safi,
-					  const char *what, uint64_t subgrp_id)
-{
-	struct bgp *bgp;
-
-	if (name)
-		bgp = bgp_lookup_by_name(name);
-	else
-		bgp = bgp_get_default();
-
-	if (bgp) {
-		if (!strcmp(what, "advertise-queue"))
-			update_group_show_adj_queue(bgp, afi, safi, vty,
-						    subgrp_id);
-		else if (!strcmp(what, "advertised-routes"))
-			update_group_show_advertised(bgp, afi, safi, vty,
-						     subgrp_id);
-		else if (!strcmp(what, "packet-queue"))
-			update_group_show_packet_queue(bgp, afi, safi, vty,
-						       subgrp_id);
-	}
-}
-
 DEFPY(show_ip_bgp_instance_updgrps_adj_s,
       show_ip_bgp_instance_updgrps_adj_s_cmd,
       "show [ip]$ip bgp [<view|vrf> VIEWVRFNAME$vrf] [<ipv4|ipv6>$afi <unicast|multicast|vpn>$safi] update-groups [SUBGROUP-ID]$sgid <advertise-queue|advertised-routes|packet-queue>$rtq",

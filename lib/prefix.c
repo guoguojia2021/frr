@@ -1353,6 +1353,417 @@ char *evpn_es_df_alg2str(uint8_t df_alg, char *buf, int buf_len)
 	return buf;
 }
 
+static char *trim(char *s)
+{
+	size_t size;
+	char *end;
+
+	size = strlen(s);
+
+	if (!size)
+		return s;
+
+	end = s + size - 1;
+	while (end >= s && isspace((unsigned char)*end))
+		end--;
+	*(end + 1) = '\0';
+
+	while (*s && isspace((unsigned char)*s))
+		s++;
+
+	return s;
+}
+
+static int evpn_check_bracketsIsValid(const char *str, int *count)
+{
+	int bracketCount = 0;
+	/* 检查str的中括号的顺序是否合法，并且返回count */
+	for (int i = 0; i < strlen(str); i++) {
+		if (bracketCount < 0)
+			return 1;
+		if (str[i] == '[') {
+			bracketCount++;
+			(*count)++;
+		}
+		if (str[i] == ']')
+			bracketCount--;
+		if (str[i] == ' ')
+			return 1;
+	}
+
+	if (bracketCount != 0)
+		return 1;
+
+	return 0;
+}
+
+static bool str2esi(char *str, esi_t *id)
+{
+	unsigned int a[ESI_BYTES];
+	int i;
+
+	if (!str)
+		return false;
+	if (sscanf(str, "%2x:%2x:%2x:%2x:%2x:%2x:%2x:%2x:%2x:%2x", a + 0, a + 1,
+		   a + 2, a + 3, a + 4, a + 5, a + 6, a + 7, a + 8, a + 9)
+	    != ESI_BYTES) {
+		/* error in incoming str length */
+		return false;
+	}
+	/* valid mac address */
+	if (!id)
+		return true;
+	for (i = 0; i < ESI_BYTES; ++i)
+		id->val[i] = a[i] & 0xff;
+	return true;
+}
+
+static int evpn_type1_str2prefix(char *str, struct prefix_evpn *p, const int count,
+	char *buf, int len)
+{
+	/* EVPN type-1 prefix: [1]:[ESI]:[EthTag]:[IPlen]:[VTEP-IP] */
+	int str_len = 0;
+	esi_t *esi;
+	int eth_tag = 0;
+	int ip_len = 0;
+	struct ipaddr vtep_ip = {0};
+	char prefixstr[10][50];
+	char *saveptr = NULL;
+	char *line = NULL;
+	for (line = strtok_r(str, "[]", &saveptr); line;
+	     line = strtok_r(NULL, "[]", &saveptr)) {
+		strcpy(prefixstr[str_len], line);
+		str_len++;
+	}
+	/* 被分割成9个字符串，其中中括号的数量是5 */
+	/* prefixstr[0] = 1;prefixstr[1] = :;prefixstr[2] = ESI;
+	prefixstr[3] = :;prefixstr[4] = EthTag;prefixstr[5] = :;
+	prefixstr[6] = IPlen;prefixstr[7] = :;prefixstr[8] = VTEP-IP;*/
+
+	if (count != 5 || str_len != 10) {
+		snprintf(buf, len, "the brackets or prefixstr len is invalid.\n");
+		return 1;
+	}
+	bgp_evpn_route_type type = atoi(prefixstr[0]);
+	if (type != BGP_EVPN_AD_ROUTE) {
+		snprintf(buf, len, "the route type is not type1.\n");
+		return 1;
+	}
+    memset(&esi, 0, sizeof(esi_t));
+	if (!str2esi(prefixstr[2], esi)) {
+		snprintf(buf, len, "the esi is invalid.\n");
+		return 1;
+	}
+	eth_tag = atoi(prefixstr[4]);
+	if (eth_tag < 0) {
+		snprintf(buf, len, "the eth_tag len is invalid.\n");
+		return 1;
+	}
+	ip_len = atoi(prefixstr[6]);
+	if (ip_len > IPV4_MAX_BITLEN || ip_len <= 0) {
+		snprintf(buf, len, "the ip len is invalid.\n");
+		return 1;
+	}
+	if (prefixstr[8])
+		str2ipaddr(prefixstr[8], &vtep_ip);
+	if (vtep_ip.ipa_type == IPADDR_V4 && vtep_ip.ipa_type == IPADDR_V6) {
+		snprintf(buf, len, "the ip type is invalid.\n");
+		return 1;
+	}
+	memset(p, 0, sizeof(struct prefix_evpn));
+	p->family = AF_EVPN;
+	p->prefixlen = sizeof(struct evpn_addr) * 8;
+	p->prefix.route_type = BGP_EVPN_AD_ROUTE;
+	p->prefix.ead_addr.eth_tag = eth_tag;
+	p->prefix.ead_addr.ip.ipa_type = IPADDR_V4;
+	p->prefix.ead_addr.ip.ipaddr_v4 = vtep_ip.ipaddr_v4;
+	memcpy(&p->prefix.ead_addr.esi, esi, sizeof(esi_t));
+	return 0;
+}
+
+static int evpn_type2_str2prefix(char *str, struct prefix_evpn *p, const int count,
+	char *buf, int len)
+{
+	/* EVPN type-2 prefix: [2]:[EthTag]:[MAClen]:[MAC] */
+	/* EVPN type-2 prefix: [2]:[EthTag]:[MAClen]:[MAC]:[IPlen]:[IP] */
+	uint32_t str_len = 0;
+	int eth_tag = 0;
+	int ip_len = 0;
+	int mac_len = 0;
+	struct ethaddr mac;
+	struct ipaddr ip;
+	char prefixstr[15][50];
+	char *saveptr = NULL;
+	char *line = NULL;
+	for (line = strtok_r(str, "[]", &saveptr); line;
+	     line = strtok_r(NULL, "[]", &saveptr)) {
+		strcpy(prefixstr[str_len], line);
+		str_len++;
+	}
+
+	bgp_evpn_route_type type = atoi(prefixstr[0]);
+	if (type != BGP_EVPN_MAC_IP_ROUTE) {
+		snprintf(buf, len, "the route type is not type2.\n");
+		return 1;
+	}
+	if (count == 4 && str_len == 7) {
+		eth_tag = atoi(prefixstr[2]);
+		if (eth_tag < 0) {
+			snprintf(buf, len, "the eth_tag len is invalid.\n");
+			return 1;
+		}
+		mac_len = atoi(prefixstr[4]);
+		if (mac_len > 48 || mac_len <= 0) {
+			snprintf(buf, len, "the mac len is invalid.\n");
+			return 1;
+		}
+		if (!prefix_str2mac(prefixstr[6], &mac)) {
+			snprintf(buf, len, "the mac is invalid.\n");
+			return 1;
+		}
+	}
+	else if (count == 6 && str_len == 11) {
+		eth_tag = atoi(prefixstr[2]);
+		if (eth_tag < 0) {
+			snprintf(buf, len, "the eth_tag len is invalid.\n");
+			return 1;
+		}
+		mac_len = atoi(prefixstr[4]);
+		if (mac_len > 48 || mac_len <= 0) {
+			snprintf(buf, len, "the mac is invalid.\n");
+			return 1;
+		}
+		if (!prefix_str2mac(prefixstr[6], &mac)) {
+			snprintf(buf, len, "the mac len is invalid.\n");
+			return 1;
+		}
+		ip_len = atoi(prefixstr[8]);
+		memset(&ip, 0, sizeof(struct ipaddr));
+		if (prefixstr[10])
+			str2ipaddr(prefixstr[10], &ip);
+		if ((ip.ipa_type == IPADDR_V4 && ip_len > IPV4_MAX_BITLEN)
+			||(ip.ipa_type == IPADDR_V6 && ip_len > IPV6_MAX_BITLEN)
+			|| ip_len <= 0) {
+			snprintf(buf, len, "the ip len is invalid.\n");
+			return 1;
+		}
+		if (ip.ipa_type == IPADDR_V4 && ip.ipa_type == IPADDR_V6) {
+			snprintf(buf, len, "the ip type is invalid.\n");
+			return 1;
+		}
+	}
+	else {
+		snprintf(buf, len, "the brackets or prefixstr len is invalid.\n");
+		return 1;
+	}
+
+	memset(p, 0, sizeof(struct prefix_evpn));
+	p->family = AF_EVPN;
+	p->prefixlen = sizeof(struct evpn_addr) * 8;
+	p->prefix.route_type = BGP_EVPN_MAC_IP_ROUTE;
+	memcpy(&p->prefix.macip_addr.mac.octet, &mac.octet, ETH_ALEN);
+	if (ip.ipa_type == IPADDR_V4 || ip.ipa_type == IPADDR_V6) {
+		p->prefix.macip_addr.ip.ipa_type = ip.ipa_type;
+		memcpy(&p->prefix.macip_addr.ip, &ip, sizeof(struct ipaddr));
+	}
+	return 0;
+}
+
+static int evpn_type3_str2prefix(char *str, struct prefix_evpn *p, const int count,
+	char *buf, int len)
+{
+	/* EVPN type-3 prefix: [3]:[EthTag]:[IPlen]:[OrigIP] */
+	int str_len = 0;
+	int eth_tag = 0;
+	int ip_len = 0;
+	struct ipaddr originator_ip = {0};
+	char prefixstr[10][50];
+	char *saveptr = NULL;
+	char *line = NULL;
+	for (line = strtok_r(str, "[]", &saveptr); line;
+	     line = strtok_r(NULL, "[]", &saveptr)) {
+		strcpy(prefixstr[str_len], line);
+		str_len++;
+	}
+
+	if (count != 4 || str_len != 7) {
+		snprintf(buf, len, "the brackets or prefixstr len is invalid.\n");
+		return 1;
+	}
+	bgp_evpn_route_type type = atoi(prefixstr[0]);
+	if (type != BGP_EVPN_IMET_ROUTE) {
+		snprintf(buf, len, "the route type is not type3.\n");
+		return 1;
+	}
+	eth_tag = atoi(prefixstr[2]);
+	if (eth_tag < 0) {
+		snprintf(buf, len, "the eth_tag len is invalid.\n");
+		return 1;
+	}
+	ip_len = atoi(prefixstr[4]);
+	if (ip_len > IPV4_MAX_BITLEN || ip_len <= 0) {
+		snprintf(buf, len, "the ip len is invalid.\n");
+		return 1;
+	}
+	if (prefixstr[6])
+		str2ipaddr(prefixstr[6], &originator_ip);
+	if (originator_ip.ipa_type == IPADDR_V4 && originator_ip.ipa_type == IPADDR_V6) {
+		snprintf(buf, len, "the ip type is invalid.\n");
+		return 1;
+	}
+	memset(p, 0, sizeof(struct prefix_evpn));
+	p->family = AF_EVPN;
+	p->prefixlen = sizeof(struct evpn_addr) * 8;
+	p->prefix.route_type = BGP_EVPN_IMET_ROUTE;
+	p->prefix.imet_addr.ip.ipa_type = IPADDR_V4;
+	p->prefix.imet_addr.ip.ipaddr_v4 = originator_ip.ipaddr_v4;
+	return 0;
+}
+
+static int evpn_type4_str2prefix(char *str, struct prefix_evpn *p, const int count,
+	char *buf, int len)
+{
+	/* EVPN type-4 prefix: [4]:[ESI]:[IPlen]:[OrigIP] */
+	int str_len = 0;
+	esi_t *esi;
+	int ip_len = 0;
+	struct ipaddr originator_ip = {0};
+	char prefixstr[10][50];
+	char *saveptr = NULL;
+	char *line = NULL;
+	for (line = strtok_r(str, "[]", &saveptr); line;
+	     line = strtok_r(NULL, "[]", &saveptr)) {
+		strcpy(prefixstr[str_len], line);
+		str_len++;
+	}
+
+	if (count != 4 || str_len != 7) {
+		snprintf(buf, len, "the brackets or prefixstr len is invalid.\n");
+		return 1;
+	}
+	bgp_evpn_route_type type = atoi(prefixstr[0]);
+	if (type != BGP_EVPN_ES_ROUTE) {
+		snprintf(buf, len, "the route type is not type4.\n");
+		return 1;
+	}
+    memset(&esi, 0, sizeof(esi_t));
+	if (!str2esi(prefixstr[2], esi)) {
+		snprintf(buf, len, "the esi is invalid.\n");
+		return 1;
+	}
+	ip_len = atoi(prefixstr[4]);
+	if (ip_len > IPV4_MAX_BITLEN || ip_len <= 0) {
+		snprintf(buf, len, "the ip len is invalid.\n");
+		return 1;
+	}
+	if (prefixstr[6])
+		str2ipaddr(prefixstr[6], &originator_ip);
+	if (originator_ip.ipa_type == IPADDR_V4 && originator_ip.ipa_type == IPADDR_V6) {
+		snprintf(buf, len, "the ip type is invalid.\n");
+		return 1;
+	}
+	memset(p, 0, sizeof(struct prefix_evpn));
+	p->family = AF_EVPN;
+	p->prefixlen = sizeof(struct evpn_addr) * 8;
+	p->prefix.route_type = BGP_EVPN_ES_ROUTE;
+	p->prefix.es_addr.ip_prefix_length = IPV4_MAX_BITLEN;
+	p->prefix.es_addr.ip.ipa_type = IPADDR_V4;
+	p->prefix.es_addr.ip.ipaddr_v4 = originator_ip.ipaddr_v4;
+	memcpy(&p->prefix.es_addr.esi, esi, sizeof(esi_t));
+	return 0;
+}
+
+static int evpn_type5_str2prefix(char *str, struct prefix_evpn *p, const int count,
+	char *buf, int len)
+{
+	/* EVPN type-5 prefix: [5]:[EthTag]:[IPlen]:[IP] */
+	int str_len = 0;
+	int eth_tag = 0;
+	int ip_len = 0;
+	struct ipaddr ip = {0};
+	char prefixstr[10][50];
+	char *saveptr = NULL;
+	char *line = NULL;
+	for (line = strtok_r(str, "[]", &saveptr); line;
+	     line = strtok_r(NULL, "[]", &saveptr)) {
+		strcpy(prefixstr[str_len], line);
+		str_len++;
+	}
+
+	if (count != 4 || str_len != 7) {
+		snprintf(buf, len, "the brackets or prefixstr len is invalid.\n");
+		return 1;
+	}
+
+	bgp_evpn_route_type type = atoi(prefixstr[0]);
+	if (type != BGP_EVPN_IP_PREFIX_ROUTE) {
+		snprintf(buf, len, "the route type is not type5.\n");
+		return 1;
+	}
+	eth_tag = atoi(prefixstr[2]);
+	if (eth_tag < 0) {
+		snprintf(buf, len, "the eth_tag len is invalid.\n");
+		return 1;
+	}
+	ip_len = atoi(prefixstr[4]);
+	if (prefixstr[6])
+		str2ipaddr(prefixstr[6], &ip);
+	if ((ip.ipa_type == IPADDR_V4 && ip_len > IPV4_MAX_BITLEN)
+		||(ip.ipa_type == IPADDR_V6 && ip_len > IPV6_MAX_BITLEN)
+		|| ip_len <= 0) {
+		snprintf(buf, len, "the ip len is invalid.\n");
+		return 1;
+	}
+	if (ip.ipa_type == IPADDR_V4 && ip.ipa_type == IPADDR_V6) {
+		snprintf(buf, len, "the ip type is invalid.\n");
+		return 1;
+	}
+	memset(p, 0, sizeof(struct prefix_evpn));
+	p->family = AF_EVPN;
+	p->prefixlen = sizeof(struct evpn_addr) * 8;
+	p->prefix.route_type = BGP_EVPN_IP_PREFIX_ROUTE;
+	p->prefix.ead_addr.eth_tag = eth_tag;
+	p->prefix.ead_addr.ip.ipa_type = ip.ipa_type;
+	p->prefix.prefix_addr.ip_prefix_length = ip_len;
+	memcpy(&p->prefix.prefix_addr.ip, &ip, sizeof(struct ipaddr));
+	return 0;
+}
+
+int evpn_str2prefix(char *str, int type, struct prefix_evpn *p,
+	char *buf, int len)
+{
+	int ret = 0;
+	int count = 0;
+	char *prefixstr = NULL;
+	if (!str)
+		return 1;
+	/* 过滤掉字符串前后掉空格 */
+	prefixstr = trim(str);
+	if (evpn_check_bracketsIsValid(prefixstr, &count) == 1)
+		return 1;
+
+	switch (type) {
+	case BGP_EVPN_AD_ROUTE:
+		ret = evpn_type1_str2prefix(prefixstr, p, count, buf, len);
+		break;
+	case BGP_EVPN_MAC_IP_ROUTE:
+		ret = evpn_type2_str2prefix(prefixstr, p, count, buf, len);
+		break;
+	case BGP_EVPN_IMET_ROUTE:
+		ret = evpn_type3_str2prefix(prefixstr, p, count, buf, len);
+		break;
+	case BGP_EVPN_ES_ROUTE:
+		ret = evpn_type4_str2prefix(prefixstr, p, count, buf, len);
+		break;
+	case BGP_EVPN_IP_PREFIX_ROUTE:
+		ret = evpn_type5_str2prefix(prefixstr, p, count, buf, len);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
 printfrr_ext_autoreg_p("EA", printfrr_ea);
 static ssize_t printfrr_ea(struct fbuf *buf, struct printfrr_eargs *ea,
 			   const void *ptr)
