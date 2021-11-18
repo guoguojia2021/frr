@@ -1136,7 +1136,30 @@ static bool update_ipv4nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 		else {
 			api_nh->type = NEXTHOP_TYPE_IPV4_IFINDEX;
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
-			api_nh->ifindex = nh_bgp->l3vni_svi_ifindex;
+			if (!attr->vni)
+			{
+				zlog_debug("not set vni %d, use default l3vni svi ifindex %d", attr->vni, nh_bgp->l3vni_svi_ifindex);
+				api_nh->ifindex = nh_bgp->l3vni_svi_ifindex;
+
+			}
+			else
+			{
+				char if_vni[20];
+				if_vni[0] = "\0";
+				sprintf(if_vni, "Brvxlan%d", attr->vni);
+				struct interface *ifp = NULL;
+				ifp = if_lookup_by_name(if_vni, api_nh->vrf_id);
+				if (ifp)
+				{
+					zlog_debug("find vni %d related ifindex %d", attr->vni, ifp->ifindex);
+					api_nh->ifindex = ifp->ifindex;
+				}
+				else
+				{
+					zlog_debug("not find vni %d related ifindex,use default l3vni svi ifindex", attr->vni, nh_bgp->l3vni_svi_ifindex);
+					api_nh->ifindex = nh_bgp->l3vni_svi_ifindex;
+				}
+			}
 		}
 		if (extra) {
 			if (extra->num_labels == 2) {
