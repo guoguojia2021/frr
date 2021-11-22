@@ -934,25 +934,23 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 			return 0;
 		}
 	}
-	if (safi == SAFI_EVPN) {
-		if (debug) {
-			zlog_debug ("%s(): %s/%d:",  __func__,
+	if (debug) {
+		zlog_debug ("%s(): %s/%d:",  __func__,
 			    inet_ntop(prefix->family,
 				      &prefix->u.prefix, buf, SU_ADDRSTRLEN),
 			    prefix->prefixlen);
-			zlog_debug("  new nexthop %s",
+		zlog_debug("  new nexthop %s",
 			   inet_ntoa (newattr->nexthop));
-	        zlog_debug("  exist nexthop %s",
+	    zlog_debug("  exist nexthop %s",
 			   inet_ntoa (existattr->nexthop));
-		}
+	}
 
-		/* Don't consider BGP "network" if it's not up */
-		if (!bgp_static_check(bgp, new, prefix, afi, safi, debug))
+	/* Don't consider BGP "network" if it's not up */
+	if (!bgp_static_check(bgp, new, prefix, afi, safi, debug))
 			return 0;
 
-	    if (!bgp_static_check(bgp, exist, prefix, afi, safi, debug))
+	if (!bgp_static_check(bgp, exist, prefix, afi, safi, debug))
 			return 1;
-	}
 	
 	/* 1. Weight check. */
 	new_weight = newattr->weight;
