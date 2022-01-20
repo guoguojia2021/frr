@@ -290,9 +290,9 @@ static void netlink_determine_zebra_iftype(const char *kind,
 		*zif_type = ZEBRA_IF_MACVLAN;
 	else if (strcmp(kind, "veth") == 0)
 		*zif_type = ZEBRA_IF_VETH;
-	else if (strcmp(kind, "bond") == 0)
+	else if (strcmp(kind, "bond") == 0 || strcmp(kind, "team") == 0)
 		*zif_type = ZEBRA_IF_BOND;
-	else if (strcmp(kind, "bond_slave") == 0)
+	else if (strcmp(kind, "bond_slave") == 0 || strcmp(kind, "team_slave") == 0)
 		*zif_type = ZEBRA_IF_BOND_SLAVE;
 	else if (strcmp(kind, "gre") == 0)
 		*zif_type = ZEBRA_IF_GRE;
