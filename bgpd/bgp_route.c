@@ -12522,7 +12522,6 @@ static int bgp_show_table(struct vty *vty, struct bgp *bgp, safi_t safi,
 
 			if (json_detail_header_used)
 				vty_out(vty, "} ");
-
 			json_paths = NULL;
 			first = 0;
 		} else
@@ -13391,12 +13390,8 @@ DEFUN(show_ip_bgp_statistics_all, show_ip_bgp_statistics_all_cmd,
 		bgp_table_stats(vty, bgp, afi, safi, json_afi_safi);
 	}
 
-	if (uj) {
-		vty_out(vty, "%s",
-			json_object_to_json_string_ext(
-				json_all, JSON_C_TO_STRING_PRETTY));
-		json_object_free(json_all);
-	}
+	if (uj)
+		vty_json(vty, json_all);
 
 	return CMD_SUCCESS;
 }
@@ -13437,9 +13432,7 @@ DEFUN (show_ip_bgp_l2vpn_evpn_statistics,
 		json = json_object_new_object();
 		json_object_object_add(json, get_afi_safi_str(afi, safi, true),
 				       json_afi_safi);
-		vty_out(vty, "%s", json_object_to_json_string_ext(
-					  json, JSON_C_TO_STRING_PRETTY));
-		json_object_free(json);
+		vty_json(vty, json);
 	}
 	return ret;
 }
@@ -13477,10 +13470,7 @@ DEFUN(show_ip_bgp_afi_safi_statistics, show_ip_bgp_afi_safi_statistics_cmd,
 		json = json_object_new_object();
 		json_object_object_add(json, get_afi_safi_str(afi, safi, true),
 				       json_afi_safi);
-		vty_out(vty, "%s",
-			json_object_to_json_string_ext(
-				json, JSON_C_TO_STRING_PRETTY));
-		json_object_free(json);
+		vty_json(vty, json);
 	}
 	return ret;
 }
