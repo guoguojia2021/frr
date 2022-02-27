@@ -79,12 +79,8 @@
 #endif
 
 FRR_CFG_DEFAULT_BOOL(BGP_IMPORT_CHECK,
-	{
-		.val_bool = false,
-			.match_profile = "traditional",
-			.match_version = "< 7.4",
-	},
-	{ .val_bool = true },
+	{ .val_bool = true, .match_profile = "datacenter", },
+	{ .val_bool = false },
 );
 FRR_CFG_DEFAULT_BOOL(BGP_SHOW_HOSTNAME,
 	{ .val_bool = true, .match_profile = "datacenter", },
