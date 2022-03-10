@@ -3404,12 +3404,6 @@ DEFPY(zebra_evpn_es_id,
 			return CMD_WARNING;
 		}
 	} else {
-		if (!zebra_evpn_is_if_es_capable(zif)) {
-			vty_out(vty,
-				"%%ESI cannot be associated with this interface type\n");
-			return CMD_WARNING;
-		}
-
 		if (esi_str) {
 			if (!str_to_esi(esi_str, &esi)) {
 				vty_out(vty, "%% Malformed ESI\n");
