@@ -2417,6 +2417,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 			ret = route_map_apply(ROUTE_MAP_OUT(filter), p,
 					      &rmap_path);
 
+		bgp_attr_flush(&dummy_attr);
 		peer->rmap_type = 0;
 
 		if (ret == RMAP_DENYMATCH) {
@@ -2426,7 +2427,6 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					peer->host, p,
 					ROUTE_MAP_OUT_NAME(filter));
 
-			bgp_attr_flush(&dummy_attr);
 			return false;
 		}
 	}
