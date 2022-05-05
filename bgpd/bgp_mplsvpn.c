@@ -775,9 +775,8 @@ static struct bgp_path_info *
 leak_update(struct bgp *bgp, /* destination bgp instance */
 	    struct bgp_dest *bn, struct attr *new_attr, /* already interned */
 	    afi_t afi, safi_t safi, struct bgp_path_info *source_bpi,
-	    mpls_label_t *label, uint32_t num_labels, void *parent,
-	    struct bgp *bgp_orig, struct prefix *nexthop_orig,
-	    int nexthop_self_flag, int debug)
+	    mpls_label_t *label, uint32_t num_labels, struct bgp *bgp_orig,
+	    struct prefix *nexthop_orig, int nexthop_self_flag, int debug)
 {
 	const struct prefix *p = bgp_dest_get_prefix(bn);
 	struct bgp_path_info *bpi;
@@ -785,6 +784,8 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	struct bgp_path_info *new;
 	char buf[PREFIX2STR_BUFFER];
 
+	struct bgp_path_info_extra *extra;
+	void *parent = source_bpi;
 #if 0
 	uint32_t num_sids = 0;
 
@@ -1363,9 +1364,9 @@ void vpn_leak_from_vrf_update(struct bgp *bgp_vpn,	    /* to */
 
 	struct bgp_path_info *new_info;
 
-	new_info = leak_update(bgp_vpn, bn, new_attr, afi, safi, path_vrf,
-			       &label, 1, path_vrf, bgp_vrf, NULL,
-			       nexthop_self_flag, debug);
+	new_info =
+		leak_update(bgp_vpn, bn, new_attr, afi, safi, path_vrf, &label,
+			    1, bgp_vrf, NULL, nexthop_self_flag, debug);
 
 	/*
 	 * Routes actually installed in the vpn RIB must also be
@@ -1590,7 +1591,7 @@ void vrf_leak_from_vrf_update(struct bgp *to_vrf,       /* to */
     struct bgp_path_info *new_info;
 
     new_info = leak_update(to_vrf, bn, new_attr, afi, safi, path_vrf,
-                   NULL, 0, path_vrf, from_vrf, NULL,
+                   NULL, 0, from_vrf, NULL,
                    nexthop_self_flag, debug);
     /*
      * Routes actually installed in the vpn RIB must also be
@@ -2089,8 +2090,7 @@ vpn_leak_to_vrf_update_onevrf(struct bgp *bgp_vrf,	    /* to */
 		src_vrf = bgp_vpn;
 
 	leak_update(bgp_vrf, bn, new_attr, afi, safi, path_vpn, pLabels,
-		    num_labels, path_vpn, /* parent */
-		    src_vrf, &nexthop_orig, nexthop_self_flag, debug);
+		    num_labels, src_vrf, &nexthop_orig, nexthop_self_flag, debug);
     return;
 
 try_leak_to_withdraw_onevrf:
