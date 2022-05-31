@@ -32,7 +32,7 @@
 
 static void static_nht_update_path(struct static_path *pn, struct prefix *nhp,
 				   uint32_t nh_num, vrf_id_t nh_vrf_id,
-				   struct vrf *vrf)
+				   struct vrf *vrf, bool set_etag)
 {
 	struct static_nexthop *nh;
 
@@ -56,13 +56,13 @@ static void static_nht_update_path(struct static_path *pn, struct prefix *nhp,
 			nh->nh_valid = !!nh_num;
 
 		if (nh->state == STATIC_START)
-			static_zebra_route_add(pn, true);
+			static_zebra_route_add(pn, true, set_etag);
 	}
 }
 
 static void static_nht_update_safi(struct prefix *sp, struct prefix *nhp,
 				   uint32_t nh_num, afi_t afi, safi_t safi,
-				   struct vrf *vrf, vrf_id_t nh_vrf_id)
+				   struct vrf *vrf, vrf_id_t nh_vrf_id, bool set_etag)
 {
 	struct route_table *stable;
 	struct static_vrf *svrf;
@@ -84,7 +84,7 @@ static void static_nht_update_safi(struct prefix *sp, struct prefix *nhp,
 			si = static_route_info_from_rnode(rn);
 			frr_each(static_path_list, &si->path_list, pn) {
 				static_nht_update_path(pn, nhp, nh_num,
-						       nh_vrf_id, vrf);
+						       nh_vrf_id, vrf, set_etag);
 			}
 			route_unlock_node(rn);
 		}
@@ -96,22 +96,22 @@ static void static_nht_update_safi(struct prefix *sp, struct prefix *nhp,
 		if (!si)
 			continue;
 		frr_each(static_path_list, &si->path_list, pn) {
-			static_nht_update_path(pn, nhp, nh_num, nh_vrf_id, vrf);
+			static_nht_update_path(pn, nhp, nh_num, nh_vrf_id, vrf, set_etag);
 		}
 	}
 }
 
 void static_nht_update(struct prefix *sp, struct prefix *nhp,
-		       uint32_t nh_num, afi_t afi, vrf_id_t nh_vrf_id)
+		       uint32_t nh_num, afi_t afi, vrf_id_t nh_vrf_id, bool set_etag)
 {
 
 	struct vrf *vrf;
 
 	RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name) {
 		static_nht_update_safi(sp, nhp, nh_num, afi, SAFI_UNICAST,
-				       vrf, nh_vrf_id);
+				       vrf, nh_vrf_id, set_etag);
 		static_nht_update_safi(sp, nhp, nh_num, afi, SAFI_MULTICAST,
-				       vrf, nh_vrf_id);
+				       vrf, nh_vrf_id,set_etag);
 	}
 }
 

@@ -100,6 +100,7 @@ struct static_path {
 	uint8_t distance;
 	/* Tag */
 	route_tag_t tag;
+	route_tag_t etag;
 	/* Table-id */
 	uint32_t table_id;
 	/* Nexthop list */

@@ -83,6 +83,13 @@ module frr-staticd {
           "Route tag";
       }
 
+      leaf etag {
+        type uint32;
+        default "0";
+        description
+          "extra Route tag";
+      }
+
       uses frr-nexthop:frr-nexthop;
     }
   }

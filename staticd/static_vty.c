@@ -49,7 +49,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 			     const char *negate, const char *dest_str,
 			     const char *mask_str, const char *src_str,
 			     const char *gate_str, const char *ifname,
-			     const char *flag_str, const char *tag_str,
+			     const char *flag_str, const char *tag_str, const char *etag_str,
 			     const char *distance_str, const char *label_str,
 			     const char *table_str, bool onlink,
 			     const char *color_str, const char *nh_vni_str,
@@ -65,16 +65,19 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	char xpath_mpls[XPATH_MAXLEN];
 	char xpath_label[XPATH_MAXLEN];
 	char ab_xpath[XPATH_MAXLEN];
+	char ab_etag_xpath[XPATH_MAXLEN];
 	char buf_prefix[PREFIX_STRLEN];
 	char buf_src_prefix[PREFIX_STRLEN];
 	char buf_nh_type[PREFIX_STRLEN];
 	char buf_tag[PREFIX_STRLEN];
+	char buf_etag[PREFIX_STRLEN];
 	char vni_xpath[XPATH_MAXLEN];
 	char rmac_xpath[XPATH_MAXLEN];
 	uint8_t label_stack_id = 0;
 	const char *buf_gate_str;
 	uint8_t distance = ZEBRA_STATIC_DISTANCE_DEFAULT;
 	route_tag_t tag = 0;
+	route_tag_t etag = 0;
 	uint32_t table_id = 0;
 	const struct lyd_node *dnode;
 	vni_t nh_vni = 0;
@@ -163,9 +166,17 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	else
 		distance = ZEBRA_STATIC_DISTANCE_DEFAULT;
 
+	if (tag_str && etag_str) {
+		vty_out(vty, "%s%s Failed to create route entry for setting both tag and etag.\n\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
 	/* tag */
 	if (tag_str)
 		tag = strtoul(tag_str, NULL, 10);
+
+	/* tag */
+	if (etag_str)
+		etag = strtoul(etag_str, NULL, 10);
 
 	/* TableID */
 	if (table_str)
@@ -227,7 +238,15 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 		strlcpy(ab_xpath, xpath_prefix, sizeof(ab_xpath));
 		strlcat(ab_xpath, FRR_STATIC_ROUTE_PATH_TAG_XPATH,
 			sizeof(ab_xpath));
+
 		nb_cli_enqueue_change(vty, ab_xpath, NB_OP_MODIFY, buf_tag);
+
+		/* eTag processing */
+		snprintf(buf_etag, sizeof(buf_etag), "%u", etag);
+		strlcpy(ab_xpath, xpath_prefix, sizeof(ab_xpath));
+		strlcat(ab_xpath, FRR_STATIC_ROUTE_PATH_ETAG_XPATH,
+			sizeof(ab_xpath));
+		nb_cli_enqueue_change(vty, ab_xpath, NB_OP_MODIFY, buf_etag);
 
 		/* nexthop processing */
 
@@ -387,7 +406,7 @@ static int static_route(struct vty *vty, afi_t afi, safi_t safi,
 
 	return static_route_leak(vty, vrf_name, vrf_name, afi, safi, negate,
 				 dest_str, mask_str, src_str, gate_str, ifname,
-				 flag_str, tag_str, distance_str, label_str,
+				 flag_str, tag_str, NULL, distance_str, label_str,
 				 table_str, false, NULL, NULL, NULL);
 }
 
@@ -484,7 +503,7 @@ DEFPY_YANG(ip_route_blackhole_vrf,
 	assert(prefix);
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, NULL, NULL, flag,
-				 tag_str, distance_str, label, table_str,
+				 tag_str, NULL, distance_str, label, table_str,
 				 false, NULL, NULL, NULL);
 }
 
@@ -541,7 +560,7 @@ DEFPY_YANG(ip_route_address_interface,
 
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
-				 tag_str, distance_str, label, table_str,
+				 tag_str, NULL, distance_str, label, table_str,
 				 !!onlink, color_str, NULL, NULL);
 }
 
@@ -603,7 +622,7 @@ DEFPY_YANG(ip_route_address_interface_vrf,
 
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
-				 tag_str, distance_str, label, table_str,
+				 tag_str, NULL, distance_str, label, table_str,
 				 !!onlink, color_str, NULL, NULL);
 }
 
@@ -658,7 +677,7 @@ DEFPY_YANG(ip_route,
 
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
-				 tag_str, distance_str, label, table_str,
+				 tag_str, NULL, distance_str, label, table_str,
 				 false, color_str, NULL, NULL);
 }
 
@@ -718,7 +737,7 @@ DEFPY_YANG(ip_route_vrf,
 
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
-				 tag_str, distance_str, label, table_str,
+				 tag_str, NULL, distance_str, label, table_str,
 				 false, color_str, NULL, NULL);
 }
 
@@ -799,7 +818,7 @@ DEFPY_YANG(ipv6_route_blackhole_vrf,
 
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, NULL, NULL,
-				 flag, tag_str, distance_str, label, table_str,
+				 flag, tag_str, NULL, distance_str, label, table_str,
 				 false, NULL, NULL, NULL);
 }
 
@@ -857,7 +876,7 @@ DEFPY_YANG(ipv6_route_address_interface,
 
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP6, SAFI_UNICAST, no,
 				 prefix_str, NULL, from_str, gate_str, ifname,
-				 flag, tag_str, distance_str, label, table_str,
+				 flag, tag_str, NULL, distance_str, label, table_str,
 				 !!onlink, color_str, NULL, NULL);
 }
 
@@ -919,7 +938,7 @@ DEFPY_YANG(ipv6_route_address_interface_vrf,
 	}
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, gate_str,
-				 ifname, flag, tag_str, distance_str, label,
+				 ifname, flag, tag_str, NULL, distance_str, label,
 				 table_str, !!onlink, color_str, NULL, NULL);
 }
 
@@ -973,7 +992,7 @@ DEFPY_YANG(ipv6_route,
 	}
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP6, SAFI_UNICAST, no,
 				 prefix_str, NULL, from_str, gate_str, ifname,
-				 flag, tag_str, distance_str, label, table_str,
+				 flag, tag_str, NULL, distance_str, label, table_str,
 				 false, color_str, NULL, NULL);
 }
 
@@ -1032,8 +1051,68 @@ DEFPY_YANG(ipv6_route_vrf,
 	}
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, gate_str,
-				 ifname, flag, tag_str, distance_str, label,
+				 ifname, flag, tag_str, NULL, distance_str, label,
 				 table_str, false, color_str, NULL, NULL);
+}
+DEFPY_YANG(ip_route_etag,
+      ip_route_etag_cmd,
+      "[no] ip route\
+	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
+	A.B.C.D$gate etag (1-4294967295) vrf NAME",
+      NO_STR IP_STR
+      "Establish static routes\n"
+      "IP destination prefix (e.g. 10.0.0.0/8)\n"
+      "IP destination prefix\n"
+      "IP destination prefix mask\n"
+      "IP gateway address\n"
+      "Set extra tag for this route\n"
+	  "Set extra tag value\n"
+      VRF_CMD_HELP_STR)
+{
+	if (!vrf)
+		vrf = VRF_DEFAULT_NAME;
+
+	return static_route_leak(vty, vrf, vrf, AFI_IP, SAFI_UNICAST,
+				 no, prefix, mask_str, NULL, gate_str, NULL, NULL,
+				 NULL, etag_str, NULL, NULL, NULL, false, NULL,
+				 NULL, NULL);
+}
+
+DEFPY_YANG(ip_route_vrf_etag,
+      ip_route_vrf_etag_cmd,
+      "[no] ip route\
+	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
+	A.B.C.D$gate etag (1-4294967295) ",
+      NO_STR IP_STR
+      "Establish static routes\n"
+      "IP destination prefix (e.g. 10.0.0.0/8)\n"
+      "IP destination prefix\n"
+      "IP destination prefix mask\n"
+      "IP gateway address\n"
+      "Set extra tag for this route\n"
+	  "Set extra tag value\n")
+{
+	const struct lyd_node *vrf_dnode;
+	const char *vrfname;
+
+	vrf_dnode =
+		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
+	if (!vrf_dnode) {
+		vty_out(vty, "%% Failed to get vrf dnode in candidate db\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
+	/*
+	 * Coverity is complaining that prefix could
+	 * be dereferenced, but we know that prefix will
+	 * valid.  Add an assert to make it happy
+	 */
+	vty_out(vty, "etag_str:%s\n", etag_str);
+	assert(prefix);
+	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
+				 no, prefix, mask_str, NULL, gate_str, NULL, NULL,
+				 NULL, etag_str, NULL, NULL, NULL, false, NULL,
+				 NULL, NULL);
 }
 
 
@@ -1070,7 +1149,7 @@ DEFPY_YANG(ip_route_evpn_vrf,
 
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, gate_str,
-				 buf, NULL, NULL, NULL, NULL,
+				 buf, NULL, NULL, NULL, NULL, NULL,
 				 NULL, true, NULL, nexthop_vni_str,
 				 nexthop_rmac);
 }
@@ -1415,6 +1494,8 @@ void static_vty_init(void)
 	install_element(VRF_NODE, &ipv6_route_address_interface_vrf_cmd);
 	install_element(CONFIG_NODE, &ipv6_route_cmd);
 	install_element(VRF_NODE, &ipv6_route_vrf_cmd);
+	install_element(VRF_NODE, &ip_route_vrf_etag_cmd);
+	install_element(CONFIG_NODE, &ip_route_etag_cmd);
 	install_element(VRF_NODE, &ip_route_evpn_vrf_cmd);
 
 	install_element(ENABLE_NODE, &show_debugging_static_cmd);

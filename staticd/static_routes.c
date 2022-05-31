@@ -102,21 +102,49 @@ void zebra_stable_node_cleanup(struct route_table *table,
 void static_install_path(struct static_path *pn)
 {
 	struct static_nexthop *nh;
+	uint8_t rttype;
+	bool set_etag = false;
 
-	frr_each(static_nexthop_list, &pn->nexthop_list, nh)
+	frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
 		static_zebra_nht_register(nh, true);
+        get_static_nht_nh_rttype(pn->rn, nh, &rttype);
+    }
+
+	/* 
+	* TODO:
+	* route may have more than on nexthop, but we set route etag depend on nexthop type is ZEBRA_ROUTE_BGP.
+	* in acvs scene. type 2 only exist 1.
+	* so we only set etag when nexthop count == 1 and this nexthop type is ZEBRA_ROUTE_BGP.
+	* it seems to be no better way.
+	*/
+	if (static_nexthop_list_count(&pn->nexthop_list) == 1 && rttype == ZEBRA_ROUTE_BGP)
+	{
+		set_etag = true;
+	}
 
 	if (static_nexthop_list_count(&pn->nexthop_list))
-		static_zebra_route_add(pn, true);
+		static_zebra_route_add(pn, true, set_etag);
 }
 
 /* Uninstall static path from RIB. */
 static void static_uninstall_path(struct static_path *pn)
 {
+	uint8_t rttype;
+	struct static_nexthop *nh;
+	bool set_etag = false;
+
+	frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
+		get_static_nht_nh_rttype(pn->rn, nh, &rttype);
+	}
+	DEBUGD(&static_dbg_route, "%pRN  nexthop count %u", pn->rn, static_nexthop_list_count(&pn->nexthop_list));
+	if (static_nexthop_list_count(&pn->nexthop_list) == 1 && rttype == ZEBRA_ROUTE_BGP)
+	{
+		set_etag = true;
+	}
 	if (static_nexthop_list_count(&pn->nexthop_list))
-		static_zebra_route_add(pn, true);
+		static_zebra_route_add(pn, true, set_etag);
 	else
-		static_zebra_route_add(pn, false);
+		static_zebra_route_add(pn, false, false);
 }
 
 struct route_node *static_add_route(afi_t afi, safi_t safi, struct prefix *p,
@@ -398,6 +426,10 @@ void static_install_nexthop(struct static_nexthop *nh)
 	struct static_path *pn = nh->pn;
 	struct route_node *rn = pn->rn;
 	struct interface *ifp;
+
+	DEBUGD(&static_dbg_route,
+			"Static Route %pFX installing vrf %s",
+			&rn->p, nh->nh_vrfname);
 
 	if (nh->nh_vrf_id == VRF_UNKNOWN) {
 		char nexthop_str[NEXTHOP_STR];

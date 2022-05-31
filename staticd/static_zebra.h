@@ -27,7 +27,11 @@ extern struct thread_master *master;
 
 extern void static_zebra_nht_register(struct static_nexthop *nh, bool reg);
 
-extern void static_zebra_route_add(struct static_path *pn, bool install);
+extern void static_zebra_route_add(struct static_path *pn, bool install, bool set_etag);
+extern void get_static_nht_nh_rttype(struct route_node *rn, 
+					struct static_nexthop *nh, 
+					uint8_t *rttype);
+
 extern void static_zebra_init(void);
 /* static_zebra_stop used by tests/lib/test_grpc.cpp */
 extern void static_zebra_stop(void);

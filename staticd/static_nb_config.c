@@ -115,6 +115,20 @@ static int static_path_list_tag_modify(struct nb_cb_modify_args *args)
 	return NB_OK;
 }
 
+static void static_path_list_etag_modify(struct nb_cb_modify_args *args,
+					const struct lyd_node *rn_dnode,
+					struct stable_info *info)
+{
+	struct static_path *pn;
+	route_tag_t etag;
+
+	etag = yang_dnode_get_uint32(args->dnode, NULL);
+	pn = nb_running_get_entry(args->dnode, NULL, true);
+	pn->etag = etag;
+
+	static_install_path(pn);
+}
+
 struct nexthop_iter {
 	uint32_t count;
 	bool blackhole;
@@ -548,6 +562,33 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_pa
 
 /*
  * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/path-list/etag
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_etag_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct stable_info *info;
+	struct route_node *rn;
+	const struct lyd_node *rn_dnode;
+
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_ABORT:
+	case NB_EV_PREPARE:
+		break;
+	case NB_EV_APPLY:
+		rn_dnode = yang_dnode_get_parent(args->dnode, "route-list");
+		rn = nb_running_get_entry(rn_dnode, NULL, true);
+		info = route_table_get_info(rn->table);
+		static_path_list_etag_modify(args, rn_dnode, info);
+		break;
+	}
+
+	return NB_OK;
+}
+
+/*
+ * XPath:
  * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/path-list/frr-nexthops/nexthop
  */
 int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_create(
@@ -814,6 +855,34 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_sr
 	struct nb_cb_modify_args *args)
 {
 	return static_path_list_tag_modify(args);
+}
+
+/*
+ * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/src-list/path-list/etag
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_etag_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct stable_info *info;
+	struct route_node *rn;
+	const struct lyd_node *srn_dnode;
+	const struct lyd_node *rn_dnode;
+
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_ABORT:
+	case NB_EV_PREPARE:
+		break;
+	case NB_EV_APPLY:
+		srn_dnode = yang_dnode_get_parent(args->dnode, "src-list");
+		rn_dnode = yang_dnode_get_parent(srn_dnode, "route-list");
+		rn = nb_running_get_entry(rn_dnode, NULL, true);
+		info = route_table_get_info(rn->table);
+		static_path_list_etag_modify(args, srn_dnode, info);
+		break;
+	}
+	return NB_OK;
 }
 
 /*

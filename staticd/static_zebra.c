@@ -147,6 +147,7 @@ struct static_nht_data {
 	vrf_id_t nh_vrf_id;
 
 	uint32_t refcount;
+	uint8_t type;
 	uint8_t nh_num;
 };
 
@@ -171,6 +172,7 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 	struct zapi_route nhr;
 	struct prefix matched;
 	afi_t afi = AFI_IP;
+	bool set_etag = false;
 
 	if (!zapi_nexthop_update_decode(zclient->ibuf, &matched, &nhr)) {
 		zlog_err("Failure to decode nexthop update message");
@@ -184,6 +186,9 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 		if (static_nexthop_is_local(vrf_id, &matched,
 					    nhr.prefix.family))
 			nhr.nexthop_num = 0;
+	} else if (nhr.type == ZEBRA_ROUTE_BGP){
+		// it assume it is type 2 route as  nh. we set tag to let routemap to process 
+		set_etag = true;
 	}
 
 	memset(&lookup, 0, sizeof(lookup));
@@ -194,10 +199,17 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 
 	if (nhtd) {
 		nhtd->nh_num = nhr.nexthop_num;
-
+		/*
+		* nexthop update event can't appear later. 
+		* we should save nhr.type to nhtd for recognizing nexthop type
+		*/
+		nhtd->type = nhr.type;
+		DEBUGD(&static_dbg_route,
+		        "update nexthop(%pFX) nh_num %d  type %u", nhtd->nh,
+		        nhtd->nh_num, nhtd->type);
 		static_nht_reset_start(&matched, afi, nhtd->nh_vrf_id);
 		static_nht_update(NULL, &matched, nhr.nexthop_num, afi,
-				  nhtd->nh_vrf_id);
+				  nhtd->nh_vrf_id, set_etag);
 	} else
 		zlog_err("No nhtd?");
 
@@ -262,6 +274,7 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 	uint32_t cmd;
 	struct prefix p;
 	afi_t afi = AFI_IP;
+	bool set_etag = false;
 
 	cmd = (reg) ?
 		ZEBRA_NEXTHOP_REGISTER : ZEBRA_NEXTHOP_UNREGISTER;
@@ -307,11 +320,13 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 		nhtd->refcount++;
 
 		DEBUGD(&static_dbg_route,
-		       "Registered nexthop(%pFX) for %pRN %d", &p, rn,
-		       nhtd->nh_num);
+		        "Registered nexthop(%pFX) for %pRN %d ref %u type %u", &p, rn,
+		        nhtd->nh_num, nhtd->refcount, nhtd->type);
+		if (nhtd->type == ZEBRA_ROUTE_BGP)
+			set_etag = true;
 		if (nhtd->refcount > 1 && nhtd->nh_num) {
 			static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, afi,
-					  nh->nh_vrf_id);
+					  nh->nh_vrf_id, set_etag);
 			return;
 		}
 	} else {
@@ -331,6 +346,49 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 	    == ZCLIENT_SEND_FAILURE)
 		zlog_warn("%s: Failure to send nexthop to zebra", __func__);
 }
+
+
+void get_static_nht_nh_rttype(struct route_node *rn, struct static_nexthop *nh, uint8_t *rttype)
+{
+	struct static_nht_data *nhtd, lookup;
+	struct prefix p;
+
+	DEBUGD(&static_dbg_route, "%pRN nh_type %u", rn, nh->type);
+
+	memset(&p, 0, sizeof(p));
+	switch (nh->type) {
+	case STATIC_IFNAME:
+	case STATIC_BLACKHOLE:
+	case STATIC_IPV4_GATEWAY_EVPN:
+	case STATIC_IPV6_GATEWAY_EVPN:
+		return;
+	case STATIC_IPV4_GATEWAY:
+	case STATIC_IPV4_GATEWAY_IFNAME:
+		p.family = AF_INET;
+		p.prefixlen = IPV4_MAX_BITLEN;
+		p.u.prefix4 = nh->addr.ipv4;
+		break;
+	case STATIC_IPV6_GATEWAY:
+	case STATIC_IPV6_GATEWAY_IFNAME:
+		p.family = AF_INET6;
+		p.prefixlen = IPV6_MAX_BITLEN;
+		p.u.prefix6 = nh->addr.ipv6;
+		break;
+	}
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.nh = &p;
+	lookup.nh_vrf_id = nh->nh_vrf_id;
+
+
+	nhtd = hash_get(static_nht_hash, &lookup,
+			static_nht_hash_alloc);
+	DEBUGD(&static_dbg_route,
+		" get registered nexthop(%pFX) for %pRN %d ref %u type %u", &p, rn,
+		nhtd->nh_num, nhtd->refcount, nhtd->type);
+	rttype = nhtd->type;
+	return;
+}
 /*
  * When nexthop gets updated via configuration then use the
  * already registered NH and resend the route to zebra
@@ -342,6 +400,7 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 	struct static_nht_data *nhtd, lookup = {};
 	struct prefix p = {};
 	afi_t afi = AFI_IP;
+	bool set_etag = false;
 
 	if (!nh->nh_registered)
 		return 0;
@@ -372,14 +431,19 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 	nhtd = hash_lookup(static_nht_hash, &lookup);
 	if (nhtd && nhtd->nh_num) {
 		nh->state = STATIC_START;
+		if (nhtd->type == ZEBRA_ROUTE_BGP)
+		{
+			set_etag = true;
+		}
 		static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, afi,
-				  nh->nh_vrf_id);
+				  nh->nh_vrf_id, set_etag);
 		return 1;
 	}
 	return 0;
 }
 
-extern void static_zebra_route_add(struct static_path *pn, bool install)
+extern void static_zebra_route_add(struct static_path *pn, bool install, bool set_etag)
+
 {
 	struct route_node *rn = pn->rn;
 	struct static_route_info *si = rn->info;
@@ -412,6 +476,11 @@ extern void static_zebra_route_add(struct static_path *pn, bool install)
 	if (pn->tag) {
 		SET_FLAG(api.message, ZAPI_MESSAGE_TAG);
 		api.tag = pn->tag;
+	}
+	// if etag valid and set_flag is set, we set api tag to routemap process later.
+	if (pn->etag && set_etag) {
+		SET_FLAG(api.message, ZAPI_MESSAGE_TAG);
+		api.tag = pn->etag;
 	}
 	if (pn->table_id != 0) {
 		SET_FLAG(api.message, ZAPI_MESSAGE_TABLEID);
@@ -523,6 +592,9 @@ extern void static_zebra_route_add(struct static_path *pn, bool install)
 	 */
 	if (!nh_num && install)
 		install = false;
+	DEBUGD(&static_dbg_route,
+		        "route send prefix(%pFX) nh_num %d tag %u", &api.prefix,
+		        api.nexthop_num, api.tag);
 
 	zclient_route_send(install ?
 			   ZEBRA_ROUTE_ADD : ZEBRA_ROUTE_DELETE,
