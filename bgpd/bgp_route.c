@@ -2584,7 +2584,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					"%s [Update:SEND] %pFX is filtered by route-map '%s'",
 					peer->host, p,
 					ROUTE_MAP_OUT_NAME(filter));
-
+			bgp_attr_flush(rmap_path.attr);
 			return false;
 		}
 		if (adv_ret  == RMAP_DENYMATCH) {
