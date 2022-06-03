@@ -224,8 +224,8 @@ int isis_dr_resign(struct isis_circuit *circuit, int level)
 
 	circuit->u.bc.is_dr[level - 1] = 0;
 	circuit->u.bc.run_dr_elect[level - 1] = 0;
-	thread_cancel(&circuit->u.bc.t_run_dr[level - 1]);
-	thread_cancel(&circuit->u.bc.t_refresh_pseudo_lsp[level - 1]);
+	THREAD_OFF(circuit->u.bc.t_run_dr[level - 1]);
+	THREAD_OFF(circuit->u.bc.t_refresh_pseudo_lsp[level - 1]);
 	circuit->lsp_regenerate_pending[level - 1] = 0;
 
 	memcpy(id, circuit->isis->sysid, ISIS_SYS_ID_LEN);
@@ -249,7 +249,7 @@ int isis_dr_resign(struct isis_circuit *circuit, int level)
 				 &circuit->t_send_psnp[1]);
 	}
 
-	thread_cancel(&circuit->t_send_csnp[level - 1]);
+	THREAD_OFF(circuit->t_send_csnp[level - 1]);
 
 	thread_add_timer(master, isis_run_dr,
 			 &circuit->level_arg[level - 1],
@@ -287,8 +287,6 @@ int isis_dr_commence(struct isis_circuit *circuit, int level)
 			circuit->circuit_id;
 
 		assert(circuit->circuit_id); /* must be non-zero */
-		/*    if (circuit->t_send_l1_psnp)
-		   thread_cancel (circuit->t_send_l1_psnp); */
 		lsp_generate_pseudo(circuit, 1);
 
 		thread_add_timer(master, send_l1_csnp, circuit,
@@ -309,8 +307,6 @@ int isis_dr_commence(struct isis_circuit *circuit, int level)
 			circuit->circuit_id;
 
 		assert(circuit->circuit_id); /* must be non-zero */
-		/*    if (circuit->t_send_l1_psnp)
-		   thread_cancel (circuit->t_send_l1_psnp); */
 		lsp_generate_pseudo(circuit, 2);
 
 		thread_add_timer(master, send_l2_csnp, circuit,
