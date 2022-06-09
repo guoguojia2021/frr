@@ -4037,11 +4037,60 @@ static void bgp_route_map_process_update(struct bgp *bgp, const char *rmap_name,
 	}
 }
 
+static void bgp_peer_high_route_map_update(char *rmap_name)
+{
+	afi_t afi;
+	safi_t safi;
+	struct listnode *mnode, *mnnode;
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+	struct peer *peer;
+	struct route_map *map;
+	bool find = false;
+    int dir;
+
+	map = route_map_lookup_by_name(rmap_name);
+
+	if (!map) {
+		return;
+	}
+
+	for (dir = RMAP_IN; dir < RMAP_MAX; dir++) {
+		FOREACH_AFI_SAFI (afi, safi) {
+			if (BGP_HRMAP_DEFAULT_NAME(afi, safi, dir) &&
+				(strcmp(rmap_name, BGP_HRMAP_DEFAULT_NAME(afi, safi, dir)) == 0)) {
+				BGP_HRMAP_DEFAULT(afi, safi, dir) = map;
+				find = true;
+			}
+			if (BGP_HRMAP_VRF_NAME(afi, safi, dir) &&
+				(strcmp(rmap_name, BGP_HRMAP_VRF_NAME(afi, safi, dir)) == 0)) {
+				BGP_HRMAP_VRF(afi, safi, dir) = map;
+				find = true;
+			}
+		}
+
+		if (find && dir == RMAP_IN) {
+			for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
+				for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+					peer_on_policy_change(peer, afi, safi, 0);
+				}
+			}
+		}
+
+		if (find && dir == RMAP_OUT) {
+			for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
+				update_group_announce(bgp);
+			}
+		}
+	}
+}
+
 static void bgp_route_map_process_update_cb(char *rmap_name)
 {
 	struct listnode *node, *nnode;
 	struct bgp *bgp;
 
+	bgp_peer_high_route_map_update(rmap_name);
 	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
 		bgp_route_map_process_update(bgp, rmap_name, 1);
 
@@ -4085,6 +4134,7 @@ static void bgp_route_map_mark_update(const char *rmap_name)
 						   BGP_POLICY_ROUTE_MAP,
 						   rmap_name, 1, 1);
 	} else {
+		bgp_peer_high_route_map_update(rmap_name);
 		for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
 			bgp_route_map_process_update(bgp, rmap_name, 0);
 #ifdef ENABLE_BGP_VNC

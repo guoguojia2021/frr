@@ -1654,6 +1654,44 @@ static int bgp_input_modifier(struct peer *peer, const struct prefix *p,
 	struct bgp_path_info_extra extra = { 0 };
 	route_map_result_t ret;
 	struct route_map *rmap = NULL;
+	char *high_rmap_name = NULL;
+	struct route_map *high_rmap = NULL;
+
+	if (peer->bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
+		high_rmap_name = BGP_HRMAP_DEFAULT_NAME(afi, safi, RMAP_IN);
+		high_rmap = BGP_HRMAP_DEFAULT(afi, safi, RMAP_IN);
+	} else if (peer->bgp->inst_type == BGP_INSTANCE_TYPE_VRF){
+		high_rmap_name = BGP_HRMAP_VRF_NAME(afi, safi, RMAP_IN);
+		high_rmap = BGP_HRMAP_VRF(afi, safi, RMAP_IN);
+	}
+
+	if (high_rmap_name && high_rmap) {
+		zlog_debug("bgp peer high route-map %s start", high_rmap_name);
+		memset(&rmap_path, 0, sizeof(struct bgp_path_info));
+		/* Duplicate current value to new strucutre for modification. */
+		rmap_path.peer = peer;
+		rmap_path.attr = attr;
+		rmap_path.extra = &extra;
+		rmap_path.net = dest;
+
+		extra.num_labels = num_labels;
+		if (label && num_labels && num_labels <= BGP_MAX_LABELS)
+			memcpy(extra.label, label,
+				num_labels * sizeof(mpls_label_t));
+
+		SET_FLAG(peer->rmap_type, PEER_RMAP_TYPE_IN);
+
+		/* Apply BGP route map to the attribute. */
+		ret = route_map_apply(high_rmap, p, &rmap_path);
+
+		peer->rmap_type = 0;
+
+		if (ret == RMAP_DENYMATCH) {
+			zlog_debug("bgp peer %s high route-map %s deny %pFX", peer->host,
+					high_rmap_name, p);
+			return RMAP_DENY;
+		}
+	}
 
 	filter = &peer->filter[afi][safi];
 
@@ -2319,9 +2357,20 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	bgp_peer_remove_private_as(bgp, afi, safi, peer, attr);
 	bgp_peer_as_override(bgp, afi, safi, peer, attr);
 
+	char *high_rmap_name = NULL;
+	struct route_map *high_rmap = NULL;
+
+	if (bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
+		high_rmap_name = BGP_HRMAP_DEFAULT_NAME(afi, safi, RMAP_OUT);
+		high_rmap = BGP_HRMAP_DEFAULT(afi, safi, RMAP_OUT);
+	} else if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF){
+		high_rmap_name = BGP_HRMAP_VRF_NAME(afi, safi, RMAP_OUT);
+		high_rmap = BGP_HRMAP_VRF(afi, safi, RMAP_OUT);
+	}
+
 	/* Route map & unsuppress-map apply. */
 	if (!post_attr &&
-	    (ROUTE_MAP_OUT_NAME(filter) || bgp_path_suppressed(pi))) {
+	    (ROUTE_MAP_OUT_NAME(filter) || bgp_path_suppressed(pi)|| (high_rmap_name))) {
 		struct bgp_path_info rmap_path = {0};
 		struct bgp_path_info_extra dummy_rmap_path_extra = {0};
 		struct attr dummy_attr = {0};
@@ -2342,6 +2391,21 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 				   BGP_FLAG_RR_ALLOW_OUTBOUND_POLICY)) {
 			dummy_attr = *attr;
 			rmap_path.attr = &dummy_attr;
+		}
+
+		if (high_rmap) {
+			zlog_debug("bgp peer high route-map %s start", high_rmap_name);
+			ret = route_map_apply(high_rmap, p, &rmap_path);
+
+			if (ret == RMAP_DENYMATCH) {
+				if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+					zlog_debug(
+						"%s [Update:SEND] %pFX is filtered by bgp peer high route-map",
+						peer->host, p);
+
+				bgp_attr_flush(&dummy_attr);
+				return false;
+			}
 		}
 
 		SET_FLAG(peer->rmap_type, PEER_RMAP_TYPE_OUT);

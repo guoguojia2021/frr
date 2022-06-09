@@ -8977,6 +8977,109 @@ DEFPY (af_route_map_vpn_imexport,
 	return CMD_SUCCESS;
 }
 
+DEFUN (bgp_neighbor_route_map, bgp_neighbor_route_map_cmd,
+		"bgp neighbor [instance <default|vrf>] <ipv4|ipv6|l2vpn> <unicast|multicast|vpn|labeled-unicast|flowspec|evpn> route-map WORD <in|out>",
+		BGP_STR
+		"Configure global neighbor commands\n"
+		"bgp instance\n"
+		"Default instance\n"
+		"Non-default VRF instance\n"
+		BGP_AFI_HELP_STR
+		"Address Family\n"
+		BGP_SAFI_WITH_LABEL_HELP_STR
+		"Address Family modifier\n"
+		"Specify route map\n"
+		"Name of route-map\n"
+		"Apply map to incoming routes\n"
+		"Apply map to outbound routes\n")
+{
+	char *instance = NULL;
+	char *name = NULL;
+	char *dir = NULL;
+	afi_t afi = AFI_UNSPEC;
+	safi_t safi = SAFI_UNSPEC;
+	int direct = RMAP_IN;
+	int idx = 0;
+	struct route_map *rmap = NULL;
+	int inst_type = -1;
+	int ret;
+
+	if (argv_find(argv, argc, "instance", &idx)) {
+		instance = argv[idx + 1]->arg;
+		idx += 2;
+		if (instance && strmatch(instance, "default"))
+			inst_type = BGP_INSTANCE_TYPE_DEFAULT;
+		else if (instance && strmatch(instance, "vrf"))
+			inst_type = BGP_INSTANCE_TYPE_VRF;
+	}
+
+	if (argv_find_and_parse_afi(argv, argc, &idx, &afi))
+		argv_find_and_parse_safi(argv, argc, &idx, &safi);
+
+	idx += 2;
+	name = argv[idx]->arg;
+	idx += 1;
+	dir = argv[idx]->arg;
+	if (strncmp(dir, "in", 2) == 0)
+		direct = RMAP_IN;
+	else if (strncmp(dir, "o", 1) == 0)
+		direct = RMAP_OUT;
+
+	rmap = route_map_lookup_warn_noexist(vty, name);
+	ret = bgp_neighbor_high_route_map_set(inst_type, afi, safi, direct, name, rmap);
+
+	return bgp_vty_return(vty, ret);
+}
+
+DEFUN (no_bgp_neighbor_route_map, no_bgp_neighbor_route_map_cmd,
+		"no bgp neighbor [instance <default|vrf>] <ipv4|ipv6|l2vpn> <unicast|multicast|vpn|labeled-unicast|flowspec|evpn> route-map <in|out>",
+		NO_STR
+		BGP_STR
+		"Configure all neighbor commands\n"
+		"bgp instance\n"
+		"Default instance\n"
+		"Non-default VRF instance\n"
+		BGP_AFI_HELP_STR
+		"Address Family\n"
+		BGP_SAFI_WITH_LABEL_HELP_STR
+		"Address Family modifier\n"
+		"Specify route map\n"
+		"Apply map to incoming routes\n"
+		"Apply map to outbound routes\n")
+{
+	char *instance = NULL;
+	char *dir_str;
+	afi_t afi = AFI_UNSPEC;
+	safi_t safi = SAFI_UNSPEC;
+	int direct = RMAP_IN;
+	int idx = 0;
+	int inst_type = -1;
+	int ret;
+
+	if (argv_find(argv, argc, "instance", &idx)) {
+		instance = argv[idx + 1]->arg;
+		idx += 2;
+		if (instance && strmatch(instance, "default"))
+			inst_type = BGP_INSTANCE_TYPE_DEFAULT;
+		else if (instance && strmatch(instance, "vrf"))
+			inst_type = BGP_INSTANCE_TYPE_VRF;
+	}
+
+	if (argv_find_and_parse_afi(argv, argc, &idx, &afi))
+		argv_find_and_parse_safi(argv, argc, &idx, &safi);
+
+	idx += 2;
+	dir_str = argv[idx]->arg;
+	if (strncmp(dir_str, "in", 2) == 0)
+		direct = RMAP_IN;
+	else if (strncmp(dir_str, "o", 1) == 0)
+		direct = RMAP_OUT;
+
+	ret = bgp_neighbor_high_route_map_unset(inst_type, afi, safi, direct);
+
+	return bgp_vty_return(vty, ret);
+}
+
 ALIAS (af_route_map_vpn_imexport,
        af_no_route_map_vpn_imexport_cmd,
        "no route-map vpn <import|export>$direction_str",
@@ -17082,6 +17185,63 @@ static void bgp_config_write_peer_af(struct vty *vty, struct bgp *bgp,
 	}
 }
 
+static void bgp_config_write_bgp_high_routemap(struct vty *vty)
+{
+	afi_t afi;
+	safi_t safi;
+	int dir;
+	int inst;
+	char *map_name = NULL;
+
+	FOREACH_AFI_SAFI (afi, safi) {
+		for (inst = BGP_INSTANCE_TYPE_DEFAULT; inst <= BGP_INSTANCE_TYPE_VRF; inst++) {
+			for (dir = RMAP_IN; dir < RMAP_MAX; dir++) {
+ 				map_name = (inst == BGP_INSTANCE_TYPE_DEFAULT) ?
+							BGP_HRMAP_DEFAULT_NAME(afi, safi, dir) : BGP_HRMAP_VRF_NAME(afi, safi, dir);
+				if (map_name == NULL) {
+					continue;
+				}
+
+				vty_frame(vty, "bgp neighbor instance %s ",
+							inst == BGP_INSTANCE_TYPE_DEFAULT ? "default" : "vrf");
+				if (afi == AFI_IP) {
+					if (safi == SAFI_UNICAST)
+						vty_frame(vty, "ipv4 unicast");
+					else if (safi == SAFI_LABELED_UNICAST)
+						vty_frame(vty, "ipv4 labeled-unicast");
+					else if (safi == SAFI_MULTICAST)
+						vty_frame(vty, "ipv4 multicast");
+					else if (safi == SAFI_MPLS_VPN)
+						vty_frame(vty, "ipv4 vpn");
+					else if (safi == SAFI_ENCAP)
+						vty_frame(vty, "ipv4 encap");
+					else if (safi == SAFI_FLOWSPEC)
+						vty_frame(vty, "ipv4 flowspec");
+				} else if (afi == AFI_IP6) {
+					if (safi == SAFI_UNICAST)
+						vty_frame(vty, "ipv6 unicast");
+					else if (safi == SAFI_LABELED_UNICAST)
+						vty_frame(vty, "ipv6 labeled-unicast");
+					else if (safi == SAFI_MULTICAST)
+						vty_frame(vty, "ipv6 multicast");
+					else if (safi == SAFI_MPLS_VPN)
+						vty_frame(vty, "ipv6 vpn");
+					else if (safi == SAFI_ENCAP)
+						vty_frame(vty, "ipv6 encap");
+					else if (safi == SAFI_FLOWSPEC)
+						vty_frame(vty, "ipv6 flowspec");
+				} else if (afi == AFI_L2VPN) {
+					if (safi == SAFI_EVPN)
+						vty_frame(vty, "l2vpn evpn");
+				}
+
+				vty_out(vty, " route-map %s %s\n", map_name,
+							dir == RMAP_IN ? "in" : "out");
+			}
+		}
+	}
+}
+
 /* Address family based peer configuration display.  */
 static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 				    safi_t safi)
@@ -17211,6 +17371,8 @@ int bgp_config_write(struct vty *vty)
 
 	if (CHECK_FLAG(bm->flags, BM_FLAG_SEND_EXTRA_DATA_TO_ZEBRA))
 		vty_out(vty, "bgp send-extra-data zebra\n");
+
+	bgp_config_write_bgp_high_routemap(vty);
 
 	/* BGP configuration. */
 	for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
@@ -17852,6 +18014,10 @@ void bgp_vty_init(void)
 	/* global bgp graceful-shutdown command */
 	install_element(CONFIG_NODE, &bgp_graceful_shutdown_cmd);
 	install_element(CONFIG_NODE, &no_bgp_graceful_shutdown_cmd);
+
+	/* global bgp neighbor high route-map */
+	install_element(CONFIG_NODE, &bgp_neighbor_route_map_cmd);
+	install_element(CONFIG_NODE, &no_bgp_neighbor_route_map_cmd);
 
 	/* Dummy commands (Currently not supported) */
 	install_element(BGP_NODE, &no_synchronization_cmd);

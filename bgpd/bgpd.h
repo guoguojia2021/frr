@@ -107,6 +107,22 @@ enum bgp_af_index {
 extern struct frr_pthread *bgp_pth_io;
 extern struct frr_pthread *bgp_pth_ka;
 
+/* Route map direction */
+#define RMAP_IN  0
+#define RMAP_OUT 1
+#define RMAP_MAX 2
+
+/* BGP route-map structure.  */
+struct bgp_rmap {
+	char *name;
+	struct route_map *map;
+};
+
+struct bm_rmap {
+	struct bgp_rmap vrf_map[AFI_MAX][SAFI_MAX][RMAP_MAX];
+	struct bgp_rmap default_map[AFI_MAX][SAFI_MAX][RMAP_MAX];
+};
+
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master {
 	/* BGP instance list.  */
@@ -162,6 +178,9 @@ struct bgp_master {
 	/* EVPN multihoming */
 	struct bgp_evpn_mh_info *mh_info;
 
+	/* high route map for af + saf bgp instance */
+	struct bm_rmap high_rmap;
+
 	/* global update-delay timer values */
 	uint16_t v_update_delay;
 	uint16_t v_establish_wait;
@@ -175,11 +194,11 @@ struct bgp_master {
 };
 DECLARE_QOBJ_TYPE(bgp_master);
 
-/* BGP route-map structure.  */
-struct bgp_rmap {
-	char *name;
-	struct route_map *map;
-};
+
+#define BGP_HRMAP_DEFAULT_NAME(af, saf, dir)   (bm->high_rmap.default_map[af][saf][dir].name)
+#define BGP_HRMAP_DEFAULT(af, saf, dir)        (bm->high_rmap.default_map[af][saf][dir].map)
+#define BGP_HRMAP_VRF_NAME(af, saf, dir)       (bm->high_rmap.vrf_map[af][saf][dir].name)
+#define BGP_HRMAP_VRF(af, saf, dir)            (bm->high_rmap.vrf_map[af][saf][dir].map)
 
 struct bgp_redist {
 	unsigned short instance;
@@ -850,11 +869,6 @@ struct bgp_nexthop {
 
 #define BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE 1
 
-/* Route map direction */
-#define RMAP_IN  0
-#define RMAP_OUT 1
-#define RMAP_MAX 2
-
 #define BGP_DEFAULT_TTL         1
 #define BGP_GTSM_HOPS_DISABLED  0
 #define BGP_GTSM_HOPS_CONNECTED 1
@@ -912,6 +926,7 @@ struct bgp_filter {
 		enum update_type update_type;
 	} advmap;
 };
+
 
 /* IBGP/EBGP identifier.  We also have a CONFED peer, which is to say,
    a peer who's AS is part of our Confederation.  */
@@ -2516,4 +2531,10 @@ void peer_tcp_mss_unset(struct peer *peer);
 
 extern void bgp_recalculate_afi_safi_bestpaths(struct bgp *bgp, afi_t afi,
 					       safi_t safi);
+
+extern void peer_on_policy_change(struct peer *peer, afi_t afi, safi_t safi, int outbound);
+extern int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi, int direct,
+							const char *name, struct route_map *route_map);
+extern int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int direct);
+
 #endif /* _QUAGGA_BGPD_H */

@@ -5302,7 +5302,7 @@ void peer_tcp_mss_unset(struct peer *peer)
  * being used by a peer has changed (AF specific). Automatically
  * initiates inbound or outbound processing as needed.
  */
-static void peer_on_policy_change(struct peer *peer, afi_t afi, safi_t safi,
+void peer_on_policy_change(struct peer *peer, afi_t afi, safi_t safi,
 				  int outbound)
 {
 	if (outbound) {
@@ -6906,6 +6906,121 @@ int peer_route_map_unset(struct peer *peer, afi_t afi, safi_t safi, int direct)
 		/* Process peer route updates. */
 		peer_on_policy_change(member, afi, safi,
 				      (direct == RMAP_OUT) ? 1 : 0);
+	}
+
+	return 0;
+}
+
+int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi, int direct,
+						const char *name, struct route_map *route_map)
+{
+	char *map_name = NULL;
+	struct route_map *rmap = NULL;
+	struct listnode *mnode, *mnnode;
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+	struct peer *peer;
+
+	if (direct != RMAP_IN && direct != RMAP_OUT)
+		return BGP_ERR_INVALID_VALUE;
+
+	if (inst_type != -1 &&
+		inst_type != BGP_INSTANCE_TYPE_DEFAULT &&
+		inst_type != BGP_INSTANCE_TYPE_VRF) {
+		return BGP_ERR_INVALID_VALUE;
+	}
+
+	if (inst_type == -1 || inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
+		map_name = BGP_HRMAP_DEFAULT_NAME(afi, safi, direct);
+		if (map_name) {
+			/* If the bgp is configured with the same route-map
+			 * again then, ignore the duplicate configuration.
+			 */
+			if (strcmp(map_name, name) == 0)
+				return 0;
+
+			XFREE(MTYPE_BGP_FILTER_NAME, BGP_HRMAP_DEFAULT_NAME(afi, safi, direct));
+		}
+		route_map_counter_decrement(BGP_HRMAP_DEFAULT(afi, safi, direct));
+		BGP_HRMAP_DEFAULT_NAME(afi, safi, direct) = XSTRDUP(MTYPE_BGP_FILTER_NAME, name);
+		BGP_HRMAP_DEFAULT(afi, safi, direct) = route_map;
+		route_map_counter_increment(route_map);
+	}
+
+	if (inst_type == -1 || inst_type == BGP_INSTANCE_TYPE_VRF) {
+		map_name = BGP_HRMAP_VRF_NAME(afi, safi, direct);
+		if (map_name) {
+			/* If the bgp is configured with the same route-map
+			 * again then, ignore the duplicate configuration.
+			 */
+			if (strcmp(map_name, name) == 0)
+				return 0;
+
+			XFREE(MTYPE_BGP_FILTER_NAME, BGP_HRMAP_VRF_NAME(afi, safi, direct));
+		}
+		route_map_counter_decrement(BGP_HRMAP_VRF(afi, safi, direct));
+		BGP_HRMAP_VRF_NAME(afi, safi, direct) = XSTRDUP(MTYPE_BGP_FILTER_NAME, name);
+		BGP_HRMAP_VRF(afi, safi, direct) = route_map;
+		route_map_counter_increment(route_map);
+	}
+
+	if (direct == RMAP_IN) {
+		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
+			for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+				peer_on_policy_change(peer, afi, safi, 0);
+			}
+		}
+	} else {
+		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
+			update_group_announce(bgp);
+		}
+	}
+
+	return 0;
+}
+
+int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int direct)
+{
+	struct route_map *rmap = NULL;
+	struct listnode *mnode, *mnnode;
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+	struct peer *peer;
+
+	if (direct != RMAP_IN && direct != RMAP_OUT)
+		return BGP_ERR_INVALID_VALUE;
+
+	if (inst_type != -1 &&
+		inst_type != BGP_INSTANCE_TYPE_DEFAULT &&
+		inst_type != BGP_INSTANCE_TYPE_VRF) {
+		return BGP_ERR_INVALID_VALUE;
+	}
+
+	if (inst_type == -1 || inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
+		if (BGP_HRMAP_DEFAULT_NAME(afi, safi, direct))
+			XFREE(MTYPE_BGP_FILTER_NAME, BGP_HRMAP_DEFAULT_NAME(afi, safi, direct));
+		route_map_counter_decrement(BGP_HRMAP_DEFAULT(afi, safi, direct));
+		BGP_HRMAP_DEFAULT_NAME(afi, safi, direct) = NULL;
+		BGP_HRMAP_DEFAULT(afi, safi, direct) = NULL;
+	}
+	if (inst_type == -1 || inst_type == BGP_INSTANCE_TYPE_VRF) {
+		if (BGP_HRMAP_VRF_NAME(afi, safi, direct))
+			XFREE(MTYPE_BGP_FILTER_NAME, BGP_HRMAP_VRF_NAME(afi, safi, direct));
+		route_map_counter_decrement(BGP_HRMAP_VRF(afi, safi, direct));
+		BGP_HRMAP_VRF_NAME(afi, safi, direct) = NULL;
+		BGP_HRMAP_VRF(afi, safi, direct) = NULL;
+	}
+
+	if (direct == RMAP_IN) {
+		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
+			for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+				peer_on_policy_change(peer, afi, safi, 0);
+			}
+		}
+	} else {
+		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
+			update_group_announce(bgp);
+		}
 	}
 
 	return 0;
