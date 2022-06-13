@@ -7972,7 +7972,7 @@ DEFPY(bgp_network,
 	bgp_network_cmd,
 	"[no] network \
 	<A.B.C.D/M$prefix|A.B.C.D$address [mask A.B.C.D$netmask]> \
-	[{route-map WORD$map_name|label-index (0-1048560)$label_index| \
+	[{route-map RMAP_NAME$map_name|label-index (0-1048560)$label_index| \
     backdoor$backdoor|nonconnected$nonconnected}]",
 	NO_STR
 	"Specify a network to announce via BGP\n"
@@ -8011,7 +8011,7 @@ DEFPY(bgp_network,
 DEFPY(ipv6_bgp_network,
 	ipv6_bgp_network_cmd,
 	"[no] network X:X::X:X/M$prefix \
-	[{route-map WORD$map_name|label-index (0-1048560)$label_index|nonconnected$nonconnected}]",
+	[{route-map RMAP_NAME$map_name|label-index (0-1048560)$label_index|nonconnected$nonconnected}]",
 	NO_STR
 	"Specify a network to announce via BGP\n"
 	"IPv6 prefix\n"
@@ -13532,7 +13532,7 @@ DEFPY(show_ip_bgp, show_ip_bgp_cmd,
           |community-list <(1-500)|COMMUNITY_LIST_NAME> [exact-match]\
           |filter-list AS_PATH_FILTER_NAME\
           |prefix-list WORD\
-          |route-map WORD\
+          |route-map RMAP_NAME\
           |rpki <invalid|valid|notfound>\
           |version (1-4294967295)\
           |alias ALIAS_NAME\
@@ -15462,7 +15462,6 @@ DEFPY(show_ip_bgp_instance_neighbor_advertised_route,
 {
 	afi_t afi = AFI_IP6;
 	safi_t safi = SAFI_UNICAST;
-	char *rmap_name = NULL;
 	char *peerstr = NULL;
 	struct bgp *bgp = NULL;
 	struct peer *peer;
@@ -15513,11 +15512,8 @@ DEFPY(show_ip_bgp_instance_neighbor_advertised_route,
 	else if (argv_find(argv, argc, "filtered-routes", &idx))
 		type = bgp_show_adj_route_filtered;
 
-	if (argv_find(argv, argc, "route-map", &idx))
-		rmap_name = argv[++idx]->arg;
-
 	if (!all)
-		return peer_adj_routes(vty, peer, afi, safi, type, rmap_name,
+		return peer_adj_routes(vty, peer, afi, safi, type, route_map,
 				       prefix_str ? prefix : NULL, show_flags);
 	if (uj)
 		vty_out(vty, "{\n");
@@ -15546,7 +15542,7 @@ DEFPY(show_ip_bgp_instance_neighbor_advertised_route,
 								 false));
 
 				peer_adj_routes(vty, peer, afi, safi, type,
-						rmap_name, prefix, show_flags);
+						route_map, prefix, show_flags);
 			}
 		}
 	} else {
@@ -15570,7 +15566,7 @@ DEFPY(show_ip_bgp_instance_neighbor_advertised_route,
 								 false));
 
 				peer_adj_routes(vty, peer, afi, safi, type,
-						rmap_name, prefix, show_flags);
+						route_map, prefix, show_flags);
 			}
 		}
 	}

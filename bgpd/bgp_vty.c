@@ -6790,7 +6790,7 @@ ALIAS_HIDDEN(neighbor_default_originate, neighbor_default_originate_hidden_cmd,
 
 DEFUN (neighbor_default_originate_rmap,
        neighbor_default_originate_rmap_cmd,
-       "neighbor <A.B.C.D|X:X::X:X|WORD> default-originate route-map WORD",
+       "neighbor <A.B.C.D|X:X::X:X|WORD> default-originate route-map RMAP_NAME",
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "Originate default route to this neighbor\n"
@@ -6807,7 +6807,7 @@ DEFUN (neighbor_default_originate_rmap,
 ALIAS_HIDDEN(
 	neighbor_default_originate_rmap,
 	neighbor_default_originate_rmap_hidden_cmd,
-	"neighbor <A.B.C.D|X:X::X:X|WORD> default-originate route-map WORD",
+	"neighbor <A.B.C.D|X:X::X:X|WORD> default-originate route-map RMAP_NAME",
 	NEIGHBOR_STR NEIGHBOR_ADDR_STR2
 	"Originate default route to this neighbor\n"
 	"Route-map to specify criteria to originate default\n"
@@ -6815,7 +6815,7 @@ ALIAS_HIDDEN(
 
 DEFUN (no_neighbor_default_originate,
        no_neighbor_default_originate_cmd,
-       "no neighbor <A.B.C.D|X:X::X:X|WORD> default-originate [route-map WORD]",
+       "no neighbor <A.B.C.D|X:X::X:X|WORD> default-originate [route-map RMAP_NAME]",
        NO_STR
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
@@ -6831,7 +6831,7 @@ DEFUN (no_neighbor_default_originate,
 
 ALIAS_HIDDEN(
 	no_neighbor_default_originate, no_neighbor_default_originate_hidden_cmd,
-	"no neighbor <A.B.C.D|X:X::X:X|WORD> default-originate [route-map WORD]",
+	"no neighbor <A.B.C.D|X:X::X:X|WORD> default-originate [route-map RMAP_NAME]",
 	NO_STR NEIGHBOR_STR NEIGHBOR_ADDR_STR2
 	"Originate default route to this neighbor\n"
 	"Route-map to specify criteria to originate default\n"
@@ -7805,7 +7805,7 @@ static int peer_route_map_unset_vty(struct vty *vty, const char *ip_str,
 
 DEFUN (neighbor_route_map,
        neighbor_route_map_cmd,
-       "neighbor <A.B.C.D|X:X::X:X|WORD> route-map WORD <in|out>",
+       "neighbor <A.B.C.D|X:X::X:X|WORD> route-map RMAP_NAME <in|out>",
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "Apply route map to neighbor\n"
@@ -7822,7 +7822,7 @@ DEFUN (neighbor_route_map,
 }
 
 ALIAS_HIDDEN(neighbor_route_map, neighbor_route_map_hidden_cmd,
-	     "neighbor <A.B.C.D|X:X::X:X|WORD> route-map WORD <in|out>",
+	     "neighbor <A.B.C.D|X:X::X:X|WORD> route-map RMAP_NAME <in|out>",
 	     NEIGHBOR_STR NEIGHBOR_ADDR_STR2
 	     "Apply route map to neighbor\n"
 	     "Name of route map\n"
@@ -7831,7 +7831,7 @@ ALIAS_HIDDEN(neighbor_route_map, neighbor_route_map_hidden_cmd,
 
 DEFUN (no_neighbor_route_map,
        no_neighbor_route_map_cmd,
-       "no neighbor <A.B.C.D|X:X::X:X|WORD> route-map WORD <in|out>",
+       "no neighbor <A.B.C.D|X:X::X:X|WORD> route-map RMAP_NAME <in|out>",
        NO_STR
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
@@ -7848,7 +7848,7 @@ DEFUN (no_neighbor_route_map,
 }
 
 ALIAS_HIDDEN(no_neighbor_route_map, no_neighbor_route_map_hidden_cmd,
-	     "no neighbor <A.B.C.D|X:X::X:X|WORD> route-map WORD <in|out>",
+	     "no neighbor <A.B.C.D|X:X::X:X|WORD> route-map RMAP_NAME <in|out>",
 	     NO_STR NEIGHBOR_STR NEIGHBOR_ADDR_STR2
 	     "Apply route map to neighbor\n"
 	     "Name of route map\n"
@@ -16194,7 +16194,7 @@ ALIAS_HIDDEN(
 
 DEFUN (bgp_redistribute_ipv4_rmap,
        bgp_redistribute_ipv4_rmap_cmd,
-       "redistribute " FRR_IP_REDIST_STR_BGPD " route-map WORD",
+       "redistribute " FRR_IP_REDIST_STR_BGPD " route-map RMAP_NAME",
        "Redistribute information from another routing protocol\n"
        FRR_IP_REDIST_HELP_STR_BGPD
        "Route map reference\n"
@@ -16223,7 +16223,7 @@ DEFUN (bgp_redistribute_ipv4_rmap,
 
 ALIAS_HIDDEN(
 	bgp_redistribute_ipv4_rmap, bgp_redistribute_ipv4_rmap_hidden_cmd,
-	"redistribute " FRR_IP_REDIST_STR_BGPD " route-map WORD",
+	"redistribute " FRR_IP_REDIST_STR_BGPD " route-map RMAP_NAME",
 	"Redistribute information from another routing protocol\n" FRR_IP_REDIST_HELP_STR_BGPD
 	"Route map reference\n"
 	"Pointer to route-map entries\n")
@@ -16265,7 +16265,7 @@ ALIAS_HIDDEN(
 
 DEFUN (bgp_redistribute_ipv4_rmap_metric,
        bgp_redistribute_ipv4_rmap_metric_cmd,
-       "redistribute " FRR_IP_REDIST_STR_BGPD " route-map WORD metric (0-4294967295)",
+       "redistribute " FRR_IP_REDIST_STR_BGPD " route-map RMAP_NAME metric (0-4294967295)",
        "Redistribute information from another routing protocol\n"
        FRR_IP_REDIST_HELP_STR_BGPD
        "Route map reference\n"
@@ -16302,7 +16302,7 @@ ALIAS_HIDDEN(
 	bgp_redistribute_ipv4_rmap_metric,
 	bgp_redistribute_ipv4_rmap_metric_hidden_cmd,
 	"redistribute " FRR_IP_REDIST_STR_BGPD
-	" route-map WORD metric (0-4294967295)",
+	" route-map RMAP_NAME metric (0-4294967295)",
 	"Redistribute information from another routing protocol\n" FRR_IP_REDIST_HELP_STR_BGPD
 	"Route map reference\n"
 	"Pointer to route-map entries\n"
@@ -16311,7 +16311,7 @@ ALIAS_HIDDEN(
 
 DEFUN (bgp_redistribute_ipv4_metric_rmap,
        bgp_redistribute_ipv4_metric_rmap_cmd,
-       "redistribute " FRR_IP_REDIST_STR_BGPD " metric (0-4294967295) route-map WORD",
+       "redistribute " FRR_IP_REDIST_STR_BGPD " metric (0-4294967295) route-map RMAP_NAME",
        "Redistribute information from another routing protocol\n"
        FRR_IP_REDIST_HELP_STR_BGPD
        "Metric for redistributed routes\n"
@@ -16348,7 +16348,7 @@ ALIAS_HIDDEN(
 	bgp_redistribute_ipv4_metric_rmap,
 	bgp_redistribute_ipv4_metric_rmap_hidden_cmd,
 	"redistribute " FRR_IP_REDIST_STR_BGPD
-	" metric (0-4294967295) route-map WORD",
+	" metric (0-4294967295) route-map RMAP_NAME",
 	"Redistribute information from another routing protocol\n" FRR_IP_REDIST_HELP_STR_BGPD
 	"Metric for redistributed routes\n"
 	"Default metric\n"
@@ -16389,7 +16389,7 @@ ALIAS_HIDDEN(bgp_redistribute_ipv4_ospf, bgp_redistribute_ipv4_ospf_hidden_cmd,
 
 DEFUN (bgp_redistribute_ipv4_ospf_rmap,
        bgp_redistribute_ipv4_ospf_rmap_cmd,
-       "redistribute <ospf|table> (1-65535) route-map WORD",
+       "redistribute <ospf|table> (1-65535) route-map RMAP_NAME",
        "Redistribute information from another routing protocol\n"
        "Open Shortest Path First (OSPFv2)\n"
        "Non-main Kernel Routing Table\n"
@@ -16422,7 +16422,7 @@ DEFUN (bgp_redistribute_ipv4_ospf_rmap,
 
 ALIAS_HIDDEN(bgp_redistribute_ipv4_ospf_rmap,
 	     bgp_redistribute_ipv4_ospf_rmap_hidden_cmd,
-	     "redistribute <ospf|table> (1-65535) route-map WORD",
+	     "redistribute <ospf|table> (1-65535) route-map RMAP_NAME",
 	     "Redistribute information from another routing protocol\n"
 	     "Open Shortest Path First (OSPFv2)\n"
 	     "Non-main Kernel Routing Table\n"
@@ -16476,7 +16476,7 @@ ALIAS_HIDDEN(bgp_redistribute_ipv4_ospf_metric,
 
 DEFUN (bgp_redistribute_ipv4_ospf_rmap_metric,
        bgp_redistribute_ipv4_ospf_rmap_metric_cmd,
-       "redistribute <ospf|table> (1-65535) route-map WORD metric (0-4294967295)",
+       "redistribute <ospf|table> (1-65535) route-map RMAP_NAME metric (0-4294967295)",
        "Redistribute information from another routing protocol\n"
        "Open Shortest Path First (OSPFv2)\n"
        "Non-main Kernel Routing Table\n"
@@ -16518,7 +16518,7 @@ DEFUN (bgp_redistribute_ipv4_ospf_rmap_metric,
 ALIAS_HIDDEN(
 	bgp_redistribute_ipv4_ospf_rmap_metric,
 	bgp_redistribute_ipv4_ospf_rmap_metric_hidden_cmd,
-	"redistribute <ospf|table> (1-65535) route-map WORD metric (0-4294967295)",
+	"redistribute <ospf|table> (1-65535) route-map RMAP_NAME metric (0-4294967295)",
 	"Redistribute information from another routing protocol\n"
 	"Open Shortest Path First (OSPFv2)\n"
 	"Non-main Kernel Routing Table\n"
@@ -16530,7 +16530,7 @@ ALIAS_HIDDEN(
 
 DEFUN (bgp_redistribute_ipv4_ospf_metric_rmap,
        bgp_redistribute_ipv4_ospf_metric_rmap_cmd,
-       "redistribute <ospf|table> (1-65535) metric (0-4294967295) route-map WORD",
+       "redistribute <ospf|table> (1-65535) metric (0-4294967295) route-map RMAP_NAME",
        "Redistribute information from another routing protocol\n"
        "Open Shortest Path First (OSPFv2)\n"
        "Non-main Kernel Routing Table\n"
@@ -16572,7 +16572,7 @@ DEFUN (bgp_redistribute_ipv4_ospf_metric_rmap,
 ALIAS_HIDDEN(
 	bgp_redistribute_ipv4_ospf_metric_rmap,
 	bgp_redistribute_ipv4_ospf_metric_rmap_hidden_cmd,
-	"redistribute <ospf|table> (1-65535) metric (0-4294967295) route-map WORD",
+	"redistribute <ospf|table> (1-65535) metric (0-4294967295) route-map RMAP_NAME",
 	"Redistribute information from another routing protocol\n"
 	"Open Shortest Path First (OSPFv2)\n"
 	"Non-main Kernel Routing Table\n"
@@ -16584,7 +16584,7 @@ ALIAS_HIDDEN(
 
 DEFUN (no_bgp_redistribute_ipv4_ospf,
        no_bgp_redistribute_ipv4_ospf_cmd,
-       "no redistribute <ospf|table> (1-65535) [{metric (0-4294967295)|route-map WORD}]",
+       "no redistribute <ospf|table> (1-65535) [{metric (0-4294967295)|route-map RMAP_NAME}]",
        NO_STR
        "Redistribute information from another routing protocol\n"
        "Open Shortest Path First (OSPFv2)\n"
@@ -16612,7 +16612,7 @@ DEFUN (no_bgp_redistribute_ipv4_ospf,
 
 ALIAS_HIDDEN(
 	no_bgp_redistribute_ipv4_ospf, no_bgp_redistribute_ipv4_ospf_hidden_cmd,
-	"no redistribute <ospf|table> (1-65535) [{metric (0-4294967295)|route-map WORD}]",
+	"no redistribute <ospf|table> (1-65535) [{metric (0-4294967295)|route-map RMAP_NAME}]",
 	NO_STR
 	"Redistribute information from another routing protocol\n"
 	"Open Shortest Path First (OSPFv2)\n"
@@ -16625,7 +16625,7 @@ ALIAS_HIDDEN(
 
 DEFUN (no_bgp_redistribute_ipv4,
        no_bgp_redistribute_ipv4_cmd,
-       "no redistribute " FRR_IP_REDIST_STR_BGPD " [{metric (0-4294967295)|route-map WORD}]",
+       "no redistribute " FRR_IP_REDIST_STR_BGPD " [{metric (0-4294967295)|route-map RMAP_NAME}]",
        NO_STR
        "Redistribute information from another routing protocol\n"
        FRR_IP_REDIST_HELP_STR_BGPD
@@ -16649,7 +16649,7 @@ DEFUN (no_bgp_redistribute_ipv4,
 ALIAS_HIDDEN(
 	no_bgp_redistribute_ipv4, no_bgp_redistribute_ipv4_hidden_cmd,
 	"no redistribute " FRR_IP_REDIST_STR_BGPD
-	" [{metric (0-4294967295)|route-map WORD}]",
+	" [{metric (0-4294967295)|route-map RMAP_NAME}]",
 	NO_STR
 	"Redistribute information from another routing protocol\n" FRR_IP_REDIST_HELP_STR_BGPD
 	"Metric for redistributed routes\n"
@@ -16679,7 +16679,7 @@ DEFUN (bgp_redistribute_ipv6,
 
 DEFUN (bgp_redistribute_ipv6_rmap,
        bgp_redistribute_ipv6_rmap_cmd,
-       "redistribute " FRR_IP6_REDIST_STR_BGPD " route-map WORD",
+       "redistribute " FRR_IP6_REDIST_STR_BGPD " route-map RMAP_NAME",
        "Redistribute information from another routing protocol\n"
        FRR_IP6_REDIST_HELP_STR_BGPD
        "Route map reference\n"
@@ -16736,7 +16736,7 @@ DEFUN (bgp_redistribute_ipv6_metric,
 
 DEFUN (bgp_redistribute_ipv6_rmap_metric,
        bgp_redistribute_ipv6_rmap_metric_cmd,
-       "redistribute " FRR_IP6_REDIST_STR_BGPD " route-map WORD metric (0-4294967295)",
+       "redistribute " FRR_IP6_REDIST_STR_BGPD " route-map RMAP_NAME metric (0-4294967295)",
        "Redistribute information from another routing protocol\n"
        FRR_IP6_REDIST_HELP_STR_BGPD
        "Route map reference\n"
@@ -16772,7 +16772,7 @@ DEFUN (bgp_redistribute_ipv6_rmap_metric,
 
 DEFUN (bgp_redistribute_ipv6_metric_rmap,
        bgp_redistribute_ipv6_metric_rmap_cmd,
-       "redistribute " FRR_IP6_REDIST_STR_BGPD " metric (0-4294967295) route-map WORD",
+       "redistribute " FRR_IP6_REDIST_STR_BGPD " metric (0-4294967295) route-map RMAP_NAME",
        "Redistribute information from another routing protocol\n"
        FRR_IP6_REDIST_HELP_STR_BGPD
        "Metric for redistributed routes\n"
@@ -16808,7 +16808,7 @@ DEFUN (bgp_redistribute_ipv6_metric_rmap,
 
 DEFUN (no_bgp_redistribute_ipv6,
        no_bgp_redistribute_ipv6_cmd,
-       "no redistribute " FRR_IP6_REDIST_STR_BGPD " [{metric (0-4294967295)|route-map WORD}]",
+       "no redistribute " FRR_IP6_REDIST_STR_BGPD " [{metric (0-4294967295)|route-map RMAP_NAME}]",
        NO_STR
        "Redistribute information from another routing protocol\n"
        FRR_IP6_REDIST_HELP_STR_BGPD
@@ -20241,7 +20241,7 @@ void bgp_vty_init(void)
 	install_element(BGP_IPV6_NODE, &bgp_redistribute_ipv6_rmap_metric_cmd);
 	install_element(BGP_IPV6_NODE, &bgp_redistribute_ipv6_metric_rmap_cmd);
 
-	/* import|export vpn [route-map WORD] */
+	/* import|export vpn [route-map RMAP_NAME] */
 	install_element(BGP_IPV4_NODE, &bgp_imexport_vpn_cmd);
 	install_element(BGP_IPV6_NODE, &bgp_imexport_vpn_cmd);
 
