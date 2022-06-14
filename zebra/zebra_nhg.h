@@ -402,6 +402,10 @@ extern bool zebra_nhg_segdependents_is_empty(const struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_free(struct nhg_hash_entry *nhe);
 extern void zebra_nhe_change_gateway_address(struct nexthop *nexthop);
 
+#ifdef _FRR_ATTRIBUTE_PRINTFRR
+#pragma FRR printfrr_ext "%pNG" (const struct nhg_hash_entry *)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
