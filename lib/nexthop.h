@@ -283,6 +283,7 @@ extern void nexthop_copy_no_context(struct nexthop *copy,
 #pragma FRR printfrr_ext "%pNH"  (struct nexthop *)
 #endif
 
+ssize_t printfrr_nhs(struct fbuf *buf, const struct nexthop *nh);
 #ifdef __cplusplus
 }
 #endif
