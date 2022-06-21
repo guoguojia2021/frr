@@ -42,8 +42,6 @@ DEFINE_MTYPE_STATIC(BFDD, BFDD_VRF, "BFD VRF");
  */
 static uint32_t ptm_bfd_gen_ID(void);
 static void ptm_bfd_echo_xmt_TO(struct bfd_session *bfd);
-static struct bfd_session *bfd_find_disc(struct sockaddr_any *sa,
-					 uint32_t ldisc);
 static int bfd_session_update(struct bfd_session *bs, struct bfd_peer_cfg *bpc);
 static const char *get_diag_str(int diag);
 
@@ -313,6 +311,8 @@ int bfd_session_enable(struct bfd_session *bs)
 	 */
 	if (bs->key.vrfname[0]) {
 		vrf = vrf_lookup_by_name(bs->key.vrfname);
+        if (vrf == NULL) 
+            vrf = vrf_lookup_by_name(bs->key.vrfaliasname);
 		if (vrf == NULL) {
 			zlog_err(
 				"session-enable: specified VRF %s doesn't exists.",
@@ -398,17 +398,23 @@ void bfd_session_disable(struct bfd_session *bs)
 	if (bs->bdc)
 		return;
 
+	/* Disable all timers. */
+    bfd_fpm_peer_sendmsg(bs, false);
+	bfd_recvtimer_delete(bs);
+	bfd_xmttimer_delete(bs);
+    THREAD_OFF(bs->xmttimer_delay);
+	ptm_bfd_echo_stop(bs);
+	bs->vrf = NULL;
+	bs->ifp = NULL;
 	/* Free up socket resources. */
 	if (bs->sock != -1) {
+        bs->ses_state = PTM_BFD_ADM_DOWN;
+        bs->local_diag = BD_ADMIN_DOWN;
+        ptm_bfd_snd(bs, 0);
 		close(bs->sock);
 		bs->sock = -1;
 	}
-
-	/* Disable all timers. */
-	bfd_recvtimer_delete(bs);
-	bfd_xmttimer_delete(bs);
-	ptm_bfd_echo_stop(bs);
-
+    
 	/* Set session down so it doesn't report UP and disabled. */
 	ptm_bfd_sess_dn(bs, BD_PATH_DOWN);
 }
@@ -431,6 +437,8 @@ static uint32_t ptm_bfd_gen_ID(void)
 
 void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo)
 {
+    if (bglobal.bfd_soft_stop_serv == 1)
+        return;
 	uint64_t jitter, xmt_TO;
 	int maxpercent;
 
@@ -496,6 +504,7 @@ void ptm_bfd_sess_up(struct bfd_session *bfd)
 
 	bfd->local_diag = 0;
 	bfd->ses_state = PTM_BFD_UP;
+    UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_REM_ADMIN_DOWN);
 	monotime(&bfd->uptime);
 
 	/* Connection is up, lets negotiate timers. */
@@ -532,11 +541,18 @@ void ptm_bfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	 * this case we won't have a valid socket (i.e. interface was
 	 * removed or VRF doesn't exist anymore).
 	 */
-	if (bfd->sock != -1)
+	if (bfd->sock != -1 && (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_REM_ADMIN_DOWN)))
 		ptm_bfd_snd(bfd, 0);
 
 	/* Slow down the control packets, the connection is down. */
 	bs_set_slow_timers(bfd);
+
+    if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE)) {
+        bfd_fpm_peer_sendmsg(bfd, false);
+        ptm_bfd_start_xmt_timer(bfd, false);
+        bfd_recvtimer_update(bfd);
+        THREAD_OFF(bfd->xmttimer_delay);
+    }
 
 	/* only signal clients when going from up->down state */
 	if (old_state == PTM_BFD_UP)
@@ -562,7 +578,7 @@ void ptm_bfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	}
 }
 
-static struct bfd_session *bfd_find_disc(struct sockaddr_any *sa,
+struct bfd_session *bfd_find_disc(struct sockaddr_any *sa,
 					 uint32_t ldisc)
 {
 	struct bfd_session *bs;
@@ -611,6 +627,16 @@ struct bfd_session *ptm_bfd_sess_find(struct bfd_pkt *cp,
 	return bfd_key_lookup(key);
 }
 
+int bfd_xmtdel_delay_cb(struct thread *t)
+{
+	struct bfd_session *bs = THREAD_ARG(t);
+
+	bfd_xmttimer_delete(bs);
+    bs->xmttimer_delay = NULL;
+
+	return 0;
+}
+
 int bfd_xmt_cb(struct thread *t)
 {
 	struct bfd_session *bs = THREAD_ARG(t);
@@ -639,6 +665,26 @@ int bfd_recvtimer_cb(struct thread *t)
 	case PTM_BFD_INIT:
 	case PTM_BFD_UP:
 		ptm_bfd_sess_dn(bs, BD_CONTROL_EXPIRED);
+		break;
+	}
+
+	return 0;
+}
+
+int bfd_notify_down(struct bfd_session *bs)
+{
+	switch (bs->ses_state) {
+	case PTM_BFD_INIT:
+	case PTM_BFD_UP:
+		ptm_bfd_sess_dn(bs, BD_CONTROL_EXPIRED);
+		bfd_recvtimer_update(bs);
+		break;
+
+	default:
+		/* Second detect time expiration, zero remote discr (section
+		 * 6.5.1)
+		 */
+		bs->discrs.remote_discr = 0;
 		break;
 	}
 
@@ -688,6 +734,9 @@ struct bfd_session *bfd_session_new(void)
 	monotime(&bs->uptime);
 	bs->downtime = bs->uptime;
 
+	monotime(&bs->hw_det_btime);
+	bs->hw_det_count = 0;
+
 	return bs;
 }
 
@@ -726,21 +775,53 @@ int bfd_session_update_label(struct bfd_session *bs, const char *nlabel)
 static void _bfd_session_update(struct bfd_session *bs,
 				struct bfd_peer_cfg *bpc)
 {
-	if (bpc->bpc_has_txinterval) {
-		bs->timers.desired_min_tx = bpc->bpc_txinterval * 1000;
-		bs->peer_profile.min_tx = bs->timers.desired_min_tx;
-	}
+    if (bpc->bpc_echo) {
+        /* Check if echo mode is already active. */
+        if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
+            goto skip_echo;
 
-	if (bpc->bpc_has_recvinterval) {
-		bs->timers.required_min_rx = bpc->bpc_recvinterval * 1000;
-		bs->peer_profile.min_rx = bs->timers.required_min_rx;
-	}
+        SET_FLAG(bs->flags, BFD_SESS_FLAG_ECHO);
 
-	if (bpc->bpc_has_detectmultiplier) {
-		bs->detect_mult = bpc->bpc_detectmultiplier;
-		bs->peer_profile.detection_multiplier = bs->detect_mult;
-	}
+        /* Activate/update echo receive timeout timer. */
+        bs_echo_timer_handler(bs);
+    } else {
+        /* Check if echo mode is already disabled. */
+        if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
+            goto skip_echo;
 
+        UNSET_FLAG(bs->flags, BFD_SESS_FLAG_ECHO);
+        ptm_bfd_echo_stop(bs);
+    }
+skip_echo:
+    if (bpc->bpc_has_txinterval)
+    {
+        if (bs->timers.desired_min_tx != bpc->bpc_txinterval * 1000)
+        {
+            bs->timers.desired_min_tx = bpc->bpc_txinterval * 1000;
+			bs->peer_profile.min_tx = bs->timers.desired_min_tx;
+            bfd_set_polling(bs);
+        }
+    }
+
+    if (bpc->bpc_has_recvinterval)
+    {
+        if (bs->timers.required_min_rx != bpc->bpc_recvinterval * 1000)
+        {
+            bs->timers.required_min_rx = bpc->bpc_recvinterval * 1000;
+			bs->peer_profile.min_rx = bs->timers.required_min_rx;
+            bfd_set_polling(bs);
+        }
+    }
+
+    if (bpc->bpc_has_detectmultiplier)
+    {
+        if (bs->detect_mult != bpc->bpc_detectmultiplier)
+        {
+            bs->detect_mult = bpc->bpc_detectmultiplier;
+			bs->peer_profile.detection_multiplier = bs->detect_mult;
+            bfd_set_polling(bs);
+        }
+    }
 	if (bpc->bpc_has_echorecvinterval) {
 		bs->timers.required_min_echo_rx = bpc->bpc_echorecvinterval * 1000;
 		bs->peer_profile.min_echo_rx = bs->timers.required_min_echo_rx;
@@ -774,6 +855,42 @@ static void _bfd_session_update(struct bfd_session *bs,
 	bs->peer_profile.admin_shutdown = bpc->bpc_shutdown;
 	bfd_set_passive_mode(bs, bpc->bpc_passive);
 	bfd_set_shutdown(bs, bpc->bpc_shutdown);
+    if (bpc->bpc_shutdown) {
+        /* Check if already shutdown. */
+        if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN))
+            return;
+
+        SET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
+
+        /* Disable all events. */
+        bfd_recvtimer_delete(bs);
+        bfd_echo_recvtimer_delete(bs);
+        bfd_xmttimer_delete(bs);
+        bfd_echo_xmttimer_delete(bs);
+
+        /* Change and notify state change. */
+        bs->ses_state = PTM_BFD_ADM_DOWN;
+        bs->local_diag = BD_ADMIN_DOWN;
+        control_notify(bs, bs->ses_state);
+
+        /* Don't try to send packets with a disabled session. */
+        if (bs->sock != -1)
+            ptm_bfd_snd(bs, 0);
+    } else {
+        /* Check if already working. */
+        if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN))
+            return;
+
+        UNSET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
+
+        /* Change and notify state change. */
+        bs->ses_state = PTM_BFD_DOWN;
+        control_notify(bs, bs->ses_state);
+
+        /* Enable all timers. */
+        bfd_recvtimer_update(bs);
+        bfd_xmttimer_update(bs, bs->xmt_TO);
+    }
 
 	/*
 	 * Apply profile last: it also calls `bfd_set_shutdown`.
@@ -809,6 +926,7 @@ void bfd_session_free(struct bfd_session *bs)
 
 	bfd_key_delete(bs->key);
 	bfd_id_delete(bs->discrs.my_discr);
+	bfd_hw_detect_delete(bs->discrs.my_discr);
 
 	/* Remove observer if any. */
 	TAILQ_FOREACH(bso, &bglobal.bg_obslist, bso_entry) {
@@ -852,11 +970,19 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 			sizeof(bfd->key.ifname));
 
 	if (bpc->bpc_has_vrfname)
+	{
 		strlcpy(bfd->key.vrfname, bpc->bpc_vrfname,
 			sizeof(bfd->key.vrfname));
+        strlcpy(bfd->key.vrfaliasname, bpc->bpc_aliasvrfname,
+			sizeof(bfd->key.vrfaliasname));
+	}
 	else
+	{
 		strlcpy(bfd->key.vrfname, VRF_DEFAULT_NAME,
 			sizeof(bfd->key.vrfname));
+        strlcpy(bfd->key.vrfaliasname, VRF_DEFAULT_NAME,
+			sizeof(bfd->key.vrfaliasname));
+	}
 
 	/* Copy remaining data. */
 	if (bpc->bpc_ipv4 == false)
@@ -961,6 +1087,8 @@ void bfd_set_polling(struct bfd_session *bs)
 	 * RFC 5880, Section 6.8.3.
 	 */
 	bs->polling = 1;
+    if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+        ptm_bfd_start_xmt_timer(bs, false);
 }
 
 /*
@@ -1088,6 +1216,8 @@ static void bs_up_handler(struct bfd_session *bs, int nstate)
 		break;
 
 	case PTM_BFD_DOWN:
+        if ((nstate == PTM_BFD_ADM_DOWN) || (bs->remote_diag == BD_ADMIN_DOWN))
+			SET_FLAG(bs->flags, BFD_SESS_FLAG_REM_ADMIN_DOWN);
 		/* Peer lost or asked to shutdown connection. */
 		ptm_bfd_sess_dn(bs, BD_NEIGHBOR_DOWN);
 		break;
@@ -1603,6 +1733,8 @@ void bs_to_bpc(struct bfd_session *bs, struct bfd_peer_cfg *bpc)
 static struct hash *bfd_id_hash;
 static struct hash *bfd_key_hash;
 
+static struct hash *bfd_hw_detect_hash;
+
 static unsigned int bfd_id_hash_do(const void *p);
 static unsigned int bfd_key_hash_do(const void *p);
 
@@ -1693,6 +1825,14 @@ struct bfd_session *bfd_id_lookup(uint32_t id)
 	return hash_lookup(bfd_id_hash, &bs);
 }
 
+struct bfd_session *bfd_hw_detect_lookup(uint32_t id)
+{
+	struct bfd_session bs;
+
+	bs.discrs.my_discr = id;
+
+	return hash_lookup(bfd_hw_detect_hash, &bs);
+}
 struct bfd_session *bfd_key_lookup(struct bfd_key key)
 {
 	struct bfd_session bs;
@@ -1730,6 +1870,15 @@ struct bfd_session *bfd_key_delete(struct bfd_key key)
 	return hash_release(bfd_key_hash, &bs);
 }
 
+struct bfd_session *bfd_hw_detect_delete(uint32_t id)
+{
+	struct bfd_session bs;
+
+	bs.discrs.my_discr = id;
+
+	return hash_release(bfd_hw_detect_hash, &bs);
+}
+
 /* Iteration functions. */
 void bfd_id_iterate(hash_iter_func hif, void *arg)
 {
@@ -1739,6 +1888,11 @@ void bfd_id_iterate(hash_iter_func hif, void *arg)
 void bfd_key_iterate(hash_iter_func hif, void *arg)
 {
 	hash_iterate(bfd_key_hash, hif, arg);
+}
+
+void bfd_hw_detect_iterate(hash_iter_func hif, void *arg)
+{
+	hash_iterate(bfd_hw_detect_hash, hif, arg);
 }
 
 /*
@@ -1757,12 +1911,30 @@ bool bfd_key_insert(struct bfd_session *bs)
 	return (hash_get(bfd_key_hash, bs, hash_alloc_intern) == bs);
 }
 
+bool bfd_hw_detect_insert(struct bfd_session *bs)
+{
+	return (hash_get(bfd_hw_detect_hash, bs, hash_alloc_intern) == bs);
+}
+
+unsigned long bfd_id_get_count(void)
+{
+	return bfd_id_hash->count;
+}
+
+unsigned long bfd_hw_detect_get_count(void)
+{
+	return bfd_hw_detect_hash->count;
+}
+
+
 void bfd_initialize(void)
 {
 	bfd_id_hash = hash_create(bfd_id_hash_do, bfd_id_hash_cmp,
 				  "BFD session discriminator hash");
 	bfd_key_hash = hash_create(bfd_key_hash_do, bfd_key_hash_cmp,
 				   "BFD session hash");
+	bfd_hw_detect_hash = hash_create(bfd_id_hash_do, bfd_id_hash_cmp,
+				   "BFD HW detect falut session hash");
 	TAILQ_INIT(&bplist);
 }
 
@@ -1791,7 +1963,8 @@ void bfd_shutdown(void)
 	/* Now free the hashes themselves. */
 	hash_free(bfd_id_hash);
 	hash_free(bfd_key_hash);
-
+    hash_free(bfd_hw_detect_hash);
+	
 	/* Free all profile allocations. */
 	while ((bp = TAILQ_FIRST(&bplist)) != NULL)
 		bfd_profile_free(bp);

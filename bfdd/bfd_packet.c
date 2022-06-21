@@ -539,13 +539,15 @@ int bfd_recv_cb(struct thread *t)
 	bool is_mhop;
 	ssize_t mlen = 0;
 	uint8_t ttl = 0;
-	vrf_id_t vrfid;
+	vrf_id_t vrfid = VRF_DEFAULT;
 	ifindex_t ifindex = IFINDEX_INTERNAL;
 	struct sockaddr_any local, peer;
 	uint8_t msgbuf[1516];
 	struct interface *ifp = NULL;
 	struct bfd_vrf_global *bvrf = THREAD_ARG(t);
 
+	if (bvrf)
+		vrfid = bvrf->vrf->vrf_id;
 	/* Schedule next read. */
 	bfd_sd_reschedule(bvrf, sd);
 
@@ -697,6 +699,15 @@ int bfd_recv_cb(struct thread *t)
 
 		/* Handle poll finalization. */
 		bs_final_handler(bfd);
+        /*try to send to hwbfd*/
+        bfd_fpm_peer_sendmsg(bfd, true);
+        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+        {
+            bfd_recvtimer_delete(bfd);
+        }
+	} else {
+		/* Received a packet, lets update the receive timer. */
+		bfd_recvtimer_update(bfd);
 	}
 
 	/*
@@ -732,6 +743,12 @@ int bfd_recv_cb(struct thread *t)
 
 		/* Send the control packet with the final bit immediately. */
 		ptm_bfd_snd(bfd, 1);
+        /*try to send to hwbfd*/
+        bfd_fpm_peer_sendmsg(bfd, true);
+        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+        {
+            bfd_recvtimer_delete(bfd);
+        }
 	}
 
 	return 0;
@@ -971,7 +988,7 @@ int bp_udp_mhop(const struct vrf *vrf)
 	return sd;
 }
 
-int bp_peer_socket(const struct bfd_session *bs)
+int bp_peer_socket(struct bfd_session *bs)
 {
 	int sd, pcount;
 	struct sockaddr_in sin;
@@ -1030,6 +1047,7 @@ int bp_peer_socket(const struct bfd_session *bs)
 			srcPort = BFD_SRCPORTINIT;
 		sin.sin_port = htons(srcPort++);
 	} while (bind(sd, (struct sockaddr *)&sin, sizeof(sin)) < 0);
+    bs->srcport = srcPort;
 
 	return sd;
 }
@@ -1039,7 +1057,7 @@ int bp_peer_socket(const struct bfd_session *bs)
  * IPv6 sockets
  */
 
-int bp_peer_socketv6(const struct bfd_session *bs)
+int bp_peer_socketv6(struct bfd_session *bs)
 {
 	int sd, pcount;
 	struct sockaddr_in6 sin6;
@@ -1098,6 +1116,7 @@ int bp_peer_socketv6(const struct bfd_session *bs)
 			srcPort = BFD_SRCPORTINIT;
 		sin6.sin6_port = htons(srcPort++);
 	} while (bind(sd, (struct sockaddr *)&sin6, sizeof(sin6)) < 0);
+    bs->srcport = srcPort;
 
 	return sd;
 }

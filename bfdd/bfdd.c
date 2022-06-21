@@ -36,7 +36,7 @@
 #include "bfddp_packet.h"
 #include "lib/version.h"
 #include "lib/command.h"
-
+#include "bfd_fpm.h"
 
 /*
  * FRR related code.
@@ -53,6 +53,8 @@ static zebra_capabilities_t _caps_p[] = {ZCAP_BIND, ZCAP_SYS_ADMIN, ZCAP_NET_RAW
 
 /* BFD daemon information. */
 static struct frr_daemon_info bfdd_di;
+
+int hardwareBFD = 0;
 
 void socket_close(int *s)
 {
@@ -329,6 +331,8 @@ static void bg_init(void)
 
 	memcpy(&bglobal.bfdd_privs, &bfdd_privs,
 	       sizeof(bfdd_privs));
+
+    bglobal.bfd_soft_stop_serv = 0;
 }
 
 int main(int argc, char *argv[])
@@ -341,8 +345,9 @@ int main(int argc, char *argv[])
 	bg_init();
 
 	frr_preinit(&bfdd_di, argc, argv);
-	frr_opt_add("", longopts,
+	frr_opt_add("H", longopts,
 		    "      --bfdctl       Specify bfdd control socket\n"
+			"  -H, --hwbfd        Support hardware BFD.\n"
 		    "      --dplaneaddr   Specify BFD data plane address\n");
 
 	snprintf(ctl_path, sizeof(ctl_path), BFDD_CONTROL_SOCKET,
@@ -362,6 +367,9 @@ int main(int argc, char *argv[])
 			bglobal.bg_use_dplane = true;
 			break;
 
+        case 'H':
+			hardwareBFD = 1;
+			break;
 		default:
 			frr_help_exit(1);
 		}
@@ -383,9 +391,12 @@ int main(int argc, char *argv[])
 	bfd_vrf_init();
 
 	access_list_init();
+    bfd_db_init();
 
 	/* Initialize zebra connection. */
 	bfdd_zclient_init(&bglobal.bfdd_privs);
+    
+    bfpm_init(master);
 
 	thread_add_read(master, control_accept, NULL, bglobal.bg_csock,
 			&bglobal.bg_csockev);

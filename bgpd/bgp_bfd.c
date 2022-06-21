@@ -524,20 +524,14 @@ DEFUN (neighbor_bfd_check_controlplane_failure,
 
 DEFUN (no_neighbor_bfd,
        no_neighbor_bfd_cmd,
-#if HAVE_BFDD > 0
-       "no neighbor <A.B.C.D|X:X::X:X|WORD> bfd",
-#else
        "no neighbor <A.B.C.D|X:X::X:X|WORD> bfd [(2-255) (50-60000) (50-60000)]",
-#endif /* HAVE_BFDD */
        NO_STR
        NEIGHBOR_STR
        NEIGHBOR_ADDR_STR2
        "Disables BFD support\n"
-#if HAVE_BFDD == 0
        "Detect Multiplier\n"
        "Required min receive interval\n"
        "Desired min transmit interval\n"
-#endif /* !HAVE_BFDD */
 )
 {
 	int idx_peer = 2;

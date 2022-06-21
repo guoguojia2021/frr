@@ -89,6 +89,7 @@ struct bfd_echo_pkt {
 	uint8_t pad[16];
 };
 
+#define BFD_XMTDEL_DELAY_TIMER               5
 
 /* Macros for manipulating control packets */
 #define BFD_VERMASK 0x03
@@ -171,6 +172,8 @@ enum bfd_session_flags {
 	BFD_SESS_FLAG_CONFIG = 1 << 8,	/* Session configured with bfd NB API */
 	BFD_SESS_FLAG_CBIT = 1 << 9,	/* CBIT is set */
 	BFD_SESS_FLAG_PASSIVE = 1 << 10, /* Passive mode */
+	BFD_SESS_FLAG_REM_ADMIN_DOWN = 1 << 11, /* remote notify admindown */
+
 };
 
 /*
@@ -192,11 +195,14 @@ struct bfd_key {
 	struct in6_addr local;
 	char ifname[MAXNAMELEN];
 	char vrfname[MAXNAMELEN];
+	char vrfaliasname[MAXALIASNAMELEN];
 } __attribute__((packed));
 
 struct bfd_session_stats {
 	uint64_t rx_ctrl_pkt;
+    uint64_t hw_rx_ctrl_pkt;
 	uint64_t tx_ctrl_pkt;
+    uint64_t hw_tx_ctrl_pkt;
 	uint64_t rx_echo_pkt;
 	uint64_t tx_echo_pkt;
 	uint64_t session_up;
@@ -282,6 +288,8 @@ struct bfd_session {
 	struct thread *echo_xmttimer_ev;
 	uint64_t echo_detect_TO;
 
+    struct thread *xmttimer_delay;
+
 	/* software object state */
 	uint8_t polling;
 
@@ -309,7 +317,17 @@ struct bfd_session {
 	struct bfd_timers remote_timers;
 
 	uint64_t refcount; /* number of pointers referencing this. */
+    uint32_t hwbfd_flags; /* number of pointers referencing this. */
+    uint32_t srcport;
+    uint64_t counterOid;
+	/* hw bfd oscillation*/
+	struct timeval hw_det_btime; /*hardware detect begin time*/
+	uint16_t hw_det_count;  /*hardware detect maybe fault counts*/
+	uint16_t hw_det_repot;  /*hardware detect fault report flag*/
+ 
 };
+#define BFD_HWFLAG_SENDCREATE         (1 << 0)
+#define BFD_HWFLAG_CREATE_SUCCESS     (1 << 1)
 
 struct peer_label {
 	TAILQ_ENTRY(peer_label) pl_entry;
@@ -492,6 +510,8 @@ struct bfd_global {
 	 * - Network system call failures.
 	 */
 	bool debug_network;
+	
+	int bfd_soft_stop_serv;
 };
 
 extern struct bfd_global bglobal;
@@ -548,8 +568,8 @@ int bp_udp_shop(const struct vrf *vrf);
 int bp_udp_mhop(const struct vrf *vrf);
 int bp_udp6_shop(const struct vrf *vrf);
 int bp_udp6_mhop(const struct vrf *vrf);
-int bp_peer_socket(const struct bfd_session *bs);
-int bp_peer_socketv6(const struct bfd_session *bs);
+int bp_peer_socket(struct bfd_session *bs);
+int bp_peer_socketv6(struct bfd_session *bs);
 int bp_echo_socket(const struct vrf *vrf);
 int bp_echov6_socket(const struct vrf *vrf);
 
@@ -674,18 +694,24 @@ void bfd_vrf_terminate(void);
 struct bfd_vrf_global *bfd_vrf_look_by_session(struct bfd_session *bfd);
 struct bfd_session *bfd_id_lookup(uint32_t id);
 struct bfd_session *bfd_key_lookup(struct bfd_key key);
+struct bfd_session *bfd_hw_detect_lookup(uint32_t id);
 
 struct bfd_session *bfd_id_delete(uint32_t id);
 struct bfd_session *bfd_key_delete(struct bfd_key key);
+struct bfd_session *bfd_hw_detect_delete(uint32_t id);
 
 bool bfd_id_insert(struct bfd_session *bs);
 bool bfd_key_insert(struct bfd_session *bs);
+bool bfd_hw_detect_insert(struct bfd_session *bs);
 
 typedef void (*hash_iter_func)(struct hash_bucket *hb, void *arg);
 void bfd_id_iterate(hash_iter_func hif, void *arg);
 void bfd_key_iterate(hash_iter_func hif, void *arg);
+void bfd_hw_detect_iterate(hash_iter_func hif, void *arg);
 
 unsigned long bfd_get_session_count(void);
+unsigned long bfd_id_get_count(void);
+unsigned long bfd_hw_detect_get_count(void);
 
 /* Export callback functions for `event.c`. */
 extern struct thread_master *master;
@@ -694,6 +720,10 @@ int bfd_recvtimer_cb(struct thread *t);
 int bfd_echo_recvtimer_cb(struct thread *t);
 int bfd_xmt_cb(struct thread *t);
 int bfd_echo_xmt_cb(struct thread *t);
+int bfd_xmtdel_delay_cb(struct thread *t);
+int bfd_notify_down(struct bfd_session *bs);
+struct bfd_session *bfd_find_disc(struct sockaddr_any *sa,
+					 uint32_t ldisc);
 
 extern struct in6_addr zero_addr;
 

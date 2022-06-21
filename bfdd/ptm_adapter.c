@@ -252,7 +252,10 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 
 	case PTM_BFD_DOWN:
 	case PTM_BFD_INIT:
-		stream_putl(msg, BFD_STATUS_DOWN);
+        if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN|BFD_SESS_FLAG_REM_ADMIN_DOWN))
+            stream_putl(msg, BFD_STATUS_ADMINDOWN);
+        else
+    		stream_putl(msg, BFD_STATUS_DOWN);
 		break;
 
 	default:
@@ -435,6 +438,8 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 		if (vrf) {
 			bpc->bpc_has_vrfname = true;
 			strlcpy(bpc->bpc_vrfname, vrf->name, sizeof(bpc->bpc_vrfname));
+            strlcpy(bpc->bpc_aliasvrfname, vrf->aliasName, sizeof(bpc->bpc_aliasvrfname));
+            bpc->vrf_id = vrf_id;
 		} else {
 			zlog_err("ptm-read: vrf id %u could not be identified",
 				 vrf_id);
@@ -533,6 +538,7 @@ static void bfdd_dest_deregister(struct stream *msg, vrf_id_t vrf_id)
 			zlog_debug("ptm-del-dest: failed to find BFD session");
 		return;
 	}
+	SET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
 
 	/* Unregister client peer notification. */
 	pcn = pcn_lookup(pc, bs);
