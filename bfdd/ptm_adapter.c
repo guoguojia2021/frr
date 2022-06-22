@@ -253,7 +253,7 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 	case PTM_BFD_DOWN:
 	case PTM_BFD_INIT:
         if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN|BFD_SESS_FLAG_REM_ADMIN_DOWN))
-            stream_putl(msg, BFD_STATUS_ADMINDOWN);
+            stream_putl(msg, BFD_STATUS_ADMIN_DOWN);
         else
     		stream_putl(msg, BFD_STATUS_DOWN);
 		break;

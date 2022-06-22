@@ -44,6 +44,7 @@ enum { IFLA_VRF_UNSPEC, IFLA_VRF_TABLE, __IFLA_VRF_MAX };
 
 #define VRF_NAMSIZ      36
 #define NS_NAMSIZ 36
+#define VRF_ALIASNAMESIZ      256
 
 /*
  * The command strings
@@ -75,7 +76,9 @@ struct vrf {
 	vrf_id_t vrf_id;
 
 	/* Name */
-	char name[VRF_NAMSIZ + 1];
+	char name[VRF_ALIASNAMESIZ + 1];
+    /* AliasName */
+	char aliasName[VRF_ALIASNAMESIZ + 1];
 
 	/* Zebra internal VRF status */
 	uint8_t status;

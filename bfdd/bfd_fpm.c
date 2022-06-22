@@ -37,7 +37,6 @@
 #include "zebra/zebra_ns.h"
 #include "zebra/zebra_vrf.h"
 #include "zebra/zebra_errors.h"
-#include "zebra/zebra_memory.h"
 
 #include "bfd_fpm_private.h"
 #include "bfd_fpm.h"
@@ -245,7 +244,7 @@ static inline void bfpm_write_on(void)
  */
 static inline void bfpm_read_off(void)
 {
-	THREAD_READ_OFF(bfpm_g->t_read);
+	THREAD_OFF(bfpm_g->t_read);
 }
 
 /*
@@ -253,7 +252,7 @@ static inline void bfpm_read_off(void)
  */
 static inline void bfpm_write_off(void)
 {
-	THREAD_WRITE_OFF(bfpm_g->t_write);
+	THREAD_OFF(bfpm_g->t_write);
 }
 
 
@@ -976,14 +975,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
     strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
 
-	data->bpc_type = BPC_TYPE_CLS_BFD;
 
-    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
-	{
-		data->bpc_type = BPC_TYPE_SBFD_ECHO;
-        strncpy(data->bpc_seglistname, bfd->key.seglist_name, MAXNAMELEN);
-		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
-	}
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
     hdr->msg_len = htons(msg_len);
