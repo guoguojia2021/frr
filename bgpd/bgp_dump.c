@@ -585,7 +585,7 @@ static void bgp_dump_packet_func(struct bgp_dump *bgp_dump, struct peer *peer,
 }
 
 /* Called from bgp_packet.c when BGP packet is received. */
-static int bgp_dump_packet(struct peer *peer, uint8_t type, bgp_size_t size,
+static int bgp_dump_packet(struct peer *peer, uint8_t type, uint8_t bmitye, bgp_size_t size,
 		struct stream *packet)
 {
 	/* bgp_dump_all. */

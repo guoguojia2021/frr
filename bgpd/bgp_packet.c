@@ -66,9 +66,9 @@
 #include "bgpd/bgp_trace.h"
 
 DEFINE_HOOK(bgp_packet_dump,
-		(struct peer *peer, uint8_t type, bgp_size_t size,
+		(struct peer *peer, uint8_t type, uint8_t bmitype, bgp_size_t size,
 			struct stream *s),
-		(peer, type, size, s));
+		(peer, type, bmitype, size, s));
 
 DEFINE_HOOK(bgp_packet_send,
 		(struct peer *peer, uint8_t type, bgp_size_t size,
@@ -404,6 +404,7 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 	uint32_t generated = 0;
 	afi_t afi;
 	safi_t safi;
+	uint16_t size = 0;
 
 	wpq = atomic_load_explicit(&peer->bgp->wpkt_quanta,
 				   memory_order_relaxed);
@@ -523,9 +524,13 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 								       [safi] =
 								monotime(NULL);
 
-							BGP_UPDATE_EOR_PKT(
-								peer, afi, safi,
-								s);
+						    if ((s = bgp_update_packet_eor(
+							     peer, afi,
+							     safi))) {
+				    	        size = stream_getw_from(s, BGP_MARKER_SIZE);
+							    hook_call(bgp_packet_dump, peer, BGP_MSG_UPDATE, BMP_ADJ_OUT_POSTPOLICY, size, s);
+							    bgp_packet_add(peer, s);
+							}
 						}
 					}
 				}
@@ -539,6 +544,8 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			 * packet with appropriate attributes from peer
 			 * and advance peer */
 			s = bpacket_reformat_for_peer(next_pkt, paf);
+			size = stream_getw_from(s, BGP_MARKER_SIZE);
+			hook_call(bgp_packet_dump, peer, BGP_MSG_UPDATE, BMP_ADJ_OUT_POSTPOLICY, size, s);
 			bgp_packet_add(peer, s);
 			bpacket_queue_advance_peer(paf);
 		}
@@ -2803,7 +2810,7 @@ int bgp_process_packet(struct thread *thread)
 		size = stream_getw(peer->curr);
 		type = stream_getc(peer->curr);
 
-		hook_call(bgp_packet_dump, peer, type, size, peer->curr);
+		hook_call(bgp_packet_dump, peer, type, BMP_ADJ_IN_PREPOLICY, size, peer->curr);
 
 		/* adjust size to exclude the marker + length + type */
 		size -= BGP_HEADER_SIZE;

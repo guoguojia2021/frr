@@ -82,6 +82,8 @@ struct bmp_queue_entry {
 
 	/* initialized only for L2VPN/EVPN (S)AFIs */
 	struct prefix_rd rd;
+	
+	vrf_id_t vrf_id;
 };
 
 /* This is for BMP Route Mirroring, which feeds fully raw BGP PDUs out to BMP
@@ -100,9 +102,21 @@ struct bmp_mirrorq {
 	size_t refcount;
 	uint64_t peerid;
 	struct timeval tv;
-
+	
+	uint8_t bmitype;
+	iana_afi_t afi;
+	iana_safi_t safi;
 	size_t len;
 	uint8_t data[0];
+};
+
+enum {
+	BMP_INVALID_TYPE = 0,
+	BMP_ADJ_IN_PREPOLICY ,
+	BMP_ADJ_IN_POSTPOLICY,
+	BMP_ADJ_OUT_PREPOLICY,
+	BMP_ADJ_OUT_POSTPOLICY,
+	BMP_TYPE_MAX,
 };
 
 enum {
@@ -116,6 +130,18 @@ PREDECL_LIST(bmp_session);
 
 struct bmp_active;
 struct bmp_targets;
+
+struct bmp_statistics{
+    uint64_t bmp_stat_initiation;
+	uint64_t bmp_stat_peer_up;
+	uint64_t bmp_stat_peer_down;
+	uint64_t bmp_stat_termination;
+	uint64_t bmp_stat_rm_update;
+    uint64_t bmp_stat_rm_withdraw;
+	uint64_t bmp_stat_rm_eor;
+	uint64_t bmp_stat_rm_adj_in_pre_policy;
+	uint64_t bmp_stat_rm_adj_out_post_policy;
+};
 
 /* an established BMP session to a peer */
 struct bmp {
@@ -160,6 +186,8 @@ struct bmp {
 	uint64_t syncpeerid;
 	afi_t syncafi;
 	safi_t syncsafi;
+
+	struct bmp_statistics bmp_stat;
 };
 
 /* config & state for an active outbound connection.  When the connection
@@ -179,6 +207,7 @@ struct bmp_active {
 	char *hostname;
 	int port;
 	unsigned minretry, maxretry;
+    char *vrfname;
 
 	struct resolver_query resq;
 
@@ -230,8 +259,10 @@ struct bmp_targets {
 	 * - IPv6 / unicast & multicast
 	 * - L2VPN / EVPN
 	 */
-#define BMP_MON_PREPOLICY	(1 << 0)
-#define BMP_MON_POSTPOLICY	(1 << 1)
+#define BMP_MON_ADJ_IN_PREPOLICY		(1 << 0)
+#define BMP_MON_ADJ_IN_POSTPOLICY		(1 << 1)
+#define BMP_MON_ADJ_OUT_PREPOLICY		(1 << 2)
+#define BMP_MON_ADJ_OUT_POSTPOLICY 	    (1 << 3)
 	uint8_t afimon[AFI_MAX][SAFI_MAX];
 	bool mirror;
 
@@ -244,6 +275,7 @@ struct bmp_targets {
 	struct bmp_qlist_head updlist;
 
 	uint64_t cnt_accept, cnt_aclrefused;
+    union sockunion *update_source;
 
 	QOBJ_FIELDS;
 };
@@ -281,8 +313,11 @@ struct bmp_bgp {
 	size_t mirror_qsize, mirror_qsizemax;
 
 	size_t mirror_qsizelimit;
-};
 
+	QOBJ_FIELDS
+};
+DECLARE_QOBJ_TYPE(bmp_bgp);
+ 
 enum {
 	BMP_PEERDOWN_LOCAL_NOTIFY       = 1,
 	BMP_PEERDOWN_LOCAL_FSM          = 2,

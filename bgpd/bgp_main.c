@@ -251,6 +251,7 @@ static __attribute__((__noreturn__)) void bgp_exit(int status)
 	community_list_terminate(bgp_clist);
 
 	bgp_vrf_terminate();
+    bgp_vrf_hash_exit();
 #ifdef ENABLE_BGP_VNC
 	vnc_zebra_destroy();
 #endif

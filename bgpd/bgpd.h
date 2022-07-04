@@ -2561,4 +2561,8 @@ extern int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi
 							const char *name, struct route_map *route_map);
 extern int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int direct);
 
+
+struct hash * bgp_vrf_hash;
+extern void bgp_vrf_hash_init(void);
+extern void bgp_vrf_hash_exit(void);
 #endif /* _QUAGGA_BGPD_H */

@@ -1404,6 +1404,20 @@ static struct cmd_node bmp_node = {
 	.prompt = "%s(config-bgp-bmp)# "
 };
 
+static struct cmd_node gbmp_node = {
+	.name = "gbmp",
+	.node = GBMP_NODE,
+	.parent_node = CONFIG_NODE,
+	.prompt = "%s(config-bmp)# "
+};
+
+static struct cmd_node gbmpins_node = {
+	.name = "gbmp_targets",
+	.node = GBMPINS_NODE,
+	.parent_node = GBMP_NODE,
+	.prompt = "%s(config-bmp-target)# "
+};
+
 static struct cmd_node bgp_srv6_node = {
 	.name = "bgp srv6",
 	.node = BGP_SRV6_NODE,
@@ -1751,6 +1765,28 @@ DEFUNSH(VTYSH_BGPD,
 	"Enable rpki and enter rpki configuration mode\n")
 {
 	vty->node = RPKI_NODE;
+	return CMD_SUCCESS;
+}
+
+DEFUNSH(VTYSH_BGPD,
+	global_bmp,
+	global_bmp_cmd,
+	"bmp",
+	"BGP Monitoring Protocol\n")
+{
+	vty->node = GBMP_NODE;
+	return CMD_SUCCESS;
+}
+
+DEFUNSH(VTYSH_BGPD,
+	gbmp_targets,
+	gbmp_targets_cmd,
+	"bmp targets BMPTARGETS",
+	"BGP Monitoring Protocol\n"
+	"Create BMP target group\n"
+	"Name of the BMP target group\n")
+{
+    vty->node = GBMPINS_NODE;
 	return CMD_SUCCESS;
 }
 
@@ -4121,6 +4157,17 @@ void vtysh_init_vty(void)
 	install_element(BMP_NODE, &bmp_exit_cmd);
 	install_element(BMP_NODE, &bmp_quit_cmd);
 	install_element(BMP_NODE, &vtysh_end_all_cmd);
+
+    install_node(&gbmp_node);
+	install_node(&gbmpins_node);
+	install_element(CONFIG_NODE, &global_bmp_cmd);
+	install_element(GBMP_NODE, &gbmp_targets_cmd);
+	install_element(GBMP_NODE, &bmp_exit_cmd);
+	install_element(GBMP_NODE, &bmp_quit_cmd);
+	install_element(GBMP_NODE, &vtysh_end_all_cmd);
+	install_element(GBMPINS_NODE, &bmp_exit_cmd);
+	install_element(GBMPINS_NODE, &bmp_quit_cmd);
+	install_element(GBMPINS_NODE, &vtysh_end_all_cmd);
 
 	install_node(&bgp_srv6_node);
 	install_element(BGP_NODE, &bgp_srv6_cmd);

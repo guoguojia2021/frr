@@ -8137,6 +8137,7 @@ void bgp_init(unsigned short instance)
 
 	bgp_lp_vty_init();
 
+	bgp_vrf_hash_init();
 	cmd_variable_handler_register(bgp_viewvrf_var_handlers);
 }
 
@@ -8250,5 +8251,34 @@ void bgp_gr_apply_running_config(void)
 		}
 
 		gr_router_detected = false;
+	}
+}
+
+static unsigned int bgp_vrf_hash_key_make(const void *p)
+{
+	const struct bgp *bgp = p;
+	return jhash_1word(bgp->vrf_id, 0);
+}
+
+static bool bgp_vrf_hash_same(const void *p1, const void *p2)
+{
+	const struct bgp *bgp1 = p1;
+	const struct bgp *bgp2 = p2;
+	return (bgp1->vrf_id == bgp2->vrf_id);
+}
+
+void bgp_vrf_hash_init(void)
+{
+	bgp_vrf_hash = hash_create(bgp_vrf_hash_key_make, bgp_vrf_hash_same,
+						"BGP vrf map BGP Instanse Hash");	
+}
+
+void bgp_vrf_hash_exit(void)
+{
+	//release hash
+	if (bgp_vrf_hash)
+	{
+		hash_clean(bgp_vrf_hash, NULL);
+		hash_free(bgp_vrf_hash);
 	}
 }
