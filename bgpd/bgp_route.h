@@ -320,6 +320,8 @@ struct bgp_path_info {
 	/* Addpath identifiers */
 	uint32_t addpath_rx_id;
 	struct bgp_addpath_info_data tx_addpath;
+	uint32_t extFlags;
+#define BGP_PATH_SUPERNET (1 << 0)
 };
 
 /* Structure used in BGP path selection */

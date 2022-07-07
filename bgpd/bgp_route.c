@@ -441,7 +441,8 @@ void bgp_path_info_restore(struct bgp_dest *dest, struct bgp_path_info *pi)
 {
 	bgp_path_info_unset_flag(dest, pi, BGP_PATH_REMOVED);
 	/* unset of previous already took care of pcount */
-	SET_FLAG(pi->flags, BGP_PATH_VALID);
+	if (!CHECK_FLAG(pi->extFlags, BGP_PATH_SUPERNET))
+		SET_FLAG(pi->flags, BGP_PATH_VALID);
 }
 
 /* Adjust pcount as required */
@@ -4234,6 +4235,8 @@ struct bgp_path_info *info_make(int type, int sub_type, unsigned short instance,
 	new->attr = attr;
 	new->uptime = bgp_clock();
 	new->net = dest;
+	new->flags = 0;
+	new->extFlags = 0;
 	return new;
 }
 
@@ -4381,6 +4384,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 	int vnc_implicit_withdraw = 0;
 #endif
 	int same_attr = 0;
+	struct prefix pNht;
 
 	/* Special case for BGP-LU - map LU safi to ordinary unicast safi */
 	if (orig_safi == SAFI_LABELED_UNICAST)
@@ -4630,6 +4634,16 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 
 		hook_call(bgp_process, bgp, afi, safi, dest, peer, true);
 
+		if (afi == AFI_IP && pi && CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)))
+		{
+			pNht.family = AF_INET;
+			pNht.u.prefix4 = attr->nexthop;
+			pNht.prefixlen = IPV4_MAX_BITLEN;
+			if (prefix_match(&pNht, &rn->p))
+				SET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
+			else
+				UNSET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
+		}
 		/* Same attribute comes in. */
 		if (!CHECK_FLAG(pi->flags, BGP_PATH_REMOVED)
 		    && same_attr
@@ -4937,8 +4951,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 						    safi, pi, NULL, connected,
 						    p)
 			    || CHECK_FLAG(peer->flags, PEER_FLAG_IS_RFAPI_HD))
-				bgp_path_info_set_flag(dest, pi,
-						       BGP_PATH_VALID);
+			{
+				if (!CHECK_FLAG(pi->extFlags, BGP_PATH_SUPERNET))
+				    bgp_path_info_set_flag(dest, pi, BGP_PATH_VALID);
+		    } 
 			else {
 				if (BGP_DEBUG(nht, NHT)) {
 					zlog_debug("%s(%pI4): NH unresolved",
@@ -5044,6 +5060,16 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 
 	/* Make new BGP info. */
 	new = info_make(type, sub_type, 0, peer, attr_new, dest);
+	if (afi == AFI_IP && new && CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)))
+	{
+		pNht.family = AF_INET;
+		pNht.u.prefix4 = attr->nexthop;
+		pNht.prefixlen = IPV4_MAX_BITLEN;
+		if (prefix_match(&pNht, &dest->p))
+			SET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
+		else
+			UNSET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
+	}
 
 	/* Update MPLS label */
 	if (has_valid_label) {
@@ -5106,7 +5132,8 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		if (bgp_find_or_add_nexthop(bgp, bgp, nh_afi, safi, new, NULL,
 					    connected, p)
 		    || CHECK_FLAG(peer->flags, PEER_FLAG_IS_RFAPI_HD))
-			bgp_path_info_set_flag(dest, new, BGP_PATH_VALID);
+		    if (!CHECK_FLAG(new->extFlags, BGP_PATH_SUPERNET))
+			    bgp_path_info_set_flag(dest, new, BGP_PATH_VALID);
 		else {
 			if (BGP_DEBUG(nht, NHT)) {
 				char buf1[INET6_ADDRSTRLEN];
