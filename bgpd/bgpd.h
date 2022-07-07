@@ -199,7 +199,68 @@ DECLARE_QOBJ_TYPE(bgp_master);
 #define BGP_HRMAP_DEFAULT(af, saf, dir)        (bm->high_rmap.default_map[af][saf][dir].map)
 #define BGP_HRMAP_VRF_NAME(af, saf, dir)       (bm->high_rmap.vrf_map[af][saf][dir].name)
 #define BGP_HRMAP_VRF(af, saf, dir)            (bm->high_rmap.vrf_map[af][saf][dir].map)
+/* Route map direction */
+#define RMAP_IN  0
+#define RMAP_OUT 1
+#define RMAP_MAX 2
 
+#define BGP_DEFAULT_TTL         1
+#define BGP_GTSM_HOPS_DISABLED  0
+#define BGP_GTSM_HOPS_CONNECTED 1
+
+/* Advertise map */
+#define CONDITION_NON_EXIST	false
+#define CONDITION_EXIST		true
+
+enum update_type { WITHDRAW, ADVERTISE };
+
+#include "filter.h"
+
+/* BGP filter structure. */
+struct bgp_filter {
+	/* Distribute-list.  */
+	struct {
+		char *name;
+		struct access_list *alist;
+	} dlist[FILTER_MAX];
+
+	/* Prefix-list.  */
+	struct {
+		char *name;
+		struct prefix_list *plist;
+	} plist[FILTER_MAX];
+
+	/* Filter-list.  */
+	struct {
+		char *name;
+		struct as_list *aslist;
+	} aslist[FILTER_MAX];
+
+	/* Route-map.  */
+	struct {
+		char *name;
+		struct route_map *map;
+	} map[RMAP_MAX];
+
+	/* Unsuppress-map.  */
+	struct {
+		char *name;
+		struct route_map *map;
+	} usmap;
+
+	/* Advertise-map */
+	struct {
+		char *aname;
+		struct route_map *amap;
+
+		bool condition;
+
+		char *cname;
+		struct route_map *cmap;
+
+		enum update_type update_type;
+	} advmap;
+};
 struct bgp_redist {
 	unsigned short instance;
 
@@ -819,6 +880,8 @@ struct bgp {
 	struct timeval ebgprequirespolicywarning;
 #define FIFTEENMINUTE2USEC (int64_t)15 * 60 * 1000000
 
+	/* route map for af + saf base bgp instance */
+	struct bgp_filter filter[AFI_MAX][SAFI_MAX];
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(bgp);
@@ -891,63 +954,7 @@ struct bgp_nexthop {
 
 #define BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE 1
 
-#define BGP_DEFAULT_TTL         1
-#define BGP_GTSM_HOPS_DISABLED  0
-#define BGP_GTSM_HOPS_CONNECTED 1
 
-/* Advertise map */
-#define CONDITION_NON_EXIST	false
-#define CONDITION_EXIST		true
-
-enum update_type { WITHDRAW, ADVERTISE };
-
-#include "filter.h"
-
-/* BGP filter structure. */
-struct bgp_filter {
-	/* Distribute-list.  */
-	struct {
-		char *name;
-		struct access_list *alist;
-	} dlist[FILTER_MAX];
-
-	/* Prefix-list.  */
-	struct {
-		char *name;
-		struct prefix_list *plist;
-	} plist[FILTER_MAX];
-
-	/* Filter-list.  */
-	struct {
-		char *name;
-		struct as_list *aslist;
-	} aslist[FILTER_MAX];
-
-	/* Route-map.  */
-	struct {
-		char *name;
-		struct route_map *map;
-	} map[RMAP_MAX];
-
-	/* Unsuppress-map.  */
-	struct {
-		char *name;
-		struct route_map *map;
-	} usmap;
-
-	/* Advertise-map */
-	struct {
-		char *aname;
-		struct route_map *amap;
-
-		bool condition;
-
-		char *cname;
-		struct route_map *cmap;
-
-		enum update_type update_type;
-	} advmap;
-};
 
 
 /* IBGP/EBGP identifier.  We also have a CONFED peer, which is to say,
@@ -2163,6 +2170,8 @@ extern int peer_group_remote_as_delete(struct peer_group *);
 extern int peer_group_listen_range_add(struct peer_group *, struct prefix *);
 extern void peer_group_notify_unconfig(struct peer_group *group);
 
+extern void peer_on_policy_change(struct peer *peer, afi_t afi, safi_t safi, int outbound);
+
 extern int peer_activate(struct peer *, afi_t, safi_t);
 extern int peer_deactivate(struct peer *, afi_t, safi_t);
 
@@ -2239,6 +2248,10 @@ extern int peer_aslist_unset(struct peer *, afi_t, safi_t, int);
 extern int peer_route_map_set(struct peer *peer, afi_t afi, safi_t safi, int,
 			      const char *name, struct route_map *route_map);
 extern int peer_route_map_unset(struct peer *, afi_t, safi_t, int);
+
+extern int bgp_route_map_set(struct bgp *bgp, afi_t afi, safi_t safi, int direct,
+		       const char *name, struct route_map *route_map);
+extern int bgp_route_map_unset(struct bgp *bgp, afi_t afi, safi_t safi, int direct);
 
 extern int peer_unsuppress_map_set(struct peer *peer, afi_t afi, safi_t safi,
 				   const char *name,

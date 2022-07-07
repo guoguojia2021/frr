@@ -9140,7 +9140,71 @@ DEFPY(af_import_vrf_route_map, af_import_vrf_route_map_cmd,
 
 	return CMD_SUCCESS;
 }
+/* Set route-map to the bgp instance. */
+static int bgp_route_map_set_vty(struct vty *vty, afi_t afi, safi_t safi, const char *name_str,
+				  const char *direct_str)
+{
+	int ret;
+	int direct = RMAP_IN;
+	struct route_map *route_map;
+	struct bgp *bgp = VTY_GET_CONTEXT(bgp);
 
+	/* Check filter direction. */
+	if (strncmp(direct_str, "in", 2) == 0)
+		direct = RMAP_IN;
+	else if (strncmp(direct_str, "o", 1) == 0)
+		direct = RMAP_OUT;
+
+	route_map = route_map_lookup_warn_noexist(vty, name_str);
+	ret = bgp_route_map_set(bgp, afi, safi, direct, name_str, route_map);
+
+	return bgp_vty_return(vty, ret);
+}
+
+static int bgp_route_map_unset_vty(struct vty *vty, afi_t afi, safi_t safi, const char *direct_str)
+{
+	int ret;
+	int direct = RMAP_IN;
+	struct bgp *bgp = VTY_GET_CONTEXT(bgp);
+
+	/* Check filter direction. */
+	if (strncmp(direct_str, "in", 2) == 0)
+		direct = RMAP_IN;
+	else if (strncmp(direct_str, "o", 1) == 0)
+		direct = RMAP_OUT;
+
+	ret = bgp_route_map_unset(bgp, afi, safi, direct);
+
+	return bgp_vty_return(vty, ret);
+}
+
+DEFUN (af_route_map_imexport, af_route_map_imexport_cmd,
+       "route-map WORD <in|out>",
+       "Specify route map\n"
+       "Name of route-map\n"
+       "Apply map to incoming routes\n"
+       "Apply map to outbound routes\n")
+{
+	int idx_in_out = 2;
+	int idx_word = 1;
+
+	return bgp_route_map_set_vty(
+		vty, bgp_node_afi(vty), bgp_node_safi(vty),
+		argv[idx_word]->arg, argv[idx_in_out]->arg);
+}
+
+DEFUN (af_no_route_map_imexport,
+       af_no_route_map_imexport_cmd,
+       "no route-map <in|out>",
+       NO_STR
+       "Specify route map\n"
+       "Apply map to incoming routes\n"
+       "Apply map to outbound routes\n")
+{
+	int idx_in_out = 2;
+	return bgp_route_map_unset_vty(
+		vty, bgp_node_afi(vty), bgp_node_safi(vty), argv[idx_in_out]->arg);
+}
 DEFPY(af_no_import_vrf_route_map, af_no_import_vrf_route_map_cmd,
       "no import vrf route-map [RMAP$rmap_str]",
       NO_STR
@@ -17242,6 +17306,68 @@ static void bgp_config_write_bgp_high_routemap(struct vty *vty)
 	}
 }
 
+static bool bgp_filter_check(struct bgp *bgp, afi_t afi, safi_t safi,
+				   uint8_t type, int direct)
+{
+	struct bgp_filter *filter;
+
+	filter = &bgp->filter[afi][safi];
+	switch (type) {
+	case PEER_FT_DISTRIBUTE_LIST:
+		return !!(filter->dlist[direct].name);
+	case PEER_FT_FILTER_LIST:
+		return !!(filter->aslist[direct].name);
+	case PEER_FT_PREFIX_LIST:
+		return !!(filter->plist[direct].name);
+	case PEER_FT_ROUTE_MAP:
+		return !!(filter->map[direct].name);
+	case PEER_FT_UNSUPPRESS_MAP:
+		return !!(filter->usmap.name);
+	default:
+		return false;
+	}
+}
+
+static void bgp_config_write_bgp_filter(struct vty *vty, struct bgp *bgp,
+				    afi_t afi, safi_t safi)
+{
+	struct bgp_filter *filter;
+
+	filter = &bgp->filter[afi][safi];
+
+	/* distribute-list. */
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_DISTRIBUTE_LIST, FILTER_IN))
+		vty_out(vty, "  distribute-list %s in\n", filter->dlist[FILTER_IN].name);
+
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_DISTRIBUTE_LIST, FILTER_OUT))
+		vty_out(vty, "  distribute-list %s out\n", filter->dlist[FILTER_OUT].name);
+
+	/* prefix-list. */
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_PREFIX_LIST, FILTER_IN))
+		vty_out(vty, "  prefix-list %s in\n", filter->plist[FILTER_IN].name);
+
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_PREFIX_LIST, FILTER_OUT))
+		vty_out(vty, "  prefix-list %s out\n", filter->plist[FILTER_OUT].name);
+
+	/* route-map. */
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_ROUTE_MAP, RMAP_IN))
+		vty_out(vty, "  route-map %s in\n", filter->map[RMAP_IN].name);
+
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_ROUTE_MAP, RMAP_OUT))
+		vty_out(vty, "  route-map %s out\n", filter->map[RMAP_OUT].name);
+
+	/* unsuppress-map */
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_UNSUPPRESS_MAP, 0))
+		vty_out(vty, "  unsuppress-map %s\n", filter->usmap.name);
+
+	/* filter-list. */
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_FILTER_LIST, FILTER_IN))
+		vty_out(vty, "  filter-list %s in\n", filter->aslist[FILTER_IN].name);
+
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_FILTER_LIST, FILTER_OUT))
+		vty_out(vty, "  filter-list %s out\n", filter->aslist[FILTER_OUT].name);
+}
+
 /* Address family based peer configuration display.  */
 static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 				    safi_t safi)
@@ -17289,6 +17415,8 @@ static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 	bgp_config_write_network(vty, bgp, afi, safi);
 
 	bgp_config_write_redistribute(vty, bgp, afi, safi);
+
+	bgp_config_write_bgp_filter(vty, bgp, afi, safi);
 
 	/* BGP flag dampening. */
 	if (CHECK_FLAG(bgp->af_flags[afi][safi], BGP_CONFIG_DAMPENING))
@@ -19355,6 +19483,8 @@ void bgp_vty_init(void)
 	install_element(BGP_IPV6_NODE, &af_rt_vpn_imexport_cmd);
 	install_element(BGP_IPV4_NODE, &af_route_map_vpn_imexport_cmd);
 	install_element(BGP_IPV6_NODE, &af_route_map_vpn_imexport_cmd);
+	install_element(BGP_IPV4_NODE, &af_route_map_imexport_cmd);
+	install_element(BGP_IPV6_NODE, &af_route_map_imexport_cmd);
 	install_element(BGP_IPV4_NODE, &af_import_vrf_route_map_cmd);
 	install_element(BGP_IPV6_NODE, &af_import_vrf_route_map_cmd);
 
@@ -19369,6 +19499,8 @@ void bgp_vty_init(void)
 	install_element(BGP_IPV6_NODE, &af_no_rt_vpn_imexport_cmd);
 	install_element(BGP_IPV4_NODE, &af_no_route_map_vpn_imexport_cmd);
 	install_element(BGP_IPV6_NODE, &af_no_route_map_vpn_imexport_cmd);
+	install_element(BGP_IPV4_NODE, &af_no_route_map_imexport_cmd);
+	install_element(BGP_IPV6_NODE, &af_no_route_map_imexport_cmd);
 	install_element(BGP_IPV4_NODE, &af_no_import_vrf_route_map_cmd);
 	install_element(BGP_IPV6_NODE, &af_no_import_vrf_route_map_cmd);
 

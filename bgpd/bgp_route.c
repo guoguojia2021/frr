@@ -1490,16 +1490,10 @@ int bgp_path_info_cmp_compatible(struct bgp *bgp, struct bgp_path_info *new,
 	return ret;
 }
 
-static enum filter_type bgp_input_filter(struct peer *peer,
-					 const struct prefix *p,
-					 struct attr *attr, afi_t afi,
-					 safi_t safi)
+static enum filter_type bgp_in_filter_run(struct peer *peer, struct prefix *p,
+					 struct attr *attr, struct bgp_filter *filter)
 {
-	struct bgp_filter *filter;
 	enum filter_type ret = FILTER_PERMIT;
-
-	filter = &peer->filter[afi][safi];
-
 #define FILTER_EXIST_WARN(F, f, filter)                                        \
 	if (BGP_DEBUG(update, UPDATE_IN) && !(F##_IN(filter)))                 \
 		zlog_debug("%s: Could not find configured input %s-list %s!",  \
@@ -1548,16 +1542,31 @@ done:
 #undef FILTER_EXIST_WARN
 }
 
-static enum filter_type bgp_output_filter(struct peer *peer,
-					  const struct prefix *p,
-					  struct attr *attr, afi_t afi,
-					  safi_t safi)
+static enum filter_type bgp_input_filter(struct peer *peer, struct prefix *p,
+					 struct attr *attr, afi_t afi,
+					 safi_t safi)
 {
-	struct bgp_filter *filter;
+	struct bgp *bgp;
+	struct bgp_filter *peer_filter;
+	struct bgp_filter *bgp_filter;
+
+	bgp = peer->bgp;
+	bgp_filter = &bgp->filter[afi][safi];
+	peer_filter = &peer->filter[afi][safi];
+
+	if (bgp_in_filter_run(peer, p, attr, bgp_filter) == FILTER_PERMIT &&
+			bgp_in_filter_run(peer, p, attr, peer_filter) == FILTER_PERMIT)
+	{
+		return FILTER_PERMIT;
+	}
+
+	return FILTER_DENY;
+}
+
+static enum filter_type bgp_out_filter_run(struct peer *peer, struct prefix *p,
+					 struct attr *attr, struct bgp_filter *filter)
+{
 	enum filter_type ret = FILTER_PERMIT;
-
-	filter = &peer->filter[afi][safi];
-
 #define FILTER_EXIST_WARN(F, f, filter)                                        \
 	if (BGP_DEBUG(update, UPDATE_OUT) && !(F##_OUT(filter)))               \
 		zlog_debug("%s: Could not find configured output %s-list %s!", \
@@ -1604,6 +1613,27 @@ static enum filter_type bgp_output_filter(struct peer *peer,
 done:
 	return ret;
 #undef FILTER_EXIST_WARN
+}
+
+static enum filter_type bgp_output_filter(struct peer *peer, struct prefix *p,
+					  struct attr *attr, afi_t afi,
+					  safi_t safi)
+{
+	struct bgp *bgp;
+	struct bgp_filter *peer_filter;
+	struct bgp_filter *bgp_filter;
+
+	bgp = peer->bgp;
+	bgp_filter = &bgp->filter[afi][safi];
+	peer_filter = &peer->filter[afi][safi];
+
+	if (bgp_out_filter_run(peer, p, attr, bgp_filter) == FILTER_PERMIT &&
+			bgp_out_filter_run(peer, p, attr, peer_filter) == FILTER_PERMIT)
+	{
+		return FILTER_PERMIT;
+	}
+
+	return FILTER_DENY;
 }
 
 /* If community attribute includes no_export then return 1. */
@@ -2360,6 +2390,14 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	bgp_peer_remove_private_as(bgp, afi, safi, peer, attr);
 	bgp_peer_as_override(bgp, afi, safi, peer, attr);
 
+
+	/* BGP Route map */
+	struct bgp_filter *bgp_filter;
+	struct bgp *pbgp;
+	route_map_result_t bf_ret = RMAP_PERMITMATCH;
+
+	pbgp = peer->bgp;
+	bgp_filter = &pbgp->filter[afi][safi];
 	char *high_rmap_name = NULL;
 	struct route_map *high_rmap = NULL;
 
@@ -2373,7 +2411,8 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 
 	/* Route map & unsuppress-map apply. */
 	if (!post_attr &&
-	    (ROUTE_MAP_OUT_NAME(filter) || bgp_path_suppressed(pi)|| (high_rmap_name))) {
+	    (ROUTE_MAP_OUT_NAME(filter) || ROUTE_MAP_OUT_NAME(bgp_filter) || 
+	    bgp_path_suppressed(pi)|| (high_rmap_name))) {
 		struct bgp_path_info rmap_path = {0};
 		struct bgp_path_info_extra dummy_rmap_path_extra = {0};
 		struct attr dummy_attr = {0};
@@ -2413,17 +2452,28 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 
 		SET_FLAG(peer->rmap_type, PEER_RMAP_TYPE_OUT);
 
-		if (bgp_path_suppressed(pi))
+		if (ROUTE_MAP_OUT_NAME(bgp_filter)) {
+			zlog_debug("bgp route-map %s start", ROUTE_MAP_OUT_NAME(bgp_filter));
+			bf_ret = route_map_apply(ROUTE_MAP_OUT(bgp_filter), p,
+				        &rmap_path);
+		}
+
+		ret = RMAP_PERMITMATCH;
+		if (bgp_path_suppressed(pi)) {
+			zlog_debug("supress route-map start");
 			ret = route_map_apply(UNSUPPRESS_MAP(filter), p,
 					      &rmap_path);
-		else
+		}
+		else if (ROUTE_MAP_OUT_NAME(filter)) {
+			zlog_debug("peer route-map %s start", ROUTE_MAP_OUT_NAME(filter));
 			ret = route_map_apply(ROUTE_MAP_OUT(filter), p,
 					      &rmap_path);
+		}
 
 		bgp_attr_flush(&dummy_attr);
 		peer->rmap_type = 0;
 
-		if (ret == RMAP_DENYMATCH) {
+		if (ret == RMAP_DENYMATCH || bf_ret == RMAP_DENYMATCH) {
 			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
 				zlog_debug(
 					"%s [Update:SEND] %pFX is filtered by route-map '%s'",

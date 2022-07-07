@@ -3748,6 +3748,8 @@ void bgp_free(struct bgp *bgp)
 	struct bgp_table *table;
 	struct bgp_dest *dest;
 	struct bgp_rmap *rmap;
+	struct bgp_filter *filter;
+	int i;
 
 	QOBJ_UNREG(bgp);
 
@@ -3777,6 +3779,44 @@ void bgp_free(struct bgp *bgp)
 			bgp_table_finish(&bgp->rib[afi][safi]);
 		rmap = &bgp->table_map[afi][safi];
 		XFREE(MTYPE_ROUTE_MAP_NAME, rmap->name);
+	}
+
+	/* Free filter related memory.  */
+	FOREACH_AFI_SAFI (afi, safi) {
+		filter = &bgp->filter[afi][safi];
+
+		for (i = FILTER_IN; i < FILTER_MAX; i++) {
+			if (filter->dlist[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->dlist[i].name);
+				filter->dlist[i].name = NULL;
+			}
+
+			if (filter->plist[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->plist[i].name);
+				filter->plist[i].name = NULL;
+			}
+
+			if (filter->aslist[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->aslist[i].name);
+				filter->aslist[i].name = NULL;
+			}
+		}
+
+		for (i = RMAP_IN; i < RMAP_MAX; i++) {
+			if (filter->map[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->map[i].name);
+				filter->map[i].name = NULL;
+			}
+		}
+
+		if (filter->usmap.name) {
+			XFREE(MTYPE_BGP_FILTER_NAME, filter->usmap.name);
+			filter->usmap.name = NULL;
+		}
 	}
 
 	bgp_scan_finish(bgp);
@@ -7032,6 +7072,70 @@ int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int
 		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
 			update_group_announce(bgp);
 		}
+	}
+
+	return 0;
+}
+
+int bgp_route_map_set(struct bgp *bgp, afi_t afi, safi_t safi, int direct,
+		       const char *name, struct route_map *route_map)
+{
+	struct bgp_filter *filter;
+	struct peer *peer;
+	struct listnode *node, *nnode;
+
+	if (direct != RMAP_IN && direct != RMAP_OUT)
+		return BGP_ERR_INVALID_VALUE;
+
+	/* Set configuration on peer. */
+	filter = &bgp->filter[afi][safi];
+	if (filter->map[direct].name) {
+		/* If the bgp is configured with the same route-map
+		 * again then, ignore the duplicate configuration.
+		 */
+		if (strcmp(filter->map[direct].name, name) == 0)
+			return 0;
+
+		XFREE(MTYPE_BGP_FILTER_NAME, filter->map[direct].name);
+	}
+	route_map_counter_decrement(filter->map[direct].map);
+	filter->map[direct].name = XSTRDUP(MTYPE_BGP_FILTER_NAME, name);
+	filter->map[direct].map = route_map;
+	route_map_counter_increment(route_map);
+
+	if (direct == RMAP_IN) {
+		for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+			peer_on_policy_change(peer, afi, safi, 0);
+		}
+	} else {
+		update_group_announce(bgp);
+	}
+
+	return 0;
+}
+
+int bgp_route_map_unset(struct bgp *bgp, afi_t afi, safi_t safi, int direct)
+{
+	struct bgp_filter *filter;
+	struct peer *peer;
+	struct listnode *node, *nnode;
+
+	if (direct != RMAP_IN && direct != RMAP_OUT)
+		return BGP_ERR_INVALID_VALUE;
+
+	filter = &bgp->filter[afi][safi];
+	if (filter->map[direct].name)
+		XFREE(MTYPE_BGP_FILTER_NAME, filter->map[direct].name);
+	route_map_counter_decrement(filter->map[direct].map);
+	filter->map[direct].name = NULL;
+	filter->map[direct].map = NULL;
+
+	if (direct == RMAP_IN) {
+		for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+			peer_on_policy_change(peer, afi, safi, 0);
+		}
+	} else {
+		update_group_af_walk(bgp, afi, safi, update_group_announce_walkcb, NULL);
 	}
 
 	return 0;

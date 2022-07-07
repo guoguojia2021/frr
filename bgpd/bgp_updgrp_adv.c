@@ -376,7 +376,7 @@ static int subgroup_coalesce_timer(struct thread *thread)
 	return 0;
 }
 
-static int update_group_announce_walkcb(struct update_group *updgrp, void *arg)
+int update_group_announce_walkcb(struct update_group *updgrp, void *arg)
 {
 	struct update_subgroup *subgrp;
 

@@ -455,6 +455,8 @@ extern void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 				       char withdraw, uint32_t addpath_tx_id);
 void subgroup_announce_table(struct update_subgroup *subgrp,
 			     struct bgp_table *table);
+int update_group_announce_walkcb(struct update_group *updgrp, void *arg);
+
 extern void subgroup_trigger_write(struct update_subgroup *subgrp);
 
 extern int update_group_clear_update_dbg(struct update_group *updgrp,

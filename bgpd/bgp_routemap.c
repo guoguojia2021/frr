@@ -3842,9 +3842,26 @@ static void bgp_route_map_process_update(struct bgp *bgp, const char *rmap_name,
 	struct bgp_aggregate *aggregate;
 	struct listnode *node, *nnode;
 	struct route_map *map;
+	struct bgp_filter *bgp_filter;
+	bool is_bgp_rmap_change_in = false;
 	char buf[INET6_ADDRSTRLEN];
 
 	map = route_map_lookup_by_name(rmap_name);
+
+	FOREACH_AFI_SAFI (afi, safi) {
+		bgp_filter = &bgp->filter[afi][safi];
+		if (bgp_filter->map[RMAP_IN].name
+		    && (strcmp(rmap_name, bgp_filter->map[RMAP_IN].name) == 0)) {
+			bgp_filter->map[RMAP_IN].map = map;
+			is_bgp_rmap_change_in = true;
+		}
+		if (bgp_filter->map[RMAP_OUT].name
+		    && (strcmp(rmap_name, bgp_filter->map[RMAP_OUT].name) == 0))
+		{
+			bgp_filter->map[RMAP_OUT].map = map;
+            update_group_af_walk(bgp, afi, safi, update_group_announce_walkcb, NULL);
+	    }
+	}
 
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
 
@@ -3857,6 +3874,10 @@ static void bgp_route_map_process_update(struct bgp *bgp, const char *rmap_name,
 			 * route-maps */
 			bgp_route_map_process_peer(rmap_name, map, peer, afi,
 						   safi, route_update);
+
+			if (is_bgp_rmap_change_in) {
+				peer_on_policy_change(peer, afi, safi, 0);
+			}
 		}
 	}
 
