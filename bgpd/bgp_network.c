@@ -633,8 +633,11 @@ static char *bgp_get_bound_name(struct peer *peer)
 
 	if (peer->bgp->inst_type == BGP_INSTANCE_TYPE_VIEW)
 		return NULL;
-
-	return peer->bgp->name;
+	
+	vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
+	if (!vrf)
+		return NULL;
+	return vrf->name;
 }
 
 static int bgp_update_address(struct interface *ifp, const union sockunion *dst,

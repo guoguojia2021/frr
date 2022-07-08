@@ -69,13 +69,6 @@ static int zebra_ns_notify_read(struct thread *t);
 
 static struct vrf *vrf_handler_create(struct vty *vty, const char *vrfname)
 {
-	if (strlen(vrfname) > VRF_NAMSIZ) {
-		flog_warn(EC_LIB_VRF_LENGTH,
-			  "%% VRF name %s invalid: length exceeds %d bytes",
-			  vrfname, VRF_NAMSIZ);
-		return NULL;
-	}
-
 	return vrf_get(VRF_UNKNOWN, vrfname);
 }
 
