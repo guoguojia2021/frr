@@ -537,8 +537,14 @@ static void vty_show_ip_route_detail(struct vty *vty, struct route_node *rn,
 					     : " using Unicast RIB";
 		}
 
-		vty_out(vty, "Routing entry for %s%s\n",
+		vty_out(vty, "Routing entry for %s%s",
 			srcdest_rnode2str(rn, buf, sizeof(buf)), mcast_info);
+		/* If peding in Zebra, shows as pending */
+		if (CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
+			vty_out(vty, " (pending)\n");
+		else
+			vty_out(vty, "\n");
+
 		vty_out(vty, "  Known via \"%s", zebra_route_string(re->type));
 		if (re->instance)
 			vty_out(vty, "[%d]", re->instance);
@@ -1105,6 +1111,9 @@ static void vty_show_ip_route(struct vty *vty, struct route_node *rn,
 		}
 
 		show_route_nexthop_helper(vty, re, nexthop);
+		/* If peding in Zebra, shows as pending */
+		if (CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
+			vty_out(vty, " (pending)");
 		vty_out(vty, ", %s\n", up_str);
 	}
 
@@ -2360,7 +2369,8 @@ static void vty_show_ip_route_summary(struct vty *vty,
 	struct route_entry *re;
 	struct nexthop *nexthop;
 #define ZEBRA_ROUTE_IBGP  ZEBRA_ROUTE_MAX
-#define ZEBRA_ROUTE_TOTAL (ZEBRA_ROUTE_IBGP + 1)
+#define ZEBRA_ROUTE_DATAPLANE ZEBRA_ROUTE_IBGP + 1
+#define ZEBRA_ROUTE_TOTAL (ZEBRA_ROUTE_DATAPLANE + 1)
 	uint32_t rib_cnt[ZEBRA_ROUTE_TOTAL + 1];
 	uint32_t fib_cnt[ZEBRA_ROUTE_TOTAL + 1];
 	uint32_t offload_cnt[ZEBRA_ROUTE_TOTAL + 1];
@@ -2369,6 +2379,7 @@ static void vty_show_ip_route_summary(struct vty *vty,
 	uint32_t is_ibgp;
 	json_object *json_route_summary = NULL;
 	json_object *json_route_routes = NULL;
+	rib_dest_t *dest;
 
 	memset(&rib_cnt, 0, sizeof(rib_cnt));
 	memset(&fib_cnt, 0, sizeof(fib_cnt));
@@ -2384,6 +2395,7 @@ static void vty_show_ip_route_summary(struct vty *vty,
 
 	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
 		RNODE_FOREACH_RE (rn, re) {
+			dest = rib_dest_from_rnode(rn);
 			for (nexthop = re->nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
 				is_ibgp = (re->type == ZEBRA_ROUTE_BGP
 					   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
@@ -2395,6 +2407,8 @@ static void vty_show_ip_route_summary(struct vty *vty,
 					rib_cnt[re->type]++;
 
 				if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED)) {
+					if (!CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
+						fib_cnt[ZEBRA_ROUTE_DATAPLANE]++;
 					fib_cnt[ZEBRA_ROUTE_TOTAL]++;
 
 					if (is_ibgp)
@@ -2521,6 +2535,8 @@ static void vty_show_ip_route_summary(struct vty *vty,
 		vty_out(vty, "------\n");
 		vty_out(vty, "%-20s %-20d %-20d \n", "Totals",
 			rib_cnt[ZEBRA_ROUTE_TOTAL], fib_cnt[ZEBRA_ROUTE_TOTAL]);
+		vty_out(vty, "%-20s %-20s %-20d \n", "Totals - Dataplane",
+			"N/A", fib_cnt[ZEBRA_ROUTE_DATAPLANE]);
 		vty_out(vty, "\n");
 	}
 }
@@ -2539,14 +2555,16 @@ static void vty_show_ip_route_summary_prefix(struct vty *vty,
 	struct route_node *rn;
 	struct route_entry *re;
 	struct nexthop *nexthop;
-#define ZEBRA_ROUTE_IBGP  ZEBRA_ROUTE_MAX
-#define ZEBRA_ROUTE_TOTAL (ZEBRA_ROUTE_IBGP + 1)
+#define ZEBRA_ROUTE_IBGP      ZEBRA_ROUTE_MAX
+#define ZEBRA_ROUTE_DATAPLANE ZEBRA_ROUTE_IBGP + 1
+#define ZEBRA_ROUTE_TOTAL     (ZEBRA_ROUTE_DATAPLANE + 1)
 	uint32_t rib_cnt[ZEBRA_ROUTE_TOTAL + 1];
 	uint32_t fib_cnt[ZEBRA_ROUTE_TOTAL + 1];
 	uint32_t i;
 	int cnt;
 	json_object *json_route_summary = NULL;
 	json_object *json_route_routes = NULL;
+	rib_dest_t *dest;
 
 	memset(&rib_cnt, 0, sizeof(rib_cnt));
 	memset(&fib_cnt, 0, sizeof(fib_cnt));
@@ -2561,11 +2579,14 @@ static void vty_show_ip_route_summary_prefix(struct vty *vty,
 	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
 		RNODE_FOREACH_RE (rn, re) {
 
+			dest = rib_dest_from_rnode(rn);
 			/*
 			 * In case of ECMP, count only once.
 			 */
 			cnt = 0;
 			if (CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED)) {
+				if (!CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
+					fib_cnt[ZEBRA_ROUTE_DATAPLANE]++;
 				fib_cnt[ZEBRA_ROUTE_TOTAL]++;
 				fib_cnt[re->type]++;
 			}
@@ -2669,6 +2690,8 @@ static void vty_show_ip_route_summary_prefix(struct vty *vty,
 		vty_out(vty, "------\n");
 		vty_out(vty, "%-20s %-20d %-20d \n", "Totals",
 			rib_cnt[ZEBRA_ROUTE_TOTAL], fib_cnt[ZEBRA_ROUTE_TOTAL]);
+		vty_out(vty, "%-20s %-20s %-20d \n", "Totals - Dataplane",
+			"N/A", fib_cnt[ZEBRA_ROUTE_DATAPLANE]);
 		vty_out(vty, "\n");
 	}
 }
