@@ -403,6 +403,7 @@ int main(int argc, char **argv)
 
 	zrouter.master = frr_init();
 
+    zebra_db_init();
 	/* Zebra related initialize. */
 	zebra_router_init(asic_offload, notify_on_ack);
 	zserv_init();

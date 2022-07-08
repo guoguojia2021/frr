@@ -13,7 +13,7 @@
 
 /* clang-format on */
 
-/* redis ˝æ›ø‚≈‰÷√*/
+/* redis */
 REDIS_INFO_S g_stBfdCounterRedisDbInfo = {0};
 void *g_bfddhandleRedis = NULL; /* libredis++.so */
 struct redis_user_ext g_bfdcounter_redis = {0};/* libredis++.so */

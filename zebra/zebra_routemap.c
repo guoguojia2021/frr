@@ -179,7 +179,7 @@ static int show_proto_rm(struct vty *vty, int af_type, const char *vrf_all,
 			zvrf = (struct zebra_vrf *)vrf->info;
 			if (zvrf == NULL)
 				continue;
-			vty_out(vty, "VRF: %s\n", zvrf->vrf->name);
+			vty_out(vty, "VRF: %s\n", zvrf->vrf->aliasName);
 			show_vrf_proto_rm(vty, zvrf, af_type);
 		}
 	} else {
@@ -192,7 +192,7 @@ static int show_proto_rm(struct vty *vty, int af_type, const char *vrf_all,
 		if (!zvrf)
 			return CMD_SUCCESS;
 
-		vty_out(vty, "VRF: %s\n", zvrf->vrf->name);
+		vty_out(vty, "VRF: %s\n", zvrf->vrf->aliasName);
 		show_vrf_proto_rm(vty, zvrf, af_type);
 	}
 
@@ -212,7 +212,7 @@ static int show_nht_rm(struct vty *vty, int af_type, const char *vrf_all,
 			if (zvrf == NULL)
 				continue;
 
-			vty_out(vty, "VRF: %s\n", zvrf->vrf->name);
+			vty_out(vty, "VRF: %s\n", zvrf->vrf->aliasName);
 			show_vrf_nht_rm(vty, zvrf, af_type);
 		}
 	} else {
@@ -225,7 +225,7 @@ static int show_nht_rm(struct vty *vty, int af_type, const char *vrf_all,
 		if (!zvrf)
 			return CMD_SUCCESS;
 
-		vty_out(vty, "VRF: %s\n", zvrf->vrf->name);
+		vty_out(vty, "VRF: %s\n", zvrf->vrf->aliasName);
 		show_vrf_nht_rm(vty, zvrf, af_type);
 	}
 

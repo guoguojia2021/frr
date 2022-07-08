@@ -134,7 +134,7 @@ static int zebra_vrf_enable(struct vrf *vrf)
 
 	assert(zvrf);
 	if (IS_ZEBRA_DEBUG_EVENT)
-		zlog_debug("VRF %s id %u is now active", zvrf_name(zvrf),
+		zlog_debug("VRF %s id %u is now active", zvrf_alias_name(zvrf),
 			   zvrf_id(zvrf));
 
 	if (vrf_is_backend_netns())
@@ -180,7 +180,7 @@ static int zebra_vrf_disable(struct vrf *vrf)
 
 	assert(zvrf);
 	if (IS_ZEBRA_DEBUG_EVENT)
-		zlog_debug("VRF %s id %u is now inactive", zvrf_name(zvrf),
+		zlog_debug("VRF %s id %u is now inactive", zvrf_alias_name(zvrf),
 			   zvrf_id(zvrf));
 
 	/* Stop any VxLAN-EVPN processing. */
@@ -250,7 +250,7 @@ static int zebra_vrf_delete(struct vrf *vrf)
 
 	assert(zvrf);
 	if (IS_ZEBRA_DEBUG_EVENT)
-		zlog_debug("VRF %s id %u deleted", zvrf_name(zvrf),
+		zlog_debug("VRF %s id %u deleted", zvrf_alias_name(zvrf),
 			   zvrf_id(zvrf));
 
 	table_manager_disable(zvrf);

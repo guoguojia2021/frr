@@ -3460,7 +3460,7 @@ static void _route_entry_dump_nh(const struct route_entry *re,
 
 	zlog_debug("%s: %s %s[%u] %svrf %s(%u) %s%s with flags %s%s%s%s%s%s%s%s",
 		   straddr, (nexthop->rparent ? "  NH" : "NH"), nhname,
-		   nexthop->ifindex, label_str, vrf ? vrf->name : "Unknown",
+		   nexthop->ifindex, label_str, vrf ? vrf->aliasName : "Unknown",
 		   nexthop->vrf_id,
 		   wgt_str, backup_str,
 		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE)
@@ -3773,7 +3773,7 @@ void rib_delete(afi_t afi, safi_t safi, vrf_id_t vrf_id, int type,
 				src_buf[0] = '\0';
 
 			zlog_debug("%s[%d]:%pRN%s%s doesn't exist in rib",
-				   vrf->name, table_id, rn,
+				   vrf->aliasName, table_id, rn,
 				   (src_buf[0] != '\0') ? " from " : "",
 				   src_buf);
 		}

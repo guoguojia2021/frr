@@ -153,7 +153,7 @@ void zebra_router_show_table_summary(struct vty *vty)
 	RB_FOREACH (zrt, zebra_router_table_head, &zrouter.tables) {
 		struct rib_table_info *info = route_table_get_info(zrt->table);
 
-		vty_out(vty, "%-16s%5d %9d %7s %15s %8d %10lu\n", info->zvrf->vrf->name,
+		vty_out(vty, "%-16s%5d %9d %7s %15s %8d %10lu\n", info->zvrf->vrf->aliasName,
 			zrt->ns_id, info->zvrf->vrf->vrf_id,
 			afi2str(zrt->afi), safi2str(zrt->safi),
 			zrt->tableid,

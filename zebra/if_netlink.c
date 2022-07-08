@@ -306,6 +306,8 @@ static void netlink_vrf_change(struct nlmsghdr *h, struct rtattr *tb,
 	struct vrf *vrf = NULL;
 	struct zebra_vrf *zvrf;
 	uint32_t nl_table_id;
+	int ret;
+	char aliasTmp[VRF_ALIASNAMESIZ + 1];
 
 	ifi = NLMSG_DATA(h);
 
@@ -336,27 +338,46 @@ static void netlink_vrf_change(struct nlmsghdr *h, struct rtattr *tb,
 			zlog_debug("RTM_NEWLINK for VRF %s(%u) table %u", name,
 				   ifi->ifi_index, nl_table_id);
 
-		if (!vrf_lookup_by_id((vrf_id_t)ifi->ifi_index)) {
-			vrf_id_t exist_id;
-
-			exist_id = vrf_lookup_by_table(nl_table_id, ns_id);
-			if (exist_id != VRF_DEFAULT) {
-				vrf = vrf_lookup_by_id(exist_id);
-
-				flog_err(
-					EC_ZEBRA_VRF_MISCONFIGURED,
-					"VRF %s id %u table id overlaps existing vrf %s, misconfiguration exiting",
-					name, ifi->ifi_index, vrf->name);
-				exit(-1);
+		/*
+		 * vrf_get is implied creation if it does not exist
+		 */
+		ret = zebra_Db_GetVrfAlias(name, aliasTmp, VRF_ALIASNAMESIZ);
+		if (ret == 0)
+		{
+			vrf = vrf_lookup_by_name(aliasTmp);
+			if (vrf)
+			{
+				strlcpy(vrf->name, name, sizeof(vrf->name));
+				/* Set identifier */
+				if ((vrf_id_t)ifi->ifi_index != VRF_UNKNOWN && vrf->vrf_id == VRF_UNKNOWN) {
+					vrf->vrf_id = (vrf_id_t)ifi->ifi_index;
+					RB_INSERT(vrf_id_head, &vrfs_by_id, vrf);
+				}
+			}
+			else
+			{
+				vrf = vrf_get((vrf_id_t)ifi->ifi_index,
+				  name); // It would create vrf
+				if (!vrf) {
+					flog_err(EC_LIB_INTERFACE, "VRF %s id %u not created",
+						 name, ifi->ifi_index);
+					return;
+				}
+				RB_REMOVE(vrf_name_head, &vrfs_by_name, vrf);
+				strlcpy(vrf->aliasName, aliasTmp, sizeof(vrf->aliasName));
+				RB_INSERT(vrf_name_head, &vrfs_by_name, vrf);
 			}
 		}
-
-		vrf = vrf_update((vrf_id_t)ifi->ifi_index, name);
-		if (!vrf) {
-			flog_err(EC_LIB_INTERFACE, "VRF %s id %u not created",
-				 name, ifi->ifi_index);
-			return;
-		}
+        else
+        {
+            vrf = vrf_get((vrf_id_t)ifi->ifi_index,
+			      name); // It would create vrf
+    		if (!vrf) {
+    			flog_err(EC_LIB_INTERFACE, "VRF %s id %u not created",
+    				 name, ifi->ifi_index);
+    			return;
+    		}
+        }
 
 		/*
 		 * This is the only place that we get the actual kernel table_id

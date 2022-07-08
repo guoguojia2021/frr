@@ -556,7 +556,7 @@ static void vty_show_ip_route_detail(struct vty *vty, struct route_node *rn,
 			vty_out(vty, ", mtu %u", re->mtu);
 		if (re->vrf_id != VRF_DEFAULT) {
 			zvrf = vrf_info_lookup(re->vrf_id);
-			vty_out(vty, ", vrf %s", zvrf_name(zvrf));
+			vty_out(vty, ", vrf %s", zvrf_alias_name(zvrf));
 		}
 		if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED))
 			vty_out(vty, ", best");
@@ -1257,11 +1257,11 @@ static void do_show_route_helper(struct vty *vty, struct zebra_vrf *zvrf,
 				    || tableid) {
 					if (!tableid)
 						vty_out(vty, "VRF %s:\n",
-							zvrf_name(zvrf));
+							zvrf_alias_name(zvrf));
 					else
 						vty_out(vty,
 							"VRF %s table %u:\n",
-							zvrf_name(zvrf),
+							zvrf_alias_name(zvrf),
 							tableid);
 				}
 				ctx->header_done = true;
@@ -1304,7 +1304,7 @@ static void do_show_ip_route_all(struct vty *vty, struct zebra_vrf *zvrf,
 		    zrt->safi != SAFI_UNICAST)
 			continue;
 
-		do_show_ip_route(vty, zvrf_name(zvrf), afi, SAFI_UNICAST,
+		do_show_ip_route(vty, zvrf_alias_name(zvrf), afi, SAFI_UNICAST,
 				 use_fib, use_json, tag, longer_prefix_p,
 				 supernets_only, type, ospf_instance_id,
 				 zrt->tableid, show_ng, ctx);
@@ -1380,7 +1380,7 @@ DEFPY (show_ip_nht,
 
 		RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name)
 			if ((zvrf = vrf->info) != NULL) {
-				vty_out(vty, "\nVRF %s:\n", zvrf_name(zvrf));
+				vty_out(vty, "\nVRF %s:\n", zvrf_alias_name(zvrf));
 				zebra_print_rnh_table(zvrf_id(zvrf), afi, vty,
 						      NULL);
 			}
@@ -1679,7 +1679,7 @@ DEFPY (show_nexthop_group,
 			if (!zvrf)
 				continue;
 
-			vty_out(vty, "VRF: %s\n", vrf->name);
+			vty_out(vty, "VRF: %s\n", vrf->aliasName);
 			show_nexthop_group_cmd_helper(vty, zvrf, afi, type);
 		}
 
@@ -1907,7 +1907,7 @@ DEFPY (show_route,
 					ospf_instance_id, !!ng, &ctx);
 			else
 				do_show_ip_route(
-					vty, zvrf_name(zvrf), afi, SAFI_UNICAST,
+					vty, zvrf_alias_name(zvrf), afi, SAFI_UNICAST,
 					!!fib, !!json, tag,
 					prefix_str ? prefix : NULL,
 					!!supernets_only, type,
@@ -1932,7 +1932,7 @@ DEFPY (show_route,
 					     !!supernets_only, type,
 					     ospf_instance_id, !!ng, &ctx);
 		else
-			do_show_ip_route(vty, vrf->name, afi, SAFI_UNICAST,
+			do_show_ip_route(vty, vrf->aliasName, afi, SAFI_UNICAST,
 					 !!fib, !!json, tag,
 					 prefix_str ? prefix : NULL,
 					 !!supernets_only, type,
@@ -2784,7 +2784,7 @@ DEFUN (show_vrf,
 		if (zvrf_id(zvrf) == VRF_DEFAULT)
 			continue;
 
-		vty_out(vty, "vrf %s ", zvrf_name(zvrf));
+		vty_out(vty, "vrf %s ", zvrf_alias_name(zvrf));
 		if (zvrf_id(zvrf) == VRF_UNKNOWN || !zvrf_is_active(zvrf))
 			vty_out(vty, "inactive");
 		else if (zvrf_ns_name(zvrf))
@@ -2915,7 +2915,7 @@ DEFUN (no_default_vrf_vni_mapping,
 
 	if (zvrf->l3vni != vni) {
 		vty_out(vty, "VNI %d doesn't exist in VRF: %s \n", vni,
-			zvrf->vrf->name);
+			zvrf->vrf->aliasName);
 		return CMD_WARNING;
 	}
 
@@ -2987,7 +2987,7 @@ DEFUN (no_vrf_vni_mapping,
 
 	if (zvrf->l3vni != vni) {
 		vty_out(vty, "VNI %d doesn't exist in VRF: %s \n", vni,
-			zvrf->vrf->name);
+			zvrf->vrf->aliasName);
 		return CMD_WARNING;
 	}
 
@@ -3984,7 +3984,7 @@ DEFUN (show_zebra,
 		struct zebra_vrf *zvrf = vrf->info;
 
 		vty_out(vty, "%-25s %10" PRIu64 " %10" PRIu64 " %10" PRIu64" %10" PRIu64 " %10" PRIu64 "\n",
-			vrf->name, zvrf->installs, zvrf->removals,
+			vrf->aliasName, zvrf->installs, zvrf->removals,
 			zvrf->neigh_updates, zvrf->lsp_installs,
 			zvrf->lsp_removals);
 	}
@@ -4223,6 +4223,34 @@ static int config_write_forwarding(struct vty *vty)
 	return 0;
 }
 
+DEFUN(zebra_vrfdevname,
+    zebra_vrfdevname_cmd,
+    "vrfnametodevname NAME",
+    "get devname by vrfname\n"
+    "vrf name\n")
+{
+    int idx_vrf = 1;
+    const char *vrfname = NULL;
+
+    
+    argv_find(argv, argc, "NAME", &idx_vrf);
+    vrfname = argv[idx_vrf]->arg;
+    if (vrfname == NULL)
+    {
+        vty_out(vty, "%% devvrf name %s is invalid \n", vrfname);
+        return CMD_WARNING;
+    }
+    
+    struct vrf *vrf = vrf_lookup_by_name(vrfname);
+    if(NULL == vrf){
+        vty_out(vty, "%% VRF %s not found \n", vrfname);
+        return CMD_WARNING;
+    }
+
+
+    vty_out(vty, "%s\n", vrf->name);
+    return CMD_SUCCESS;
+}
 DEFUN_HIDDEN (show_frr,
 	      show_frr_cmd,
 	      "show frr",
@@ -4534,4 +4562,5 @@ void zebra_vty_init(void)
 #endif /* HAVE_SCRIPTING */
 
 	install_element(VIEW_NODE, &zebra_show_routing_tables_summary_cmd);
+    install_element(VIEW_NODE, &zebra_vrfdevname_cmd);
 }

@@ -222,6 +222,10 @@ static inline const char *zvrf_name(struct zebra_vrf *zvrf)
 	return zvrf->vrf->name;
 }
 
+static inline const char *zvrf_alias_name(struct zebra_vrf *zvrf)
+{
+	return zvrf->vrf->aliasName;
+}
 static inline bool zvrf_is_active(struct zebra_vrf *zvrf)
 {
 	return zvrf->vrf->status & VRF_ACTIVE;

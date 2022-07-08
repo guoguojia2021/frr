@@ -80,7 +80,7 @@ static int vrf_is_enabled(struct vrf *vrf);
 struct vrf *vrf_lookup_by_name(const char *name)
 {
 	struct vrf vrf;
-	strlcpy(vrf.name, name, sizeof(vrf.name));
+    strlcpy(vrf.aliasName, name, sizeof(vrf.aliasName));
 	return (RB_FIND(vrf_name_head, &vrfs_by_name, &vrf));
 }
 
@@ -91,7 +91,8 @@ static __inline int vrf_id_compare(const struct vrf *a, const struct vrf *b)
 
 static int vrf_name_compare(const struct vrf *a, const struct vrf *b)
 {
-	return strcmp(a->name, b->name);
+    int ret = strcmp(a->aliasName, b->aliasName);
+	return ret;
 }
 
 int vrf_switch_to_netns(vrf_id_t vrf_id)
@@ -154,6 +155,7 @@ struct vrf *vrf_get(vrf_id_t vrf_id, const char *name)
 	if (vrf == NULL) {
 		vrf = XCALLOC(MTYPE_VRF, sizeof(struct vrf));
 		vrf->vrf_id = VRF_UNKNOWN;
+        vrf->aliasName[0] = 0;
 		QOBJ_REG(vrf, vrf);
 		new = 1;
 
@@ -169,15 +171,17 @@ struct vrf *vrf_get(vrf_id_t vrf_id, const char *name)
 	}
 
 	/* Set name */
-	if (name && vrf->name[0] != '\0' && strcmp(name, vrf->name)) {
+	if (name && vrf->name[0] != '\0' && strcmp(name, vrf->name) && strcmp(name, vrf->aliasName)) {
 		/* update the vrf name */
 		RB_REMOVE(vrf_name_head, &vrfs_by_name, vrf);
 		strlcpy(vrf->data.l.netns_name,
 			name, NS_NAMSIZ);
 		strlcpy(vrf->name, name, sizeof(vrf->name));
+        strlcpy(vrf->aliasName, name, sizeof(vrf->aliasName));
 		RB_INSERT(vrf_name_head, &vrfs_by_name, vrf);
 	} else if (name && vrf->name[0] == '\0') {
 		strlcpy(vrf->name, name, sizeof(vrf->name));
+        strlcpy(vrf->aliasName, name, sizeof(vrf->aliasName));
 		RB_INSERT(vrf_name_head, &vrfs_by_name, vrf);
 	}
 	if (new &&vrf_master.vrf_new_hook)
@@ -464,7 +468,12 @@ static void vrf_autocomplete(vector comps, struct cmd_token *token)
 	struct vrf *vrf = NULL;
 
 	RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name)
-		vector_set(comps, XSTRDUP(MTYPE_COMPLETION, vrf->name));
+	{
+        if (vrf->aliasName[0] != 0)
+    		vector_set(comps, XSTRDUP(MTYPE_COMPLETION, vrf->aliasName));
+        else
+            vector_set(comps, XSTRDUP(MTYPE_COMPLETION, vrf->name));
+	}
 }
 
 static const struct cmd_variable_handler vrf_var_handlers[] = {

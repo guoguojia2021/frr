@@ -2550,7 +2550,7 @@ void zebra_vxlan_print_vrf_vni(struct vty *vty, struct zebra_vrf *zvrf,
 
 	if (!json_vrfs) {
 		vty_out(vty, "%-37s %-10u %-20s %-20s %-5s %-18s\n",
-			zvrf_name(zvrf), zl3vni->vni,
+			zvrf_alias_name(zvrf), zl3vni->vni,
 			zl3vni_vxlan_if_name(zl3vni),
 			zl3vni_svi_if_name(zl3vni), zl3vni_state2str(zl3vni),
 			zl3vni_rmac2str(zl3vni, buf, sizeof(buf)));
@@ -2558,7 +2558,7 @@ void zebra_vxlan_print_vrf_vni(struct vty *vty, struct zebra_vrf *zvrf,
 		json_object *json_vrf = NULL;
 
 		json_vrf = json_object_new_object();
-		json_object_string_add(json_vrf, "vrf", zvrf_name(zvrf));
+		json_object_string_add(json_vrf, "vrf", zvrf_alias_name(zvrf));
 		json_object_int_add(json_vrf, "vni", zl3vni->vni);
 		json_object_string_add(json_vrf, "vxlanIntf",
 				       zl3vni_vxlan_if_name(zl3vni));
