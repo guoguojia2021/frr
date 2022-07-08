@@ -2140,6 +2140,7 @@ static int zclient_vrf_add(ZAPI_CALLBACK_ARGS)
 {
 	struct vrf *vrf;
 	char vrfname_tmp[VRF_NAMSIZ + 1] = {};
+	char vrfaliasname[VRF_ALIASNAMESIZ];
 	struct vrf_data data;
 
 	STREAM_GET(&data, zclient->ibuf, sizeof(struct vrf_data));
@@ -2149,9 +2150,26 @@ static int zclient_vrf_add(ZAPI_CALLBACK_ARGS)
 	if (strlen(vrfname_tmp) == 0)
 		goto stream_failure;
 
-	/* Lookup/create vrf by name, then vrf_id. */
-	vrf = vrf_get(vrf_id, vrfname_tmp);
-
+	/* Read alias vrf name. */
+	stream_get(vrfaliasname, zclient->ibuf, VRF_ALIASNAMESIZ);
+	/* Lookup/create vrf by vrf_id. */
+	vrf = vrf_lookup_by_name(vrfaliasname);
+	if (vrf)
+	{
+		strlcpy(vrf->name, vrfname_tmp, sizeof(vrf->name));
+		/* Set identifier */
+		if (vrf_id != VRF_UNKNOWN && vrf->vrf_id == VRF_UNKNOWN) {
+			vrf->vrf_id = vrf_id;
+			RB_INSERT(vrf_id_head, &vrfs_by_id, vrf);
+		}
+	}
+	else
+	{
+		vrf = vrf_get(vrf_id, vrfname_tmp);
+		RB_REMOVE(vrf_name_head, &vrfs_by_name, vrf);
+		strlcpy(vrf->aliasName, vrfaliasname, sizeof(vrf->aliasName));
+		RB_INSERT(vrf_name_head, &vrfs_by_name, vrf);
+	}
 	/* If there's already a VRF with this name, don't create vrf */
 	if (!vrf)
 		return 0;

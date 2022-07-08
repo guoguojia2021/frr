@@ -607,6 +607,9 @@ static int bgp_accept(struct thread *thread)
 /* BGP socket bind. */
 static char *bgp_get_bound_name(struct peer *peer)
 {
+	char *name = NULL;
+    struct vrf *vrf = NULL;
+
 	if (!peer)
 		return NULL;
 
@@ -875,6 +878,8 @@ int bgp_socket(struct bgp *bgp, unsigned short port, const char *address)
 	};
 	int ret, count;
 	char port_str[BUFSIZ];
+    char *name = NULL;
+    struct vrf *vrf = NULL;
 
 	snprintf(port_str, sizeof(port_str), "%d", port);
 	port_str[sizeof(port_str) - 1] = '\0';
@@ -894,6 +899,12 @@ int bgp_socket(struct bgp *bgp, unsigned short port, const char *address)
 		return -1;
 	}
 	count = 0;
+    if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)
+    {
+        vrf = vrf_lookup_by_id(bgp->vrf_id);
+        if (vrf)
+            name = vrf->name;
+    }
 	for (ainfo = ainfo_save; ainfo; ainfo = ainfo->ai_next) {
 		int sock;
 
@@ -903,11 +914,8 @@ int bgp_socket(struct bgp *bgp, unsigned short port, const char *address)
 		frr_with_privs(&bgpd_privs) {
 			sock = vrf_socket(ainfo->ai_family,
 					  ainfo->ai_socktype,
-					  ainfo->ai_protocol,
-					  bgp->vrf_id,
-					  (bgp->inst_type
-					   == BGP_INSTANCE_TYPE_VRF
-					   ? bgp->name : NULL));
+					  ainfo->ai_protocol, bgp->vrf_id,
+					  name);
 		}
 		if (sock < 0) {
 			flog_err_sys(EC_LIB_SOCKET, "socket: %s",

@@ -118,6 +118,8 @@ static void zserv_encode_vrf(struct stream *s, struct zebra_vrf *zvrf)
 	stream_put(s, &data, sizeof(struct vrf_data));
 	/* Interface information. */
 	stream_put(s, zvrf_name(zvrf), VRF_NAMSIZ);
+    /* Interface information. */
+	stream_put(s, zvrf_alias_name(zvrf), VRF_ALIASNAMESIZ);
 	/* Write packet size. */
 	stream_putw_at(s, 0, stream_get_endp(s));
 }

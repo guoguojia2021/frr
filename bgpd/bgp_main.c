@@ -294,6 +294,8 @@ static int bgp_vrf_enable(struct vrf *vrf)
 		zlog_debug("VRF enable add %s id %u", vrf->name, vrf->vrf_id);
 
 	bgp = bgp_lookup_by_name(vrf->name);
+    if (!bgp)
+        bgp = bgp_lookup_by_name(vrf->aliasName);
 	if (bgp && bgp->vrf_id != vrf->vrf_id) {
 		old_vrf_id = bgp->vrf_id;
 		/* We have instance configured, link to VRF and make it "up". */
@@ -329,6 +331,8 @@ static int bgp_vrf_disable(struct vrf *vrf)
 		zlog_debug("VRF disable %s id %d", vrf->name, vrf->vrf_id);
 
 	bgp = bgp_lookup_by_name(vrf->name);
+    if (!bgp)
+        bgp = bgp_lookup_by_name(vrf->aliasName);
 	if (bgp) {
 
 		vpn_leak_zebra_vrf_label_withdraw(bgp, AFI_IP);

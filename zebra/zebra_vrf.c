@@ -458,7 +458,7 @@ static int vrf_config_write(struct vty *vty)
 					zvrf->tbl_mgr->start,
 					zvrf->tbl_mgr->end);
 		} else {
-			vty_frame(vty, "vrf %s\n", zvrf_name(zvrf));
+			vty_frame(vty, "vrf %s\n", zvrf_alias_name(zvrf));
 			if (zvrf->l3vni)
 				vty_out(vty, " vni %u%s\n", zvrf->l3vni,
 					is_l3vni_for_prefix_routes_only(
