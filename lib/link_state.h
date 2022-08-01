@@ -92,7 +92,7 @@ struct ls_node_id {
 			uint8_t level;			/* ISIS Level */
 			uint8_t padding;
 		} iso;
-	} id __attribute__((aligned(8)));
+	} id;
 };
 
 /**
