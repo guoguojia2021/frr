@@ -138,6 +138,25 @@ struct isis_ext_subtlvs *isis_alloc_ext_subtlvs(void)
 	return ext;
 }
 
+void isis_del_ext_subtlvs(struct isis_ext_subtlvs *ext)
+{
+	struct isis_item *item, *next_item;
+
+	if (!ext)
+		return;
+
+	/* First, free Adj SID and LAN Adj SID list if needed */
+	for (item = ext->adj_sid.head; item; item = next_item) {
+		next_item = item->next;
+		XFREE(MTYPE_ISIS_SUBTLV, item);
+	}
+	for (item = ext->lan_sid.head; item; item = next_item) {
+		next_item = item->next;
+		XFREE(MTYPE_ISIS_SUBTLV, item);
+	}
+	XFREE(MTYPE_ISIS_SUBTLV, ext);
+}
+
 /*
  * mtid parameter is used to determine if Adjacency is related to IPv4 or IPv6
  * Multi-Topology. Special 4096 value i.e. first R flag set is used to indicate
@@ -647,18 +666,7 @@ static void format_item_ext_subtlvs(struct isis_ext_subtlvs *exts,
 
 static void free_item_ext_subtlvs(struct  isis_ext_subtlvs *exts)
 {
-	struct isis_item *item, *next_item;
-
-	/* First, free Adj SID and LAN Adj SID list if needed */
-	for (item = exts->adj_sid.head; item; item = next_item) {
-		next_item = item->next;
-		XFREE(MTYPE_ISIS_SUBTLV, item);
-	}
-	for (item = exts->lan_sid.head; item; item = next_item) {
-		next_item = item->next;
-		XFREE(MTYPE_ISIS_SUBTLV, item);
-	}
-	XFREE(MTYPE_ISIS_SUBTLV, exts);
+	isis_del_ext_subtlvs(exts);
 }
 
 static int pack_item_ext_subtlvs(struct isis_ext_subtlvs *exts,
@@ -1058,6 +1066,7 @@ static int unpack_item_ext_subtlvs(uint16_t mtid, uint8_t len, struct stream *s,
 						log, indent,
 						"TLV size does not match expected size for Adjacency SID!\n");
 					stream_forward_getp(s, subtlv_len - 2);
+					XFREE(MTYPE_ISIS_SUBTLV, adj);
 					break;
 				}
 
@@ -1069,6 +1078,7 @@ static int unpack_item_ext_subtlvs(uint16_t mtid, uint8_t len, struct stream *s,
 						log, indent,
 						"TLV size does not match expected size for Adjacency SID!\n");
 					stream_forward_getp(s, subtlv_len - 2);
+					XFREE(MTYPE_ISIS_SUBTLV, adj);
 					break;
 				}
 
@@ -1113,6 +1123,7 @@ static int unpack_item_ext_subtlvs(uint16_t mtid, uint8_t len, struct stream *s,
 					stream_forward_getp(
 						s, subtlv_len - 2
 							   - ISIS_SYS_ID_LEN);
+					XFREE(MTYPE_ISIS_SUBTLV, lan);
 					break;
 				}
 
@@ -1126,6 +1137,7 @@ static int unpack_item_ext_subtlvs(uint16_t mtid, uint8_t len, struct stream *s,
 					stream_forward_getp(
 						s, subtlv_len - 2
 							   - ISIS_SYS_ID_LEN);
+					XFREE(MTYPE_ISIS_SUBTLV, lan);
 					break;
 				}
 
@@ -1891,6 +1903,7 @@ static void format_item_extended_reach(uint16_t mtid, struct isis_item *i,
 static void free_item_extended_reach(struct isis_item *i)
 {
 	struct isis_extended_reach *item = (struct isis_extended_reach *)i;
+
 	if (item->subtlvs != NULL)
 		free_item_ext_subtlvs(item->subtlvs);
 	XFREE(MTYPE_ISIS_TLV, item);
