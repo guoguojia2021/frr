@@ -2642,6 +2642,47 @@ static void zread_sr_policy_delete(ZAPI_HANDLER_ARGS)
 	zebra_sr_policy_del(policy);
 }
 
+static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
+{
+	struct stream *s;
+	struct zapi_sr_policy zp;
+	struct zapi_srv6te_tunnel *zt;
+	// struct zebra_sr_policy *policy;
+
+	/* Get input stream.  */
+	s = msg;
+	if (zapi_srv6_policy_decode(s, &zp) < 0) {
+		if (IS_ZEBRA_DEBUG_RECV)
+			zlog_debug("%s: Unable to decode zapi_srv6_policy sent",
+				   __func__);
+		return;
+	}
+	zt = &zp.srv6_tunnel;
+	if (zt->path_num < 1) {
+		if (IS_ZEBRA_DEBUG_RECV)
+			zlog_debug(
+				"%s: SR-TE tunnel must contain at least one path",
+				__func__);
+		return;
+	}
+}
+
+static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
+{
+	struct stream *s;
+	struct zapi_sr_policy zp;
+	// struct zebra_sr_policy *policy;
+
+	/* Get input stream.  */
+	s = msg;
+	if (zapi_srv6_policy_decode(s, &zp) < 0) {
+		if (IS_ZEBRA_DEBUG_RECV)
+			zlog_debug("%s: Unable to decode zapi_srv6_policy sent",
+				   __func__);
+		return;
+	}
+}
+
 int zsend_sr_policy_notify_status(uint32_t color, struct ipaddr *endpoint,
 				  char *name, int status)
 {
@@ -3731,6 +3772,9 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_BFD_DEST_DEREGISTER] = zebra_ptm_bfd_dst_deregister,
 #if HAVE_BFDD > 0
 	[ZEBRA_BFD_DEST_REPLAY] = zebra_ptm_bfd_dst_replay,
+	[ZEBRA_SBFD_DEST_REGISTER] = zebra_ptm_sbfd_dst_register,
+	[ZEBRA_SBFD_DEST_UPDATE] = zebra_ptm_sbfd_dst_register,
+    [ZEBRA_SBFD_DEST_DEREGISTER] = zebra_ptm_sbfd_dst_deregister,
 #endif /* HAVE_BFDD */
 	[ZEBRA_VRF_UNREGISTER] = zread_vrf_unregister,
 	[ZEBRA_VRF_LABEL] = zread_vrf_label,
@@ -3739,6 +3783,8 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_INTERFACE_DISABLE_RADV] = zebra_interface_radv_disable,
 	[ZEBRA_SR_POLICY_SET] = zread_sr_policy_set,
 	[ZEBRA_SR_POLICY_DELETE] = zread_sr_policy_delete,
+	[ZEBRA_SRV6_POLICY_SET] = zread_srv6_policy_set,
+	[ZEBRA_SRV6_POLICY_DELETE] = zread_srv6_policy_delete,
 	[ZEBRA_MPLS_LABELS_ADD] = zread_mpls_labels_add,
 	[ZEBRA_MPLS_LABELS_DELETE] = zread_mpls_labels_delete,
 	[ZEBRA_MPLS_LABELS_REPLACE] = zread_mpls_labels_replace,

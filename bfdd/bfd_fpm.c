@@ -975,7 +975,21 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
     strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
 
+	data->bpc_type = BPC_TYPE_CLS_BFD;
 
+    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		data->bpc_type = BPC_TYPE_SBFD_ECHO;
+        strncpy(data->bpc_seglistname, bfd->key.seglist_name, MAXNAMELEN);
+		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
+	}
+
+    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
+	{
+		data->bpc_type = BPC_TYPE_SBFD_INIT;
+        strncpy(data->bpc_seglistname, bfd->key.seglist_name, MAXNAMELEN);
+		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
+	}
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
     hdr->msg_len = htons(msg_len);
@@ -992,6 +1006,60 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     return;
 }
 
+/*
+ * bfd_fpm_sbfd_reflector_sendmsg - Format and send a sbfd reflector register/Unregister
+ */
+void bfd_fpm_sbfd_reflector_sendmsg(uint32_t discr, bool create)
+{
+    struct stream *msg = NULL;
+    int ret;
+    bfd_msg_hdr_t *hdr = NULL;
+    bfd_msg_data_t *data = NULL;
+    unsigned char *buf;
+    int msg_len = 0;
+
+    if (!hardwareBFD)
+        return;
+
+    /* Check socket. */
+    if (!bfpm_g || bfpm_g->sock < 0) {
+        zlog_debug(
+            "%s: Can't send BFD peer register, BfdFpm client not "
+            "established",
+            __FUNCTION__);
+        return;
+    }
+    msg = bfpm_g->obuf;
+    stream_reset(msg);
+    buf = STREAM_DATA(msg);
+    hdr = (bfd_msg_hdr_t *)buf;
+    hdr->version = BFDSYNC_PROTO_VERSION;
+    if (create)
+    {
+        hdr->msg_type = SBFD_CREATE_REFLECTOR;
+    }
+    else
+    {
+        hdr->msg_type = SBFD_DELETE_REFLECTOR;
+    }
+
+    data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
+    data->discrs.my_discr = htonl(discr);
+	data->bpc_type = BPC_TYPE_SBFD_RFLT;
+
+    msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
+    hdr->msg_len = htons(msg_len);
+    stream_forward_endp(msg, msg_len);
+    ret = bfdsync_send_message();
+
+    if (ret < 0) {
+        zlog_debug(
+            "bfd_fpm_sbfd_reflector_sendmsg: zclient_send_message() failed");
+        return;
+    }
+
+    return;
+}
 /**
  * zfpm_init
  *

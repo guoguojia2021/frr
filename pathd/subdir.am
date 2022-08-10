@@ -8,6 +8,7 @@ sbin_PROGRAMS += pathd/pathd
 vtysh_scan += \
 	pathd/path_cli.c \
 	pathd/path_ted.c \
+	pathd/path_sbfd.c \
 	#end
 vtysh_daemons += pathd
 # TODO add man page
@@ -30,12 +31,15 @@ pathd_libpath_a_SOURCES = \
 	pathd/path_ted.c \
 	pathd/path_zebra.c \
 	pathd/pathd.c \
+	pathd/path_sbfd.c \
+	pathd/path_db.c \
 	# end
 
 clippy_scan += \
 	pathd/path_cli.c \
 	pathd/path_pcep_cli.c \
 	pathd/path_ted.c \
+	pathd/path_sbfd.c \
 	# end
 
 noinst_HEADERS += \
@@ -52,6 +56,8 @@ noinst_HEADERS += \
 	pathd/path_ted.h \
 	pathd/path_zebra.h \
 	pathd/pathd.h \
+	pathd/path_sbfd.h \
+	pathd/path_db.h \
 	# end
 
 pathd_pathd_SOURCES = \
@@ -60,7 +66,7 @@ pathd_pathd_SOURCES = \
 nodist_pathd_pathd_SOURCES = \
 	yang/frr-pathd.yang.c \
 	# end
-pathd_pathd_LDADD = pathd/libpath.a lib/libfrr.la -lm $(LIBCAP)
+pathd_pathd_LDADD = pathd/libpath.a lib/libfrr.la -lm -ldl $(LIBCAP)
 
 pathd_pathd_pcep_la_SOURCES = \
 	pathd/path_pcep.c \

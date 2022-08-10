@@ -45,6 +45,7 @@
 
 
 static int config_write_segment_routing(struct vty *vty);
+static int config_write_segment_routing_srv6(struct vty *vty);
 static int segment_list_has_src_dst(
 	struct vty *vty, char *xpath, long index, const char *index_str,
 	struct in_addr adj_src_ipv4, struct in_addr adj_dst_ipv4,
@@ -69,6 +70,14 @@ static struct cmd_node segment_routing_node = {
 	.parent_node = CONFIG_NODE,
 	.prompt = "%s(config-sr)# ",
 	.config_write = config_write_segment_routing,
+};
+
+static struct cmd_node srv6_node = {
+	.name = "srv6",
+	.node = SRV6_NODE,
+	.parent_node = SEGMENT_ROUTING_NODE,
+	.prompt = "%s(config-srv6)# ",
+	.config_write = config_write_segment_routing_srv6,
 };
 
 static struct cmd_node sr_traffic_eng_node = {
@@ -244,6 +253,39 @@ DEFPY_NOSH(
 {
 	VTY_PUSH_CONTEXT_NULL(SR_TRAFFIC_ENG_NODE);
 	return CMD_SUCCESS;
+}
+
+DEFPY_NOSH (segment_routing_srv6,
+            segment_routing_srv6_cmd,
+            "srv6",
+            "Segment Routing SRv6\n")
+{
+	VTY_PUSH_CONTEXT_NULL(SRV6_NODE);
+    return CMD_SUCCESS;
+}
+
+DEFPY_NOSH (segment_routing_srv6_source_address,
+            segment_routing_srv6_source_address_cmd,
+            "encapsulation source-address X:X::X:X$addrv6",
+            "Encapsulation Segment Routing SRv6\n"
+			"Source Address\n"
+			"IPv6 address\n")
+{
+	nb_cli_enqueue_change(vty, "/frr-pathd:pathd/srte/encap-source-address", NB_OP_MODIFY, addrv6_str);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+
+DEFPY_NOSH (no_segment_routing_srv6_source_address,
+            no_segment_routing_srv6_source_address_cmd,
+            "no encapsulation source-address X:X::X:X",
+			NO_STR
+            "Encapsulation Segment Routing SRv6\n"
+			"Source Address\n"
+			"IPv6 address\n")
+{
+	nb_cli_enqueue_change(vty, "/frr-pathd:pathd/srte/encap-source-address", NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
 }
 
 /*
@@ -542,6 +584,23 @@ DEFPY(srte_segment_list_segment, srte_segment_list_segment_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFPY(srv6te_segment_list_segment, srv6te_segment_list_segment_cmd,
+      "index (0-4294967295)$index ipv6-address  X:X::X:X$ipv6_addr",
+      "Index\n"
+      "Index Value\n"
+      IPV6_STR
+      "IPv6 address\n")
+{
+	char xpath[XPATH_MAXLEN];
+	snprintf(xpath, sizeof(xpath), "./segment[index='%s']", index_str);
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+
+	snprintf(xpath, sizeof(xpath),
+			"./segment[index='%s']/srv6-sid-value", index_str);
+	nb_cli_enqueue_change(vty, xpath, NB_OP_MODIFY, ipv6_addr_str);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 DEFPY(srte_segment_list_no_segment,
       srte_segment_list_no_segment_cmd,
       "no index (0-4294967295)$index",
@@ -561,7 +620,11 @@ void cli_show_srte_segment_list_segment(struct vty *vty,
 					const struct lyd_node *dnode,
 					bool show_defaults)
 {
-	vty_out(vty, "   index %s", yang_dnode_get_string(dnode, "./index"));
+	vty_out(vty, "   index %s ", yang_dnode_get_string(dnode, "./index"));
+	if (yang_dnode_exists(dnode, "./srv6-sid-value")) {
+		vty_out(vty, " ipv6-address %s",
+			yang_dnode_get_string(dnode, "./srv6-sid-value"));
+	}
 	if (yang_dnode_exists(dnode, "./sid-value")) {
 		vty_out(vty, " mpls label %s",
 			yang_dnode_get_string(dnode, "./sid-value"));
@@ -729,6 +792,17 @@ DEFPY(srte_policy_binding_sid,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFPY(srte_policy_binding_v6_sid,
+      srte_policy_binding_v6_sid_cmd,
+      "binding-sid X:X::X:X$v6_sid",
+      "Segment Routing Policy Binding-SID\n"
+      "SR Policy Binding-SID v6 sid\n")
+{
+	nb_cli_enqueue_change(vty, "./binding-v6-sid", NB_OP_CREATE, v6_sid_str);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 DEFPY(srte_policy_no_binding_sid,
       srte_policy_no_binding_sid_cmd,
       "no binding-sid [(16-1048575)]",
@@ -741,8 +815,27 @@ DEFPY(srte_policy_no_binding_sid,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFPY(srte_policy_no_binding_v6_sid,
+      srte_policy_no_binding_v6_sid_cmd,
+      "no binding-sid X:X::X:X$v6_sid",
+      NO_STR
+      "Segment Routing Policy Binding-SID\n"
+      "SR Policy Binding-SID v6 sid\n")
+{
+	nb_cli_enqueue_change(vty, "./binding-v6-sid", NB_OP_DESTROY, NULL);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 void cli_show_srte_policy_binding_sid(struct vty *vty,
 				      const struct lyd_node *dnode,
+				      bool show_defaults)
+{
+	vty_out(vty, "   binding-sid %s\n", yang_dnode_get_string(dnode, NULL));
+}
+
+void cli_show_srte_policy_binding_v6_sid(struct vty *vty,
+				      struct lyd_node *dnode,
 				      bool show_defaults)
 {
 	vty_out(vty, "   binding-sid %s\n", yang_dnode_get_string(dnode, NULL));
@@ -754,7 +847,7 @@ void cli_show_srte_policy_binding_sid(struct vty *vty,
 DEFPY(srte_policy_candidate_exp,
       srte_policy_candidate_exp_cmd,
       "candidate-path preference (0-4294967295)$preference name WORD$name \
-	 explicit segment-list WORD$list_name",
+	 explicit segment-list WORD$list_name [weight$has_weight (1-4294967295)$weight_val]",
       "Segment Routing Policy Candidate Path\n"
       "Segment Routing Policy Candidate Path Preference\n"
       "Administrative Preference\n"
@@ -762,17 +855,33 @@ DEFPY(srte_policy_candidate_exp,
       "Symbolic Name\n"
       "Explicit Path\n"
       "List of SIDs\n"
-      "Name of the Segment List\n")
+      "Name of the Segment List\n"
+	  "Set Weight of Candidate Path\n"
+	  "Weight Value\n")
 {
-	nb_cli_enqueue_change(vty, ".", NB_OP_CREATE, preference_str);
-	nb_cli_enqueue_change(vty, "./name", NB_OP_MODIFY, name);
+	char xpath[XPATH_MAXLEN + XPATH_CANDIDATE_BASELEN];
+
+	snprintf(xpath, sizeof(xpath),
+	    "%s/candidate-path[preference='%s'][name='%s']",
+		 VTY_CURR_XPATH, preference_str, name);
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+
+	// nb_cli_enqueue_change(vty, "./name", NB_OP_MODIFY, name);
 	nb_cli_enqueue_change(vty, "./protocol-origin", NB_OP_MODIFY, "local");
 	nb_cli_enqueue_change(vty, "./originator", NB_OP_MODIFY, "config");
 	nb_cli_enqueue_change(vty, "./type", NB_OP_MODIFY, "explicit");
-	nb_cli_enqueue_change(vty, "./segment-list-name", NB_OP_MODIFY,
-			      list_name);
-	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s']",
-				    preference_str);
+	nb_cli_enqueue_change(vty, "./segment-list-name", NB_OP_MODIFY, list_name);
+	if (has_weight != NULL)
+	{
+		nb_cli_enqueue_change(vty, "./weight", NB_OP_MODIFY, weight_val_str);
+	}
+	else
+	{
+        nb_cli_enqueue_change(vty, "./weight", NB_OP_MODIFY, "1");
+	}
+	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s'][name='%s']",
+				    preference_str, name);
 }
 
 DEFPY_NOSH(
@@ -1203,6 +1312,8 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 	if (strmatch(type, "explicit"))
 		vty_out(vty, " segment-list %s",
 			yang_dnode_get_string(dnode, "./segment-list-name"));
+		vty_out(vty, " weight %s",
+			yang_dnode_get_string(dnode, "./weight"));
 	vty_out(vty, "\n");
 
 	if (strmatch(type, "dynamic")) {
@@ -1276,6 +1387,7 @@ int config_write_segment_routing(struct vty *vty)
 	vty_out(vty, "segment-routing\n");
 	vty_out(vty, " traffic-eng\n");
 
+
 	path_ted_config_write(vty);
 
 	yang_dnode_iterate(config_write_dnode, vty, running_config->dnode,
@@ -1291,14 +1403,30 @@ int config_write_segment_routing(struct vty *vty)
 	return 1;
 }
 
+int config_write_segment_routing_srv6(struct vty *vty)
+{
+	vty_out(vty, " srv6\n");
+
+	if (IS_IPADDR_V6(&encap_source_address))
+	{
+		char buf[INET6_ADDRSTRLEN];
+		ipaddr2str(&encap_source_address, buf, sizeof(buf)),
+        vty_out(vty, "  encapsulation source-address %s\n", buf);
+	}
+
+	return 1;
+}
+
 void path_cli_init(void)
 {
 	install_node(&segment_routing_node);
+	install_node(&srv6_node);
 	install_node(&sr_traffic_eng_node);
 	install_node(&srte_segment_list_node);
 	install_node(&srte_policy_node);
 	install_node(&srte_candidate_dyn_node);
 	install_default(SEGMENT_ROUTING_NODE);
+	install_default(SRV6_NODE);
 	install_default(SR_TRAFFIC_ENG_NODE);
 	install_default(SR_SEGMENT_LIST_NODE);
 	install_default(SR_POLICY_NODE);
@@ -1309,11 +1437,16 @@ void path_cli_init(void)
 	install_element(ENABLE_NODE, &show_srte_policy_detail_cmd);
 
 	install_element(CONFIG_NODE, &segment_routing_cmd);
+	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &sr_traffic_eng_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_segment_list_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_no_segment_list_cmd);
+	install_element(SRV6_NODE, &segment_routing_srv6_source_address_cmd);
+    install_element(SRV6_NODE, &no_segment_routing_srv6_source_address_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,
 			&srte_segment_list_segment_cmd);
+	install_element(SR_SEGMENT_LIST_NODE,
+			&srv6te_segment_list_segment_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,
 			&srte_segment_list_no_segment_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_policy_cmd);
@@ -1321,7 +1454,9 @@ void path_cli_init(void)
 	install_element(SR_POLICY_NODE, &srte_policy_name_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_no_name_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_binding_sid_cmd);
+	install_element(SR_POLICY_NODE, &srte_policy_binding_v6_sid_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_no_binding_sid_cmd);
+    install_element(SR_POLICY_NODE, &srte_policy_no_binding_v6_sid_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_candidate_exp_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_candidate_dyn_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_no_candidate_cmd);

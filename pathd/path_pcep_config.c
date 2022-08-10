@@ -331,7 +331,7 @@ int path_pcep_config_initiate_path(struct path *path)
 			SET_FLAG(policy->flags, F_POLICY_NEW);
 			candidate = srte_candidate_add(
 				policy, path->nbkey.preference,
-				SRTE_ORIGIN_PCEP, path->originator);
+				SRTE_ORIGIN_PCEP, path->originator, path->name);
 			candidate->policy->srp_id = path->srp_id;
 			strlcpy(candidate->name, path->name,
 				sizeof(candidate->name));

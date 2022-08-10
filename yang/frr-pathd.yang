@@ -85,6 +85,10 @@ module frr-pathd {
             type uint32;
             description "Segment index";
 	  }
+        leaf srv6-sid-value {
+          type inet:ip-address;
+          description "SRv6 sid value";
+        }
         leaf sid-value {
           type rt-types:mpls-label;
           description "MPLS label value";
@@ -190,6 +194,11 @@ module frr-pathd {
           description
             "BSID of the SR Policy.";
         }
+        leaf binding-v6-sid {
+          type inet:ip-address;
+          description 
+            "BSID of the SR Policy.";
+        }
         leaf is-operational {
           type boolean;
           config false;
@@ -200,7 +209,7 @@ module frr-pathd {
           unique "name";
           description
             "List of Candidate Paths of the SR Policy.";
-          key "preference";
+          key "preference name";
           leaf preference {
             type uint32;
             description
@@ -248,6 +257,12 @@ module frr-pathd {
                 value 2;
               }
             }
+          }
+          leaf weight {
+            type uint32;
+            default 1;
+            description
+              "Weight of the Candidate Path.";
           }
           leaf segment-list-name {
             type leafref {
@@ -499,6 +514,58 @@ module frr-pathd {
             }
           }
         }
+        list sbfd {
+          key "type";
+          leaf type {
+            description "Sbfd type.";
+            type enumeration {
+              enum echo {
+                value 1;
+                description "echo";
+              }
+              enum iniatior {
+                value 2;
+                description "iniatior";
+              }
+            }
+          }
+          leaf remote-discr {
+            type uint32;
+            default 0;
+            description
+              "SBFD Remote Discriminator.";
+          }
+          leaf detect-multiplier {
+            type uint8 {
+              range "1..255";
+            }
+            default "3";
+            description
+              "SBFD Detect Multiplier.";
+          }
+          leaf source-address {
+            type inet:ip-address;
+            description
+              "SBFD source address.";
+          }
+          leaf required-min-receive-interval {
+            type uint32;
+            default 300;
+            description
+              "SBFD Required min receive interval.";
+          }
+          leaf desired-min-transmit-interval {
+            type uint32;
+            default 300;
+            description
+              "SBFD Desired min transmit interval.";
+          }
+        }
+      }
+      leaf encap-source-address {
+        type inet:ip-address;
+        description
+          "SRv6 default encapsulation source address.";
       }
     }
   }

@@ -215,6 +215,65 @@ void path_zebra_delete_sr_policy(struct srte_policy *policy)
 }
 
 /**
+ * Adds a segment routing policy to Zebra.
+ *
+ * @param policy The policy to add
+ * @param segment_list The segment list for the policy
+ */
+void path_zebra_add_srv6_policy(struct srte_policy *policy,
+			      struct srte_candidate_group *candidate_group)
+{
+	struct zapi_sr_policy zp = {};
+	struct srte_segment_entry *segment;
+	struct srte_candidate *candidate;
+	uint32_t count = 0;
+
+	zp.color = policy->color;
+	zp.endpoint = policy->endpoint;
+	strlcpy(zp.name, policy->name, sizeof(zp.name));
+	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
+	
+	zp.srv6_tunnel.path_num =  candidate_group->up_cpath_num;
+	
+	
+	RB_FOREACH (candidate, srte_candidate_head, &candidate_group->candidate_paths) {
+
+		if (candidate->segment_list == NULL || candidate->segment_list->status == SBFD_DOWN) {
+			continue;
+		}
+        
+		if (count < zp.srv6_tunnel.path_num)
+		{
+			strlcpy(zp.srv6_tunnel.sidlists[count].sidlist_name, candidate->segment_list->name,
+				sizeof(zp.srv6_tunnel.sidlists[count].sidlist_name));
+			zp.srv6_tunnel.sidlists[count].weight = candidate->weight;
+			count++;
+		}
+	}
+
+	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
+}
+
+/**
+ * Deletes a segment policy from Zebra.
+ *
+ * @param policy The policy to remove
+ */
+void path_zebra_delete_srv6_policy(struct srte_policy *policy)
+{
+	struct zapi_sr_policy zp = {};
+
+	zp.color = policy->color;
+	zp.endpoint = policy->endpoint;
+	strlcpy(zp.name, policy->name, sizeof(zp.name));
+	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
+
+	zp.srv6_tunnel.path_num = 0;
+	
+	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_DELETE, &zp);
+}
+
+/**
  * Allocates a label from Zebra's label manager.
  *
  * @param label the label to be allocated

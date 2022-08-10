@@ -116,12 +116,15 @@ static const struct in6_addr i6a_zero;
  */
 static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 					   struct prefix *sp, int *status,
-					   int *remote_cbit, vrf_id_t vrf_id)
+					   int *remote_cbit, uint32_t *srte_color, char *seglist_name,
+					   vrf_id_t vrf_id)
 {
 	unsigned int ifindex;
 	struct interface *ifp = NULL;
 	int plen;
 	int local_remote_cbit;
+	uint32_t color;
+	uint8_t seglist_name_len;
 
 	/*
 	 * If the ifindex lookup fails the
@@ -168,6 +171,17 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	STREAM_GETC(s, local_remote_cbit);
 	if (remote_cbit)
 		*remote_cbit = local_remote_cbit;
+
+    /*support sbfd*/
+	STREAM_GETL(s, color);
+	*srte_color = color;
+    
+	STREAM_GETC(s, seglist_name_len);
+	if (seglist_name_len > 0)
+	{
+        STREAM_GET(seglist_name, s, seglist_name_len);
+	}
+
 	return ifp;
 
 stream_failure:
@@ -269,6 +283,7 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 {
 	struct stream *s;
 	size_t addrlen;
+	int len;
 
 	/* Individual reg/dereg messages are suppressed during shutdown. */
 	if (bsglobal.shutting_down) {
@@ -339,6 +354,38 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 	stream_putc(s, args->profilelen);
 	if (args->profilelen)
 		stream_put(s, args->profile, args->profilelen);
+
+	if (args->command == ZEBRA_SBFD_DEST_REGISTER
+	    || args->command == ZEBRA_SBFD_DEST_UPDATE) {
+		stream_putc(s, args->is_sbfd_echo); // is sbfd echo
+		stream_putl(s, args->sr_color);  // color
+		stream_put(s, &args->sr_endpoint, addrlen); // endpoint
+		/*sbfd remote discr ,if is sbfd echo discr == 0*/
+        stream_putl(s, args->sbfd_remote_discr);
+		// sidlist name
+		len = strlen(args->seglist_name);
+		stream_putc(s, len);
+		stream_put(s, args->seglist_name, len);
+        stream_putc(s, args->seglist_seg_num);
+		int i;
+		for(i=0; i < args->seglist_seg_num; i++)
+		{
+            stream_put(s, &args->seglist[i], addrlen);
+		}
+	}
+	else if (args->command == ZEBRA_SBFD_DEST_DEREGISTER)
+	{
+		stream_putc(s, args->is_sbfd_echo); // is sbfd echo
+		stream_putl(s, args->sr_color);  // color
+		stream_put(s, &args->sr_endpoint, addrlen); // endpoint
+		/*sbfd remote discr ,if is sbfd echo discr == 0*/
+        stream_putl(s, args->sbfd_remote_discr);
+		// sidlist name
+		len = strlen(args->seglist_name);
+		stream_putc(s, len);
+		stream_put(s, args->seglist_name, len);		
+	}
+
 #else /* PTM BFD */
 	/* Encode timers if this is a registration message. */
 	if (args->command != ZEBRA_BFD_DEST_DEREGISTER) {
@@ -508,6 +555,53 @@ static int _bfd_sess_send(struct thread *t)
 	return 0;
 }
 
+static int _sbfd_sess_send(struct thread *t)
+{
+	struct bfd_session_params *bsp = THREAD_ARG(t);
+	int rv;
+
+	/* Validate configuration before trying to send bogus data. */
+	if (!_bfd_sess_valid(bsp))
+		return 0;
+
+	if (bsp->lastev == BSE_INSTALL) {
+		bsp->args.command = bsp->installed ? ZEBRA_SBFD_DEST_UPDATE
+						   : ZEBRA_SBFD_DEST_REGISTER;
+	} else
+		bsp->args.command = ZEBRA_SBFD_DEST_DEREGISTER;
+
+	/* If not installed and asked for uninstall, do nothing. */
+	if (!bsp->installed && bsp->args.command == ZEBRA_SBFD_DEST_DEREGISTER)
+		return 0;
+
+	rv = zclient_bfd_command(bsglobal.zc, &bsp->args);
+	/* Command was sent successfully. */
+	if (rv == 0) {
+		/* Update installation status. */
+		if (bsp->args.command == ZEBRA_SBFD_DEST_DEREGISTER)
+			bsp->installed = false;
+		else if (bsp->args.command == ZEBRA_SBFD_DEST_REGISTER)
+			bsp->installed = true;
+	} else {
+		struct ipaddr src, dst;
+
+		src.ipa_type = bsp->args.family;
+		src.ipaddr_v6 = bsp->args.src;
+		dst.ipa_type = bsp->args.family;
+		dst.ipaddr_v6 = bsp->args.dst;
+
+		zlog_err(
+			"%s: SBFD session %pIA -> %pIA interface %s VRF %s(%u) was not %s",
+			__func__, &src, &dst,
+			bsp->args.ifnamelen ? bsp->args.ifname : "*",
+			vrf_id_to_name(bsp->args.vrf_id), bsp->args.vrf_id,
+			bsp->lastev == BSE_INSTALL ? "installed"
+						   : "uninstalled");
+	}
+
+	return 0;
+}
+
 static void _bfd_sess_remove(struct bfd_session_params *bsp)
 {
 	/* Not installed, nothing to do. */
@@ -522,6 +616,20 @@ static void _bfd_sess_remove(struct bfd_session_params *bsp)
 	thread_execute(bsglobal.tm, _bfd_sess_send, bsp, 0);
 }
 
+static void _sbfd_sess_remove(struct bfd_session_params *bsp)
+{
+	/* Not installed, nothing to do. */
+	if (!bsp->installed)
+		return;
+
+	/* Cancel any pending installation request. */
+	THREAD_OFF(bsp->installev);
+
+	/* Send request to remove any session. */
+	bsp->lastev = BSE_UNINSTALL;
+	thread_execute(bsglobal.tm, _sbfd_sess_send, bsp, 0);
+}
+
 void bfd_sess_free(struct bfd_session_params **bsp)
 {
 	if (*bsp == NULL)
@@ -529,6 +637,21 @@ void bfd_sess_free(struct bfd_session_params **bsp)
 
 	/* Remove any installed session. */
 	_bfd_sess_remove(*bsp);
+
+	/* Remove from global list. */
+	TAILQ_REMOVE(&bsglobal.bsplist, (*bsp), entry);
+
+	/* Free the memory and point to NULL. */
+	XFREE(MTYPE_BFD_INFO, (*bsp));
+}
+
+void sbfd_sess_free(struct bfd_session_params **bsp)
+{
+	if (*bsp == NULL)
+		return;
+
+	/* Remove any installed session. */
+	_sbfd_sess_remove(*bsp);
 
 	/* Remove from global list. */
 	TAILQ_REMOVE(&bsglobal.bsplist, (*bsp), entry);
@@ -679,16 +802,80 @@ void bfd_sess_set_timers(struct bfd_session_params *bsp,
 	bsp->args.min_tx = min_tx;
 }
 
+void sbfd_sess_set_srpolicy_info(struct bfd_session_params *bsp, uint32_t color, struct in6_addr* endpoint)
+{
+	memcpy(&bsp->args.sr_endpoint, endpoint, sizeof(struct in6_addr));
+	bsp->args.sr_color = color;
+}
+
+struct in6_addr* sbfd_sess_get_srpolicy_endpoint(struct bfd_session_params *bsp)
+{
+	return &(bsp->args.sr_endpoint);
+}
+
+uint32_t sbfd_sess_get_srpolicy_color(struct bfd_session_params *bsp)
+{
+	return bsp->args.sr_color;
+}
+
+void sbfd_sess_set_sbfd_echo(struct bfd_session_params *bsp, uint32_t sbfd_echo_flag)
+{
+	bsp->args.is_sbfd_echo = sbfd_echo_flag;
+}
+
+void sbfd_sess_set_segments(struct bfd_session_params *bsp, char* seglist_name, uint8_t segnum, struct in6_addr* seglist)
+{
+	if (segnum == 0)
+		return;
+    
+	uint32_t i = 0;
+	
+    while (i < segnum && seglist)
+	{
+		/* code */
+		
+		memcpy(&bsp->args.seglist[i], seglist, sizeof(struct in6_addr));
+		seglist++;
+		i++;
+	}
+
+	bsp->args.seglist_seg_num = i;
+
+	memcpy(bsp->args.seglist_name , seglist_name, 64);
+}
+
+void sbfd_sess_set_segment_list_name(struct bfd_session_params *bsp, char* seglist_name)
+{
+	memcpy(bsp->args.seglist_name , seglist_name, 64);
+}
+
+void bfd_sess_set_remote_discr(struct bfd_session_params *bsp, uint32_t discr)
+{
+	bsp->args.sbfd_remote_discr = discr;
+}
+
 void bfd_sess_install(struct bfd_session_params *bsp)
 {
 	bsp->lastev = BSE_INSTALL;
 	thread_add_event(bsglobal.tm, _bfd_sess_send, bsp, 0, &bsp->installev);
 }
 
+void sbfd_sess_install(struct bfd_session_params *bsp)
+{
+	bsp->lastev = BSE_INSTALL;
+	thread_add_event(bsglobal.tm, _sbfd_sess_send, bsp, 0, &bsp->installev);
+}
+
 void bfd_sess_uninstall(struct bfd_session_params *bsp)
 {
 	bsp->lastev = BSE_UNINSTALL;
 	thread_add_event(bsglobal.tm, _bfd_sess_send, bsp, 0, &bsp->installev);
+}
+
+void sbfd_sess_uninstall(struct bfd_session_params *bsp)
+{
+	bsp->lastev = BSE_UNINSTALL;
+	thread_add_event(bsglobal.tm, _sbfd_sess_send, bsp, 0, &bsp->installev);
 }
 
 enum bfd_session_state bfd_sess_status(const struct bfd_session_params *bsp)
@@ -856,6 +1043,8 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	struct prefix dp;
 	struct prefix sp;
 	char ifstr[128], cbitstr[32];
+	uint32_t srte_color;
+	char seglist_name[64];
 
 	if (!zclient->bfd_integration)
 		return 0;
@@ -864,7 +1053,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	if (bsglobal.shutting_down)
 		return 0;
 
-	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,
+	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,  &srte_color, seglist_name,
 				vrf_id);
 	/*
 	 * When interface lookup fails or an invalid stream is read, we must
@@ -933,6 +1122,15 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 		    && memcmp(&sp.u, &i6a_zero, addrlen) != 0
 		    && memcmp(&bsp->args.src, &sp.u, addrlen) != 0)
 			continue;
+        
+		/*support sbfd*/
+		if (bsp->args.sr_color != srte_color)
+		    continue;
+	    
+		if (bsp->args.seglist_name[0] && seglist_name[0] 
+		    && strcmp(bsp->args.seglist_name, seglist_name) != 0)
+			continue;
+
 		/* No session state change. */
 		if ((int)bsp->bss.state == state)
 			continue;

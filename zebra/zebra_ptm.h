@@ -69,7 +69,8 @@ struct zebra_ptm_cb {
 	(protocol) == ZEBRA_ROUTE_OSPF6 || \
 	(protocol) == ZEBRA_ROUTE_ISIS || \
 	(protocol) == ZEBRA_ROUTE_PIM || \
-	(protocol) == ZEBRA_ROUTE_OPENFABRIC \
+	(protocol) == ZEBRA_ROUTE_OPENFABRIC || \
+	(protocol) == ZEBRA_ROUTE_SRTE \
 )
 
 void zebra_ptm_init(void);
@@ -84,6 +85,9 @@ void zebra_ptm_bfd_dst_deregister(ZAPI_HANDLER_ARGS);
 void zebra_ptm_bfd_client_register(ZAPI_HANDLER_ARGS);
 #if HAVE_BFDD > 0
 void zebra_ptm_bfd_dst_replay(ZAPI_HANDLER_ARGS);
+void zebra_ptm_sbfd_dst_register(ZAPI_HANDLER_ARGS);
+void zebra_ptm_sbfd_dst_deregister(ZAPI_HANDLER_ARGS);
+void zebra_ptm_sbfd_dst_replay(ZAPI_HANDLER_ARGS);
 #endif /* HAVE_BFDD */
 
 void zebra_ptm_show_status(struct vty *vty, json_object *json,

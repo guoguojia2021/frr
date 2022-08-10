@@ -132,6 +132,10 @@ typedef enum {
 	ZEBRA_BFD_DEST_DEREGISTER,
 	ZEBRA_BFD_DEST_UPDATE,
 	ZEBRA_BFD_DEST_REPLAY,
+	ZEBRA_SBFD_DEST_REGISTER,
+	ZEBRA_SBFD_DEST_DEREGISTER,
+	ZEBRA_SBFD_DEST_UPDATE,
+	ZEBRA_SBFD_DEST_REPLAY,
 	ZEBRA_REDISTRIBUTE_ROUTE_ADD,
 	ZEBRA_REDISTRIBUTE_ROUTE_DEL,
 	ZEBRA_VRF_UNREGISTER,
@@ -151,6 +155,9 @@ typedef enum {
 	ZEBRA_SR_POLICY_SET,
 	ZEBRA_SR_POLICY_DELETE,
 	ZEBRA_SR_POLICY_NOTIFY_STATUS,
+	ZEBRA_SRV6_POLICY_SET,
+	ZEBRA_SRV6_POLICY_DELETE,
+	ZEBRA_SRV6_POLICY_NOTIFY_STATUS,
 	ZEBRA_IPMR_ROUTE_STATS,
 	ZEBRA_LABEL_MANAGER_CONNECT,
 	ZEBRA_LABEL_MANAGER_CONNECT_ASYNC,
@@ -613,11 +620,30 @@ struct zapi_srte_tunnel {
 	mpls_label_t labels[MPLS_MAX_LABELS];
 };
 
+enum zapi_srte_tunnel_type {
+	SRTE_TUNNEL_TYPE_UNKNOWN = 0,
+	SRTE_TUNNEL_TYPE_SRMPLS = 1,
+	SRTE_TUNNEL_TYPE_SRV6 = 2,
+};
+
+struct zapi_srv6_active_sidlist{
+    char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
+    uint32_t weight;
+};
+
+struct zapi_srv6te_tunnel {
+    uint32_t path_num;
+    struct zapi_srv6_active_sidlist sidlists[16];
+};
+
 struct zapi_sr_policy {
 	uint32_t color;
 	struct ipaddr endpoint;
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
+    enum zapi_srte_tunnel_type tunnel_type;  //sr-mpls. or srv6
 	struct zapi_srte_tunnel segment_list;
+    /*srv6 tunnel*/
+    struct zapi_srv6te_tunnel srv6_tunnel;
 	int status;
 };
 
@@ -1048,6 +1074,9 @@ extern enum zclient_send_status zebra_send_sr_policy(struct zclient *zclient,
 extern int zapi_sr_policy_encode(struct stream *s, int cmd,
 				 struct zapi_sr_policy *zp);
 extern int zapi_sr_policy_decode(struct stream *s, struct zapi_sr_policy *zp);
+extern int zapi_srv6_policy_encode(struct stream *s, int cmd,
+				 struct zapi_sr_policy *zp);
+extern int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp);
 extern int zapi_sr_policy_notify_status_decode(struct stream *s,
 					       struct zapi_sr_policy *zp);
 

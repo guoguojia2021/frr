@@ -24,6 +24,12 @@
 
 #include "pathd/path_zebra.h"
 #include "pathd/path_nb.h"
+#include "pathd/path_sbfd.h"
+#include "pathd/pathd.h"
+struct ipaddr encap_source_address = {
+	.ipa_type = IPADDR_NONE,
+	.ipaddr_v6 = IN6ADDR_ANY_INIT,
+};
 
 /*
  * XPath: /frr-pathd:pathd
@@ -154,6 +160,7 @@ int pathd_srte_segment_list_segment_sid_value_modify(
 
 	segment = nb_running_get_entry(args->dnode, NULL, true);
 	sid_value = yang_dnode_get_uint32(args->dnode, NULL);
+	segment->sid_type = SRTE_SEGMENT_SID_TYPE_MPLS;
 	segment->sid_value = sid_value;
 	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
 
@@ -169,12 +176,49 @@ int pathd_srte_segment_list_segment_sid_value_destroy(
 		return NB_OK;
 
 	segment = nb_running_get_entry(args->dnode, NULL, true);
+	segment->sid_type = SRTE_SEGMENT_SID_TYPE_UNDEFINED;
 	segment->sid_value = MPLS_LABEL_NONE;
 	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
 
 	return NB_OK;
 }
 
+/*
+ * XPath: /frr-pathd:pathd/srte/segment-list/segment/srv6-sid-value
+ */
+int pathd_srte_segment_list_segment_v6_sid_value_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct ipaddr sid_value;
+	struct srte_segment_entry *segment;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	segment = nb_running_get_entry(args->dnode, NULL, true);
+	yang_dnode_get_ip(&sid_value, args->dnode, NULL);
+	segment->sid_type = SRTE_SEGMENT_SID_TYPE_V6;
+	segment->srv6_sid_value = sid_value;
+	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+	return NB_OK;
+}
+
+int pathd_srte_segment_list_segment_v6_sid_value_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	struct srte_segment_entry *segment;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	segment = nb_running_get_entry(args->dnode, NULL, true);
+	segment->sid_type = SRTE_SEGMENT_SID_TYPE_UNDEFINED;
+	memset(&segment->srv6_sid_value, 0, sizeof(struct ipaddr));
+	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+	return NB_OK;
+}
 
 int pathd_srte_segment_list_segment_nai_destroy(struct nb_cb_destroy_args *args)
 {
@@ -375,6 +419,48 @@ int pathd_srte_policy_binding_sid_destroy(struct nb_cb_destroy_args *args)
 }
 
 /*
+ * XPath: /frr-pathd:pathd/srte/policy/binding-v6-sid
+ */
+int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args)
+{
+	struct srte_policy *policy;
+	struct ipaddr binding_sid;
+	yang_dnode_get_ip(&binding_sid, args->dnode, NULL);
+
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+		break;
+	case NB_EV_PREPARE:
+		// if (path_zebra_request_label(binding_sid) < 0)
+		// 	return NB_ERR_RESOURCE;
+		break;
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		policy = nb_running_get_entry(args->dnode, NULL, true);
+		policy->binding_v6_sid = binding_sid;
+		SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+		break;
+	}
+
+	return NB_OK;
+}
+
+int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args)
+{
+	struct srte_policy *policy;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	policy = nb_running_get_entry(args->dnode, NULL, true);
+	memset(&policy->binding_v6_sid, 0 , sizeof(struct ipaddr));
+	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+
+	return NB_OK;
+}
+
+/*
  * XPath: /frr-pathd:pathd/srte/policy/candidate-path
  */
 int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
@@ -382,16 +468,22 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 	struct srte_policy *policy;
 	struct srte_candidate *candidate;
 	uint32_t preference;
+	char *name;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	preference = yang_dnode_get_uint32(args->dnode, "./preference");
-	candidate =
-		srte_candidate_add(policy, preference, SRTE_ORIGIN_LOCAL, NULL);
+	name = yang_dnode_get_string(args->dnode, "./name");
+
+	candidate = srte_candidate_add(policy, preference, SRTE_ORIGIN_LOCAL, NULL, name);
+	srte_candidate_add_group(policy, candidate);
+
 	nb_running_set_entry(args->dnode, candidate);
 	SET_FLAG(candidate->flags, F_CANDIDATE_NEW);
+    
+	sbfd_update_flag_one_policy(policy);
 
 	return NB_OK;
 }
@@ -705,6 +797,7 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 {
 	struct srte_candidate *candidate;
 	const char *segment_list_name;
+	struct srte_segment_list *old_segment_list;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -712,10 +805,17 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
 	segment_list_name = yang_dnode_get_string(args->dnode, NULL);
 
+	if (candidate->segment_list)
+	{
+		sbfd_candidate_seglist_disable(candidate);
+	}
+
 	candidate->segment_list = srte_segment_list_find(segment_list_name);
 	candidate->lsp->segment_list = candidate->segment_list;
 	assert(candidate->segment_list);
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+
+	sbfd_update_flag_one_policy(candidate->policy);
 
 	return NB_OK;
 }
@@ -729,6 +829,12 @@ int pathd_srte_policy_candidate_path_segment_list_name_destroy(
 		return NB_OK;
 
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
+
+	if (candidate->segment_list)
+	{
+		sbfd_candidate_seglist_disable(candidate);
+	}
+
 	candidate->segment_list = NULL;
 	candidate->lsp->segment_list = NULL;
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
@@ -765,5 +871,56 @@ int pathd_srte_policy_candidate_path_bandwidth_destroy(
 	assert(args->context != NULL);
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
 	srte_candidate_unset_bandwidth(candidate);
+	return NB_OK;
+}
+
+
+/*
+ * XPath: /frr-pathd:pathd/srte/policy/candidate-path/weight
+ */
+int pathd_srte_policy_candidate_path_weight_modify(struct nb_cb_modify_args *args)
+{
+	struct srte_candidate *candidate;
+	uint32_t weight;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	candidate = nb_running_get_entry(args->dnode, NULL, true);
+	weight = yang_dnode_get_uint32(args->dnode, NULL);
+	candidate->weight = weight;
+
+	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-pathd:pathd/srte/encap-source-address
+ */
+int pathd_srte_encap_source_address_modify(struct nb_cb_modify_args *args)
+{
+	struct ipaddr source;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	yang_dnode_get_ip(&source, args->dnode, NULL);
+    
+    encap_source_address.ipa_type = IPADDR_V6;
+	encap_source_address.ipaddr_v6 = source.ipaddr_v6;
+
+	sbfd_update_flag_all_policy();
+	
+	return NB_OK;
+}
+
+int pathd_srte_encap_source_address_destroy(struct nb_cb_destroy_args *args)
+{
+	encap_source_address.ipa_type = IPADDR_NONE;
+	memset(&encap_source_address.ipaddr_v6, 0, sizeof(encap_source_address.ipaddr_v6));
+
+	sbfd_update_flag_all_policy();
+
 	return NB_OK;
 }

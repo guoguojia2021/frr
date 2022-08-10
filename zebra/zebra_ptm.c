@@ -1551,6 +1551,24 @@ void zebra_ptm_bfd_dst_replay(ZAPI_HANDLER_ARGS)
 	zebra_ptm_send_clients(msgc);
 }
 
+void zebra_ptm_sbfd_dst_register(ZAPI_HANDLER_ARGS)
+{
+	if (IS_ZEBRA_DEBUG_EVENT)
+		zlog_debug("sbfd_dst_register msg from client %s: length=%d",
+			   zebra_route_string(client->proto), hdr->length);
+
+	_zebra_ptm_reroute(client, zvrf, msg, ZEBRA_SBFD_DEST_REGISTER);
+}
+
+void zebra_ptm_sbfd_dst_deregister(ZAPI_HANDLER_ARGS)
+{
+	if (IS_ZEBRA_DEBUG_EVENT)
+		zlog_debug("sbfd_dst_deregister msg from client %s: length=%d",
+			   zebra_route_string(client->proto), hdr->length);
+
+	_zebra_ptm_reroute(client, zvrf, msg, ZEBRA_SBFD_DEST_DEREGISTER);
+}
+
 /*
  * Unused functions.
  */

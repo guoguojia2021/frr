@@ -96,6 +96,14 @@ const struct frr_yang_module_info frr_pathd_info = {
 			.priority = NB_DFLT_PRIORITY - 1
 		},
 		{
+			.xpath = "/frr-pathd:pathd/srte/segment-list/segment/srv6-sid-value",
+			.cbs = {
+				.modify = pathd_srte_segment_list_segment_v6_sid_value_modify,
+				.destroy = pathd_srte_segment_list_segment_v6_sid_value_destroy,
+			},
+			.priority = NB_DFLT_PRIORITY - 1
+		},
+		{
 			.xpath = "/frr-pathd:pathd/srte/segment-list/segment/nai",
 			.cbs = {
 				.create = dummy_create,
@@ -161,9 +169,57 @@ const struct frr_yang_module_info frr_pathd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-pathd:pathd/srte/policy/binding-v6-sid",
+			.cbs = {
+				.modify = pathd_srte_policy_binding_v6_sid_modify,
+				.cli_show = cli_show_srte_policy_binding_v6_sid,
+				.destroy = pathd_srte_policy_binding_v6_sid_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-pathd:pathd/srte/policy/is-operational",
 			.cbs = {
 				.get_elem = pathd_srte_policy_is_operational_get_elem
+			}
+		},
+		/* sbfd echo and initiator*/
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd",
+			.cbs = {
+				.create = pathd_srte_policy_sbfd_create,
+				.cli_show = cli_show_srte_policy_sbfd,
+				.destroy = pathd_srte_policy_sbfd_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/remote-discr",
+			.cbs = {
+				.modify = pathd_srte_policy_sbfd_remote_discr_modify,
+			}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/source-address",
+			.cbs = {
+				.modify = pathd_srte_policy_sbfd_source_address_modify,
+				.destroy = dummy_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/detect-multiplier",
+			.cbs = {
+				.modify = pathd_srte_policy_sbfd_detect_multiplier_modify,
+			}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/required-min-receive-interval",
+			.cbs = {
+				.modify = pathd_srte_policy_sbfd_mri_modify,
+			}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/desired-min-transmit-interval",
+			.cbs = {
+				.modify = pathd_srte_policy_sbfd_mti_modify,
 			}
 		},
 		{
@@ -178,12 +234,12 @@ const struct frr_yang_module_info frr_pathd_info = {
 				.lookup_entry = pathd_srte_policy_candidate_path_lookup_entry,
 			}
 		},
-		{
-			.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/name",
-			.cbs = {
-				.modify = pathd_srte_policy_candidate_path_name_modify,
-			}
-		},
+		// {
+		// 	.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/name",
+		// 	.cbs = {
+		// 		.modify = pathd_srte_policy_candidate_path_name_modify,
+		// 	}
+		// },
 		{
 			.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/is-best-candidate-path",
 			.cbs = {
@@ -297,6 +353,19 @@ const struct frr_yang_module_info frr_pathd_info = {
 		{
 			.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/constraints/objective-function/type",
 			.cbs = {.modify = dummy_modify}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/weight",
+			.cbs = {
+				.modify = pathd_srte_policy_candidate_path_weight_modify,
+			}
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/encap-source-address",
+			.cbs = {
+				.modify = pathd_srte_encap_source_address_modify, 
+				.destroy = pathd_srte_encap_source_address_destroy,
+			}
 		},
 		{
 			.xpath = NULL,

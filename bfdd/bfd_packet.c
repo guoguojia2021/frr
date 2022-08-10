@@ -28,10 +28,12 @@
 
 #ifdef BFD_LINUX
 #include <linux/if_packet.h>
+#include <linux/seg6.h>
 #endif /* BFD_LINUX */
 
 #include <netinet/if_ether.h>
 #include <netinet/udp.h>
+#include <netinet/ip6.h>
 
 #include "lib/sockopt.h"
 
@@ -44,6 +46,8 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s);
 int _ptm_bfd_send(struct bfd_session *bs, uint16_t *port, const void *data,
 		  size_t datalen);
 
+int _ptm_sbfd_send(struct bfd_session *bs,  const void *data, size_t datalen);
+
 static void bfd_sd_reschedule(struct bfd_vrf_global *bvrf, int sd);
 ssize_t bfd_recv_ipv4(int sd, uint8_t *msgbuf, size_t msgbuflen, uint8_t *ttl,
 		      ifindex_t *ifindex, struct sockaddr_any *local,
@@ -55,6 +59,10 @@ int bp_udp_send(int sd, uint8_t ttl, uint8_t *data, size_t datalen,
 		struct sockaddr *to, socklen_t tolen);
 int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
 		   uint8_t *ttl, uint32_t *my_discr);
+
+int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t src_port, uint16_t dst_port,
+    uint8_t seg_num, struct in6_addr* segment_list);
 
 /* socket related prototypes */
 static void bp_set_ipopts(int sd);
@@ -126,6 +134,57 @@ int _ptm_bfd_send(struct bfd_session *bs, uint16_t *port, const void *data,
 	return 0;
 }
 
+/*
+ * Functions
+ */
+int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
+{
+	int sd = -1;
+	struct sockaddr_in6 sin6;
+	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
+
+	int seg_num;
+	struct in6_addr* segment_list;
+
+	if (!bvrf)
+		return -1;
+
+    seg_num = bfd->segnum;
+	if (seg_num > 0)
+	    segment_list = bfd->seg_list;
+	else
+	    return -1;
+
+	if (bvrf->bg_sbfd == -1)
+		return -1;
+
+	sd = bvrf->bg_sbfd;
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	memcpy(&sin6.sin6_addr, &bfd->seg_list[seg_num-1], sizeof(sin6.sin6_addr)); // first_segment
+	if (bfd->ifp && IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
+		sin6.sin6_scope_id = bfd->ifp->ifindex;
+
+	sin6.sin6_port = 0;
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
+	sin6.sin6_len = sizeof(sin6);
+#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
+
+    if (bp_raw_sbfd_send(sd, (uint8_t *)data, datalen, &bfd->key.local , &bfd->key.peer, 
+	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
+	{
+		char endpoint[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
+		zlog_err(
+			"sbfd initiator send failed , sr policy color is %d , endpoint is %s, sidlist is %s.", 
+			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
+        return -1;
+	}
+
+	bfd->stats.tx_ctrl_pkt++;
+	return 0;
+}
+
 void ptm_bfd_echo_snd(struct bfd_session *bfd)
 {
 	struct sockaddr *sa;
@@ -184,6 +243,112 @@ void ptm_bfd_echo_snd(struct bfd_session *bfd)
 	bfd->stats.tx_echo_pkt++;
 }
 
+
+void ptm_sbfd_initiator_snd(struct bfd_session *bfd, int fbit)
+{
+	struct bfd_pkt cp = {};
+
+	/* Set fields according to section 6.5.7 */
+	cp.diag = bfd->local_diag;
+	BFD_SETVER(cp.diag, BFD_VERSION);
+	cp.flags = 0;
+	BFD_SETSTATE(cp.flags, bfd->ses_state);
+
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_CBIT))
+		BFD_SETCBIT(cp.flags, BFD_CBIT);
+
+	BFD_SETDEMANDBIT(cp.flags, BFD_SBFD_INITIATOR_DEMAND);
+
+	/*
+	 * Polling and Final can't be set at the same time.
+	 *
+	 * RFC 5880, Section 6.5.
+	 */
+	BFD_SETFBIT(cp.flags, fbit);
+	if (fbit == 0)
+		BFD_SETPBIT(cp.flags, bfd->polling);
+
+	cp.detect_mult = bfd->detect_mult;
+	cp.len = BFD_PKT_LEN;
+	cp.discrs.my_discr = htonl(bfd->discrs.my_discr);
+	cp.discrs.remote_discr = htonl(bfd->discrs.remote_discr);
+	if (bfd->polling) {
+		cp.timers.desired_min_tx =
+			htonl(bfd->timers.desired_min_tx);
+	} else {
+		/*
+		 * We can only announce current setting on poll, this
+		 * avoids timing mismatch with our peer and give it
+		 * the oportunity to learn. See `bs_final_handler` for
+		 * more information.
+		 */
+		cp.timers.desired_min_tx =
+			htonl(bfd->cur_timers.desired_min_tx);
+	}
+	cp.timers.required_min_rx = 0;
+	cp.timers.required_min_echo = 0;
+
+	if (_ptm_sbfd_send(bfd, &cp, BFD_PKT_LEN) != 0)
+		return;
+
+	bfd->stats.tx_ctrl_pkt++;
+}
+
+
+void ptm_sbfd_echo_snd(struct bfd_session *bfd)
+{
+	int sd = -1;
+	struct bfd_echo_pkt bep;
+	struct sockaddr_in6 sin6;
+	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
+
+	int seg_num;
+	struct in6_addr* segment_list;
+
+	if (!bvrf)
+		return;
+	if (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
+		SET_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE);
+    
+	memset(&bep, 0, sizeof(bep));
+	bep.ver = BFD_ECHO_VERSION;
+	bep.len = BFD_ECHO_PKT_LEN;
+	bep.my_discr = htonl(bfd->discrs.my_discr);
+
+    seg_num = bfd->segnum;
+	if (seg_num > 0)
+	    segment_list = bfd->seg_list;
+	else
+	    return;
+
+	if (bvrf->bg_sbfd == -1)
+		return;
+	sd = bvrf->bg_sbfd;
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	memcpy(&sin6.sin6_addr, &bfd->seg_list[seg_num-1], sizeof(sin6.sin6_addr)); // first_segment
+	if (bfd->ifp && IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
+		sin6.sin6_scope_id = bfd->ifp->ifindex;
+
+	sin6.sin6_port = 0;
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
+	sin6.sin6_len = sizeof(sin6);
+#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
+
+    if (bp_raw_sbfd_send(sd, (uint8_t *)&bep, sizeof(bep), &bfd->key.local , &bfd->key.local, 
+	    BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
+	{
+		char endpoint[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
+		zlog_err(
+			"sbfd echo send failed , my_discr is %d, sr policy color is %d , endpoint is %s, sidlist is %s.", 
+			bep.my_discr, bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
+        return;
+	}
+
+	bfd->stats.tx_echo_pkt++;
+}
+
 static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 {
 	struct bfd_session *bfd;
@@ -212,8 +377,24 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 
 	bfd->stats.rx_echo_pkt++;
 
+    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		/*sbfd receive echo pkt ,need to update state*/
+		sbfd_state_handler(bfd, PTM_BFD_UP);
+
+		/* try to offload hw sbfd echo*/
+        bfd_fpm_peer_sendmsg(bfd, true);
+		
+        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE)
+		  && CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
+        {
+			ptm_bfd_echo_stop(bfd);
+			return 0;
+        }
+	}
+
 	/* Compute detect time */
-	bfd->echo_detect_TO = bfd->remote_detect_mult * bfd->echo_xmt_TO;
+	bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
 
 	/* Update echo receive timeout. */
 	if (bfd->echo_detect_TO > 0)
@@ -689,8 +870,23 @@ int bfd_recv_cb(struct thread *t)
 	else
 		bfd->remote_cbit = 0;
 
-	/* State switch from section 6.2. */
-	bs_state_handler(bfd, BFD_GETSTATE(cp->flags));
+    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
+	{
+        sbfd_state_handler(bfd, PTM_BFD_UP);
+        /*try to send to hwbfd*/
+        bfd_fpm_peer_sendmsg(bfd, true);
+        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+        {
+            bfd_recvtimer_delete(bfd);
+        }
+		return 0;
+	}
+	else
+	{
+		/* State switch from section 6.2. */
+		bs_state_handler(bfd, BFD_GETSTATE(cp->flags));
+	}
+
 
 	/* RFC 5880, Section 6.5: handle POLL/FINAL negotiation sequence. */
 	if (bfd->polling && BFD_GETFBIT(cp->flags)) {
@@ -1121,6 +1317,69 @@ int bp_peer_socketv6(struct bfd_session *bs)
 	return sd;
 }
 
+int bp_peer_srh_socketv6(struct bfd_session *bs)
+{
+	int sd; //, pcount;
+	struct sockaddr_in6 sin6;
+	static int srcPort = BFD_SRCPORTINIT;
+	const char *device_to_bind = NULL;
+
+	if (bs->key.ifname[0])
+		device_to_bind = (const char *)bs->key.ifname;
+	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH)
+	    && bs->key.vrfname[0])
+		device_to_bind = (const char *)bs->key.vrfname;
+
+	frr_with_privs(&bglobal.bfdd_privs) {
+		sd = vrf_socket(AF_INET6, SOCK_RAW, IPPROTO_RAW,
+				bs->vrf->vrf_id, device_to_bind);
+	}
+	if (sd == -1) {
+		zlog_err("ipv6-new: failed to create socket: %s",
+			  strerror(errno));
+		return -1;
+	}
+
+	/* Set TTL to 255 for all transmitted packets */
+	if (bp_set_ttlv6(sd, BFD_TTL_VAL) != 0) {
+		close(sd);
+		return -1;
+	}
+
+	/* Set TOS to CS6 for all transmitted packets */
+	if (bp_set_tosv6(sd, BFD_TOS_VAL) != 0) {
+		close(sd);
+		return -1;
+	}
+
+	/* Find an available source port in the proper range */
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
+	sin6.sin6_len = sizeof(sin6);
+#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
+	memcpy(&sin6.sin6_addr, &bs->key.local, sizeof(sin6.sin6_addr));
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
+		sin6.sin6_scope_id = bs->ifp->ifindex;
+
+	// pcount = 0;
+	// do {
+	// 	if ((++pcount) > (BFD_SRCPORTMAX - BFD_SRCPORTINIT)) {
+	// 		/* Searched all ports, none available */
+	// 		log_error("ipv6-new: failed to bind port: %s",
+	// 			  strerror(errno));
+	// 		close(sd);
+	// 		return -1;
+	// 	}
+	// 	if (srcPort >= BFD_SRCPORTMAX)
+	// 		srcPort = BFD_SRCPORTINIT;
+	// 	sin6.sin6_port = htons(srcPort++);
+	// } while (bind(sd, (struct sockaddr *)&sin6, sizeof(sin6)) < 0);
+    bs->srcport = srcPort;
+
+	return sd;
+}
+
 int bp_set_ttlv6(int sd, uint8_t value)
 {
 	int ttl = value;
@@ -1272,4 +1531,271 @@ int bp_echov6_socket(const struct vrf *vrf)
 	bp_bind_ipv6(s, BFD_DEF_ECHO_PORT);
 
 	return s;
+}
+
+uint16_t
+checksum (uint16_t *addr, int len) {
+
+  int count = len;
+  register uint32_t sum = 0;
+  uint16_t answer = 0;
+
+  // Sum up 2-byte values until none or only one byte left.
+  while (count > 1) {
+    sum += *(addr++);
+    count -= 2;
+  }
+
+  // Add left-over byte, if any.
+  if (count > 0) {
+    sum += *(uint8_t *) addr;
+  }
+
+  // Fold 32-bit sum into 16 bits; we lose information by doing this,
+  // increasing the chances of a collision.
+  // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
+  while (sum >> 16) {
+    sum = (sum & 0xffff) + (sum >> 16);
+  }
+
+  // Checksum is one's compliment of sum.
+  answer = ~sum;
+
+  return (answer);
+}
+
+uint16_t
+udp6_checksum (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int payloadlen) {
+
+  char buf[IP_MAXPACKET];
+  char *ptr;
+  int chksumlen = 0;
+  int i;
+
+  ptr = &buf[0];  // ptr points to beginning of buffer buf
+
+  // Copy source IP address into buf (128 bits)
+  memcpy (ptr, &iphdr.ip6_src.s6_addr, sizeof (iphdr.ip6_src.s6_addr));
+  ptr += sizeof (iphdr.ip6_src.s6_addr);
+  chksumlen += sizeof (iphdr.ip6_src.s6_addr);
+
+  // Copy destination IP address into buf (128 bits)
+  memcpy (ptr, &iphdr.ip6_dst.s6_addr, sizeof (iphdr.ip6_dst.s6_addr));
+  ptr += sizeof (iphdr.ip6_dst.s6_addr);
+  chksumlen += sizeof (iphdr.ip6_dst.s6_addr);
+
+  // Copy UDP length into buf (32 bits)
+  memcpy (ptr, &udphdr.len, sizeof (udphdr.len));
+  ptr += sizeof (udphdr.len);
+  chksumlen += sizeof (udphdr.len);
+
+  // Copy zero field to buf (24 bits)
+  *ptr = 0; ptr++;
+  *ptr = 0; ptr++;
+  *ptr = 0; ptr++;
+  chksumlen += 3;
+
+  // Copy next header field to buf (8 bits)
+  memcpy (ptr, &iphdr.ip6_nxt, sizeof (iphdr.ip6_nxt));
+  ptr += sizeof (iphdr.ip6_nxt);
+  chksumlen += sizeof (iphdr.ip6_nxt);
+
+  // Copy UDP source port to buf (16 bits)
+  memcpy (ptr, &udphdr.source, sizeof (udphdr.source));
+  ptr += sizeof (udphdr.source);
+  chksumlen += sizeof (udphdr.source);
+
+  // Copy UDP destination port to buf (16 bits)
+  memcpy (ptr, &udphdr.dest, sizeof (udphdr.dest));
+  ptr += sizeof (udphdr.dest);
+  chksumlen += sizeof (udphdr.dest);
+
+  // Copy UDP length again to buf (16 bits)
+  memcpy (ptr, &udphdr.len, sizeof (udphdr.len));
+  ptr += sizeof (udphdr.len);
+  chksumlen += sizeof (udphdr.len);
+
+  // Copy UDP checksum to buf (16 bits)
+  // Zero, since we don't know it yet
+  *ptr = 0; ptr++;
+  *ptr = 0; ptr++;
+  chksumlen += 2;
+
+  // Copy payload to buf
+  memcpy (ptr, payload, payloadlen * sizeof (uint8_t));
+  ptr += payloadlen;
+  chksumlen += payloadlen;
+
+  // Pad to the next 16-bit boundary
+  for (i=0; i<payloadlen%2; i++, ptr++) {
+    *ptr = 0;
+    ptr++;
+    chksumlen++;
+  }
+
+  return checksum ((uint16_t *) buf, chksumlen);
+}
+
+int bp_sbfd_socket(const struct vrf *vrf)
+{
+	int s;
+
+	frr_with_privs(&bglobal.bfdd_privs) {
+		s = vrf_socket(AF_INET6, SOCK_RAW, IPPROTO_RAW, vrf->vrf_id, vrf->name);
+	}
+	if (s == -1) {
+		if (errno != EAFNOSUPPORT)
+			zlog_fatal("sbfdv6-socket: socket: %s", strerror(errno));
+		else
+			zlog_warn("sbfdv6-socket: V6 is not supported, continuing");
+
+		return -1;
+	}
+	
+	return s;
+}
+
+void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h, 
+    struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen)
+{
+    /* SRH IPv6 Header */
+    srh_ip6h->ip6_flow = 0;
+    srh_ip6h->ip6_vfc = 6 << 4;
+    srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
+	        + sizeof(struct udphdr) 
+			+ sizeof(struct ipv6_sr_hdr) 
+			+ sizeof(struct in6_addr) * seg_num
+			+ datalen);
+    srh_ip6h->ip6_nxt = IPPROTO_ROUTING;
+    srh_ip6h->ip6_hlim = BFD_TTL_VAL;
+
+    memcpy(&(srh_ip6h->ip6_src), sip, sizeof(struct in6_addr));
+	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
+}
+
+void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h, 
+    struct in6_addr* segment_list ,uint8_t seg_num)
+{
+    srv6h->nexthdr = IPPROTO_IPV6;
+    srv6h->hdrlen = GET_RTH_HDR_LEN(RTH_BASE_HEADER_LEN + sizeof(struct in6_addr)*seg_num);
+    srv6h->type = 4; // IPV6_SRCRT_TYPE_4
+    srv6h->segments_left = seg_num-1; //if encap reduce mode , seg_num-1
+    srv6h->first_segment = seg_num-1; //if encap reduce mode , seg_num-2
+    srv6h->flags = 0;
+    srv6h->tag = 0;
+    
+	int i;
+	for(i = 0;i < seg_num;i++)
+	{
+		memcpy(&srv6h->segments[i], &segment_list[i], sizeof(struct in6_addr));
+	}
+}
+
+void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struct in6_addr* dip, size_t datalen)
+{
+    /* IPv6 Header */
+    ip6h->ip6_flow = 0;
+    ip6h->ip6_vfc = 6 << 4;
+    ip6h->ip6_plen = htons(sizeof(struct udphdr) + datalen);
+    ip6h->ip6_nxt = IPPROTO_UDP;
+    ip6h->ip6_hlim = BFD_TTL_VAL;
+    
+    memcpy(&(ip6h->ip6_src), sip, sizeof(struct in6_addr));
+	memcpy(&(ip6h->ip6_dst), dip, sizeof(struct in6_addr));
+}
+
+void bp_sbfd_encap_udp(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
+{
+    udph->uh_sport = htons(src_port); // random
+    udph->uh_dport = htons(dst_port);
+    udph->uh_ulen = htons(sizeof(struct udphdr) + payloadlen);
+    udph->uh_sum = udp6_checksum (*ip6h, *udph, payload, payloadlen);
+}
+
+/**
+ * @brief encap srv6 to send raw socker 
+ * 
+ * @param sd  sokcet
+ * @param data actual data, e.g. bfd packet or bfd echo packet
+ * @param datalen actual data length
+ * @param sip source ip address of outer ipv6 header and inner ipv6 header 
+ * @param dip destination ip address of inner ipv6 header 
+ * @param src_port source port of udp 
+ * @param dst_port destination port of udp 
+ * @param seg_num segment number of srh header
+ * @param segment_list segment list of srh header and the last one segment is destination ip address of outer ipv6 header 
+ * @return int 
+ */
+int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t src_port, uint16_t dst_port,
+    uint8_t seg_num, struct in6_addr* segment_list)
+{
+	struct sockaddr_in6 sin6;
+    struct msghdr msg;
+    struct iovec iov[5];
+	int flags = 0;
+	int ret = 0;
+
+	/*raw sbfd layer header*/
+	struct ip6_hdr srh_ip6h;  // srh ipv6
+	struct ipv6_sr_hdr *psrv6h; // srh Routing header 
+	struct ip6_hdr ip6h; // inner ipv6
+	struct udphdr udp;
+
+	if (!segment_list || seg_num == 0)
+	{
+		zlog_err(
+			"sbfd segment_list is invalid , seg_num = %d .", seg_num);
+		return -1;
+	}
+
+    memset(&sin6,0,sizeof(sin6));
+    sin6.sin6_family = AF_INET6;
+	memcpy(&sin6.sin6_addr, &segment_list[seg_num-1], sizeof(sin6.sin6_addr));
+
+    sin6.sin6_port = 0;
+
+    /* SRH IPv6 Header */
+	bp_sbfd_encap_srh_ip6h(&srh_ip6h, sip , &segment_list[seg_num-1], seg_num, datalen);
+
+    /* SRH Routing Header */
+	psrv6h = (struct ipv6_sr_hdr*)malloc(sizeof(struct ipv6_sr_hdr) + sizeof(struct in6_addr) * seg_num);
+	if(psrv6h == NULL) 
+		return -1;
+	
+	bp_sbfd_encap_srh_rth(psrv6h, segment_list, seg_num);
+
+    /* Inner IPv6 Header */
+	bp_sbfd_encap_inner_ip6h(&ip6h, sip , dip, datalen);
+    
+	/* UDP  Header */
+    bp_sbfd_encap_udp(&udp, &ip6h, src_port, dst_port, data, datalen);
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_name = &sin6;
+    msg.msg_namelen = sizeof(sin6);
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 5;
+    iov[0].iov_base = (char *)&srh_ip6h;
+    iov[0].iov_len = sizeof(struct ip6_hdr);
+    iov[1].iov_base = (char *) psrv6h;
+    iov[1].iov_len = sizeof(struct ipv6_sr_hdr) + sizeof(struct in6_addr) * seg_num;
+    iov[2].iov_base = (char *)&ip6h;
+    iov[2].iov_len = sizeof(struct ip6_hdr);
+    iov[3].iov_base = (char *)&udp;
+    iov[3].iov_len = sizeof(struct udphdr);
+    iov[4].iov_base = data;
+    iov[4].iov_len = datalen;
+
+    ret = sendmsg(sd, &msg, flags);
+    if (ret < 0)
+    {
+		zlog_err(
+			"sbfd echo send failed , ret : %d .", ret);
+    }
+
+    free(psrv6h);
+
+	return ret;
+
 }

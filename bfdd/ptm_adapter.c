@@ -78,6 +78,9 @@ static void bfdd_dest_deregister(struct stream *msg, vrf_id_t vrf_id);
 static void bfdd_client_register(struct stream *msg);
 static void bfdd_client_deregister(struct stream *msg);
 
+static void bfdd_sbfd_dest_register(struct stream *msg, vrf_id_t vrf_id);
+static void bfdd_sbfd_dest_deregister(struct stream *msg, vrf_id_t vrf_id);
+
 /*
  * Functions
  */
@@ -147,7 +150,13 @@ static void _ptm_bfd_session_del(struct bfd_session *bs, uint8_t diag)
 	/* Change state and notify peer. */
 	bs->ses_state = PTM_BFD_DOWN;
 	bs->local_diag = diag;
-	ptm_bfd_snd(bs, 0);
+
+	if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
+	    && !CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+	    ptm_bfd_snd(bs, 0);
+	}
+
 
 	/* Session reached refcount == 0, lets delete it. */
 	if (bs->refcount == 0) {
@@ -193,6 +202,7 @@ static int _ptm_msg_address(struct stream *msg, int family, const void *addr)
 int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 {
 	struct stream *msg;
+	uint8_t len;
 
 	bs->stats.znotification++;
 
@@ -214,7 +224,9 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 	 *     - 16 bytes: ipv6
 	 *   - c: prefix length
 	 * - c: cbit
-	 *
+	 * - l: color
+	 * - c: ifname length
+	 * - X bytes: interface name
 	 * Commands: ZEBRA_BFD_DEST_REPLAY
 	 *
 	 * q(64), l(32), w(16), c(8)
@@ -267,6 +279,15 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 	_ptm_msg_address(msg, bs->key.family, &bs->key.local);
 
 	stream_putc(msg, bs->remote_cbit);
+
+	/*support sbfd , add color and sidlist name*/
+	stream_putl(msg, bs->key.srte_color);
+	len = strlen(bs->key.seglist_name);
+	stream_putc(msg, len);
+	if (len > 0)
+	{
+        stream_put(msg, bs->key.seglist_name, len);
+	}
 
 	/* Write packet size. */
 	stream_putw_at(msg, 0, stream_get_endp(msg));
@@ -367,7 +388,25 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	 * - c: bfd_cbit
 	 * - c: profile name length.
 	 * - X bytes: profile name.
-	 *
+	 * - command == ZEBRA_SBFD_DEST_REGISTER
+	 *  -c: is_sbfdecho 
+	 *  -l: color
+	 *  -16 bytes: IPv6(endpoint)
+	 *  -c: seglist_name_length
+	 *  -X bytes: seglist_name
+	 *  -c: seg_num
+	 *  -16 bytes: seg6     --
+	 *  .                     | 
+	 *  .                     |- seg_num
+	 *  .                     | 
+	 *                      --
+	 * - command == ZEBRA_SBFD_DEST_DEREGISTER
+	 *  -c: is_sbfdecho 
+	 *  -l: color
+	 *  -16 bytes: IPv6(endpoint)
+	 *  -c: seglist_name_length
+	 *  -X bytes: seglist_name
+	 * 
 	 * q(64), l(32), w(16), c(8)
 	 */
 
@@ -469,10 +508,115 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 		return -1;
 	}
 
+	if (command != ZEBRA_SBFD_DEST_REGISTER && command != ZEBRA_SBFD_DEST_DEREGISTER )
+	{
+		return 0;
+	}
+	/* sbfd extended context */
+	bpc->bpc_sbfd = true;
+
+	STREAM_GETC(msg, bpc->bpc_echo);
+	
+	STREAM_GETL(msg, bpc->srte_color);
+
+	STREAM_GET(&bpc->srte_endpoint, msg, sizeof(struct in6_addr));
+
+	STREAM_GETL(msg, bpc->sbfd_remote_discr);
+
+	STREAM_GETC(msg, bpc->seglist_name_len);
+	if (bpc->seglist_name_len >= sizeof(bpc->seglist_name)) {
+		zlog_err("ptm-read: seglist name is too big");
+		return -1;
+	}
+
+	if (bpc->seglist_name_len > 0)
+	{
+		STREAM_GET(bpc->seglist_name, msg, bpc->seglist_name_len);
+		bpc->seglist_name[bpc->seglist_name_len] = 0;
+	}
+
+    if (command == ZEBRA_SBFD_DEST_REGISTER)
+	{
+		STREAM_GETC(msg, bpc->seg_num);
+
+		int i ;
+		for (i=0; i < bpc->seg_num; i++)
+		{
+			STREAM_GET(&bpc->seg_list[i], msg, sizeof(struct in6_addr));
+		}
+	}
+
 	return 0;
 
 stream_failure:
 	return -1;
+}
+
+static void bfdd_sbfd_dest_register(struct stream *msg, vrf_id_t vrf_id)
+{
+	struct ptm_client *pc;
+	struct bfd_session *bs;
+	struct bfd_peer_cfg bpc;
+
+	/* Read the client context and peer data. */
+	if (_ptm_msg_read(msg, ZEBRA_SBFD_DEST_REGISTER, vrf_id, &bpc, &pc) == -1)
+		return;
+
+	debug_printbpc(&bpc, "ptm-add-dest: register peer");
+
+	/* Find or start new BFD session. */
+	bs = ptm_bfd_sess_new(&bpc);
+	if (bs == NULL) {
+		if (bglobal.debug_zebra)
+			zlog_debug(
+				"ptm-add-dest: failed to create BFD session");
+		return;
+	}
+
+	/* Create client peer notification register. */
+	pcn_new(pc, bs);
+
+	ptm_bfd_notify(bs, bs->ses_state);
+}
+
+static void bfdd_sbfd_dest_deregister(struct stream *msg, vrf_id_t vrf_id)
+{
+	struct ptm_client *pc;
+	struct ptm_client_notification *pcn;
+	struct bfd_session *bs;
+	struct bfd_peer_cfg bpc;
+
+	/* Read the client context and peer data. */
+	if (_ptm_msg_read(msg, ZEBRA_SBFD_DEST_DEREGISTER, vrf_id, &bpc, &pc) == -1)
+		return;
+
+	debug_printbpc(&bpc, "ptm-del-dest: deregister peer");
+
+	/* Find or start new BFD session. */
+	bs = bs_peer_find(&bpc);
+	if (bs == NULL) {
+		if (bglobal.debug_zebra)
+			zlog_debug("ptm-del-dest: failed to find BFD session");
+		return;
+	}
+	SET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
+
+	/* Unregister client peer notification. */
+	pcn = pcn_lookup(pc, bs);
+	if (pcn != NULL) {
+		pcn_free(pcn);
+		return;
+	}
+
+	if (bglobal.debug_zebra)
+		zlog_debug("ptm-del-dest: failed to find BFD session");
+
+	/*
+	 * XXX: We either got a double deregistration or the daemon who
+	 * created this is no longer around. Lets try to delete it anyway
+	 * and the worst case is the refcount will detain us.
+	 */
+	_ptm_bfd_session_del(bs, BD_NEIGHBOR_DOWN);
 }
 
 static void bfdd_dest_register(struct stream *msg, vrf_id_t vrf_id)
@@ -488,30 +632,14 @@ static void bfdd_dest_register(struct stream *msg, vrf_id_t vrf_id)
 	debug_printbpc(&bpc, "ptm-add-dest: register peer");
 
 	/* Find or start new BFD session. */
-	bs = bs_peer_find(&bpc);
+	bs = ptm_bfd_sess_new(&bpc);
 	if (bs == NULL) {
-		bs = ptm_bfd_sess_new(&bpc);
-		if (bs == NULL) {
-			if (bglobal.debug_zebra)
-				zlog_debug(
-					"ptm-add-dest: failed to create BFD session");
-			return;
-		}
-	} else {
-		/*
-		 * BFD session was already created, we are just updating the
-		 * current peer.
-		 *
-		 * `ptm-bfd` (or `HAVE_BFDD == 0`) is the only implementation
-		 * that allow users to set peer specific timers via protocol.
-		 * BFD daemon (this code) on the other hand only supports
-		 * changing peer configuration manually (through `peer` node)
-		 * or via profiles.
-		 */
-		if (bpc.bpc_has_profile)
-			bfd_profile_apply(bpc.bpc_profile, bs);
+		if (bglobal.debug_zebra)
+			zlog_debug(
+				"ptm-add-dest: failed to create BFD session");
+		return;
 	}
-
+	
 	/* Create client peer notification register. */
 	pcn_new(pc, bs);
 
@@ -628,6 +756,13 @@ static int bfdd_replay(ZAPI_CALLBACK_ARGS)
 		break;
 	case ZEBRA_BFD_CLIENT_DEREGISTER:
 		bfdd_client_deregister(msg);
+		break;
+	case ZEBRA_SBFD_DEST_REGISTER:
+	case ZEBRA_SBFD_DEST_UPDATE:
+	    bfdd_sbfd_dest_register(msg, vrf_id);
+		break;
+	case ZEBRA_SBFD_DEST_DEREGISTER:
+	    bfdd_sbfd_dest_deregister(msg, vrf_id);
 		break;
 
 	default:

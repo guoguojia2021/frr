@@ -21,6 +21,7 @@
 #include "memory.h"
 #include "log.h"
 #include "lib_errors.h"
+#include "lib/bfd.h"
 #include "network.h"
 #include "libfrr.h"
 
@@ -28,6 +29,8 @@
 #include "pathd/path_zebra.h"
 #include "pathd/path_debug.h"
 #include "pathd/path_ted.h"
+#include "pathd/path_sbfd.h"
+#include "pathd/pathd.h"
 
 #define HOOK_DELAY 3
 
@@ -36,6 +39,7 @@ DEFINE_MGROUP(PATHD, "pathd");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SEGMENT_LIST, "Segment List");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SR_POLICY, "SR Policy");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SR_CANDIDATE, "SR Policy candidate path");
+DEFINE_MTYPE_STATIC(PATHD, PATH_SR_CANDIDATE_GROUP, "SR Policy candidate group");
 
 DEFINE_HOOK(pathd_candidate_created, (struct srte_candidate * candidate),
 	    (candidate));
@@ -82,9 +86,22 @@ struct srte_segment_list_head srte_segment_lists =
 static inline int srte_candidate_compare(const struct srte_candidate *a,
 					 const struct srte_candidate *b)
 {
-	return a->preference - b->preference;
+	if (a->preference != b->preference)
+	{
+        return a->preference - b->preference;
+	}
+	return strcmp(a->name, b->name);
+
 }
 RB_GENERATE(srte_candidate_head, srte_candidate, entry, srte_candidate_compare)
+
+/* Generate rb-tree of Candidate Group instances. */
+static inline int srte_candidate_group_compare(const struct srte_candidate_group *a,
+					 const struct srte_candidate_group *b)
+{
+	return a->preference - b->preference;
+}
+RB_GENERATE(srte_candidate_group_head, srte_candidate_group, entry, srte_candidate_group_compare)
 
 /* Generate rb-tree of SR Policy instances. */
 static inline int srte_policy_compare(const struct srte_policy *a,
@@ -96,6 +113,17 @@ static inline int srte_policy_compare(const struct srte_policy *a,
 RB_GENERATE(srte_policy_head, srte_policy, entry, srte_policy_compare)
 
 struct srte_policy_head srte_policies = RB_INITIALIZER(&srte_policies);
+
+
+/* Generate rb-tree of sbfd instances. */
+static inline int srte_sbfd_session_compare(const struct srte_sbfd_session *a,
+					     const struct srte_sbfd_session *b)
+{
+	return sr_policy_compare(&a->policy_endpoint, &b->policy_endpoint,
+	    a->policy_color, b->policy_color);
+}
+RB_GENERATE(srte_sbfd_session_head, srte_sbfd_session, entry,
+	    srte_sbfd_session_compare)
 
 /**
  * Adds a segment list to pathd.
@@ -110,6 +138,7 @@ struct srte_segment_list *srte_segment_list_add(const char *name)
 	segment_list = XCALLOC(MTYPE_PATH_SEGMENT_LIST, sizeof(*segment_list));
 	strlcpy(segment_list->name, name, sizeof(segment_list->name));
 	RB_INIT(srte_segment_entry_head, &segment_list->segments);
+	RB_INIT(srte_sbfd_session_head, &segment_list->sbfd_sessions);
 	RB_INSERT(srte_segment_list_head, &srte_segment_lists, segment_list);
 
 	return segment_list;
@@ -126,10 +155,20 @@ struct srte_segment_list *srte_segment_list_add(const char *name)
 void srte_segment_list_del(struct srte_segment_list *segment_list)
 {
 	struct srte_segment_entry *segment, *safe_seg;
+	struct srte_sbfd_session *sbs, *safe_sbs;
+
 	RB_FOREACH_SAFE (segment, srte_segment_entry_head,
 			 &segment_list->segments, safe_seg) {
 		srte_segment_entry_del(segment);
 	}
+	RB_FOREACH_SAFE (sbs, srte_sbfd_session_head,
+			 &segment_list->sbfd_sessions, safe_sbs) {
+		sbfd_sess_uninstall(sbs->session);
+		srte_sbfd_session_del(sbs);
+	}
+    /* operate APPDB */
+	sidlist_Db_DelEntry(segment_list->name);
+
 	RB_REMOVE(srte_segment_list_head, &srte_segment_lists, segment_list);
 	XFREE(MTYPE_PATH_SEGMENT_LIST, segment_list);
 }
@@ -311,6 +350,7 @@ struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
 			sizeof(policy->originator));
 
 	RB_INIT(srte_candidate_head, &policy->candidate_paths);
+	RB_INIT(srte_candidate_group_head, &policy->candidate_groups);
 	RB_INSERT(srte_policy_head, &srte_policies, policy);
 
 	return policy;
@@ -327,6 +367,10 @@ struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
 void srte_policy_del(struct srte_policy *policy)
 {
 	struct srte_candidate *candidate;
+	struct srte_candidate_group *cpath_group;
+
+    // del sbfd config
+	path_delete_sbfd_config(policy);
 
 	path_zebra_delete_sr_policy(policy);
 
@@ -504,6 +548,27 @@ srte_policy_best_candidate(const struct srte_policy *policy)
 	return NULL;
 }
 
+static struct srte_candidate_group *
+srte_policy_best_candidate_group(const struct srte_policy *policy)
+{
+	struct srte_candidate_group *cpath_group;
+
+	if (policy->status != SRTE_POLICY_STATUS_UP)
+	{
+		return NULL;
+	}
+
+	RB_FOREACH_REVERSE (cpath_group, srte_candidate_group_head,
+			    &policy->candidate_groups) {
+		/* search for highest preference with existing segment list */
+		if (cpath_group->status == SBFD_UP
+		    && cpath_group->up_cpath_num > 0)
+			return cpath_group;
+	}
+
+	return NULL;
+}
+
 void srte_clean_zebra(void)
 {
 	struct srte_policy *policy, *safe_pol;
@@ -532,7 +597,27 @@ void srte_apply_changes(void)
 			srte_policy_del(policy);
 			continue;
 		}
-		srte_policy_apply_changes(policy);
+
+        srv6_policy_apply_changes(policy);
+
+        if (policy->bfd_config)
+		{
+			if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED))
+			{
+				srte_policy_sbfd_each_seglist_remove(policy);
+				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
+				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
+			}
+			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW) 
+				|| CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED))
+			{
+				srte_policy_sbfd_each_seglist_apply(policy);
+				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
+				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);
+			}
+		}
+
 		UNSET_FLAG(policy->flags, F_POLICY_NEW);
 		UNSET_FLAG(policy->flags, F_POLICY_MODIFIED);
 	}
@@ -542,6 +627,14 @@ void srte_apply_changes(void)
 		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_DELETED)) {
 			srte_segment_list_del(segment_list);
 			continue;
+		}
+		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW)
+		    || CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED)) {
+			/* operate APPDB */
+			if (!RB_EMPTY(srte_segment_entry_head, &segment_list->segments))
+			{
+			    sidlist_Db_SetEntry(segment_list);
+			}
 		}
 		UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW);
 		UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED);
@@ -646,6 +739,138 @@ void srte_policy_apply_changes(struct srte_policy *policy)
 	}
 }
 
+void srv6_choose_best_cpath_group(struct srte_policy *policy)
+{
+	struct srte_candidate_group *old_best_cpath_group;
+	struct srte_candidate_group *new_best_cpath_group;
+	char endpoint[46];
+
+	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+
+	/* Get old and new best candidate path. */
+	old_best_cpath_group = policy->best_candidate_group;
+	new_best_cpath_group = srte_policy_best_candidate_group(policy);
+
+	if (new_best_cpath_group != old_best_cpath_group) {
+		zlog_debug(
+			"SR-TE(%s, %u): best candidate changed from cp:%u to cp:%u",
+			endpoint, policy->color,
+			old_best_cpath_group ? old_best_cpath_group->preference : "none",
+			new_best_cpath_group ? new_best_cpath_group->preference : "none");
+
+		if (old_best_cpath_group) {
+			policy->best_candidate_group = NULL;
+			UNSET_FLAG(old_best_cpath_group->flags, F_CPATH_GROUP_BEST);
+
+			/*
+			 * Rely on replace semantics if there's a new best
+			 * candidate.
+			 */
+			if (!new_best_cpath_group)
+				path_zebra_delete_srv6_policy(policy);
+		}
+		if (new_best_cpath_group) {
+			policy->best_candidate_group = new_best_cpath_group;
+			SET_FLAG(new_best_cpath_group->flags, F_CPATH_GROUP_BEST);
+
+			path_zebra_add_srv6_policy(policy, new_best_cpath_group);
+		}
+	} else if (new_best_cpath_group) {
+		/* The best candidate path did not change, but some of its
+		 * attributes or its segment list may have changed.
+		 */
+
+		bool cpath_group_changed = CHECK_FLAG(new_best_cpath_group->flags, F_CPATH_GROUP_MODIFIED);
+
+		if (cpath_group_changed) {
+			zlog_debug("SR-TE(%s, %u): best cp:%u changed",
+				   endpoint, policy->color,
+				   new_best_cpath_group->preference);
+
+			path_zebra_add_srv6_policy(policy, new_best_cpath_group);
+		}
+		UNSET_FLAG(new_best_cpath_group->flags, F_CPATH_GROUP_MODIFIED);
+	}
+}
+
+static void srv6_refresh_policy_state(struct srte_policy *policy)
+{
+	struct srte_candidate_group *cpath_group, *safe_cg;
+	struct srte_candidate *candidate, *safe_cpath;
+	uint32_t cpath_up_count = 0;
+	uint32_t policy_up_count = 0;
+
+	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
+	{
+		cpath_up_count = 0;
+		RB_FOREACH_SAFE (candidate, srte_candidate_head, &cpath_group->candidate_paths, safe_cpath)
+		{
+            if (!candidate->segment_list 
+			  || CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))
+			{
+				continue;
+			}
+
+			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD))
+			{
+				if (candidate->segment_list->status == SBFD_UP)
+					cpath_up_count++;
+			}
+			else
+			{
+                cpath_up_count++;
+			}
+
+		}
+		if (cpath_up_count > 0)
+		{
+			cpath_group->status = SBFD_UP;
+			cpath_group->up_cpath_num = cpath_up_count;
+			policy_up_count ++;
+		}
+	}
+    
+	if (policy_up_count > 0)
+	{
+		policy->status = SRTE_POLICY_STATUS_UP;
+		policy->up_cpath_group_num = policy_up_count;
+	}
+	else
+	{
+		policy->status = SRTE_POLICY_STATUS_DOWN;
+		policy->up_cpath_group_num = 0;
+	}
+}
+
+void srv6_policy_apply_changes(struct srte_policy *policy)
+{
+	struct srte_candidate *candidate, *safe;
+
+    srv6_refresh_policy_state(policy);
+
+	srv6_choose_best_cpath_group(policy);
+
+	RB_FOREACH_SAFE (candidate, srte_candidate_head,
+			 &policy->candidate_paths, safe) {
+		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED)) {
+			trigger_pathd_candidate_removed(candidate);
+			srte_candidate_del(candidate);
+			continue;
+		} else if (CHECK_FLAG(candidate->flags, F_CANDIDATE_NEW)) {
+			trigger_pathd_candidate_created(candidate);
+		} else if (CHECK_FLAG(candidate->flags, F_CANDIDATE_MODIFIED)) {
+			trigger_pathd_candidate_updated(candidate);
+		} else if (candidate->lsp->segment_list
+			   && CHECK_FLAG(candidate->lsp->segment_list->flags,
+					 F_SEGMENT_LIST_MODIFIED)) {
+			trigger_pathd_candidate_updated(candidate);
+		}
+
+		UNSET_FLAG(candidate->flags, F_CANDIDATE_NEW);
+		UNSET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+	}
+}
+
 /**
  * Adds a candidate path to a policy.
  *
@@ -654,9 +879,10 @@ void srte_policy_apply_changes(struct srte_policy *policy)
  * @return The added candidate path
  */
 struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
-					  uint32_t preference,
-					  enum srte_protocol_origin origin,
-					  const char *originator)
+					  uint32_t preference, 
+                      enum srte_protocol_origin origin,
+					  const char *originator,
+					  char *name)
 {
 	struct srte_candidate *candidate;
 	struct srte_lsp *lsp;
@@ -665,6 +891,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 	lsp = XCALLOC(MTYPE_PATH_SR_CANDIDATE, sizeof(*lsp));
 
 	candidate->preference = preference;
+    strlcpy(candidate->name, name, sizeof(candidate->name));
 	candidate->policy = policy;
 	candidate->type = SRTE_CANDIDATE_TYPE_UNDEFINED;
 	candidate->discriminator = frr_weak_random();
@@ -674,6 +901,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 			sizeof(candidate->originator));
 		lsp->protocol_origin = origin;
 	}
+	candidate->segment_list = NULL;
 
 	if (candidate->protocol_origin == SRTE_ORIGIN_PCEP
 	    || candidate->protocol_origin == SRTE_ORIGIN_BGP) {
@@ -684,8 +912,65 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 
 	RB_INSERT(srte_candidate_head, &policy->candidate_paths, candidate);
 
+	srte_candidate_add_group(policy, candidate);
+
 	return candidate;
 }
+
+/**
+ * Adds a candidate group to a policy.
+ *
+ * @param policy The policy the candidate path should be added to
+ * @param preference The preference of the candidate path to be added
+ * @return The added candidate path
+ */
+struct srte_candidate_group *srte_candidate_group_add(struct srte_policy *policy,
+					  uint32_t preference)
+{
+	struct srte_candidate_group *cpath_group;
+
+	cpath_group = XCALLOC(MTYPE_PATH_SR_CANDIDATE_GROUP, sizeof(*cpath_group));
+
+	cpath_group->preference = preference;
+	cpath_group->policy = policy;
+	cpath_group->status = SBFD_DOWN;
+	cpath_group->up_cpath_num = 0;
+
+    RB_INIT(srte_candidate_head, &cpath_group->candidate_paths);
+
+	RB_INSERT(srte_candidate_group_head, &policy->candidate_groups, cpath_group);
+
+	return cpath_group;
+}
+
+/**
+ * Adds a candidate path to a group.
+ *
+ * @param cpath_group The candidate group 
+ * @param candidate The candidate path to be added
+ * @return void
+ */
+void srte_candidate_add_group(struct srte_policy *policy,
+					  struct srte_candidate *candidate)
+{
+	struct srte_candidate_group *cpath_group;
+    
+	if (!policy || !candidate)
+	{
+		return; 
+	}
+
+	cpath_group = srte_candidate_group_find(policy, candidate->preference);
+	if (cpath_group == NULL)
+	{
+		cpath_group = srte_candidate_group_add(policy, candidate->preference);
+	}
+
+	RB_INSERT(srte_candidate_head, &cpath_group->candidate_paths, candidate);
+
+	return;
+}
+
 
 /**
  * Deletes a candidate.
@@ -699,9 +984,21 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 void srte_candidate_del(struct srte_candidate *candidate)
 {
 	struct srte_policy *srte_policy = candidate->policy;
+	struct srte_candidate_group *cpath_group;
 
 	RB_REMOVE(srte_candidate_head, &srte_policy->candidate_paths,
 		  candidate);
+    
+	cpath_group = srte_candidate_group_find(srte_policy, candidate->preference);
+	if (cpath_group)
+	{
+		RB_REMOVE(srte_candidate_head, &cpath_group->candidate_paths,
+			candidate);
+		if (RB_EMPTY(srte_candidate_head, &cpath_group->candidate_paths))
+		{
+			XFREE(MTYPE_PATH_SR_CANDIDATE_GROUP, cpath_group);
+		}
+	}	
 
 	XFREE(MTYPE_PATH_SR_CANDIDATE, candidate->lsp);
 	XFREE(MTYPE_PATH_SR_CANDIDATE, candidate);
@@ -1063,6 +1360,15 @@ struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
 
 	search.preference = preference;
 	return RB_FIND(srte_candidate_head, &policy->candidate_paths, &search);
+}
+
+struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *policy,
+					   uint32_t preference)
+{
+	struct srte_candidate_group search;
+
+	search.preference = preference;
+	return RB_FIND(srte_candidate_group_head, &policy->candidate_groups, &search);
 }
 
 /**

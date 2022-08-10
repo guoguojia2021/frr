@@ -36,6 +36,7 @@ DEFINE_MTYPE_STATIC(BFDD, BFDD_CONFIG, "long-lived configuration memory");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_PROFILE, "long-lived profile memory");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_SESSION_OBSERVER, "Session observer");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_VRF, "BFD VRF");
+DEFINE_MTYPE_STATIC(BFDD, SBFD_REFLECTOR, "SBFD REFLECTOR");
 
 /*
  * Prototypes
@@ -51,6 +52,8 @@ static void bs_init_handler(struct bfd_session *bs, int nstate);
 static void bs_up_handler(struct bfd_session *bs, int nstate);
 static void bs_neighbour_admin_down_handler(struct bfd_session *bfd,
 					    uint8_t diag);
+static void sbfd_down_handler(struct bfd_session *bs, int nstate);
+static void sbfd_up_handler(struct bfd_session *bs, int nstate);
 
 /**
  * Remove BFD profile from all BFD sessions so we don't leave dangling
@@ -283,8 +286,11 @@ struct bfd_session *bs_peer_find(struct bfd_peer_cfg *bpc)
 	}
 
 	/* Otherwise fallback to peer/local hash lookup. */
-	gen_bfd_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop,
-		    bpc->bpc_localif, bpc->bpc_vrfname);
+	// gen_bfd_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop,
+	// 	    bpc->bpc_localif, bpc->bpc_vrfname);
+
+    gen_sbfd_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop, 
+	    bpc->bpc_localif, bpc->bpc_vrfname, bpc->srte_color, bpc->seglist_name);
 
 	return bfd_key_lookup(key);
 }
@@ -366,7 +372,16 @@ int bfd_session_enable(struct bfd_session *bs)
 		if (psock == -1)
 			return 0;
 	} else {
-		psock = bp_peer_socketv6(bs);
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) 
+		    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
+		{
+            psock = bp_peer_srh_socketv6(bs);
+		}
+		else
+		{
+		    psock = bp_peer_socketv6(bs);
+		}
+
 		if (psock == -1)
 			return 0;
 	}
@@ -379,8 +394,16 @@ int bfd_session_enable(struct bfd_session *bs)
 
 	/* Only start timers if we are using active mode. */
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_PASSIVE) == 0) {
-		bfd_recvtimer_update(bs);
-		ptm_bfd_start_xmt_timer(bs, false);
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		{
+            bfd_echo_recvtimer_update(bs);
+			ptm_bfd_start_xmt_timer(bs, true);
+		}
+		else
+		{
+            bfd_recvtimer_update(bs);
+			ptm_bfd_start_xmt_timer(bs, false);
+		}
 	}
 
 	return 0;
@@ -461,10 +484,54 @@ void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo)
 		bfd_xmttimer_update(bfd, jitter);
 }
 
+void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
+		 struct sockaddr_any *local, bool mhop, const char *ifname,
+		 const char *vrfname, uint32_t srte_color, const char *seglist_name)
+{
+	memset(key, 0, sizeof(*key));
+
+	switch (peer->sa_sin.sin_family) {
+	case AF_INET:
+		key->family = AF_INET;
+		memcpy(&key->peer, &peer->sa_sin.sin_addr,
+		       sizeof(peer->sa_sin.sin_addr));
+		memcpy(&key->local, &local->sa_sin.sin_addr,
+		       sizeof(local->sa_sin.sin_addr));
+		break;
+	case AF_INET6:
+		key->family = AF_INET6;
+		memcpy(&key->peer, &peer->sa_sin6.sin6_addr,
+		       sizeof(peer->sa_sin6.sin6_addr));
+		memcpy(&key->local, &local->sa_sin6.sin6_addr,
+		       sizeof(local->sa_sin6.sin6_addr));
+		break;
+	}
+
+	key->mhop = mhop;
+	if (ifname && ifname[0])
+		strlcpy(key->ifname, ifname, sizeof(key->ifname));
+	if (vrfname && vrfname[0])
+		strlcpy(key->vrfname, vrfname, sizeof(key->vrfname));
+	else
+		strlcpy(key->vrfname, VRF_DEFAULT_NAME, sizeof(key->vrfname));
+
+	key->srte_color = srte_color;
+
+	if (seglist_name && seglist_name[0])
+		strlcpy(key->seglist_name, seglist_name, sizeof(key->seglist_name));
+}
+
 static void ptm_bfd_echo_xmt_TO(struct bfd_session *bfd)
 {
 	/* Send the scheduled echo  packet */
-	ptm_bfd_echo_snd(bfd);
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+        ptm_sbfd_echo_snd(bfd);
+	}
+	else
+	{
+        ptm_bfd_echo_snd(bfd);
+	}
 
 	/* Restart the timer for next time */
 	ptm_bfd_start_xmt_timer(bfd, true);
@@ -473,7 +540,14 @@ static void ptm_bfd_echo_xmt_TO(struct bfd_session *bfd)
 void ptm_bfd_xmt_TO(struct bfd_session *bfd, int fbit)
 {
 	/* Send the scheduled control packet */
-	ptm_bfd_snd(bfd, fbit);
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
+	{
+        ptm_sbfd_initiator_snd(bfd, fbit);
+	}
+	else
+	{
+        ptm_bfd_snd(bfd, fbit);
+	}
 
 	/* Restart the timer for next time */
 	ptm_bfd_start_xmt_timer(bfd, false);
@@ -578,6 +652,57 @@ void ptm_bfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	}
 }
 
+/*sbfd session up , include sbfd and sbfd echo*/
+void ptm_sbfd_sess_up(struct bfd_session *bfd)
+{
+	int old_state = bfd->ses_state;
+
+	bfd->local_diag = 0;
+	bfd->ses_state = PTM_BFD_UP;
+    UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_REM_ADMIN_DOWN);
+	monotime(&bfd->uptime);
+    
+	/*notify session up*/
+	control_notify(bfd, bfd->ses_state);
+
+	if (old_state != bfd->ses_state) {
+		bfd->stats.session_up++;
+		if (bglobal.debug_peer_event)
+			zlog_debug("state-change: [%s] %s -> %s",
+				   bs_to_string(bfd), state_list[old_state].str,
+				   state_list[bfd->ses_state].str);
+	}
+}
+
+/*sbfd session down , include sbfd and sbfd echo*/
+void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
+{
+	int old_state = bfd->ses_state;
+
+	bfd->local_diag = diag;
+	bfd->discrs.remote_discr = 0;
+	bfd->ses_state = PTM_BFD_DOWN;
+	bfd->polling = 0;
+	bfd->demand_mode = 0;
+	monotime(&bfd->downtime);
+
+	/* only signal clients when going from up->down state */
+	if (old_state == PTM_BFD_UP)
+		control_notify(bfd, PTM_BFD_DOWN);
+
+	/* Stop echo packet transmission if they are active */
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
+		ptm_bfd_echo_stop(bfd);
+
+	if (old_state != bfd->ses_state) {
+		bfd->stats.session_down++;
+		if (bglobal.debug_peer_event)
+			zlog_debug("state-change: [%s] %s -> %s reason:%s",
+				   bs_to_string(bfd), state_list[old_state].str,
+				   state_list[bfd->ses_state].str,
+				   get_diag_str(bfd->local_diag));
+	}
+}
 struct bfd_session *bfd_find_disc(struct sockaddr_any *sa,
 					 uint32_t ldisc)
 {
@@ -640,7 +765,6 @@ int bfd_xmtdel_delay_cb(struct thread *t)
 int bfd_xmt_cb(struct thread *t)
 {
 	struct bfd_session *bs = THREAD_ARG(t);
-
 	ptm_bfd_xmt_TO(bs, 0);
 
 	return 0;
@@ -699,7 +823,14 @@ int bfd_echo_recvtimer_cb(struct thread *t)
 	switch (bs->ses_state) {
 	case PTM_BFD_INIT:
 	case PTM_BFD_UP:
-		ptm_bfd_sess_dn(bs, BD_ECHO_FAILED);
+	    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		{
+            ptm_sbfd_sess_dn(bs, BD_ECHO_FAILED);
+		}
+		else
+		{
+		    ptm_bfd_sess_dn(bs, BD_ECHO_FAILED);
+		}
 		break;
 	}
 
@@ -739,6 +870,43 @@ struct bfd_session *bfd_session_new(void)
 
 	return bs;
 }
+struct bfd_session *sbfd_session_new(uint8_t segnum)
+{
+	struct bfd_session *bs;
+
+	bs = XCALLOC(MTYPE_BFDD_CONFIG, sizeof(struct bfd_session) + sizeof(struct in6_addr)*segnum);
+
+	/* Set peer session defaults. */
+	bfd_profile_set_default(&bs->peer_profile);
+
+	bs->timers.desired_min_tx = BFD_DEFDESIREDMINTX;
+	bs->timers.required_min_rx = BFD_DEFREQUIREDMINRX;
+	bs->timers.desired_min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
+	bs->timers.required_min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
+	bs->detect_mult = BFD_DEFDETECTMULT;
+	bs->mh_ttl = BFD_DEF_MHOP_TTL;
+	bs->ses_state = PTM_BFD_DOWN;
+
+	bs->echo_xmt_TO = 300 * 1000;
+	bs->echo_detect_TO = 2 * 300 * 1000;
+
+	/* Initiate connection with slow timers. */
+	bs_set_slow_timers(bs);
+
+	/* Initiate remote settings as well. */
+	bs->remote_timers = bs->cur_timers;
+	bs->remote_detect_mult = BFD_DEFDETECTMULT;
+
+	bs->sock = -1;
+	monotime(&bs->uptime);
+	bs->downtime = bs->uptime;
+
+	monotime(&bs->hw_det_btime);
+	bs->hw_det_count = 0;
+
+	return bs;
+
+}
 
 int bfd_session_update_label(struct bfd_session *bs, const char *nlabel)
 {
@@ -772,10 +940,69 @@ int bfd_session_update_label(struct bfd_session *bs, const char *nlabel)
 	return 0;
 }
 
+static void sbfd_session_update(struct bfd_session *bs, struct bfd_peer_cfg *bpc)
+{
+	if (bpc->bpc_has_detectmultiplier)
+	{
+		bs->detect_mult = bpc->bpc_detectmultiplier;
+		bs->peer_profile.detection_multiplier = bs->detect_mult;
+	}
+	if (bpc->bpc_has_echotxinterval) {
+		bs->timers.desired_min_echo_tx = bpc->bpc_echotxinterval * 1000;
+		bs->peer_profile.min_echo_tx = bs->timers.desired_min_echo_tx;
+	}
+
+	bfd_set_shutdown(bs, bpc->bpc_shutdown);
+	if (bpc->bpc_shutdown) 
+	{
+		/* Check if already shutdown. */
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN))
+			return;
+
+		SET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
+
+		/* Disable all events. */
+		bfd_recvtimer_delete(bs);
+		bfd_echo_recvtimer_delete(bs);
+		bfd_xmttimer_delete(bs);
+		bfd_echo_xmttimer_delete(bs);
+
+		/* Change and notify state change. */
+		bs->ses_state = PTM_BFD_ADM_DOWN;
+		bs->local_diag = BD_ADMIN_DOWN;
+		control_notify(bs, bs->ses_state);
+
+	} 
+	else 
+	{
+		/* Check if already working. */
+		if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN))
+			return;
+
+		UNSET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
+
+		/* Change and notify state change. */
+		// bs->ses_state = PTM_BFD_DOWN;
+		// control_notify(bs, bs->ses_state);
+
+		/* Enable all timers. */
+		bs_sbfd_echo_timer_handler(bs);
+		// bfd_echo_recvtimer_update(bs);
+		// bfd_echo_xmttimer_update(bs, bs->echo_xmt_TO);
+	}
+}
+
 static void _bfd_session_update(struct bfd_session *bs,
 				struct bfd_peer_cfg *bpc)
 {
     if (bpc->bpc_echo) {
+
+        if (bpc->bpc_sbfd)
+		{
+            sbfd_session_update(bs, bpc);
+			return;
+		}
+
         /* Check if echo mode is already active. */
         if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
             goto skip_echo;
@@ -959,8 +1186,28 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 	}
 
 	/* Get BFD session storage with its defaults. */
-	bfd = bfd_session_new();
+	// bfd = bfd_session_new();
+	bfd = sbfd_session_new(bpc->seg_num);
+	if (bfd == NULL) {
+		zlog_err("session-new: allocation failed");
+		return NULL;
+	}
 
+    if (bpc->seg_num > 0)
+	{
+		/*get seglist name*/
+		strlcpy(bfd->key.seglist_name, bpc->seglist_name,
+			sizeof(bfd->key.seglist_name));		
+
+		/*get segnum and seglist entry*/
+		bfd->segnum = bpc->seg_num;
+		int i ;
+		for (i=0; i < bpc->seg_num; i++)
+		{
+			memcpy(&bfd->seg_list[i], &bpc->seg_list[i], sizeof(struct in6_addr));
+		}
+	}
+    
 	/*
 	 * Store interface/VRF name in case we need to delay session
 	 * start. See `bfd_session_enable` for more information.
@@ -988,6 +1235,13 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 	if (bpc->bpc_ipv4 == false)
 		SET_FLAG(bfd->flags, BFD_SESS_FLAG_IPV6);
 
+	if (bpc->bpc_sbfd && bpc->bpc_echo == false)
+		SET_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT);
+		bfd->discrs.remote_discr = bpc->bpc_remoteid;
+
+	if (bpc->bpc_sbfd && bpc->bpc_echo)
+		SET_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO);
+
 	bfd->key.family = (bpc->bpc_ipv4) ? AF_INET : AF_INET6;
 	switch (bfd->key.family) {
 	case AF_INET:
@@ -1013,6 +1267,9 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 		SET_FLAG(bfd->flags, BFD_SESS_FLAG_MH);
 
 	bfd->key.mhop = bpc->bpc_mhop;
+
+	bfd->key.srte_color = bpc->srte_color;
+	strlcpy(bfd->key.seglist_name, bpc->seglist_name, sizeof(bfd->key.seglist_name));
 
 	if (bs_registrate(bfd) == NULL)
 		return NULL;
@@ -1146,6 +1403,30 @@ static void bs_down_handler(struct bfd_session *bs, int nstate)
 	}
 }
 
+static void sbfd_down_handler(struct bfd_session *bs, int nstate)
+{
+	switch (nstate) {
+	case PTM_BFD_ADM_DOWN:
+		/*
+		 * Remote peer doesn't want to talk, so lets keep the
+		 * connection down.
+		 */
+	case PTM_BFD_UP:
+		/* down - > up*/
+		ptm_sbfd_sess_up(bs);
+		break;
+
+	case PTM_BFD_DOWN:
+		break;
+
+	default:
+		if (bglobal.debug_peer_event)
+			zlog_debug("state-change: unhandled sbfd state: %d",
+				   nstate);
+		break;
+	}
+}
+
 static void bs_init_handler(struct bfd_session *bs, int nstate)
 {
 	switch (nstate) {
@@ -1235,6 +1516,40 @@ static void bs_up_handler(struct bfd_session *bs, int nstate)
 	}
 }
 
+static void sbfd_up_handler(struct bfd_session *bs, int nstate)
+{
+	switch (nstate) {
+	case PTM_BFD_ADM_DOWN:
+		bs_neighbour_admin_down_handler(bs, BD_ADMIN_DOWN);
+		break;
+
+	case PTM_BFD_DOWN:
+        if ((nstate == PTM_BFD_ADM_DOWN) || (bs->remote_diag == BD_ADMIN_DOWN))
+			SET_FLAG(bs->flags, BFD_SESS_FLAG_REM_ADMIN_DOWN);
+		/* Peer lost or asked to shutdown connection. */
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
+		{
+			ptm_sbfd_sess_dn(bs, BD_ECHO_FAILED);
+		}
+		else
+		{
+            ptm_sbfd_sess_dn(bs, BD_PATH_DOWN);
+		}
+		
+		break;
+
+	case PTM_BFD_UP:
+		/* Path is up and working. */
+		break;
+
+	default:
+		if (bglobal.debug_peer_event)
+			zlog_debug("state-change: unhandled neighbor state: %d",
+				   nstate);
+		break;
+	}
+}
+
 void bs_state_handler(struct bfd_session *bs, int nstate)
 {
 	switch (bs->ses_state) {
@@ -1249,6 +1564,27 @@ void bs_state_handler(struct bfd_session *bs, int nstate)
 		break;
 	case PTM_BFD_UP:
 		bs_up_handler(bs, nstate);
+		break;
+
+	default:
+		if (bglobal.debug_peer_event)
+			zlog_debug("state-change: [%s] is in invalid state: %d",
+				   bs_to_string(bs), nstate);
+		break;
+	}
+}
+
+void sbfd_state_handler(struct bfd_session *bs, int nstate)
+{
+	switch (bs->ses_state) {
+	case PTM_BFD_ADM_DOWN:
+		// bs_admin_down_handler(bs, nstate);
+		break;
+	case PTM_BFD_DOWN:
+		sbfd_down_handler(bs, nstate);
+		break;
+	case PTM_BFD_UP:
+		sbfd_up_handler(bs, nstate);
 		break;
 
 	default:
@@ -1300,6 +1636,42 @@ void bs_echo_timer_handler(struct bfd_session *bs)
 		bs->echo_xmt_TO = bs->remote_timers.required_min_echo;
 	else
 		bs->echo_xmt_TO = bs->timers.desired_min_echo_tx;
+
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO_ACTIVE) == 0
+	    || old_timer != bs->echo_xmt_TO)
+		ptm_bfd_echo_start(bs);
+}
+
+/*
+ * Handles echo timer manipulation after updating timer.
+ */
+void bs_sbfd_echo_timer_handler(struct bfd_session *bs)
+{
+	uint32_t old_timer;
+
+	/*
+	 * Before doing any echo handling, check if it is possible to
+	 * use it.
+	 *
+	 *   - Check for `echo-mode` configuration.
+	 *   - Check that we are not using multi hop (RFC 5883,
+	 *     Section 3).
+	 *   - Check that we are already at the up state.
+	 */
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO) == 0
+	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
+		return;
+
+	/*
+	 * Calculate the echo transmission timer: we must not send
+	 * echo packets faster than the minimum required time
+	 * announced by the remote system.
+	 *
+	 * RFC 5880, Section 6.8.9.
+	 */
+	old_timer = bs->echo_xmt_TO;
+
+	bs->echo_xmt_TO = bs->timers.desired_min_echo_tx;
 
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO_ACTIVE) == 0
 	    || old_timer != bs->echo_xmt_TO)
@@ -1735,8 +2107,12 @@ static struct hash *bfd_key_hash;
 
 static struct hash *bfd_hw_detect_hash;
 
+/*sbfd reflector discr hash*/
+static struct hash *sbfd_rflt_hash;
+
 static unsigned int bfd_id_hash_do(const void *p);
 static unsigned int bfd_key_hash_do(const void *p);
+static unsigned int sbfd_discr_hash_do(const void *p);
 
 static void _bfd_free(struct hash_bucket *hb,
 		      void *arg __attribute__((__unused__)));
@@ -1806,10 +2182,31 @@ static bool bfd_key_hash_cmp(const void *n1, const void *n2)
 	    && memcmp(bs1->key.ifname, bs2->key.ifname,
 		      sizeof(bs1->key.ifname)))
 		return false;
+	
+	if (bs1->key.srte_color != bs2->key.srte_color)
+	    return false;
+	
+	if (bs1->key.seglist_name[0] && bs2->key.seglist_name[0]
+	    && memcmp(&bs1->key.seglist_name, &bs2->key.seglist_name, sizeof(bs1->key.seglist_name)))
+	    return false;
 
 	return true;
 }
 
+/* SBFD disr hash . */
+static unsigned int sbfd_discr_hash_do(const void *p)
+{
+	const struct sbfd_reflector *sr = p;
+
+	return jhash_1word(sr->discr, 0);
+}
+
+static bool sbfd_discr_hash_cmp(const void *n1, const void *n2)
+{
+	const struct sbfd_reflector *sr1 = n1, *sr2 = n2;
+
+	return sr1->discr == sr2->discr;
+}
 
 /*
  * Hash public interface / exported functions.
@@ -1840,6 +2237,15 @@ struct bfd_session *bfd_key_lookup(struct bfd_key key)
 	bs.key = key;
 
 	return hash_lookup(bfd_key_hash, &bs);
+}
+
+struct sbfd_reflector *sbfd_discr_lookup(uint32_t discr)
+{
+	struct sbfd_reflector sr;
+
+	sr.discr= discr;
+
+	return hash_lookup(sbfd_rflt_hash, &sr);
 }
 
 /*
@@ -1879,6 +2285,15 @@ struct bfd_session *bfd_hw_detect_delete(uint32_t id)
 	return hash_release(bfd_hw_detect_hash, &bs);
 }
 
+struct sbfd_reflector *sbfd_discr_delete(uint32_t discr)
+{
+	struct sbfd_reflector sr;
+
+	sr.discr = discr;
+
+	return hash_release(sbfd_rflt_hash, &sr);
+}
+
 /* Iteration functions. */
 void bfd_id_iterate(hash_iter_func hif, void *arg)
 {
@@ -1893,6 +2308,11 @@ void bfd_key_iterate(hash_iter_func hif, void *arg)
 void bfd_hw_detect_iterate(hash_iter_func hif, void *arg)
 {
 	hash_iterate(bfd_hw_detect_hash, hif, arg);
+}
+
+void sbfd_discr_iterate(hash_iter_func hif, void *arg)
+{
+	hash_iterate(sbfd_rflt_hash, hif, arg);
 }
 
 /*
@@ -1916,6 +2336,11 @@ bool bfd_hw_detect_insert(struct bfd_session *bs)
 	return (hash_get(bfd_hw_detect_hash, bs, hash_alloc_intern) == bs);
 }
 
+bool sbfd_discr_insert(struct sbfd_reflector *sr)
+{
+	return (hash_get(sbfd_rflt_hash, sr, hash_alloc_intern) == sr);
+}
+
 unsigned long bfd_id_get_count(void)
 {
 	return bfd_id_hash->count;
@@ -1924,6 +2349,11 @@ unsigned long bfd_id_get_count(void)
 unsigned long bfd_hw_detect_get_count(void)
 {
 	return bfd_hw_detect_hash->count;
+}
+
+unsigned long sbfd_discr_get_count(void)
+{
+	return sbfd_rflt_hash->count;
 }
 
 
@@ -1935,6 +2365,8 @@ void bfd_initialize(void)
 				   "BFD session hash");
 	bfd_hw_detect_hash = hash_create(bfd_id_hash_do, bfd_id_hash_cmp,
 				   "BFD HW detect falut session hash");
+	sbfd_rflt_hash = hash_create(sbfd_discr_hash_do, sbfd_discr_hash_cmp,
+				   "SBFD reflector discriminator hash");
 	TAILQ_INIT(&bplist);
 }
 
@@ -1944,6 +2376,16 @@ static void _bfd_free(struct hash_bucket *hb,
 	struct bfd_session *bs = hb->data;
 
 	bfd_session_free(bs);
+}
+
+static void _sbfd_reflector_free(struct hash_bucket *hb,
+		      void *arg __attribute__((__unused__)))
+{
+	struct sbfd_reflector *sr = hb->data;
+    uint32_t discr = sr->discr;
+
+	sbfd_reflector_free(sr->discr);
+	bfd_fpm_sbfd_reflector_sendmsg(discr, false);
 }
 
 void bfd_shutdown(void)
@@ -1960,10 +2402,14 @@ void bfd_shutdown(void)
 	bfd_id_iterate(_bfd_free, NULL);
 	assert(bfd_key_hash->count == 0);
 
+	sbfd_discr_iterate(_sbfd_reflector_free, NULL);
+	assert(sbfd_rflt_hash->count == 0);
+
 	/* Now free the hashes themselves. */
 	hash_free(bfd_id_hash);
 	hash_free(bfd_key_hash);
     hash_free(bfd_hw_detect_hash);
+	hash_free(sbfd_rflt_hash);
 	
 	/* Free all profile allocations. */
 	while ((bp = TAILQ_FIRST(&bplist)) != NULL)
@@ -2158,6 +2604,8 @@ static int bfd_vrf_enable(struct vrf *vrf)
 			bvrf->bg_echo = bp_echo_socket(vrf);
 		if (!bvrf->bg_echov6)
 			bvrf->bg_echov6 = bp_echov6_socket(vrf);
+		if (!bvrf->bg_sbfd)
+			bvrf->bg_sbfd = bp_sbfd_socket(vrf);
 
 		if (!bvrf->bg_ev[0] && bvrf->bg_shop != -1)
 			thread_add_read(master, bfd_recv_cb, bvrf,
@@ -2258,4 +2706,43 @@ struct bfd_vrf_global *bfd_vrf_look_by_session(struct bfd_session *bfd)
 unsigned long bfd_get_session_count(void)
 {
 	return bfd_key_hash->count;
+}
+
+struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr)
+{
+	struct sbfd_reflector *sr;
+
+    sr = sbfd_discr_lookup(discr);
+	if (sr)
+	    return sr;
+
+	sr = XCALLOC(MTYPE_SBFD_REFLECTOR, sizeof(*sr));
+    sr->discr = discr;
+    
+	sbfd_discr_insert(sr);
+
+    /*send to bfdsyncd */
+	bfd_fpm_sbfd_reflector_sendmsg(discr, true);
+
+	return sr;
+}
+
+void sbfd_reflector_free(const uint32_t discr)
+{
+	struct sbfd_reflector *sr;
+
+    sr = sbfd_discr_lookup(discr);
+	if (!sr)
+	    return;
+
+    sbfd_discr_delete(discr);
+    XFREE(MTYPE_SBFD_REFLECTOR, sr);
+
+	return;
+}
+
+void sbfd_reflector_flush()
+{
+	sbfd_discr_iterate(_sbfd_reflector_free, NULL);
+	return;
 }

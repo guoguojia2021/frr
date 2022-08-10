@@ -164,6 +164,17 @@ enum affinity_filter_type {
 };
 #define MAX_AFFINITY_FILTER_TYPE 3
 
+enum srte_segment_sid_type {
+	SRTE_SEGMENT_SID_TYPE_UNDEFINED = 0,
+	SRTE_SEGMENT_SID_TYPE_V6 = 1,
+	SRTE_SEGMENT_SID_TYPE_MPLS = 2,
+};
+
+enum detection_status {
+    SBFD_DOWN,
+	SBFD_UP,
+};
+
 struct srte_segment_list;
 
 struct srte_segment_entry {
@@ -175,8 +186,13 @@ struct srte_segment_entry {
 	/* Index of the Label. */
 	uint32_t index;
 
+    enum srte_segment_sid_type sid_type;
+
 	/* Label Value. */
 	mpls_label_t sid_value;
+
+	/*Srv6 Sid*/
+	struct ipaddr srv6_sid_value;
 
 	/* NAI Type */
 	enum srte_segment_nai_type nai_type;
@@ -197,11 +213,31 @@ RB_HEAD(srte_segment_entry_head, srte_segment_entry);
 RB_PROTOTYPE(srte_segment_entry_head, srte_segment_entry, entry,
 	     srte_segment_entry_compare)
 
+struct srte_sbfd_session {
+	RB_ENTRY(srte_sbfd_session) entry;
+
+	/** Peer BFD session */
+	struct bfd_session_params *session;
+
+	/* The segment list the entry belong to */
+	struct srte_segment_list *segment_list;
+
+	// /* The sr-policy the entry belong to */
+	// struct srte_policy *policy;
+	/* Color */
+	uint32_t policy_color;
+	/* Endpoint */
+	struct ipaddr policy_endpoint;
+};
+RB_HEAD(srte_sbfd_session_head, srte_sbfd_session);
+RB_PROTOTYPE(srte_sbfd_session_head, srte_sbfd_session, entry,
+	     srte_sbfd_session_compare)
+
 struct srte_segment_list {
 	RB_ENTRY(srte_segment_list) entry;
 
 	/* Name of the Segment List. */
-	char name[64];
+	char name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
 
 	/* The Protocol-Origin. */
 	enum srte_protocol_origin protocol_origin;
@@ -212,12 +248,19 @@ struct srte_segment_list {
 	/* Nexthops. */
 	struct srte_segment_entry_head segments;
 
+    /*sbfd session*/
+    struct srte_sbfd_session_head sbfd_sessions;
+
+    /* segment list status  */
+    enum detection_status status;
+
 	/* Status flags. */
 	uint16_t flags;
 #define F_SEGMENT_LIST_NEW 0x0002
 #define F_SEGMENT_LIST_MODIFIED 0x0004
 #define F_SEGMENT_LIST_DELETED 0x0008
 #define F_SEGMENT_LIST_SID_CONFLICT 0x0010
+
 };
 RB_HEAD(srte_segment_list_head, srte_segment_list);
 RB_PROTOTYPE(srte_segment_list_head, srte_segment_list, entry,
@@ -321,10 +364,70 @@ struct srte_candidate {
 
 	/* Hooks delaying timer */
 	struct thread *hook_timer;
+
+    /*path weight*/
+	uint32_t weight;
 };
 
 RB_HEAD(srte_candidate_head, srte_candidate);
 RB_PROTOTYPE(srte_candidate_head, srte_candidate, entry, srte_candidate_compare)
+
+RB_HEAD(srte_candidate_group_head, srte_candidate_group);
+RB_PROTOTYPE(srte_candidate_group_head, srte_candidate_group, entry, srte_candidate_group_compare)
+
+struct srte_candidate_group {
+	RB_ENTRY(srte_candidate_group) entry;
+	/* Backpointer to SR Policy */
+	struct srte_policy *policy;
+
+	/* Administrative preference. */
+	uint32_t preference;
+
+	/* Candidate Paths */
+	struct srte_candidate_head candidate_paths;
+
+	/* Candidate Group status  */
+	uint32_t up_cpath_num;
+	enum detection_status status;
+
+	uint32_t flags;
+#define F_CPATH_GROUP_BEST 0x0001
+#define F_CPATH_GROUP_MODIFIED 0x0002
+};
+struct sbfd_session_config {
+	/** Control Plane Independent. */
+	bool cbit;
+	/** sbfd echo or sbfd initiator**/
+	bool is_echo;
+	/** Detection multiplier. */
+	uint8_t detection_multiplier;
+	/** Minimum required RX interval. */
+	uint32_t min_rx;
+	/** Minimum required TX interval. */
+	uint32_t min_tx;
+	/** Profile name. */
+	char profile[64];
+	/** Peer BFD session */
+	// struct bfd_session_params *session;
+	/** update interface **/
+	char update_if[64];
+	/** update source **/
+	struct in6_addr update_source;
+	/* remote discr*/
+	uint32_t remote_disc;
+
+	/* Status flags. */
+	uint16_t bfd_flags;
+#define SBFD_NEW 0x0002
+#define SBFD_MODIFIED 0x0004
+#define SBFD_DELETED 0x0008
+#define SBFD_NOTIFIED 0x0010
+
+	/*active status*/
+    uint16_t bfd_active_flags;
+#define SBFD_AF_ACTIVE 0x0002
+#define SBFD_AF_PASSIVE 0x0004
+};
 
 struct srte_policy {
 	RB_ENTRY(srte_policy) entry;
@@ -347,19 +450,34 @@ struct srte_policy {
 	/* The Originator */
 	char originator[64];
 
+    /* Binding Srv6 Sid*/
+	struct ipaddr binding_v6_sid;
+
 	/* Operational Status of the policy */
 	enum srte_policy_status status;
 
 	/* Best candidate path. */
 	struct srte_candidate *best_candidate;
 
+	/* Best candidate path. */
+	struct srte_candidate_group *best_candidate_group;
+
 	/* Candidate Paths */
 	struct srte_candidate_head candidate_paths;
+
+	/* Candidate groups */
+	struct srte_candidate_group_head candidate_groups;
+
+	uint32_t up_cpath_group_num;
+
 	/* Status flags. */
 	uint16_t flags;
 #define F_POLICY_NEW 0x0002
 #define F_POLICY_MODIFIED 0x0004
 #define F_POLICY_DELETED 0x0008
+#define F_POLICY_CONF_BFD 0x0010
+   
+   struct sbfd_session_config *bfd_config;
 	/* SRP id for PcInitiated support */
 	int srp_id;
 };
@@ -373,12 +491,20 @@ DECLARE_HOOK(pathd_candidate_updated, (struct srte_candidate * candidate),
 DECLARE_HOOK(pathd_candidate_removed, (struct srte_candidate * candidate),
 	     (candidate));
 
+struct srte_sbfd_event
+{
+    struct srte_segment_list *segl;
+	struct srte_policy *policy;
+};
+
 extern struct srte_segment_list_head srte_segment_lists;
 extern struct srte_policy_head srte_policies;
 extern struct zebra_privs_t pathd_privs;
 
 /* master thread, defined in path_main.c */
 extern struct thread_master *master;
+
+extern struct ipaddr encap_source_address;
 
 /* pathd.c */
 struct srte_segment_list *srte_segment_list_add(const char *name);
@@ -406,10 +532,16 @@ void srte_policy_update_binding_sid(struct srte_policy *policy,
 void srte_apply_changes(void);
 void srte_clean_zebra(void);
 void srte_policy_apply_changes(struct srte_policy *policy);
+void srv6_policy_apply_changes(struct srte_policy *policy);
 struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 					  uint32_t preference,
 					  enum srte_protocol_origin origin,
-					  const char *originator);
+					  const char *originator,
+					  char *name);
+void srte_candidate_add_group(struct srte_policy *policy,
+					  struct srte_candidate *candidate);
+struct srte_candidate_group *srte_candidate_group_add(struct srte_policy *policy,
+					  uint32_t preference);
 void srte_candidate_del(struct srte_candidate *candidate);
 void srte_candidate_set_bandwidth(struct srte_candidate *candidate,
 				  float bandwidth, bool required);
@@ -438,6 +570,8 @@ void srte_lsp_unset_metric(struct srte_lsp *lsp,
 			   enum srte_candidate_metric_type type);
 struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
 					   uint32_t preference);
+struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *policy,
+					   uint32_t preference);
 struct srte_segment_entry *
 srte_segment_entry_find(struct srte_segment_list *segment_list, uint32_t index);
 void srte_candidate_status_update(struct srte_candidate *candidate, int status);
@@ -447,7 +581,6 @@ void pathd_shutdown(void);
 
 /* path_cli.c */
 void path_cli_init(void);
-
 
 /**
  * Search for sid based in prefix and algorithm
@@ -484,4 +617,8 @@ int32_t srte_ted_do_query_type_e(struct srte_segment_entry *entry,
  */
 int32_t srte_ted_do_query_type_f(struct srte_segment_entry *entry,
 				 struct ipaddr *local, struct ipaddr *remote);
+
+void path_delete_sbfd_config(struct srte_policy *policy);
+
+void srv6_choose_best_cpath_group(struct srte_policy *policy);
 #endif /* _FRR_PATHD_H_ */

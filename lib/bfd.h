@@ -113,6 +113,14 @@ struct bfd_session_params *bfd_sess_new(bsp_status_update updatecb, void *args);
 void bfd_sess_free(struct bfd_session_params **bsp);
 
 /**
+ * Uninstall session if installed and free resources allocated by the
+ * parameters. Already sets pointer to `NULL` to avoid dangling references.
+ *
+ * \param bsp session parameters.
+ */
+void sbfd_sess_free(struct bfd_session_params **bsp);
+
+/**
  * Set the local and peer address of the BFD session.
  *
  * NOTE:
@@ -221,6 +229,19 @@ void bfd_sess_set_timers(struct bfd_session_params *bsp,
 			 uint8_t detection_multiplier, uint32_t min_rx,
 			 uint32_t min_tx);
 
+
+void sbfd_sess_set_segments(struct bfd_session_params *bsp, char* seglist_name, uint8_t segnum, struct in6_addr* seglist);
+
+void sbfd_sess_set_segment_list_name(struct bfd_session_params *bsp, char* seglist_name);
+
+void sbfd_sess_set_sbfd_echo(struct bfd_session_params *bsp, uint32_t sbfd_echo_flag);
+
+void sbfd_sess_set_srpolicy_info(struct bfd_session_params *bsp, uint32_t color, struct in6_addr* endpoint);
+
+struct in6_addr* sbfd_sess_get_srpolicy_endpoint(struct bfd_session_params *bsp);
+uint32_t sbfd_sess_get_srpolicy_color(struct bfd_session_params *bsp);
+void bfd_sess_set_remote_discr(struct bfd_session_params *bsp, uint32_t discr);
+
 /**
  * Installs or updates the BFD session based on the saved session arguments.
  *
@@ -232,6 +253,18 @@ void bfd_sess_set_timers(struct bfd_session_params *bsp,
  */
 void bfd_sess_install(struct bfd_session_params *bsp);
 
+/**
+ * Installs or updates the SBFD session based on the saved session arguments.
+ *
+ * NOTE:
+ * This function has a delayed effect: it will only install/update after
+ * all northbound/CLI command batch finishes.
+ *
+ * \param bsp session parameters.
+ */
+void sbfd_sess_install(struct bfd_session_params *bsp);
+
+void sbfd_sess_uninstall(struct bfd_session_params *bsp);
 /**
  * Uninstall the BFD session based on the saved session arguments.
  *
@@ -414,6 +447,15 @@ struct bfd_session_arg {
 	uint32_t min_tx;
 	/** Detection multiplier. */
 	uint32_t detection_multiplier;
+
+	/* sbfd param*/
+	uint8_t is_sbfd_echo;
+	uint8_t seglist_seg_num;
+	char seglist_name[64];
+	struct in6_addr seglist[16];
+	uint32_t sr_color;
+	struct in6_addr sr_endpoint;
+	uint32_t sbfd_remote_discr;
 };
 
 /**

@@ -115,6 +115,17 @@ struct bfd_peer_cfg {
 	uint64_t bpc_remote_txinterval;
 	uint64_t bpc_remote_echointerval;
 	uint64_t bpc_lastevent;
+
+    /* sbfd */
+	bool bpc_sbfd;
+	uint8_t seg_num;
+	uint8_t seglist_name_len;
+	char seglist_name[MAXNAMELEN + 1];
+	uint32_t srte_color;
+	struct in6_addr srte_endpoint;
+	struct in6_addr seg_list[16];
+	uint32_t sbfd_remote_discr;
+
 };
 
 

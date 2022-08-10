@@ -654,6 +654,168 @@ DEFPY_YANG(bfd_peer_profile, bfd_peer_profile_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+
+DEFPY(
+	sbfd_reflector, sbfd_reflector_cmd,
+	"sbfd reflector discriminator WORD...",
+    "seamless BFD\n"
+    "sbfd reflector\n"
+	"discriminator\n"
+	"discriminator value or range\n")
+{
+	int ret;
+	int idx_discr = 3;
+	int i,j;
+	uint32_t discr, discr_from, discr_to;
+	struct sbfd_reflector *sr;
+
+	for (i = idx_discr; i < argc; i++) {
+        /* check validity*/
+        char *pstr = argv[i]->arg;
+        
+		/*single discr*/
+		if (strspn(pstr, "0123456789")==strlen(pstr))
+        {
+			discr = atol(pstr);
+			vty_out(vty, "arg %d %u\n",i, discr);
+			sr = sbfd_reflector_new(discr);
+        }
+		/*discr segment*/
+        else if (strspn(pstr, "0123456789-")==strlen(pstr))
+        {
+            char *token = strtok(argv[i]->arg, "-");
+            if(token)
+            {
+				discr_from = atol(token);
+				vty_out(vty, "arg %d-1: %u\n",i, discr_from);
+            }
+            token = strtok(NULL, "-");
+            if(token)
+            {
+				discr_to = atol(token);
+				vty_out(vty, "arg %d-2: %u\n",i, discr_to);
+            }
+
+			if (discr_from >= discr_to)
+			{
+				vty_out(vty, "input discriminator range %u-%u is illegal\n", discr_from, discr_to);
+			}
+
+			for (j = discr_from; j <= discr_to; j++)
+			{
+                sr = sbfd_reflector_new(j);
+			}
+        }
+		/*illegal input*/
+		else
+        {
+			vty_out(vty, "input discriminator %s is illegal\n", argv[i]);
+        }
+
+	}
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(
+	no_sbfd_reflector_all, no_sbfd_reflector_all_cmd,
+	"no sbfd reflector [all]",
+	NO_STR
+    "seamless BFD\n"
+    "sbfd reflector\n"
+	"all\n")
+{
+    sbfd_reflector_flush();
+     
+	if (sbfd_discr_get_count())
+	{
+		vty_out(vty, "delete all refector discriminator failed.\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(
+	no_sbfd_reflector, no_sbfd_reflector_cmd,
+	"no sbfd reflector (0-4294967295)$start_discr [(0-4294967295)$end_discr]",
+	NO_STR
+    "seamless BFD\n"
+    "sbfd reflector\n"
+	"start discriminator\n"
+	"end discriminator\n")
+{
+	struct sbfd_reflector *sr;
+	uint32_t i;
+
+	if (end_discr == 0 )
+	{
+		if (start_discr == 0)
+		{
+			vty_out(vty, "input refector discriminator is illegal.\n");
+			return CMD_WARNING_CONFIG_FAILED;
+		}
+        
+		sr = sbfd_discr_lookup(start_discr);
+		if (!sr)
+		{
+			vty_out(vty, "input refector discriminator does not exist.\n");
+			return CMD_WARNING_CONFIG_FAILED;
+		}
+
+		sbfd_reflector_free(start_discr);
+		// notify bfdsyncd
+		bfd_fpm_sbfd_reflector_sendmsg(start_discr, false);
+	}
+	else
+	{
+        if (end_discr <= start_discr)
+		{
+			vty_out(vty, "input refector discriminator is illegal.\n");
+			return CMD_WARNING_CONFIG_FAILED;
+		}
+
+		for (i = start_discr; i <= end_discr; i++)
+		{
+			sr = sbfd_discr_lookup(i);
+			if (sr)
+			{
+				sbfd_reflector_free(i);
+				// notify bfdsyncd
+                bfd_fpm_sbfd_reflector_sendmsg(i, false);
+			}
+		}
+	}
+
+	return CMD_SUCCESS;
+}
+
+static void _sbfd_reflector_show(struct hash_bucket *hb,
+		      void *arg)
+{
+	struct sbfd_reflector *sr = hb->data;
+
+	vty_out((struct vty *) arg, "%u.\n",sr->discr);
+	
+}
+
+DEFPY(
+	sbfd_reflector_show_info, sbfd_reflector_show_info_cmd,
+	"show sbfd reflector",
+	"show\n"
+    "seamless BFD\n"
+    "sbfd reflector\n")
+{
+	struct sbfd_reflector *sr;
+    
+	vty_out(vty, "sbfd refector discriminator :\n");
+    sbfd_discr_iterate(_sbfd_reflector_show, vty);
+
+	return CMD_SUCCESS;
+}
+
+
+
 void bfd_cli_peer_profile_show(struct vty *vty, const struct lyd_node *dnode,
 			       bool show_defaults)
 {
@@ -691,6 +853,11 @@ bfdd_cli_init(void)
 	install_element(BFD_NODE, &bfd_peer_enter_cmd);
 	install_element(BFD_NODE, &bfd_no_peer_cmd);
 
+	install_element(BFD_NODE, &sbfd_reflector_cmd);
+	install_element(BFD_NODE, &no_sbfd_reflector_all_cmd);
+	install_element(BFD_NODE, &no_sbfd_reflector_cmd);
+    install_element(VIEW_NODE, &sbfd_reflector_show_info_cmd);
+	
 	install_element(BFD_PEER_NODE, &bfd_peer_shutdown_cmd);
 	install_element(BFD_PEER_NODE, &bfd_peer_mult_cmd);
 	install_element(BFD_PEER_NODE, &bfd_peer_rx_cmd);

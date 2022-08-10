@@ -34,6 +34,8 @@
 #include "path_zebra.h"
 #include "path_errors.h"
 #include "path_ted.h"
+#include "path_sbfd.h"
+#include "path_db.h"
 
 char backup_config_file[256];
 
@@ -148,6 +150,8 @@ int main(int argc, char **argv, char **envp)
 	path_error_init();
 	path_zebra_init(master);
 	path_cli_init();
+	path_db_init();
+	sr_sbfd_init();
 	path_ted_init(master);
 
 	frr_config_fork();

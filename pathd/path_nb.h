@@ -106,6 +106,29 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 int pathd_srte_policy_candidate_path_segment_list_name_destroy(
 	struct nb_cb_destroy_args *args);
 
+int pathd_srte_segment_list_segment_v6_sid_value_modify(
+	struct nb_cb_modify_args *args);
+int pathd_srte_segment_list_segment_v6_sid_value_destroy(
+	struct nb_cb_destroy_args *args);
+
+int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args);
+
+int pathd_srte_policy_candidate_path_weight_modify(struct nb_cb_modify_args *args);
+
+int pathd_srte_encap_source_address_modify(struct nb_cb_modify_args *args);
+int pathd_srte_encap_source_address_destroy(struct nb_cb_destroy_args *args);
+
+/** sbfd callbacks **/
+int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args);
+int pathd_srte_policy_sbfd_destroy(struct nb_cb_destroy_args *args);
+int pathd_srte_policy_sbfd_detect_multiplier_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_sbfd_mri_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_sbfd_mti_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_sbfd_source_address_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_sbfd_remote_discr_modify(struct nb_cb_modify_args *args);
+
+
 /* Optional 'apply_finish' callbacks. */
 void pathd_apply_finish(struct nb_cb_apply_finish_args *args);
 
@@ -130,7 +153,11 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 					 bool show_defaults);
 void cli_show_srte_policy_candidate_path_end(struct vty *vty,
 					     const struct lyd_node *dnode);
+void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
+			  bool show_defaults);
 
+void cli_show_srte_policy_binding_v6_sid(struct vty *vty, struct lyd_node *dnode,
+				      bool show_defaults);
 /* Utility functions */
 typedef void (*of_pref_cp_t)(enum objfun_type type, void *arg);
 void iter_objfun_prefs(const struct lyd_node *dnode, const char *path,

@@ -35,6 +35,8 @@ typedef enum {
     BFD_NOTIFY_UP = 3,
     BFD_NOTIFY_DOWN = 4,
     BFD_HW_FAULT = 5,
+    SBFD_CREATE_REFLECTOR = 6,
+    SBFD_DELETE_REFLECTOR = 7,
 } bfdsync_message_types_t;
 
 typedef struct bfd_msg_hdr_t_
@@ -100,6 +102,7 @@ static inline void *bfdsync_msg_data(bfd_msg_hdr_t *hdr)
 }
 
 extern void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create);
+extern void bfd_fpm_sbfd_reflector_sendmsg(uint32_t discr, bool create);
 extern int bfdsync_send_message();
 
 extern int bfpm_init(struct thread_master *master);
