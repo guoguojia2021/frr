@@ -23,6 +23,7 @@
 #include <zebra.h>
 #include "prefix.h"
 #include "json.h"
+#include "vrf.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -33,6 +34,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 #define sid2str(sid, str, size) \
 	inet_ntop(AF_INET6, sid, str, size)
@@ -60,6 +62,7 @@ enum seg6local_action_t {
 	ZEBRA_SEG6_LOCAL_ACTION_END_AS       = 13,
 	ZEBRA_SEG6_LOCAL_ACTION_END_AM       = 14,
 	ZEBRA_SEG6_LOCAL_ACTION_END_BPF      = 15,
+	ZEBRA_SEG6_LOCAL_ACTION_END_DT46     = 16,
 };
 
 struct seg6_segs {
@@ -71,6 +74,11 @@ struct seg6local_context {
 	struct in_addr nh4;
 	struct in6_addr nh6;
 	uint32_t table;
+    uint8_t block_bits_length;
+	uint8_t node_bits_length;
+	uint8_t function_bits_length;
+	uint8_t argument_bits_length;
+    char vrfName[VRF_NAMSIZ + 1];
 };
 
 struct srv6_locator {
@@ -90,6 +98,14 @@ struct srv6_locator {
 	uint64_t current;
 	bool status_up;
 	struct list *chunks;
+    struct list *sids;
+    /*
+	 * For Zclient communication values
+	 */
+	uint8_t keep;
+	uint8_t proto;
+	uint16_t instance;
+	uint32_t session_id;
 
 	QOBJ_FIELDS;
 };
@@ -117,6 +133,19 @@ struct srv6_locator_chunk {
 	uint32_t session_id;
 };
 
+struct seg6_sid {
+	enum seg6local_action_t sidaction;
+    char vrfName[VRF_NAMSIZ];
+	struct prefix_ipv6 ipv6Addr;
+};
+
+struct seg6_sid_msg {
+    char locator_name[SRV6_LOCNAME_SIZE];
+	enum seg6local_action_t sidaction;
+    char vrfName[VRF_NAMSIZ];
+	struct prefix_ipv6 ipv6Addr;
+};
+
 struct nexthop_srv6 {
 	/* SRv6 localsid info for Endpoint-behaviour */
 	enum seg6local_action_t seg6local_action;
@@ -124,6 +153,7 @@ struct nexthop_srv6 {
 
 	/* SRv6 Headend-behaviour */
 	struct in6_addr seg6_segs;
+    struct in6_addr seg6_src;
 };
 
 static inline const char *seg6_mode2str(enum seg6_mode_t mode)
@@ -182,11 +212,18 @@ const char *seg6local_context2str(char *str, size_t size,
 
 int snprintf_seg6_segs(char *str,
 		size_t size, const struct seg6_segs *segs);
+extern struct srv6_locator *srv6_locator_new();
+extern void srv6_locator_del(struct srv6_locator *locator);
 
 extern struct srv6_locator *srv6_locator_alloc(const char *name);
 extern struct srv6_locator_chunk *srv6_locator_chunk_alloc(void);
 extern void srv6_locator_free(struct srv6_locator *locator);
+extern void combine_sid(struct in6_addr *locator_addr, struct in6_addr *sid_addr, struct in6_addr *result_addr);
+
 extern void srv6_locator_chunk_free(struct srv6_locator_chunk *chunk);
+extern struct seg6_sid *srv6_locator_sid_alloc(void);
+extern void srv6_locator_sid_free(struct seg6_sid *sid);
+
 json_object *srv6_locator_chunk_json(const struct srv6_locator_chunk *chunk);
 json_object *srv6_locator_json(const struct srv6_locator *loc);
 json_object *srv6_locator_detailed_json(const struct srv6_locator *loc);

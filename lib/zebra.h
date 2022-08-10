@@ -352,6 +352,7 @@ struct in_pktinfo {
  */
 #define ZEBRA_FLAG_RR_USE_DISTANCE    0x40
 #define ZEBRA_FLAG_BACKUP_SELECTED    0x80
+#define ZEBRA_FLAG_LOCAL_SID_ROUTE    0x100
 
 #ifndef INADDR_LOOPBACK
 #define	INADDR_LOOPBACK	0x7f000001	/* Internet address 127.0.0.1.  */

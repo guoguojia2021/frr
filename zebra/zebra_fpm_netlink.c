@@ -30,6 +30,7 @@
 #include "rib.h"
 #include "vty.h"
 #include "prefix.h"
+#include "srv6.h"
 
 #include "zebra/zserv.h"
 #include "zebra/zebra_router.h"
@@ -70,7 +71,9 @@ static size_t af_addr_size(uint8_t af)
  */
 enum fpm_nh_encap_type_t {
 	FPM_NH_ENCAP_NONE = 0,
+    FPM_NH_ENCAP_SRV6_SERVICE_SID = 5,
 	FPM_NH_ENCAP_VXLAN = 100,
+	FPM_NH_ENCAP_SRV6_LOCAL_SID = 200,
 	FPM_NH_ENCAP_MAX,
 };
 
@@ -85,6 +88,12 @@ static const char *fpm_nh_encap_type_to_str(enum fpm_nh_encap_type_t encap_type)
 
 	case FPM_NH_ENCAP_VXLAN:
 		return "VxLAN";
+        
+    case FPM_NH_ENCAP_SRV6_LOCAL_SID:
+        return "SRV6 Local Sid";
+
+    case FPM_NH_ENCAP_SRV6_SERVICE_SID:
+        return "SRV6 Service Sid";
 
 	case FPM_NH_ENCAP_MAX:
 		return "invalid";
@@ -105,15 +114,46 @@ enum vxlan_encap_info_type_t {
 	VXLAN_VLAN = 2,
 };
 
+struct srv6_localsid_encap_info_t {
+	struct in6_addr addr;
+	uint8_t block_bits_length;
+	uint8_t node_bits_length;
+	uint8_t function_bits_length;
+	uint8_t argument_bits_length;
+    enum seg6local_action_t sidaction;
+    char vrfName[VRF_NAMSIZ + 1];
+};
+
+enum srv6_localsid_encap_info_type_t {
+	SID_ADDR = 0,
+	SID_BLOCKLEN = 1,
+	SID_NODELEN = 2,
+	SID_FUNCTIONLEN = 3,
+	SID_ARGULEN = 4,
+	SID_ACTION = 5,
+	SID_VRFNAME = 6,
+};
+enum srv6_servicesid_encap_info_type_t {
+	SEG6_ADDR = 0,
+	SEG6_SRC = 1,
+};
+
+struct srv6_servicesid_encap_info_t {
+	struct in6_addr seg6;
+	struct in6_addr seg_src;
+};
+
 struct fpm_nh_encap_info_t {
 	enum fpm_nh_encap_type_t encap_type;
 	union {
 		struct vxlan_encap_info_t vxlan_encap;
+        struct srv6_localsid_encap_info_t srv6_encap;
+        struct srv6_servicesid_encap_info_t srv6_service_encap;
 	};
 };
 
 /* Utility function for making IPv6 address string. */
-const char *inet6_ntoa(struct in6_addr addr)
+static const char *inet6_ntoa(struct in6_addr addr)
 {
 	static char buf[INET6_ADDRSTRLEN];
  
@@ -308,6 +348,37 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 		}
 	}
 
+    if (re && CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE) && nexthop->nh_srv6){
+        nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_LOCAL_SID;
+
+		nhi.encap_info.srv6_encap.addr = nexthop->nh_srv6->seg6_segs;
+        nhi.encap_info.srv6_encap.block_bits_length = nexthop->nh_srv6->seg6local_ctx.block_bits_length;
+        nhi.encap_info.srv6_encap.node_bits_length = nexthop->nh_srv6->seg6local_ctx.node_bits_length;
+        nhi.encap_info.srv6_encap.function_bits_length = nexthop->nh_srv6->seg6local_ctx.function_bits_length;
+        nhi.encap_info.srv6_encap.argument_bits_length = nexthop->nh_srv6->seg6local_ctx.argument_bits_length;
+        nhi.encap_info.srv6_encap.sidaction = nexthop->nh_srv6->seg6local_action;
+        strncpy(nhi.encap_info.srv6_encap.vrfName, nexthop->nh_srv6->seg6local_ctx.vrfName, VRF_NAMSIZ + 1);
+        
+		zfpm_debug("%s: NEWROUTE:%s/%d, Gateway:%s sid:%s block_bits_length:%d node_bits_length:%d "
+            "function_bits_length:%d argument_bits_length:%d "
+            "sidaction:%s vrfname:%s", __FUNCTION__,
+			prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
+			addr_to_a(ri->af, &nhi.gateway),
+			addr_to_a(AF_INET6, &nhi.encap_info.srv6_encap.addr),
+            nhi.encap_info.srv6_encap.block_bits_length,
+            nhi.encap_info.srv6_encap.node_bits_length,
+            nhi.encap_info.srv6_encap.function_bits_length,
+            nhi.encap_info.srv6_encap.argument_bits_length,
+            seg6local_action2str(nhi.encap_info.srv6_encap.sidaction),
+            nhi.encap_info.srv6_encap.vrfName);
+	}
+    else if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
+    {
+        nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_SERVICE_SID;
+        nhi.encap_info.srv6_service_encap.seg6 = nexthop->nh_srv6->seg6_segs;
+        nhi.encap_info.srv6_service_encap.seg_src = nexthop->nh_srv6->seg6_src;
+    }
+
 	/*
 	 * We have a valid nhi. Copy the structure over to the route_info.
 	 */
@@ -449,6 +520,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	struct rtattr *nest, *inner_nest;
 	struct rtnexthop *rtnh;
 	struct vxlan_encap_info_t *vxlan;
+    struct srv6_localsid_encap_info_t *srv6_local_sid = NULL;
 	struct in6_addr ipv6;
 
 	struct {
@@ -556,6 +628,53 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 						vxlan->vlan);
 			nl_attr_nest_end(&req->n, nest);
 			break;
+        case FPM_NH_ENCAP_SRV6_LOCAL_SID:
+			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
+				      encap);
+			srv6_local_sid = &nhi->encap_info.srv6_encap;
+
+			nest = nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
+			/* nl_attr_nest add NLA_F_NESTED flag by default.
+			 * To avoid fpmsyncd cannot parse this flag, remove
+			 * this flag for vxlan ecnap.
+			 */
+			nest->rta_type &= ~(NLA_F_NESTED);
+
+            nl_attr_put(&req->n, in_buf_len, SID_ADDR,
+						&srv6_local_sid->addr, sizeof(srv6_local_sid->addr));
+            nl_attr_put(&req->n, in_buf_len, SID_BLOCKLEN,
+						&srv6_local_sid->block_bits_length, sizeof(srv6_local_sid->block_bits_length));
+            nl_attr_put(&req->n, in_buf_len, SID_NODELEN,
+						&srv6_local_sid->node_bits_length, sizeof(srv6_local_sid->node_bits_length));
+            nl_attr_put(&req->n, in_buf_len, SID_FUNCTIONLEN,
+						&srv6_local_sid->function_bits_length, sizeof(srv6_local_sid->function_bits_length));
+            nl_attr_put(&req->n, in_buf_len, SID_ARGULEN,
+						&srv6_local_sid->argument_bits_length, sizeof(srv6_local_sid->argument_bits_length));
+            nl_attr_put32(&req->n, in_buf_len, SID_ACTION,
+				      srv6_local_sid->sidaction);
+            nl_attr_put(&req->n, in_buf_len, SID_VRFNAME,
+						&srv6_local_sid->vrfName, sizeof(srv6_local_sid->vrfName));
+
+			nl_attr_nest_end(&req->n, nest);
+			break;
+        case FPM_NH_ENCAP_SRV6_SERVICE_SID:
+			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
+				      encap);
+
+			nest = nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
+			/* nl_attr_nest add NLA_F_NESTED flag by default.
+			 * To avoid fpmsyncd cannot parse this flag, remove
+			 * this flag for vxlan ecnap.
+			 */
+			nest->rta_type &= ~(NLA_F_NESTED);
+
+            nl_attr_put(&req->n, in_buf_len, SEG6_ADDR,
+						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
+            nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
+						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
+            
+			nl_attr_nest_end(&req->n, nest);
+			break;
 		}
 
 		goto done;
@@ -620,8 +739,53 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 						vxlan->vlan);
 			nl_attr_nest_end(&req->n, inner_nest);
 			break;
-		}
+        case FPM_NH_ENCAP_SRV6_LOCAL_SID:
+			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
+				      encap);
+			srv6_local_sid = &nhi->encap_info.srv6_encap;
 
+			nest = nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
+			/* nl_attr_nest add NLA_F_NESTED flag by default.
+			 * To avoid fpmsyncd cannot parse this flag, remove
+			 * this flag for vxlan ecnap.
+			 */
+			nest->rta_type &= ~(NLA_F_NESTED);
+
+            nl_attr_put(&req->n, in_buf_len, SID_ADDR,
+						&srv6_local_sid->addr, sizeof(srv6_local_sid->addr));
+            nl_attr_put(&req->n, in_buf_len, SID_BLOCKLEN,
+						&srv6_local_sid->block_bits_length, sizeof(srv6_local_sid->block_bits_length));
+            nl_attr_put(&req->n, in_buf_len, SID_NODELEN,
+						&srv6_local_sid->node_bits_length, sizeof(srv6_local_sid->node_bits_length));
+            nl_attr_put(&req->n, in_buf_len, SID_FUNCTIONLEN,
+						&srv6_local_sid->function_bits_length, sizeof(srv6_local_sid->function_bits_length));
+            nl_attr_put(&req->n, in_buf_len, SID_ARGULEN,
+						&srv6_local_sid->argument_bits_length, sizeof(srv6_local_sid->argument_bits_length));
+            nl_attr_put32(&req->n, in_buf_len, SID_ACTION,
+				      srv6_local_sid->sidaction);
+            nl_attr_put(&req->n, in_buf_len, SID_VRFNAME,
+						&srv6_local_sid->vrfName, sizeof(srv6_local_sid->vrfName));
+			nl_attr_nest_end(&req->n, nest);
+			break;
+        case FPM_NH_ENCAP_SRV6_SERVICE_SID:
+			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
+				      encap);
+
+			nest = nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
+			/* nl_attr_nest add NLA_F_NESTED flag by default.
+			 * To avoid fpmsyncd cannot parse this flag, remove
+			 * this flag for vxlan ecnap.
+			 */
+			nest->rta_type &= ~(NLA_F_NESTED);
+
+            nl_attr_put(&req->n, in_buf_len, SEG6_ADDR,
+						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
+            nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
+						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
+            
+			nl_attr_nest_end(&req->n, nest);
+			break;
+		}
 		nl_attr_rtnh_end(&req->n, rtnh);
 	}
 
@@ -629,11 +793,6 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	assert(nest->rta_len > RTA_LENGTH(0));
 
 done:
-
-	if (ri->pref_src) {
-		nl_attr_put(&req->n, in_buf_len, RTA_PREFSRC, &ri->pref_src,
-			    bytelen);
-	}
 
 	assert(req->n.nlmsg_len < in_buf_len);
 	return req->n.nlmsg_len;

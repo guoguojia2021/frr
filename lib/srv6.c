@@ -21,7 +21,6 @@
 
 #include "srv6.h"
 #include "log.h"
-
 DEFINE_QOBJ_TYPE(srv6_locator);
 DEFINE_MTYPE_STATIC(LIB, SRV6_LOCATOR, "SRV6 locator");
 DEFINE_MTYPE_STATIC(LIB, SRV6_LOCATOR_CHUNK, "SRV6 locator chunk");
@@ -45,6 +44,8 @@ const char *seg6local_action2str(uint32_t action)
 		return "End.DT6";
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
 		return "End.DT4";
+    case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
+		return "End.DT46";
 	case ZEBRA_SEG6_LOCAL_ACTION_END_B6:
 		return "End.B6";
 	case ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP:
@@ -105,6 +106,7 @@ const char *seg6local_context2str(char *str, size_t size,
 	case ZEBRA_SEG6_LOCAL_ACTION_END_T:
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT6:
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
+    case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
 		snprintf(str, size, "table %u", ctx->table);
 		return str;
 
@@ -122,17 +124,39 @@ const char *seg6local_context2str(char *str, size_t size,
 	}
 }
 
+struct srv6_locator *srv6_locator_new()
+{
+	struct srv6_locator *locator = NULL;
+	locator = XCALLOC(MTYPE_SRV6_LOCATOR, sizeof(struct srv6_locator));
+	return locator;
+}
+void srv6_locator_del(struct srv6_locator *locator)
+{
+    list_delete(&locator->chunks);
+    list_delete(&locator->sids);
+    XFREE(MTYPE_SRV6_LOCATOR, locator);
+    return;
+}
+
 struct srv6_locator *srv6_locator_alloc(const char *name)
 {
 	struct srv6_locator *locator = NULL;
 
-	locator = XCALLOC(MTYPE_SRV6_LOCATOR, sizeof(struct srv6_locator));
-	strlcpy(locator->name, name, sizeof(locator->name));
+    locator = srv6_locator_new();
+    strlcpy(locator->name, name, sizeof(locator->name));
 	locator->chunks = list_new();
 	locator->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
 
+    locator->sids = list_new();
+
 	QOBJ_REG(locator, srv6_locator);
 	return locator;
+}
+void combine_sid(struct in6_addr *locator_addr, struct in6_addr *sid_addr, struct in6_addr *result_addr)
+{
+	for (uint8_t idx = 0; idx < 4; idx++) {
+		result_addr->s6_addr32[idx] = locator_addr->s6_addr32[idx] | sid_addr->s6_addr32[idx];
+	}
 }
 
 struct srv6_locator_chunk *srv6_locator_chunk_alloc(void)
@@ -149,6 +173,7 @@ void srv6_locator_free(struct srv6_locator *locator)
 	if (locator) {
 		QOBJ_UNREG(locator);
 		list_delete(&locator->chunks);
+        list_delete(&locator->sids);
 
 		XFREE(MTYPE_SRV6_LOCATOR, locator);
 	}
@@ -157,6 +182,19 @@ void srv6_locator_free(struct srv6_locator *locator)
 void srv6_locator_chunk_free(struct srv6_locator_chunk *chunk)
 {
 	XFREE(MTYPE_SRV6_LOCATOR_CHUNK, chunk);
+}
+struct seg6_sid *srv6_locator_sid_alloc(void)
+{
+	struct seg6_sid *sid = NULL;
+
+	sid = XCALLOC(MTYPE_SRV6_LOCATOR_CHUNK,
+			sizeof(struct seg6_sid));
+	return sid;
+}
+void srv6_locator_sid_free(struct seg6_sid *sid)
+{
+	XFREE(MTYPE_SRV6_LOCATOR_CHUNK, sid);
+	return;
 }
 
 json_object *srv6_locator_chunk_json(const struct srv6_locator_chunk *chunk)

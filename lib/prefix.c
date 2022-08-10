@@ -1737,7 +1737,7 @@ int evpn_str2prefix(char *str, int type, struct prefix_evpn *p,
 	char *prefixstr = NULL;
 	if (!str)
 		return 1;
-	/* 过滤掉字符串前后掉空格 */
+	/* 过滤掉字符串前后掉空�?*/
 	prefixstr = trim(str);
 	if (evpn_check_bracketsIsValid(prefixstr, &count) == 1)
 		return 1;

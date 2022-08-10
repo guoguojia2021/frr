@@ -1797,7 +1797,7 @@ static bool zapi_read_nexthops(struct zserv *client, struct prefix *p,
 			if (IS_ZEBRA_DEBUG_RECV)
 				zlog_debug("%s: adding seg6", __func__);
 
-			nexthop_add_srv6_seg6(nexthop, &api_nh->seg6_segs);
+			nexthop_add_srv6_seg6(nexthop, &api_nh->seg6_segs, &api_nh->seg6_src);
 		}
 
 		if (IS_ZEBRA_DEBUG_RECV) {
@@ -2713,6 +2713,34 @@ int zsend_srv6_manager_get_locator_chunk_response(struct zserv *client,
 
 	zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_CHUNK, vrf_id);
 	zapi_srv6_locator_chunk_encode(s, &chunk);
+	stream_putw_at(s, 0, stream_get_endp(s));
+	return zserv_send_message(client, s);
+}
+
+int zsend_srv6_manager_get_locator_sid_response(struct zserv *client,
+						  vrf_id_t vrf_id,
+						  struct srv6_locator *loc,
+						  struct seg6_sid *sid)
+{
+	
+	struct stream *s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+    
+	zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID, vrf_id);
+	zapi_srv6_locator_sid_encode(s, loc);
+	stream_putw_at(s, 0, stream_get_endp(s));
+	return zserv_send_message(client, s);
+}
+
+int zsend_srv6_manager_del_sid(struct zserv *client,
+						  vrf_id_t vrf_id,
+						  struct srv6_locator *loc,
+						  struct seg6_sid *sid)
+{
+	
+	struct stream *s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+    
+	zclient_create_header(s, ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID, vrf_id);
+	zapi_srv6_locator_sid_encode(s, loc);
 	stream_putw_at(s, 0, stream_get_endp(s));
 	return zserv_send_message(client, s);
 }

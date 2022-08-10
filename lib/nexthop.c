@@ -594,7 +594,8 @@ void nexthop_del_srv6_seg6local(struct nexthop *nexthop)
 }
 
 void nexthop_add_srv6_seg6(struct nexthop *nexthop,
-			   const struct in6_addr *segs)
+			   const struct in6_addr *segs,
+			   const struct in6_addr *segs_src)
 {
 	if (!segs)
 		return;
@@ -604,6 +605,8 @@ void nexthop_add_srv6_seg6(struct nexthop *nexthop,
 					   sizeof(struct nexthop_srv6));
 
 	nexthop->nh_srv6->seg6_segs = *segs;
+    if (segs_src)
+        nexthop->nh_srv6->seg6_src = *segs_src;
 }
 
 void nexthop_del_srv6_seg6(struct nexthop *nexthop)
@@ -833,7 +836,8 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 				&nexthop->nh_srv6->seg6local_ctx);
 		if (!sid_zero(&nexthop->nh_srv6->seg6_segs))
 			nexthop_add_srv6_seg6(copy,
-				&nexthop->nh_srv6->seg6_segs);
+				&nexthop->nh_srv6->seg6_segs,
+				&nexthop->nh_srv6->seg6_src);
 	}
 }
 

@@ -9590,10 +9590,16 @@ DEFPY (bgp_srv6_locator,
 
 	snprintf(bgp->srv6_locator_name,
 		 sizeof(bgp->srv6_locator_name), "%s", name);
+    /* post-change: re-export vpn routes */
+    vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP,
+                bgp_get_default(), bgp);
+    vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP6,
+                bgp_get_default(), bgp);
 
 	ret = bgp_zebra_srv6_manager_get_locator_chunk(name);
 	if (ret < 0)
 		return CMD_WARNING_CONFIG_FAILED;
+    
 
 	return CMD_SUCCESS;
 }
@@ -9634,8 +9640,11 @@ DEFPY (show_bgp_srv6,
 {
 	struct bgp *bgp;
 	struct listnode *node;
+    struct listnode *sidnode;
 	struct prefix_ipv6 *chunk;
+    struct srv6_locator *locator = NULL;
 	struct bgp_srv6_function *func;
+    struct seg6_sid *sid = NULL;
 	struct in6_addr *tovpn4_sid;
 	struct in6_addr *tovpn6_sid;
 	char buf[256];
@@ -9659,11 +9668,30 @@ DEFPY (show_bgp_srv6,
 		vty_out(vty, "- sid: %s\n", buf);
 		vty_out(vty, "  locator: %s\n", func->locator_name);
 	}
+    
+    vty_out(vty, "locators:\n");
+    for (ALL_LIST_ELEMENTS_RO(bgp->srv6_locators, node, locator)) {
+        vty_out(vty, "- locator %s\n", locator->name);
+        prefix2str(&locator->prefix, buf, sizeof(buf));
+        vty_out(vty, "  prefix %s\n", buf);
+        vty_out(vty, "  block_len %u\n", locator->block_bits_length);
+        vty_out(vty, "  node_len %u\n", locator->node_bits_length);
+        vty_out(vty, "  function_len %u\n", locator->function_bits_length);
+        vty_out(vty, "  argument_len %u\n", locator->argument_bits_length);
+        vty_out(vty, "  sids:\n");
+        for (ALL_LIST_ELEMENTS_RO(locator->sids, sidnode, sid)) {
+            prefix2str(&sid->ipv6Addr, buf, sizeof(buf));
+            vty_out(vty, "   -opcode %s\n", buf);
+            vty_out(vty, "    sidaction %s\n", seg6local_action2str(sid->sidaction));
+            vty_out(vty, "    vrf %s\n", sid->vrfName);
+        }
+    }
 
 	vty_out(vty, "bgps:\n");
 	for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, bgp)) {
 		vty_out(vty, "- name: %s\n",
 			bgp->name ? bgp->name : "default");
+        vty_out(vty, "  Specify locator_name: %s\n", bgp->srv6_locator_name);
 
 		tovpn4_sid = bgp->vpn_policy[AFI_IP].tovpn_sid;
 		tovpn6_sid = bgp->vpn_policy[AFI_IP6].tovpn_sid;
@@ -9674,9 +9702,9 @@ DEFPY (show_bgp_srv6,
 			inet_ntop(AF_INET6, tovpn6_sid, buf_tovpn6_sid,
 				  sizeof(buf_tovpn6_sid));
 
-		vty_out(vty, "  vpn_policy[AFI_IP].tovpn_sid: %s\n",
+		vty_out(vty, "   vpn_policy[AFI_IP].tovpn_sid: %s\n",
 			tovpn4_sid ? buf_tovpn4_sid : "none");
-		vty_out(vty, "  vpn_policy[AFI_IP6].tovpn_sid: %s\n",
+		vty_out(vty, "   vpn_policy[AFI_IP6].tovpn_sid: %s\n",
 			tovpn6_sid ? buf_tovpn6_sid : "none");
 	}
 

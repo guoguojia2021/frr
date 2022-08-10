@@ -537,7 +537,7 @@ parse_nexthop_unicast(ns_id_t ns_id, struct rtmsg *rtm, struct rtattr **tb,
 		nexthop_add_srv6_seg6local(&nh, seg6l_act, &seg6l_ctx);
 
 	if (num_segs)
-		nexthop_add_srv6_seg6(&nh, &seg6_segs);
+		nexthop_add_srv6_seg6(&nh, &seg6_segs, NULL);
 
 	return nh;
 }
@@ -645,7 +645,7 @@ static uint8_t parse_multipath_nexthops_unicast(ns_id_t ns_id,
 							   &seg6l_ctx);
 
 			if (num_segs)
-				nexthop_add_srv6_seg6(nh, &seg6_segs);
+				nexthop_add_srv6_seg6(nh, &seg6_segs, NULL);
 
 			if (rtnh->rtnh_flags & RTNH_F_ONLINK)
 				SET_FLAG(nh->flags, NEXTHOP_FLAG_ONLINK);
@@ -1464,6 +1464,16 @@ static bool _netlink_route_build_singlepath(const struct prefix *p,
 					return false;
 				if (!nl_attr_put32(nlmsg, req_size,
 						   SEG6_LOCAL_TABLE,
+						   ctx->table))
+					return false;
+				break;
+            case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_DT46))
+					return false;
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_VRFTABLE,
 						   ctx->table))
 					return false;
 				break;

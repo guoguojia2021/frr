@@ -60,7 +60,8 @@ static int bgp_isvalid_nexthop(struct bgp_nexthop_cache *bnc)
 {
 	return (bgp_zebra_num_connects() == 0
 		|| (bnc && CHECK_FLAG(bnc->flags, BGP_NEXTHOP_VALID)
-		    && bnc->nexthop_num > 0));
+		    && bnc->nexthop_num > 0)
+		    || CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SERVICE_SID));
 }
 
 static int bgp_isvalid_labeled_nexthop(struct bgp_nexthop_cache *bnc)
@@ -306,7 +307,13 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	if (bgp_route->inst_type == BGP_INSTANCE_TYPE_VIEW) {
 		SET_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED);
 		SET_FLAG(bnc->flags, BGP_NEXTHOP_VALID);
-	} else if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED)
+	} 
+    else if (srte_color == 0 && pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn)){
+		SET_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED);
+		SET_FLAG(bnc->flags, BGP_NEXTHOP_VALID);
+        SET_FLAG(bnc->flags, BGP_NEXTHOP_SERVICE_SID);
+	}
+    else if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED)
 		   && !is_default_host_route(&bnc->prefix))
 		register_zebra_rnh(bnc, is_bgp_static_route);
 
@@ -342,6 +349,8 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	 */
 	if (bgp_route->inst_type == BGP_INSTANCE_TYPE_VIEW)
 		return 1;
+    else if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SERVICE_SID))
+        return 1;
 	else if (safi == SAFI_UNICAST && pi
 		 && pi->sub_type == BGP_ROUTE_IMPORTED && pi->extra
 		 && pi->extra->num_labels && !bnc->is_evpn_gwip_nexthop) {

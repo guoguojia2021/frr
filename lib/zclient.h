@@ -220,6 +220,8 @@ typedef enum {
 	ZEBRA_SRV6_LOCATOR_DELETE,
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_CHUNK,
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_CHUNK,
+	ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID,
+	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID,
 	ZEBRA_ERROR,
 	ZEBRA_CLIENT_CAPABILITIES,
 	ZEBRA_OPAQUE_MESSAGE,
@@ -439,6 +441,7 @@ struct zapi_nexthop {
 
 	/* SRv6 Headend-behaviour */
 	struct in6_addr seg6_segs;
+    struct in6_addr seg6_src;
 };
 
 /*
@@ -1060,6 +1063,10 @@ extern int zapi_srv6_locator_encode(struct stream *s,
 extern int zapi_srv6_locator_decode(struct stream *s, struct srv6_locator *l);
 extern int zapi_srv6_locator_chunk_encode(struct stream *s,
 					  const struct srv6_locator_chunk *c);
+extern int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc);
+extern int zapi_srv6_locator_sid_decode(struct stream *s, struct list *sidlist);
+extern int zapi_srv6_del_sid_decode(struct stream *s, struct list *sidlist);
+
 extern int zapi_srv6_locator_chunk_decode(struct stream *s,
 					  struct srv6_locator_chunk *c);
 

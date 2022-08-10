@@ -1786,7 +1786,8 @@ static struct nexthop *nexthop_set_resolved(afi_t afi,
 					   nexthop->nh_srv6->seg6local_action,
 					   &nexthop->nh_srv6->seg6local_ctx);
 		nexthop_add_srv6_seg6(resolved_hop,
-				      &nexthop->nh_srv6->seg6_segs);
+				      &nexthop->nh_srv6->seg6_segs,
+				      &nexthop->nh_srv6->seg6_src);
 	}
 
 	resolved_hop->rparent = nexthop;

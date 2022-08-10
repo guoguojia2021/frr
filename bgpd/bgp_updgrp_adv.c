@@ -678,7 +678,6 @@ void subgroup_announce_table(struct update_subgroup *subgrp,
 	afi_t afi;
 	safi_t safi;
 	bool addpath_capable;
-	bool advertise;
 
 	peer = SUBGRP_PEER(subgrp);
 	afi = SUBGRP_AFI(subgrp);

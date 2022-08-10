@@ -1068,9 +1068,12 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 			     sizeof(struct seg6local_context));
 	}
 
-	if (CHECK_FLAG(nh_flags, ZAPI_NEXTHOP_FLAG_SEG6))
+	if (CHECK_FLAG(nh_flags, ZAPI_NEXTHOP_FLAG_SEG6)){
 		stream_write(s, &api_nh->seg6_segs,
 			     sizeof(struct in6_addr));
+        stream_write(s, &api_nh->seg6_src,
+			     sizeof(struct in6_addr));
+	}
 
 done:
 	return ret;
@@ -1120,6 +1123,10 @@ int zapi_srv6_locator_encode(struct stream *s, const struct srv6_locator *l)
 	stream_put(s, l->name, strlen(l->name));
 	stream_putw(s, l->prefix.prefixlen);
 	stream_put(s, &l->prefix.prefix, sizeof(l->prefix.prefix));
+    stream_putc(s, l->block_bits_length);
+    stream_putc(s, l->node_bits_length);
+    stream_putc(s, l->function_bits_length);
+    stream_putc(s, l->argument_bits_length);
 	return 0;
 }
 
@@ -1135,7 +1142,108 @@ int zapi_srv6_locator_decode(struct stream *s, struct srv6_locator *l)
 	STREAM_GETW(s, l->prefix.prefixlen);
 	STREAM_GET(&l->prefix.prefix, s, sizeof(l->prefix.prefix));
 	l->prefix.family = AF_INET6;
+    STREAM_GETC(s, l->block_bits_length);
+    STREAM_GETC(s, l->node_bits_length);
+    STREAM_GETC(s, l->function_bits_length);
+    STREAM_GETC(s, l->argument_bits_length);
 	return 0;
+
+stream_failure:
+	return -1;
+}
+
+int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
+{
+    struct seg6_sid *sidtmp = NULL;
+    struct listnode *node = NULL;
+
+	stream_putw(s, strlen(loc->name));
+	stream_put(s, loc->name, strlen(loc->name));
+    
+    stream_putl(s, loc->sids->count);
+    for (ALL_LIST_ELEMENTS_RO(loc->sids, node, sidtmp)) {
+        stream_putw(s, sidtmp->ipv6Addr.prefixlen);
+    	stream_put(s, &sidtmp->ipv6Addr.prefix, sizeof(sidtmp->ipv6Addr.prefix));
+        stream_putl(s, sidtmp->sidaction);
+        stream_putw(s, strlen(sidtmp->vrfName));
+    	stream_put(s, sidtmp->vrfName, strlen(sidtmp->vrfName));
+    }
+	
+	return 0;
+}
+
+int zapi_srv6_locator_sid_decode(struct stream *s,
+				   struct list *sidlist)
+{
+    struct seg6_sid *sid = NULL;
+    struct listnode *node, *nnode;
+    unsigned int sid_count;
+    unsigned int vrf_name_len;
+    
+    STREAM_GETL(s, sid_count);
+    for (ALL_LIST_ELEMENTS(sidlist, node, nnode, sid)) {
+        if (sid_count == 0)
+        {
+            /*free the other sid*/
+            list_delete_node(sidlist, node);
+            srv6_locator_sid_free(sid);
+            continue;
+        }
+        STREAM_GETW(s, sid->ipv6Addr.prefixlen);
+        STREAM_GET(&sid->ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
+        STREAM_GETL(s, sid->sidaction);
+        STREAM_GETW(s, vrf_name_len);
+        STREAM_GET(&sid->vrfName, s, vrf_name_len);
+        sid->vrfName[vrf_name_len] = '\0';
+        sid_count--;
+    }
+    while (sid_count > 0)
+    {
+        sid = srv6_locator_sid_alloc();
+        STREAM_GETW(s, sid->ipv6Addr.prefixlen);
+        STREAM_GET(&sid->ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
+        sid->ipv6Addr.family = AF_INET6;
+        STREAM_GETL(s, sid->sidaction);
+        STREAM_GETW(s, vrf_name_len);
+        STREAM_GET(&sid->vrfName, s, vrf_name_len);
+        sid->vrfName[vrf_name_len] = '\0';
+        listnode_add(sidlist, sid);
+        sid_count--;
+    }
+	return 0;
+
+stream_failure:
+	return -1;
+}
+
+int zapi_srv6_del_sid_decode(struct stream *s,
+				   struct list *sidlist)
+{
+    struct seg6_sid *sid = NULL;
+    struct seg6_sid tmpsid = {0};
+    struct listnode *node, *nnode;
+    unsigned int sid_count;
+    unsigned int vrf_name_len;
+    
+    STREAM_GETL(s, sid_count);
+    
+    while (sid_count > 0)
+    {
+        STREAM_GETW(s, tmpsid.ipv6Addr.prefixlen);
+        STREAM_GET(&tmpsid.ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
+        STREAM_GETL(s, tmpsid.sidaction);
+        STREAM_GETW(s, vrf_name_len);
+        STREAM_GET(&tmpsid.vrfName, s, vrf_name_len);
+        tmpsid.vrfName[vrf_name_len] = '\0';
+        for (ALL_LIST_ELEMENTS(sidlist, node, nnode, sid)) {
+            if (prefix_match((struct prefix *)(&tmpsid.ipv6Addr.prefix), (struct prefix *)(&sid->ipv6Addr.prefix))){
+                list_delete_node(sidlist, node);
+                break;
+            }
+        }
+        sid_count--;
+    }
+    return 0;
 
 stream_failure:
 	return -1;
@@ -1434,8 +1542,12 @@ int zapi_nexthop_decode(struct stream *s, struct zapi_nexthop *api_nh,
 	}
 
 	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6))
+	{
 		STREAM_GET(&api_nh->seg6_segs, s,
 			   sizeof(struct in6_addr));
+        STREAM_GET(&api_nh->seg6_src, s,
+			   sizeof(struct in6_addr));
+	}
 
 	/* Success */
 	ret = 0;
@@ -1812,7 +1924,7 @@ struct nexthop *nexthop_from_zapi_nexthop(const struct zapi_nexthop *znh)
 					   &znh->seg6local_ctx);
 
 	if (!sid_zero(&znh->seg6_segs))
-		nexthop_add_srv6_seg6(n, &znh->seg6_segs);
+		nexthop_add_srv6_seg6(n, &znh->seg6_segs, &znh->seg6_src);
 
 	return n;
 }

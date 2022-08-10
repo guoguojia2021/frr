@@ -67,6 +67,18 @@ DEFINE_HOOK(srv6_manager_release_chunk,
 	     vrf_id_t vrf_id),
 	    (client, locator_name, vrf_id));
 
+DEFINE_HOOK(srv6_manager_get_sid,
+	    (struct srv6_locator **loc,
+	     struct zserv *client,
+	     const char *locator_name,
+	     vrf_id_t vrf_id),
+	    (loc, client, locator_name, vrf_id));
+DEFINE_HOOK(srv6_manager_release_sid,
+	    (struct zserv *client,
+	     const char *locator_name,
+	     vrf_id_t vrf_id),
+	    (client, locator_name, vrf_id));
+
 /* define wrappers to be called in zapi_msg.c (as hooks must be called in
  * source file where they were defined)
  */
@@ -89,6 +101,21 @@ void srv6_manager_release_locator_chunk_call(struct zserv *client,
 					     vrf_id_t vrf_id)
 {
 	hook_call(srv6_manager_release_chunk, client, locator_name, vrf_id);
+}
+
+void srv6_manager_get_locator_sid_call(struct srv6_locator **loc,
+					 struct zserv *client,
+					 const char *locator_name,
+					 vrf_id_t vrf_id)
+{
+	hook_call(srv6_manager_get_sid, loc, client, locator_name, vrf_id);
+}
+
+void srv6_manager_release_locator_sid_call(struct zserv *client,
+					     const char *locator_name,
+					     vrf_id_t vrf_id)
+{
+	hook_call(srv6_manager_release_sid, client, locator_name, vrf_id);
 }
 
 int srv6_manager_client_disconnect_cb(struct zserv *client)
@@ -132,10 +159,11 @@ void zebra_srv6_locator_add(struct srv6_locator *locator)
 
 void zebra_srv6_locator_delete(struct srv6_locator *locator)
 {
-	struct listnode *n;
+	struct listnode *n, *nnode;
 	struct srv6_locator_chunk *c;
 	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
 	struct zserv *client;
+    struct seg6_sid *sid = NULL;
 
 	/*
 	 * Notify deleted locator info to zclients if needed.
@@ -159,6 +187,13 @@ void zebra_srv6_locator_delete(struct srv6_locator *locator)
 			continue;
 		}
 		zsend_zebra_srv6_locator_delete(client, locator);
+	}
+
+	for (ALL_LIST_ELEMENTS(locator->sids, n, nnode, sid))
+	{
+		zebra_srv6_local_sid_del(locator, sid);
+        listnode_delete(locator->sids, sid);
+        srv6_locator_sid_free(sid);
 	}
 
 	listnode_delete(srv6->locators, locator);
@@ -320,6 +355,126 @@ static int zebra_srv6_manager_release_locator_chunk(struct zserv *client,
 	return release_srv6_locator_chunk(client->proto, client->instance,
 					  client->session_id, locator_name);
 }
+                            
+/**
+ * Core function, assigns srv6-locator chunks
+ *
+ * It first searches through the list to check if there's one available
+ * (previously released). Otherwise it creates and assigns a new one
+ *
+ * @param proto Daemon protocol of client, to identify the owner
+ * @param instance Instance, to identify the owner
+ * @param session_id SessionID of client
+ * @param name Name of SRv6-locator
+ * @return Pointer to the assigned srv6-locator chunk,
+ *         or NULL if the request could not be satisfied
+ */
+static struct srv6_locator *
+assign_srv6_locator_sid(uint8_t proto,
+			  uint16_t instance,
+			  uint32_t session_id,
+			  const char *locator_name)
+{
+	struct srv6_locator *loc = NULL;
+
+	loc = zebra_srv6_locator_lookup(locator_name);
+	if (!loc) {
+		zlog_info("%s: locator %s was not found",
+			  __func__, locator_name);
+		return NULL;
+	}
+    if (loc->proto != NO_PROTO && loc->proto != proto)
+		return NULL;
+
+	loc->proto = proto;
+	loc->instance = instance;
+	loc->session_id = session_id;
+	return loc;
+}
+
+static int zebra_srv6_manager_get_locator_sid(struct srv6_locator **loc,
+						struct zserv *client,
+						const char *locator_name,
+						vrf_id_t vrf_id)
+{
+	int ret = 0;
+
+    *loc = zebra_srv6_locator_lookup(locator_name);
+
+	if (!*loc)
+		zlog_err("Unable to assign locator chunk to %s instance %u",
+			 zebra_route_string(client->proto), client->instance);
+	else if (IS_ZEBRA_DEBUG_PACKET)
+		zlog_info("Assigned locator chunk %s to %s instance %u",
+			  (*loc)->name, zebra_route_string(client->proto),
+			  client->instance);
+
+	if (*loc && (*loc)->status_up)
+		ret = zsend_srv6_manager_get_locator_sid_response(client,
+								    vrf_id,
+								    *loc,
+								    NULL);
+	return ret;
+}
+
+/**
+ * Core function, release no longer used srv6-locator chunks
+ *
+ * @param proto Daemon protocol of client, to identify the owner
+ * @param instance Instance, to identify the owner
+ * @param session_id Zclient session ID, to identify the zclient session
+ * @param locator_name SRv6-locator name, to identify the actual locator
+ * @return 0 on success, -1 otherwise
+ */
+static int release_srv6_locator_sid(uint8_t proto, uint16_t instance,
+				      uint32_t session_id,
+				      const char *locator_name)
+{
+	int ret = -1;
+	struct listnode *node;
+	struct srv6_locator_chunk *chunk;
+	struct srv6_locator *loc = NULL;
+
+	loc = zebra_srv6_locator_lookup(locator_name);
+	if (!loc)
+		return -1;
+
+	if (IS_ZEBRA_DEBUG_PACKET)
+		zlog_debug("%s: Releasing srv6-locator on %s", __func__,
+			   locator_name);
+
+	for (ALL_LIST_ELEMENTS_RO((struct list *)loc->chunks, node, chunk)) {
+		if (chunk->proto != proto ||
+		    chunk->instance != instance ||
+		    chunk->session_id != session_id)
+			continue;
+		chunk->proto = NO_PROTO;
+		chunk->instance = 0;
+		chunk->session_id = 0;
+		chunk->keep = 0;
+		ret = 0;
+		break;
+	}
+
+	if (ret != 0)
+		flog_err(EC_ZEBRA_SRV6M_UNRELEASED_LOCATOR_CHUNK,
+			 "%s: SRv6 locator chunk not released", __func__);
+
+	return ret;
+}
+
+static int zebra_srv6_manager_release_locator_sid(struct zserv *client,
+						    const char *locator_name,
+						    vrf_id_t vrf_id)
+{
+	if (vrf_id != VRF_DEFAULT) {
+		zlog_err("SRv6 locator doesn't support vrf");
+		return -1;
+	}
+
+	return release_srv6_locator_chunk(client->proto, client->instance,
+					  client->session_id, locator_name);
+}
 
 /**
  * Release srv6-locator chunks from a client.
@@ -368,6 +523,183 @@ int release_daemon_srv6_locator_chunks(struct zserv *client)
 	return count;
 }
 
+
+int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx)
+{
+	afi_t afi;
+	struct prefix_ipv6 *src_p = NULL;
+	struct route_entry *re;
+	struct nexthop_group *ng = NULL;
+	int ret = 0;
+	struct nhg_hash_entry nhe;
+    struct zebra_vrf *zvrf;
+    struct vrf *def_vrf = NULL;
+    struct prefix p = {};
+    struct nexthop *nexthop;
+    
+    p.family = AF_INET6;
+    p.prefixlen = IPV6_MAX_BITLEN;
+    p.u.prefix6 = *result_sid;
+
+    def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
+    zvrf = zebra_vrf_lookup_by_id(def_vrf->vrf_id);
+    if (!zvrf) {
+        return ret;
+    }
+
+	/* Allocate new route. */
+	re = XCALLOC(MTYPE_RE, sizeof(struct route_entry));
+	re->type = ZEBRA_ROUTE_STATIC;
+	re->instance = 0;
+    SET_FLAG(re->flags, ZEBRA_FLAG_ALLOW_RECURSION);
+    SET_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE);
+	re->uptime = monotime(NULL);
+	re->vrf_id = VRF_DEFAULT;
+
+	re->table = zvrf->table_id;
+
+    ng = nexthop_group_new();
+    /*
+	 * TBD should _all_ of the nexthop add operations use
+	 * api_nh->vrf_id instead of re->vrf_id ? I only changed
+	 * for cases NEXTHOP_TYPE_IPV4 and NEXTHOP_TYPE_IPV6.
+	 */
+	
+	/* Convert zapi nexthop */
+    nexthop = nexthop_from_ifindex(vrf->vrf_id, 0);
+
+	if (!nexthop) {
+		if (ng)
+			nexthop_group_delete(&ng);
+		return ret;
+	}
+
+	zlog_debug("%s: adding seg6local action %s",
+		   __func__,
+		   seg6local_action2str(act));
+
+	nexthop_add_srv6_seg6local(nexthop, act, ctx);
+
+	if (ng) {
+		/* Add new nexthop to temporary list. This list is
+		 * canonicalized - sorted - so that it can be hashed
+		 * later in route processing. We expect that the sender
+		 * has sent the list sorted, and the zapi client api
+		 * attempts to enforce that, so this should be
+		 * inexpensive - but it is necessary to support shared
+		 * nexthop-groups.
+		 */
+		nexthop_group_add_sorted(ng, nexthop);
+	}
+
+	afi = family2afi(AF_INET6);
+
+	/*
+	 * If we have an ID, this proto owns the NHG it sent along with the
+	 * route, so we just send the ID into rib code with it.
+	 *
+	 * Havent figured out how to handle backup NHs with this yet, so lets
+	 * keep that separate.
+	 * Include backup info with the route. We use a temporary nhe here;
+	 * if this is a new/unknown nhe, a new copy will be allocated
+	 * and stored.
+	 */
+	if (!re->nhe_id) {
+		zebra_nhe_init(&nhe, afi, ng->nexthop);
+		nhe.nhg.nexthop = ng->nexthop;
+	}
+	ret = rib_add_multipath_nhe(afi, SAFI_UNICAST, &p, src_p,
+				    re, &nhe);
+
+	/* At this point, these allocations are not needed: 're' has been
+	 * retained or freed, and if 're' still exists, it is using
+	 * a reference to a shared group object.
+	 */
+	nexthop_group_delete(&ng);
+    return ret;
+
+}
+
+int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx)
+{
+	afi_t afi;
+	struct prefix_ipv6 *src_p = NULL;
+	uint32_t table_id;
+    struct zebra_vrf *zvrf;
+    struct vrf *def_vrf = NULL;
+    int ret = 0;
+    uint32_t flags = 0;
+    
+    struct prefix p = {};
+    
+    p.family = AF_INET6;
+    p.prefixlen = IPV6_MAX_BITLEN;
+    p.u.prefix6 = *result_sid;
+
+    def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
+    zvrf = zebra_vrf_lookup_by_id(def_vrf->vrf_id);
+    if (!zvrf) {
+        return ret;
+    }
+
+	afi = family2afi(AF_INET6);
+
+	table_id = zvrf->table_id;
+    SET_FLAG(flags, ZEBRA_FLAG_ALLOW_RECURSION);
+
+	rib_delete(afi, SAFI_UNICAST, zvrf_id(zvrf), ZEBRA_ROUTE_STATIC, 0,
+		   flags, &p, src_p, NULL, 0, table_id, 0,
+		   0, false);
+    return 0;
+
+}
+
+
+void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid)
+{
+	enum seg6local_action_t act;
+	struct seg6local_context ctx = {};
+	struct in6_addr result_sid = {0};
+	struct vrf *vrf;
+
+    combine_sid(&locator->prefix.prefix, &sid->ipv6Addr.prefix, &result_sid);
+
+	vrf = vrf_lookup_by_name(sid->vrfName);
+	if (!vrf)
+		return;
+
+	ctx.table = vrf->data.l.table_id;
+	act = sid->sidaction;
+    ctx.block_bits_length = locator->block_bits_length;
+    ctx.node_bits_length = locator->node_bits_length;
+    ctx.function_bits_length = locator->function_bits_length;
+    ctx.argument_bits_length = locator->argument_bits_length;
+    strncpy(ctx.vrfName, sid->vrfName, VRF_NAMSIZ + 1);
+    
+    zebra_route_add(&result_sid, vrf, act, &ctx);
+
+}
+
+void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid)
+{
+	enum seg6local_action_t act;
+	struct seg6local_context ctx = {};
+	struct in6_addr result_sid = {0};
+	struct vrf *vrf;
+
+    combine_sid(&locator->prefix.prefix, &sid->ipv6Addr.prefix, &result_sid);
+
+	vrf = vrf_lookup_by_name(sid->vrfName);
+	if (!vrf)
+		return;
+
+	ctx.table = vrf->data.l.table_id;
+	act = sid->sidaction;
+    
+    zebra_route_del(&result_sid, vrf, act, &ctx);
+
+}
+
 void zebra_srv6_init(void)
 {
 	hook_register(zserv_client_close, zebra_srv6_cleanup);
@@ -375,6 +707,10 @@ void zebra_srv6_init(void)
 		      zebra_srv6_manager_get_locator_chunk);
 	hook_register(srv6_manager_release_chunk,
 		      zebra_srv6_manager_release_locator_chunk);
+    hook_register(srv6_manager_get_sid,
+		      zebra_srv6_manager_get_locator_sid);
+	hook_register(srv6_manager_release_sid,
+		      zebra_srv6_manager_release_locator_sid);
 }
 
 bool zebra_srv6_is_enable(void)
