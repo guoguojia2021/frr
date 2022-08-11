@@ -1067,8 +1067,8 @@ DEFPY(srte_policy_no_candidate,
       srte_policy_no_candidate_cmd,
       "no candidate-path\
 	preference (0-4294967295)$preference\
-	[name WORD\
-	<\
+	name WORD$name\
+	[<\
 	  explicit segment-list WORD\
 	  |dynamic\
 	>]",
@@ -1085,8 +1085,8 @@ DEFPY(srte_policy_no_candidate,
 {
 	nb_cli_enqueue_change(vty, ".", NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s']",
-				    preference_str);
+	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s'][name='%s']",
+				    preference_str, name);
 }
 
 DEFPY(srte_candidate_objfun,
