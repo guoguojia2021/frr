@@ -467,7 +467,7 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 {
 	struct srte_policy *policy;
 	struct srte_candidate *candidate;
-	uint32_t preference;
+	uint32_t preference, weight;
 	char *name;
 
 	if (args->event != NB_EV_APPLY)
@@ -478,6 +478,9 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 	name = yang_dnode_get_string(args->dnode, "./name");
 
 	candidate = srte_candidate_add(policy, preference, SRTE_ORIGIN_LOCAL, NULL, name);
+	weight = yang_dnode_get_uint32(args->dnode, "./weight");
+	candidate->weight = weight;
+
 	srte_candidate_add_group(policy, candidate);
 
 	nb_running_set_entry(args->dnode, candidate);

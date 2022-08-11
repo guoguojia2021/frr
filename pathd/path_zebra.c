@@ -233,16 +233,20 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	strlcpy(zp.name, policy->name, sizeof(zp.name));
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
 	
-	zp.srv6_tunnel.path_num =  candidate_group->up_cpath_num;
-	
-	
 	RB_FOREACH (candidate, srte_candidate_head, &candidate_group->candidate_paths) {
 
-		if (candidate->segment_list == NULL || candidate->segment_list->status == SBFD_DOWN) {
+		if (candidate->segment_list == NULL ) 
+		{
 			continue;
 		}
+
+		if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) 
+		    && candidate->segment_list->status == SRTE_DETECT_DOWN)
+		{
+            continue;
+		}
         
-		if (count < zp.srv6_tunnel.path_num)
+		if (count < candidate_group->up_cpath_num)
 		{
 			strlcpy(zp.srv6_tunnel.sidlists[count].sidlist_name, candidate->segment_list->name,
 				sizeof(zp.srv6_tunnel.sidlists[count].sidlist_name));
@@ -250,6 +254,8 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 			count++;
 		}
 	}
+
+    zp.srv6_tunnel.path_num = count;
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
 }
@@ -269,6 +275,7 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
 
 	zp.srv6_tunnel.path_num = 0;
+	policy->status = SRTE_POLICY_STATUS_DOWN;
 	
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_DELETE, &zp);
 }

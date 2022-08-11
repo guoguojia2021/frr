@@ -3530,7 +3530,7 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 
 	/* segment list of active candidate path */
 	STREAM_GETC(s, zp->tunnel_type);
-	STREAM_GETW(s, zt->path_num);
+	STREAM_GETW(s, zp->srv6_tunnel.path_num);
 
 	for (int i = 0; i < zt->path_num; i++)
 	{

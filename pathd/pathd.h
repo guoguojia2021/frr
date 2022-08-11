@@ -171,8 +171,8 @@ enum srte_segment_sid_type {
 };
 
 enum detection_status {
-    SBFD_DOWN,
-	SBFD_UP,
+    SRTE_DETECT_DOWN,
+	SRTE_DETECT_UP,
 };
 
 struct srte_segment_list;

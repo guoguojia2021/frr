@@ -372,9 +372,11 @@ void srte_policy_del(struct srte_policy *policy)
     // del sbfd config
 	path_delete_sbfd_config(policy);
 
-	path_zebra_delete_sr_policy(policy);
+	// path_zebra_delete_sr_policy(policy);
 
-	path_zebra_release_label(policy->binding_sid);
+	path_zebra_delete_srv6_policy(policy);
+
+	// path_zebra_release_label(policy->binding_sid);
 
 	while (!RB_EMPTY(srte_candidate_head, &policy->candidate_paths)) {
 		candidate =
@@ -561,7 +563,7 @@ srte_policy_best_candidate_group(const struct srte_policy *policy)
 	RB_FOREACH_REVERSE (cpath_group, srte_candidate_group_head,
 			    &policy->candidate_groups) {
 		/* search for highest preference with existing segment list */
-		if (cpath_group->status == SBFD_UP
+		if (cpath_group->status == SRTE_DETECT_UP
 		    && cpath_group->up_cpath_num > 0)
 			return cpath_group;
 	}
@@ -739,6 +741,20 @@ void srte_policy_apply_changes(struct srte_policy *policy)
 	}
 }
 
+static bool is_candidate_group_changed (struct srte_candidate_group *cpath_group)
+{
+	struct srte_candidate *candidate;
+
+	RB_FOREACH (candidate, srte_candidate_head, &cpath_group->candidate_paths) {
+		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_NEW)
+		    || CHECK_FLAG(candidate->flags, F_CANDIDATE_MODIFIED)
+			|| CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void srv6_choose_best_cpath_group(struct srte_policy *policy)
 {
 	struct srte_candidate_group *old_best_cpath_group;
@@ -780,7 +796,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		 * attributes or its segment list may have changed.
 		 */
 
-		bool cpath_group_changed = CHECK_FLAG(new_best_cpath_group->flags, F_CPATH_GROUP_MODIFIED);
+		bool cpath_group_changed = is_candidate_group_changed(new_best_cpath_group);
 
 		if (cpath_group_changed) {
 			zlog_debug("SR-TE(%s, %u): best cp:%u changed",
@@ -789,7 +805,6 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 			path_zebra_add_srv6_policy(policy, new_best_cpath_group);
 		}
-		UNSET_FLAG(new_best_cpath_group->flags, F_CPATH_GROUP_MODIFIED);
 	}
 }
 
@@ -813,7 +828,7 @@ static void srv6_refresh_policy_state(struct srte_policy *policy)
 
 			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD))
 			{
-				if (candidate->segment_list->status == SBFD_UP)
+				if (candidate->segment_list->status == SRTE_DETECT_UP)
 					cpath_up_count++;
 			}
 			else
@@ -824,7 +839,7 @@ static void srv6_refresh_policy_state(struct srte_policy *policy)
 		}
 		if (cpath_up_count > 0)
 		{
-			cpath_group->status = SBFD_UP;
+			cpath_group->status = SRTE_DETECT_UP;
 			cpath_group->up_cpath_num = cpath_up_count;
 			policy_up_count ++;
 		}
@@ -933,7 +948,7 @@ struct srte_candidate_group *srte_candidate_group_add(struct srte_policy *policy
 
 	cpath_group->preference = preference;
 	cpath_group->policy = policy;
-	cpath_group->status = SBFD_DOWN;
+	cpath_group->status = SRTE_DETECT_DOWN;
 	cpath_group->up_cpath_num = 0;
 
     RB_INIT(srte_candidate_head, &cpath_group->candidate_paths);
@@ -1000,7 +1015,7 @@ void srte_candidate_del(struct srte_candidate *candidate)
 		}
 	}	
 
-	XFREE(MTYPE_PATH_SR_CANDIDATE, candidate->lsp);
+	// XFREE(MTYPE_PATH_SR_CANDIDATE, candidate->lsp);
 	XFREE(MTYPE_PATH_SR_CANDIDATE, candidate);
 }
 

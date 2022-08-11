@@ -65,14 +65,14 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 			{
 				continue;
 			}
-			if (candidate->segment_list->status == SBFD_UP)
+			if (candidate->segment_list->status == SRTE_DETECT_UP)
 			{
 				cpath_up_count++;
 			}
 		}
 		if (cpath_up_count > 0)
 		{
-			cpath_group->status = SBFD_UP;
+			cpath_group->status = SRTE_DETECT_UP;
 			cpath_group->up_cpath_num = cpath_up_count;
 			policy_up_count ++;
 		}
@@ -92,7 +92,7 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 
 int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 {
-    if (sbfd_event->segl->status == SBFD_UP)
+    if (sbfd_event->segl->status == SRTE_DETECT_UP)
 	{
 		/*up -> up do nothing*/
 		zlog_info("segment_list_up_handle up event do nothing");
@@ -103,7 +103,7 @@ int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 	enum srte_policy_status old_status;
 	enum srte_policy_status new_status;
 	old_status = sbfd_event->policy->status;
-	sbfd_refresh_policy_state(sbfd_event, SBFD_UP);
+	sbfd_refresh_policy_state(sbfd_event, SRTE_DETECT_UP);
     new_status = sbfd_event->policy->status;
 
 	if (old_status != SRTE_POLICY_STATUS_UP 
@@ -129,7 +129,7 @@ int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 
 int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
 {
-    if (sbfd_event->segl->status == SBFD_DOWN)
+    if (sbfd_event->segl->status == SRTE_DETECT_DOWN)
 	{
 		/*down -> down do nothing*/
 		zlog_info("segment_list_down_handle down event do nothing");
@@ -140,7 +140,7 @@ int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
 	enum srte_policy_status old_status;
 	enum srte_policy_status new_status;
 	old_status = sbfd_event->policy->status;
-    sbfd_refresh_policy_state(sbfd_event, SBFD_DOWN);
+    sbfd_refresh_policy_state(sbfd_event, SRTE_DETECT_DOWN);
     new_status = sbfd_event->policy->status;
 
 	if (old_status == SRTE_POLICY_STATUS_UP
@@ -370,7 +370,8 @@ void srte_policy_sbfd_each_seglist_remove(struct srte_policy *policy)
 
 void path_delete_sbfd_config(struct srte_policy *policy)
 {
-	XCALLOC(MTYPE_PATH_SRPOLICY_SBFD_CONFIG, policy->bfd_config);
+	if (policy->bfd_config)
+	    XFREE(MTYPE_PATH_SRPOLICY_SBFD_CONFIG, policy->bfd_config);
 }
 
 void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
