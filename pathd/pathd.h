@@ -569,7 +569,7 @@ void srte_lsp_set_metric(struct srte_lsp *lsp,
 void srte_lsp_unset_metric(struct srte_lsp *lsp,
 			   enum srte_candidate_metric_type type);
 struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
-					   uint32_t preference);
+					   uint32_t preference, char *name);
 struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *policy,
 					   uint32_t preference);
 struct srte_segment_entry *

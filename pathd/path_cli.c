@@ -184,8 +184,9 @@ DEFPY(show_srte_policy_detail,
 	vty_out(vty, "\n");
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
 		struct srte_candidate *candidate;
+		struct srte_candidate_group *cpath_group;
 		char endpoint[46];
-		char binding_sid[16] = "-";
+		char binding_sid[46] = "-";
 		char *segment_list_info;
 		static char undefined_info[] = "(undefined)";
 		static char created_by_pce_info[] = "(created by PCE)";
@@ -195,40 +196,55 @@ DEFPY(show_srte_policy_detail,
 		if (policy->binding_sid != MPLS_LABEL_NONE)
 			snprintf(binding_sid, sizeof(binding_sid), "%u",
 				 policy->binding_sid);
+
+		if (!IS_IPADDR_NONE(&policy->binding_v6_sid))
+            ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
+
 		vty_out(vty,
 			"Endpoint: %s  Color: %u  Name: %s  BSID: %s  Status: %s\n",
 			endpoint, policy->color, policy->name, binding_sid,
-			policy->status == SRTE_POLICY_STATUS_UP ? "Active"
-								: "Inactive");
+			policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive");
 
-		RB_FOREACH (candidate, srte_candidate_head,
-			    &policy->candidate_paths) {
-			struct srte_segment_list *segment_list;
-
-			segment_list = candidate->lsp->segment_list;
-			if (segment_list == NULL)
-				segment_list_info = undefined_info;
-			else if (segment_list->protocol_origin
-				 == SRTE_ORIGIN_PCEP)
-				segment_list_info = created_by_pce_info;
-			else
-				segment_list_info =
-					candidate->lsp->segment_list->name;
-
+		/* show cpath group first*/
+		RB_FOREACH (cpath_group, srte_candidate_group_head, &policy->candidate_groups) {
 			vty_out(vty,
-				"  %s Preference: %d  Name: %s  Type: %s  Segment-List: %s  Protocol-Origin: %s\n",
-				CHECK_FLAG(candidate->flags, F_CANDIDATE_BEST)
-					? "*"
-					: " ",
-				candidate->preference, candidate->name,
-				candidate->type == SRTE_CANDIDATE_TYPE_EXPLICIT
-					? "explicit"
-					: "dynamic",
-				segment_list_info,
-				srte_origin2str(
-					candidate->lsp->protocol_origin));
-		}
+				"  %s Preference: %d  ActiveMembers: %d  Status: %s\n",
+				CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST) ? "*" : " ", 
+				cpath_group->preference,
+				cpath_group->up_cpath_num,
+				cpath_group->status == SRTE_DETECT_UP ? "UP" : "DOWN");
+		    
+			/* show each cpath*/
 
+			RB_FOREACH (candidate, srte_candidate_head, &cpath_group->candidate_paths) {
+				char binging_bfd[] = "-";
+				bool has_bfd = false;
+
+                if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
+				    && policy->bfd_config
+				    && CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
+				{
+					has_bfd = true;
+					if (policy->bfd_config->is_echo)
+					{
+                        snprintf(binging_bfd, sizeof(binging_bfd), "bfd echo");
+					}
+					else
+					{
+						snprintf(binging_bfd, sizeof(binging_bfd), "sbfd");
+					}
+				}
+
+				vty_out(vty,
+					"       Candidate Name: %s  Type: %s  Segment-List: %s  Weight: %d  BindingBFD: %s  Status: %s\n",
+                    candidate->name,
+					"explicit",
+					candidate->segment_list ? candidate->segment_list->name : "-",
+					candidate->weight,
+					binging_bfd,
+					has_bfd ? (candidate->segment_list->status == SRTE_DETECT_UP ? "UP" : "DOWN") : "UP");
+			}
+		}
 		vty_out(vty, "\n");
 	}
 

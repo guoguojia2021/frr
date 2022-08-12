@@ -344,6 +344,7 @@ struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
 	policy->color = color;
 	policy->endpoint = *endpoint;
 	policy->binding_sid = MPLS_LABEL_NONE;
+	memset(&policy->binding_v6_sid, 0 , sizeof(struct ipaddr));
 	policy->protocol_origin = origin;
 	if (originator != NULL)
 		strlcpy(policy->originator, originator,
@@ -1369,11 +1370,13 @@ void srte_candidate_unset_affinity_filter(struct srte_candidate *candidate,
  * @return The candidate path if found, NULL otherwise
  */
 struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
-					   uint32_t preference)
+					   uint32_t preference, char *name)
 {
 	struct srte_candidate search;
 
 	search.preference = preference;
+	strlcpy(search.name, name, sizeof(search.name));
+
 	return RB_FIND(srte_candidate_head, &policy->candidate_paths, &search);
 }
 

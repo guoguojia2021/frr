@@ -467,7 +467,8 @@ struct srte_candidate *lookup_candidate(struct lsp_nb_key *key)
 	policy = srte_policy_find(key->color, &key->endpoint);
 	if (policy == NULL)
 		return NULL;
-	return srte_candidate_find(policy, key->preference);
+#define MPLS_CPATH_NAME_STUB "-"
+	return srte_candidate_find(policy, key->preference, MPLS_CPATH_NAME_STUB);
 }
 
 char *candidate_name(struct srte_candidate *candidate)

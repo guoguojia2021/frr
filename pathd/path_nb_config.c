@@ -481,8 +481,6 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 	weight = yang_dnode_get_uint32(args->dnode, "./weight");
 	candidate->weight = weight;
 
-	srte_candidate_add_group(policy, candidate);
-
 	nb_running_set_entry(args->dnode, candidate);
 	SET_FLAG(candidate->flags, F_CANDIDATE_NEW);
     
