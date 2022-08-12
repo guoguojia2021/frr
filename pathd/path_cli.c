@@ -183,8 +183,8 @@ DEFPY(show_srte_policy_detail,
 
 	vty_out(vty, "\n");
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
-		struct srte_candidate *candidate;
-		struct srte_candidate_group *cpath_group;
+		struct srte_candidate *candidate, *safe_cp;
+		struct srte_candidate_group *cpath_group, *safe_cpg;
 		char endpoint[46];
 		char binding_sid[46] = "-";
 		char *segment_list_info;
@@ -206,7 +206,7 @@ DEFPY(show_srte_policy_detail,
 			policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive");
 
 		/* show cpath group first*/
-		RB_FOREACH (cpath_group, srte_candidate_group_head, &policy->candidate_groups) {
+		RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cpg) {
 			vty_out(vty,
 				"  %s Preference: %d  ActiveMembers: %d  Status: %s\n",
 				CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST) ? "*" : " ", 
@@ -216,7 +216,7 @@ DEFPY(show_srte_policy_detail,
 		    
 			/* show each cpath*/
 
-			RB_FOREACH (candidate, srte_candidate_head, &cpath_group->candidate_paths) {
+			RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
 				char binging_bfd[] = "-";
 				bool has_bfd = false;
 

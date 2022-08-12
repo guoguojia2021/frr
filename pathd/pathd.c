@@ -95,6 +95,8 @@ static inline int srte_candidate_compare(const struct srte_candidate *a,
 }
 RB_GENERATE(srte_candidate_head, srte_candidate, entry, srte_candidate_compare)
 
+RB_GENERATE(srte_candidate_pref_head, srte_candidate, perf_entry, srte_candidate_compare)
+
 /* Generate rb-tree of Candidate Group instances. */
 static inline int srte_candidate_group_compare(const struct srte_candidate_group *a,
 					 const struct srte_candidate_group *b)
@@ -746,7 +748,7 @@ static bool is_candidate_group_changed (struct srte_candidate_group *cpath_group
 {
 	struct srte_candidate *candidate;
 
-	RB_FOREACH (candidate, srte_candidate_head, &cpath_group->candidate_paths) {
+	RB_FOREACH (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths) {
 		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_NEW)
 		    || CHECK_FLAG(candidate->flags, F_CANDIDATE_MODIFIED)
 			|| CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED)) {
@@ -819,7 +821,7 @@ static void srv6_refresh_policy_state(struct srte_policy *policy)
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
 	{
 		cpath_up_count = 0;
-		RB_FOREACH_SAFE (candidate, srte_candidate_head, &cpath_group->candidate_paths, safe_cpath)
+		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
             if (!candidate->segment_list 
 			  || CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))
@@ -952,7 +954,7 @@ struct srte_candidate_group *srte_candidate_group_add(struct srte_policy *policy
 	cpath_group->status = SRTE_DETECT_DOWN;
 	cpath_group->up_cpath_num = 0;
 
-    RB_INIT(srte_candidate_head, &cpath_group->candidate_paths);
+    RB_INIT(srte_candidate_pref_head, &cpath_group->candidate_paths);
 
 	RB_INSERT(srte_candidate_group_head, &policy->candidate_groups, cpath_group);
 
@@ -982,7 +984,7 @@ void srte_candidate_add_group(struct srte_policy *policy,
 		cpath_group = srte_candidate_group_add(policy, candidate->preference);
 	}
 
-	RB_INSERT(srte_candidate_head, &cpath_group->candidate_paths, candidate);
+	RB_INSERT(srte_candidate_pref_head, &cpath_group->candidate_paths, candidate);
 
 	return;
 }
@@ -1008,10 +1010,12 @@ void srte_candidate_del(struct srte_candidate *candidate)
 	cpath_group = srte_candidate_group_find(srte_policy, candidate->preference);
 	if (cpath_group)
 	{
-		RB_REMOVE(srte_candidate_head, &cpath_group->candidate_paths,
+		RB_REMOVE(srte_candidate_pref_head, &cpath_group->candidate_paths,
 			candidate);
-		if (RB_EMPTY(srte_candidate_head, &cpath_group->candidate_paths))
+		if (RB_EMPTY(srte_candidate_pref_head, &cpath_group->candidate_paths))
 		{
+			RB_REMOVE(srte_candidate_group_head, &srte_policy->candidate_groups,
+			    cpath_group);
 			XFREE(MTYPE_PATH_SR_CANDIDATE_GROUP, cpath_group);
 		}
 	}	

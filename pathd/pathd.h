@@ -308,6 +308,7 @@ struct srte_lsp {
 /* Configured candidate path */
 struct srte_candidate {
 	RB_ENTRY(srte_candidate) entry;
+	RB_ENTRY(srte_candidate) perf_entry;
 
 	/* Backpointer to SR Policy */
 	struct srte_policy *policy;
@@ -372,9 +373,8 @@ struct srte_candidate {
 RB_HEAD(srte_candidate_head, srte_candidate);
 RB_PROTOTYPE(srte_candidate_head, srte_candidate, entry, srte_candidate_compare)
 
-RB_HEAD(srte_candidate_group_head, srte_candidate_group);
-RB_PROTOTYPE(srte_candidate_group_head, srte_candidate_group, entry, srte_candidate_group_compare)
-
+RB_HEAD(srte_candidate_pref_head, srte_candidate);
+RB_PROTOTYPE(srte_candidate_pref_head, srte_candidate, perf_entry, srte_candidate_compare)
 struct srte_candidate_group {
 	RB_ENTRY(srte_candidate_group) entry;
 	/* Backpointer to SR Policy */
@@ -384,7 +384,7 @@ struct srte_candidate_group {
 	uint32_t preference;
 
 	/* Candidate Paths */
-	struct srte_candidate_head candidate_paths;
+	struct srte_candidate_pref_head candidate_paths;
 
 	/* Candidate Group status  */
 	uint32_t up_cpath_num;
@@ -394,6 +394,10 @@ struct srte_candidate_group {
 #define F_CPATH_GROUP_BEST 0x0001
 #define F_CPATH_GROUP_MODIFIED 0x0002
 };
+
+RB_HEAD(srte_candidate_group_head, srte_candidate_group);
+RB_PROTOTYPE(srte_candidate_group_head, srte_candidate_group, entry, srte_candidate_group_compare)
+
 struct sbfd_session_config {
 	/** Control Plane Independent. */
 	bool cbit;

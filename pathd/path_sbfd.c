@@ -59,7 +59,7 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
 	{
 		cpath_up_count = 0;
-		RB_FOREACH_SAFE (candidate, srte_candidate_head, &cpath_group->candidate_paths, safe_cpath)
+		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
             if (!candidate->segment_list)
 			{

@@ -233,7 +233,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	strlcpy(zp.name, policy->name, sizeof(zp.name));
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
 	
-	RB_FOREACH (candidate, srte_candidate_head, &candidate_group->candidate_paths) {
+	RB_FOREACH (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths) {
 
 		if (candidate->segment_list == NULL ) 
 		{
