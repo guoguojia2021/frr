@@ -409,6 +409,18 @@ struct srte_policy *srte_policy_find(uint32_t color, struct ipaddr *endpoint)
 	search.endpoint = *endpoint;
 	return RB_FIND(srte_policy_head, &srte_policies, &search);
 }
+struct srte_policy *srte_policy_find_by_name(char *name)
+{
+	struct srte_policy *policy;
+
+	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
+		if (!strcmp(policy->name, name))
+		{
+			return policy;
+		}
+	}	
+	return NULL;
+}
 
 /*
  * After new data from igp,local and pce the segment list :

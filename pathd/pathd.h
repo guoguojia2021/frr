@@ -530,6 +530,7 @@ struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
 				    const char *originator);
 void srte_policy_del(struct srte_policy *policy);
 struct srte_policy *srte_policy_find(uint32_t color, struct ipaddr *endpoint);
+struct srte_policy *srte_policy_find_by_name(char *name);
 int srte_policy_update_ted_sid(void);
 void srte_policy_update_binding_sid(struct srte_policy *policy,
 				    uint32_t binding_sid);

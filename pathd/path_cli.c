@@ -162,6 +162,72 @@ DEFPY(show_srte_policy,
 	return CMD_SUCCESS;
 }
 
+static void srte_policy_detail_display(struct srte_policy *policy, struct vty *vty)
+{
+	struct srte_candidate *candidate, *safe_cp;
+	struct srte_candidate_group *cpath_group, *safe_cpg;
+	char endpoint[46];
+	char binding_sid[46] = "-";
+	char *segment_list_info;
+	static char undefined_info[] = "(undefined)";
+	static char created_by_pce_info[] = "(created by PCE)";
+
+
+	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	if (policy->binding_sid != MPLS_LABEL_NONE)
+		snprintf(binding_sid, sizeof(binding_sid), "%u",
+				policy->binding_sid);
+
+	if (!IS_IPADDR_NONE(&policy->binding_v6_sid))
+		ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
+
+	vty_out(vty,
+		"Endpoint: %s  Color: %u  Name: %s  BSID: %s  Status: %s\n",
+		endpoint, policy->color, policy->name, binding_sid,
+		policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive");
+
+	/* show cpath group first*/
+	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cpg) {
+		vty_out(vty,
+			"  %s Preference: %d  ActiveMembers: %d  Status: %s\n",
+			CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST) ? "*" : " ", 
+			cpath_group->preference,
+			cpath_group->up_cpath_num,
+			cpath_group->status == SRTE_DETECT_UP ? "UP" : "DOWN");
+		
+		/* show each cpath*/
+
+		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
+			char binging_bfd[] = "-";
+			bool has_bfd = false;
+
+			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
+				&& policy->bfd_config
+				&& CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
+			{
+				has_bfd = true;
+				if (policy->bfd_config->is_echo)
+				{
+					snprintf(binging_bfd, sizeof(binging_bfd), "bfd echo");
+				}
+				else
+				{
+					snprintf(binging_bfd, sizeof(binging_bfd), "sbfd");
+				}
+			}
+
+			vty_out(vty,
+				"       Candidate Name: %s  Type: %s  Segment-List: %s  Weight: %d  BindingBFD: %s  Status: %s\n",
+				candidate->name,
+				"explicit",
+				candidate->segment_list ? candidate->segment_list->name : "-",
+				candidate->weight,
+				binging_bfd,
+				has_bfd ? (candidate->segment_list->status == SRTE_DETECT_UP ? "UP" : "DOWN") : "UP");
+		}
+	}
+	vty_out(vty, "\n");
+}
 
 /*
  * Show detailed SR-TE info
@@ -183,70 +249,65 @@ DEFPY(show_srte_policy_detail,
 
 	vty_out(vty, "\n");
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
-		struct srte_candidate *candidate, *safe_cp;
-		struct srte_candidate_group *cpath_group, *safe_cpg;
-		char endpoint[46];
-		char binding_sid[46] = "-";
-		char *segment_list_info;
-		static char undefined_info[] = "(undefined)";
-		static char created_by_pce_info[] = "(created by PCE)";
-
-
-		ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
-		if (policy->binding_sid != MPLS_LABEL_NONE)
-			snprintf(binding_sid, sizeof(binding_sid), "%u",
-				 policy->binding_sid);
-
-		if (!IS_IPADDR_NONE(&policy->binding_v6_sid))
-            ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
-
-		vty_out(vty,
-			"Endpoint: %s  Color: %u  Name: %s  BSID: %s  Status: %s\n",
-			endpoint, policy->color, policy->name, binding_sid,
-			policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive");
-
-		/* show cpath group first*/
-		RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cpg) {
-			vty_out(vty,
-				"  %s Preference: %d  ActiveMembers: %d  Status: %s\n",
-				CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST) ? "*" : " ", 
-				cpath_group->preference,
-				cpath_group->up_cpath_num,
-				cpath_group->status == SRTE_DETECT_UP ? "UP" : "DOWN");
-		    
-			/* show each cpath*/
-
-			RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
-				char binging_bfd[] = "-";
-				bool has_bfd = false;
-
-                if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
-				    && policy->bfd_config
-				    && CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
-				{
-					has_bfd = true;
-					if (policy->bfd_config->is_echo)
-					{
-                        snprintf(binging_bfd, sizeof(binging_bfd), "bfd echo");
-					}
-					else
-					{
-						snprintf(binging_bfd, sizeof(binging_bfd), "sbfd");
-					}
-				}
-
-				vty_out(vty,
-					"       Candidate Name: %s  Type: %s  Segment-List: %s  Weight: %d  BindingBFD: %s  Status: %s\n",
-                    candidate->name,
-					"explicit",
-					candidate->segment_list ? candidate->segment_list->name : "-",
-					candidate->weight,
-					binging_bfd,
-					has_bfd ? (candidate->segment_list->status == SRTE_DETECT_UP ? "UP" : "DOWN") : "UP");
-			}
-		}
-		vty_out(vty, "\n");
+        srte_policy_detail_display(policy, vty);
 	}
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(show_srte_filter_policy_detail,
+      show_srte_filter_policy_detail_cmd,
+      "show sr-te policy color (0-4294967295)$num endpoint X:X::X:X$addr detail",
+      SHOW_STR
+      "SR-TE info\n"
+      "SR-TE Policy\n"
+	  "SR Policy color\n"
+	  "SR Policy color value\n"
+	  "SR Policy endpoint\n"
+	  "SR Policy endpoint IPv6 address\n"
+      "Show a detailed summary\n")
+{
+	struct srte_policy *policy;
+
+	struct ipaddr endpoint;
+	(void)str2ipaddr(addr_str, &endpoint);
+
+    policy = srte_policy_find(num, &endpoint);
+
+	if (!policy)
+	{
+		vty_out(vty, "No Matched SR Policies to display.\n\n");
+		return CMD_SUCCESS;
+	}
+
+	vty_out(vty, "\n");
+    srte_policy_detail_display(policy, vty);
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(show_srte_policy_by_name_detail,
+      show_srte_policy_by_name_detail_cmd,
+      "show sr-te policy name WORD$name detail",
+      SHOW_STR
+      "SR-TE info\n"
+      "SR-TE Policy\n"
+	  "SR Policy name\n"
+	  "SR Policy name\n"
+      "Show a detailed summary\n")
+{
+	struct srte_policy *policy;
+
+    policy = srte_policy_find_by_name(name);
+
+	if (!policy)
+	{
+		vty_out(vty, "No Matched SR Policies to display.\n\n");
+		return CMD_SUCCESS;
+	}
+
+	vty_out(vty, "\n");
+    srte_policy_detail_display(policy, vty);
 
 	return CMD_SUCCESS;
 }
@@ -1451,6 +1512,8 @@ void path_cli_init(void)
 	install_element(ENABLE_NODE, &show_debugging_pathd_cmd);
 	install_element(ENABLE_NODE, &show_srte_policy_cmd);
 	install_element(ENABLE_NODE, &show_srte_policy_detail_cmd);
+	install_element(ENABLE_NODE, &show_srte_filter_policy_detail_cmd);
+	install_element(ENABLE_NODE, &show_srte_policy_by_name_detail_cmd);
 
 	install_element(CONFIG_NODE, &segment_routing_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
