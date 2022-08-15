@@ -25,6 +25,7 @@
 #include "lib/command.h"
 #include "lib/log.h"
 #include "lib/northbound_cli.h"
+#include "lib/termtable.h"
 
 #ifndef VTYSH_EXTRACT_PL
 #include "bfdd/bfdd_cli_clippy.c"
@@ -677,7 +678,6 @@ DEFPY(
 		if (strspn(pstr, "0123456789")==strlen(pstr))
         {
 			discr = atol(pstr);
-			vty_out(vty, "arg %d %u\n",i, discr);
 			sr = sbfd_reflector_new(discr);
         }
 		/*discr segment*/
@@ -687,13 +687,11 @@ DEFPY(
             if(token)
             {
 				discr_from = atol(token);
-				vty_out(vty, "arg %d-1: %u\n",i, discr_from);
             }
             token = strtok(NULL, "-");
             if(token)
             {
 				discr_to = atol(token);
-				vty_out(vty, "arg %d-2: %u\n",i, discr_to);
             }
 
 			if (discr_from >= discr_to)
@@ -794,9 +792,14 @@ static void _sbfd_reflector_show(struct hash_bucket *hb,
 		      void *arg)
 {
 	struct sbfd_reflector *sr = hb->data;
+	struct ttable *tt;
 
-	vty_out((struct vty *) arg, "%u.\n",sr->discr);
-	
+	tt = (struct ttable *) arg;
+
+	ttable_add_row(tt, "%u|%s|%s",
+				sr->discr, 
+				"Active",
+				"Hardware");	
 }
 
 DEFPY(
@@ -807,9 +810,20 @@ DEFPY(
     "sbfd reflector\n")
 {
 	struct sbfd_reflector *sr;
+	struct ttable *tt;
+	char *out;
     
 	vty_out(vty, "sbfd refector discriminator :\n");
-    sbfd_discr_iterate(_sbfd_reflector_show, vty);
+	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
+	ttable_add_row(tt, "SBFD-Discr|State|CreateType");
+	ttable_rowseps(tt, 0, BOTTOM, true, '-');
+
+    sbfd_discr_iterate(_sbfd_reflector_show, tt);
+
+	out = ttable_dump(tt, "\n");
+	vty_out(vty, "%s", out);
+	XFREE(MTYPE_TMP, out);
+	ttable_del(tt);
 
 	return CMD_SUCCESS;
 }

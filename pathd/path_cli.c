@@ -198,7 +198,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 		/* show each cpath*/
 
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
-			char binging_bfd[] = "-";
+			char binging_bfd[10] = "-";
 			bool has_bfd = false;
 
 			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
@@ -208,7 +208,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 				has_bfd = true;
 				if (policy->bfd_config->is_echo)
 				{
-					snprintf(binging_bfd, sizeof(binging_bfd), "bfd echo");
+					snprintf(binging_bfd, sizeof(binging_bfd), "sbfd echo");
 				}
 				else
 				{

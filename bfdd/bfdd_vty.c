@@ -88,6 +88,11 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		vty_out(vty, " multihop");
 
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
+	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		vty_out(vty, " (endpoint %s color %u sidlist %s)", 
+		    addr_buf, bs->key.srte_color, bs->key.seglist_name);
+
 	if (memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
 		vty_out(vty, " local-address %s",
 			inet_ntop(bs->key.family, &bs->key.local, addr_buf,
@@ -151,8 +156,20 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 
 	vty_out(vty, "\t\tDiagnostics: %s\n", diag2str(bs->local_diag));
 	vty_out(vty, "\t\tRemote diagnostics: %s\n", diag2str(bs->remote_diag));
-	vty_out(vty, "\t\tPeer Type: %s\n",
-		CHECK_FLAG(bs->flags, BFD_SESS_FLAG_CONFIG) ? "configured" : "dynamic");
+
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
+	{
+		vty_out(vty, "\t\tPeer Type: reflector\n");
+	}
+	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+        vty_out(vty, "\t\tPeer Type: echo\n");
+	}
+	else
+	{
+		vty_out(vty, "\t\tPeer Type: %s\n",
+			CHECK_FLAG(bs->flags, BFD_SESS_FLAG_CONFIG) ? "configured" : "dynamic");
+	}
 
 	vty_out(vty, "\t\tLocal timers:\n");
 	vty_out(vty, "\t\t\tDetect-multiplier: %u\n",
@@ -166,24 +183,38 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 			bs->timers.required_min_echo_rx / 1000);
 	else
 		vty_out(vty, "\t\t\tEcho receive interval: disabled\n");
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO)
+	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 		vty_out(vty, "\t\t\tEcho transmission interval: %ums\n",
 			bs->timers.desired_min_echo_tx / 1000);
 	else
 		vty_out(vty, "\t\t\tEcho transmission interval: disabled\n");
 
-	vty_out(vty, "\t\tRemote timers:\n");
-	vty_out(vty, "\t\t\tDetect-multiplier: %u\n",
-		bs->remote_detect_mult);
-	vty_out(vty, "\t\t\tReceive interval: %ums\n",
-		bs->remote_timers.required_min_rx / 1000);
-	vty_out(vty, "\t\t\tTransmission interval: %ums\n",
-		bs->remote_timers.desired_min_tx / 1000);
-	if (bs->remote_timers.required_min_echo != 0)
-		vty_out(vty, "\t\t\tEcho receive interval: %ums\n",
-			bs->remote_timers.required_min_echo / 1000);
+    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
+	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		vty_out(vty, "\t\tRemote timers:\n");
+		vty_out(vty, "\t\t\tDetect-multiplier: -\n");
+		vty_out(vty, "\t\t\tReceive interval: -\n");
+		vty_out(vty, "\t\t\tTransmission interval: -\n");
+		vty_out(vty, "\t\t\tEcho receive interval: -\n");
+	}
 	else
-		vty_out(vty, "\t\t\tEcho receive interval: disabled\n");
+	{
+		vty_out(vty, "\t\tRemote timers:\n");
+		vty_out(vty, "\t\t\tDetect-multiplier: %u\n",
+			bs->remote_detect_mult);
+		vty_out(vty, "\t\t\tReceive interval: %ums\n",
+			bs->remote_timers.required_min_rx / 1000);
+		vty_out(vty, "\t\t\tTransmission interval: %ums\n",
+			bs->remote_timers.desired_min_tx / 1000);
+		if (bs->remote_timers.required_min_echo != 0)
+			vty_out(vty, "\t\t\tEcho receive interval: %ums\n",
+				bs->remote_timers.required_min_echo / 1000);
+		else
+			vty_out(vty, "\t\t\tEcho receive interval: disabled\n");		
+	}
+
     if(CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
         vty_out(vty, "\t\tCreated by hardware.\n");
 
@@ -284,9 +315,10 @@ static struct json_object *__display_peer_json(struct bfd_session *bs)
 			    bs->timers.desired_min_tx / 1000);
 	json_object_int_add(jo, "echo-receive-interval",
 			    bs->timers.required_min_echo_rx / 1000);
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO) 
+	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 		json_object_int_add(jo, "echo-transmit-interval",
-				    bs->timers.desired_min_echo_tx / 1000);
+			bs->timers.desired_min_echo_tx / 1000);
 	else
 		json_object_int_add(jo, "echo-transmit-interval", 0);
 
