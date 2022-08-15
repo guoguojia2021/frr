@@ -484,7 +484,7 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 	nb_running_set_entry(args->dnode, candidate);
 	SET_FLAG(candidate->flags, F_CANDIDATE_NEW);
     
-	sbfd_update_flag_one_policy(policy);
+	sbfd_update_flag_one_policy(policy, SBFD_MODIFIED);
 
 	return NB_OK;
 }
@@ -816,7 +816,7 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 	assert(candidate->segment_list);
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 
-	sbfd_update_flag_one_policy(candidate->policy);
+	sbfd_update_flag_one_policy(candidate->policy, SBFD_MODIFIED);
 
 	return NB_OK;
 }
@@ -911,7 +911,7 @@ int pathd_srte_encap_source_address_modify(struct nb_cb_modify_args *args)
     encap_source_address.ipa_type = IPADDR_V6;
 	encap_source_address.ipaddr_v6 = source.ipaddr_v6;
 
-	sbfd_update_flag_all_policy();
+	sbfd_sip_update_by_srv6_config();
 	
 	return NB_OK;
 }
@@ -921,7 +921,7 @@ int pathd_srte_encap_source_address_destroy(struct nb_cb_destroy_args *args)
 	encap_source_address.ipa_type = IPADDR_NONE;
 	memset(&encap_source_address.ipaddr_v6, 0, sizeof(encap_source_address.ipaddr_v6));
 
-	sbfd_update_flag_all_policy();
+	sbfd_sip_update_by_srv6_config();
 
 	return NB_OK;
 }

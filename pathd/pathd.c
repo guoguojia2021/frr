@@ -625,6 +625,14 @@ void srte_apply_changes(void)
 				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
 				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
 			}
+			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD))
+			{
+				srte_policy_sbfd_each_seglist_del_then_apply(policy);
+				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
+				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
+				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);
+			}
 			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW) 
 				|| CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED))
 			{

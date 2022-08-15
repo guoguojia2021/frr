@@ -403,6 +403,8 @@ struct sbfd_session_config {
 	bool cbit;
 	/** sbfd echo or sbfd initiator**/
 	bool is_echo;
+	/** is self sip or srv6 global**/
+	bool is_self_sip;
 	/** Detection multiplier. */
 	uint8_t detection_multiplier;
 	/** Minimum required RX interval. */
@@ -425,7 +427,7 @@ struct sbfd_session_config {
 #define SBFD_NEW 0x0002
 #define SBFD_MODIFIED 0x0004
 #define SBFD_DELETED 0x0008
-#define SBFD_NOTIFIED 0x0010
+#define SBFD_DELADD 0x0010 // delete first then add new
 
 	/*active status*/
     uint16_t bfd_active_flags;

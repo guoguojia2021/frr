@@ -548,6 +548,12 @@ module frr-pathd {
             description
               "SBFD source address.";
           }
+          leaf is-self-source-address {
+            type boolean;
+            default "true";
+            description
+              "True if sbfd config with source-address, False use srv6 global source-address";
+          }
           leaf required-min-receive-interval {
             type uint32;
             default 300;

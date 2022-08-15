@@ -33,6 +33,8 @@ void sr_sbfd_init(void);
 
 void srte_policy_sbfd_each_seglist_apply(struct srte_policy *policy);
 void srte_policy_sbfd_each_seglist_remove(struct srte_policy *policy);
+void srte_policy_sbfd_each_seglist_del_then_apply(struct srte_policy *policy);
+
 struct srte_sbfd_session *srte_sbfd_session_add(struct srte_segment_list *segment_list, struct srte_policy *policy);
 void srte_sbfd_session_del(struct srte_sbfd_session *sbs);
 struct srte_sbfd_session *srte_sbfd_session_find(struct srte_segment_list *segment_list, 
@@ -42,8 +44,9 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 				      const struct bfd_session_status *bss,
 				      void *arg);
 
-void sbfd_update_flag_all_policy(void);
-void sbfd_update_flag_one_policy(struct srte_policy *policy);
+void sbfd_update_flag_all_policy(uint32_t flag);
+void sbfd_sip_update_by_srv6_config(void);
+void sbfd_update_flag_one_policy(struct srte_policy *policy, uint32_t flag);
 bool is_exist_seglist_in_policy_exclude_cpath(struct srte_policy *policy, struct srte_segment_list *seglist, 
     struct srte_candidate *ex_cpath);
 bool is_exist_seglist_in_policy(struct srte_policy *policy, struct srte_segment_list *seglist);

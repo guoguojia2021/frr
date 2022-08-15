@@ -205,6 +205,12 @@ const struct frr_yang_module_info frr_pathd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/is-self-source-address",
+			.cbs = {
+				.modify = dummy_modify,
+			}
+		},
+		{
 			.xpath = "/frr-pathd:pathd/srte/policy/sbfd/detect-multiplier",
 			.cbs = {
 				.modify = pathd_srte_policy_sbfd_detect_multiplier_modify,

@@ -283,7 +283,7 @@ void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *po
 	/* SBFD just support IPV6. */
 	bfd_sess_set_ipv6_addrs(
 		sbs->session,
-		IN6_IS_ADDR_UNSPECIFIED(&policy->bfd_config->update_source) ? NULL: &policy->bfd_config->update_source,
+		policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6,
 		&policy->endpoint.ipaddr_v6);
 
 	sbfd_sess_install(sbs->session);
@@ -326,21 +326,6 @@ static void sbfd_for_policy_reset(struct srte_policy *policy)
 	memset(&policy->bfd_config->update_source, 0 , sizeof(struct in6_addr));
 }
 
-void sr_sbfd_update_source(struct srte_policy *policy)
-{
-    return;
-}
-
-/*
- * sr_sbfd_show_info - Show the sbfd information.
- */
-// void sr_sbfd_show_info(struct vty *vty, const struct srte_segment_list *segl,
-// 		       json_object *json)
-// {
-// 	bfd_sess_show(vty, json, segl->bfd_config->session);
-// }
-
-
 void srte_policy_sbfd_each_seglist_apply(struct srte_policy *policy)
 {
 	struct srte_candidate *candidate;
@@ -365,6 +350,20 @@ void srte_policy_sbfd_each_seglist_remove(struct srte_policy *policy)
 			continue;
 		}	
         sr_config_sbfd_remove(candidate->segment_list, policy);
+	}
+}
+
+void srte_policy_sbfd_each_seglist_del_then_apply(struct srte_policy *policy)
+{
+	struct srte_candidate *candidate;
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths) 
+	{
+		if (candidate->segment_list == NULL) {
+			continue;
+		}	
+        sr_config_sbfd_remove(candidate->segment_list, policy);
+		sr_config_sbfd_apply(candidate->segment_list, policy);
 	}
 }
 
@@ -406,6 +405,7 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 	struct srte_policy *policy;
 	enum srte_sbfd_type type;
 	bool is_echo;
+	bool is_self_sip;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -415,6 +415,10 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 	is_echo = (type == SRTE_SBFD_ECHO) ? true : false;
 
     sr_config_sbfd_create(policy, is_echo);
+
+	is_self_sip = yang_dnode_get_bool(args->dnode, "./is-self-source-address");
+	policy->bfd_config->is_self_sip = is_self_sip;
+	
     SET_FLAG(policy->flags, F_POLICY_CONF_BFD);
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -518,7 +522,14 @@ int pathd_srte_policy_sbfd_source_address_modify(struct nb_cb_modify_args *args)
 
 	memcpy(&policy->bfd_config->update_source, &source.ipaddr_v6, sizeof(struct in6_addr));
 	
-	SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+	if (CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
+	{
+        SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
+	}
+	else
+	{
+	    SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+	}
 
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -704,22 +715,35 @@ bool is_exist_seglist_in_policy(struct srte_policy *policy, struct srte_segment_
 }
 
 /*for one policy , update bfd flag, callback when cpath update or create */
-void sbfd_update_flag_one_policy(struct srte_policy *policy)
+void sbfd_update_flag_one_policy(struct srte_policy *policy, uint32_t flag)
 {
 	if (policy->bfd_config &&  !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
 	{
-		SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+		SET_FLAG(policy->bfd_config->bfd_flags, flag);
 	}
 }
 
 /*traverse policy， change bfd flag to update , callback when encap source-address modify or del */
-void sbfd_update_flag_all_policy()
+void sbfd_update_flag_all_policy(uint32_t flag)
 {
 	struct srte_policy *policy;
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
         if (policy->bfd_config &&  !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
 		{
-			SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+			SET_FLAG(policy->bfd_config->bfd_flags, flag);
+		}
+	}
+}
+
+void sbfd_sip_update_by_srv6_config()
+{
+	struct srte_policy *policy;
+	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
+        if (policy->bfd_config 
+		    && !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE)
+			&& !policy->bfd_config->is_self_sip)
+		{
+			SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
 		}
 	}
 }
@@ -813,6 +837,7 @@ DEFPY_NOSH(seamless_bfd_init_enable,
 	if (has_sip != NULL)
 	{
 	    nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/source-address", NB_OP_MODIFY, srcip_str);
+        nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/is-self-source-address", NB_OP_MODIFY, "true");
 	}
 	else
 	{
@@ -824,6 +849,7 @@ DEFPY_NOSH(seamless_bfd_init_enable,
 
 		ipaddr2str(&encap_source_address, sip_buf, sizeof(sip_buf));
 		nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/source-address", NB_OP_MODIFY, sip_buf);
+		nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/is-self-source-address", NB_OP_MODIFY, "false");	
 	}
 
 	return nb_cli_apply_changes(vty, NULL);
@@ -858,6 +884,7 @@ DEFPY_NOSH(seamless_bfd_echo,
 	if (has_sip != NULL)
 	{
 	    nb_cli_enqueue_change(vty, "./sbfd[type='echo']/source-address", NB_OP_MODIFY, srcip_str);
+		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/is-self-source-address", NB_OP_MODIFY, "true");
 	}
 	else
 	{
@@ -869,6 +896,7 @@ DEFPY_NOSH(seamless_bfd_echo,
 
 		ipaddr2str(&encap_source_address, sip_buf, sizeof(sip_buf));
 		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/source-address", NB_OP_MODIFY, sip_buf);
+		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/is-self-source-address", NB_OP_MODIFY, "false");
 	}
 
 	return nb_cli_apply_changes(vty, NULL);
