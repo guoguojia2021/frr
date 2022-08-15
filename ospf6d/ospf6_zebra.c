@@ -353,7 +353,9 @@ DEFUN(show_zebra,
 		json_object_object_add(json_zebra, "redistribute", json_array);
 		json_object_object_add(json, "zebraInformation", json_zebra);
 
-		vty_json(vty, json);
+		vty_out(vty, "%s\n",
+			json_object_to_json_string_ext(
+				json, JSON_C_TO_STRING_PRETTY));
 	} else {
 		vty_out(vty, "Zebra Infomation\n");
 		vty_out(vty, "  fail: %d\n", zclient->fail);
