@@ -40,6 +40,7 @@
 
 DEFINE_MTYPE_STATIC(PATHD, PATH_SEGMENT_LIST_SBFD_CONFIG, "Segment List SBFD configuration data");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SRPOLICY_SBFD_CONFIG, "SR-Policy SBFD configuration data");
+DEFINE_MTYPE_STATIC(PATHD, PATH_SRPOLICY_SBFD_EVENT, "SR-Policy SBFD event msg");
 
 struct zclient *zclient;
 struct thread_master *master;
@@ -53,7 +54,6 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 	uint32_t policy_up_count = 0;
 
     policy = sbfd_event->policy;
-    sbfd_event->segl->status = status;
 
 	/*sidlist down -> up*/
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
@@ -61,11 +61,26 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
+			zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.\n",
+				__func__, candidate->preference, candidate->name,
+				CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
+				candidate->status);
+
             if (!candidate->segment_list)
 			{
 				continue;
 			}
-			if (candidate->segment_list->status == SRTE_DETECT_UP)
+			if (candidate->segment_list == sbfd_event->segl)
+			{
+				candidate->status = status;
+			}
+
+			zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.\n",
+				__func__, candidate->preference, candidate->name,
+				CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
+				candidate->status);
+
+			if (candidate->status == SRTE_DETECT_UP)
 			{
 				cpath_up_count++;
 			}
@@ -91,14 +106,7 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 }
 
 int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
-{
-    if (sbfd_event->segl->status == SRTE_DETECT_UP)
-	{
-		/*up -> up do nothing*/
-		zlog_info("segment_list_up_handle up event do nothing");
-		return 0;
-	}
-    
+{   
 	/*sidlist down -> up*/
 	enum srte_policy_status old_status;
 	enum srte_policy_status new_status;
@@ -106,18 +114,9 @@ int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 	sbfd_refresh_policy_state(sbfd_event, SRTE_DETECT_UP);
     new_status = sbfd_event->policy->status;
 
-	if (old_status != SRTE_POLICY_STATUS_UP 
-	    && new_status == SRTE_POLICY_STATUS_UP)
+    if (new_status == SRTE_POLICY_STATUS_UP)
 	{
-        /* policy down -> up*/
-        srv6_choose_best_cpath_group(sbfd_event->policy);
-		return 0;
-	}
-	
-	if (old_status == SRTE_POLICY_STATUS_UP 
-	    && new_status == SRTE_POLICY_STATUS_UP)
-	{
-        /*policy update*/
+		/*policy update*/
 		srv6_choose_best_cpath_group(sbfd_event->policy);
 		return 0;
 	}
@@ -129,13 +128,6 @@ int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 
 int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
 {
-    if (sbfd_event->segl->status == SRTE_DETECT_DOWN)
-	{
-		/*down -> down do nothing*/
-		zlog_info("segment_list_down_handle down event do nothing");
-		return 0;
-	}
-
 	/*sidlist up -> down*/
 	enum srte_policy_status old_status;
 	enum srte_policy_status new_status;
@@ -195,6 +187,9 @@ int sbfd_status_event(struct thread *thread)
 
 	ret = sbfd_status_event_action(sbfd_event, state);
 
+	if (sbfd_event)
+	    XFREE(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sbfd_event);
+
 	return ret;
 }
 
@@ -205,11 +200,11 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 {
 	struct srte_segment_list *segl = arg;
 	struct srte_policy *policy = NULL;
-	struct srte_sbfd_event sbfd_event;
+	struct srte_sbfd_event *sbfd_event;
 	struct ipaddr endpoint;
 	memset(&endpoint, 0, sizeof(struct ipaddr));
 
-	zlog_info("%s:  vrf %s(%u) bfd state %s -> %s",
+	zlog_debug("%s:  vrf %s(%u) bfd state %s -> %s",
 			__func__, bfd_sess_vrf(bsp), bfd_sess_vrf_id(bsp),
 			bfd_get_status_str(bss->previous_state),
 			bfd_get_status_str(bss->state));
@@ -222,20 +217,21 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 		zlog_err("sbfd can't find the policy.");
 		return;
 	}
-
-    sbfd_event.segl = segl;
-	sbfd_event.policy = policy;
+    
+	sbfd_event = XCALLOC(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sizeof(struct srte_sbfd_event));
+    sbfd_event->segl = segl;
+	sbfd_event->policy = policy;
 
 	if (bss->state == BSS_DOWN && bss->previous_state == BSS_UP) {
-		zlog_info( "%s SBFD DOWN", segl->name);
+		zlog_debug( "%s:  sidlist %s SBFD DOWN", __func__, segl->name);
 		// seglist sbfd down event
-        thread_add_event(master, sbfd_status_event, &sbfd_event, BSS_DOWN, NULL);     		
+        thread_add_event(master, sbfd_status_event, sbfd_event, BSS_DOWN, NULL);     		
 	}
 
 	if (bss->state == BSS_UP && bss->previous_state != BSS_UP) {
-		zlog_info( "%s SBFD UP", segl->name);
+		zlog_debug( "%s:  sidlist %s SBFD UP", __func__, segl->name);
 		// seglist sbfd up event
-        thread_add_event(master, sbfd_status_event, &sbfd_event, BSS_UP, NULL);     		
+        thread_add_event(master, sbfd_status_event, sbfd_event, BSS_UP, NULL);     		
 	}
 }
 
@@ -968,9 +964,46 @@ static int sbfd_pathd_candidate_removed_handler(struct srte_candidate *candidate
 	return 0;
 }
 
+static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)
+{
+	struct srte_sbfd_session *sbs;
+    enum bfd_session_state status;
+
+	if (!candidate || !candidate->policy || !candidate->policy->bfd_config || !candidate->segment_list
+	  || CHECK_FLAG(candidate->policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
+	{
+		return 0;
+	}
+
+	sbs = srte_sbfd_session_find(candidate->segment_list, 
+	    candidate->policy->color, &candidate->policy->endpoint);
+	
+	if (!sbs)
+        return 0;
+
+	status = bfd_sess_status(sbs->session);
+        
+	if (candidate->status == SRTE_DETECT_DOWN 
+		&& status == BFD_STATUS_UP)
+	{
+		zlog_debug( "%s:  cpath %s's status change to up.\n", __func__, candidate->name);
+		candidate->status = SRTE_DETECT_UP;
+
+		srv6_refresh_policy_state(candidate->policy);
+		srv6_choose_best_cpath_group(candidate->policy);
+	}
+	
+	return 0;
+}
+
+
+
 void sr_sbfd_init()
 {
 	hook_register(pathd_candidate_removed, sbfd_pathd_candidate_removed_handler);
+	/* after add or update cpath case */
+    hook_register(pathd_candidate_created, sbfd_pathd_candidate_status_handler);
+	hook_register(pathd_candidate_updated, sbfd_pathd_candidate_status_handler);
 
 	/* Initialize PATHD client functions */
 	bfd_protocol_integration_init(zclient, master);

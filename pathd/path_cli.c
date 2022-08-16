@@ -223,7 +223,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 				candidate->segment_list ? candidate->segment_list->name : "-",
 				candidate->weight,
 				binging_bfd,
-				has_bfd ? (candidate->segment_list->status == SRTE_DETECT_UP ? "UP" : "DOWN") : "UP");
+				has_bfd ? (candidate->status == SRTE_DETECT_UP ? "UP" : "DOWN") : "UP");
 		}
 	}
 	vty_out(vty, "\n");

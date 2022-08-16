@@ -241,7 +241,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 		}
 
 		if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) 
-		    && candidate->segment_list->status == SRTE_DETECT_DOWN)
+		    && candidate->status == SRTE_DETECT_DOWN)
 		{
             continue;
 		}
@@ -256,6 +256,12 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	}
 
     zp.srv6_tunnel.path_num = count;
+
+    char endpoint[46];
+	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+
+	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u",
+		__func__, zp.color, endpoint, zp.name[0] ? "-":zp.name , zp.tunnel_type, zp.srv6_tunnel.path_num);
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
 }

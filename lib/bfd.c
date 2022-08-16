@@ -177,9 +177,10 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	*srte_color = color;
     
 	STREAM_GETC(s, seglist_name_len);
-	if (seglist_name_len > 0)
+	if (seglist_name_len > 0 && seglist_name_len < 64)
 	{
         STREAM_GET(seglist_name, s, seglist_name_len);
+		seglist_name[seglist_name_len] = 0;
 	}
 
 	return ifp;
@@ -1044,7 +1045,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	struct prefix sp;
 	char ifstr[128], cbitstr[32];
 	uint32_t srte_color;
-	char seglist_name[64];
+	char seglist_name[64] = {0};
 
 	if (!zclient->bfd_integration)
 		return 0;

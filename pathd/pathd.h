@@ -337,6 +337,9 @@ struct srte_candidate {
 	/* The Type (explicit or dynamic) */
 	enum srte_candidate_type type;
 
+    /* cpath status  */
+    enum detection_status status;
+
 	/* Flags. */
 	uint32_t flags;
 #define F_CANDIDATE_BEST 0x0001
@@ -627,5 +630,6 @@ int32_t srte_ted_do_query_type_f(struct srte_segment_entry *entry,
 
 void path_delete_sbfd_config(struct srte_policy *policy);
 
+void srv6_refresh_policy_state(struct srte_policy *policy);
 void srv6_choose_best_cpath_group(struct srte_policy *policy);
 #endif /* _FRR_PATHD_H_ */
