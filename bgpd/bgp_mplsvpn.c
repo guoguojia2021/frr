@@ -362,8 +362,6 @@ void vpn_leak_zebra_vrf_label_withdraw(struct bgp *bgp, afi_t afi)
 void vpn_leak_zebra_vrf_sid_update(struct bgp *bgp, afi_t afi)
 {
 	int debug = BGP_DEBUG(vpn, VPN_LEAK_LABEL);
-	enum seg6local_action_t act;
-	struct seg6local_context ctx = {};
 	struct in6_addr *tovpn_sid = NULL;
 	struct in6_addr *tovpn_sid_ls = NULL;
 	struct vrf *vrf;
@@ -566,11 +564,7 @@ static uint32_t alloc_new_sid(struct bgp *bgp, uint32_t index,
 static uint32_t alloc_new_sid_ex(struct bgp *bgp, struct seg6_sid *sid,
 			      struct srv6_locator *sid_locator)
 {
-	struct listnode *node;
-	struct srv6_locator_chunk *chunk;
 	struct in6_addr sid_buf;
-	bool alloced = false;
-	int label;
 
 	if (!bgp || !sid_locator || !sid)
 		return 0;
@@ -589,8 +583,7 @@ void ensure_vrf_tovpn_sid(struct bgp *bgp_vpn, struct bgp *bgp_vrf, afi_t afi)
 	int debug = BGP_DEBUG(vpn, VPN_LEAK_FROM_VRF);
 	char buf[256];
 	struct in6_addr *tovpn_sid;
-	uint32_t tovpn_sid_index = 0, tovpn_sid_transpose_label;
-	bool tovpn_sid_auto = false;
+	uint32_t tovpn_sid_transpose_label;
     struct srv6_locator *locator = NULL;
     struct seg6_sid *sid = NULL;
 

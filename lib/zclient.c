@@ -770,14 +770,20 @@ static int zclient_connect(struct thread *t)
 enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 					  const struct prefix *p,
 					  bool connected,
-					  bool resolve_via_def, vrf_id_t vrf_id)
+					  bool resolve_via_def, vrf_id_t vrf_id, uint32_t type, void* userdata)
 {
 	struct stream *s;
+    uint8_t flags = 0;
 
 	s = zclient->obuf;
 	stream_reset(s);
 	zclient_create_header(s, command, vrf_id);
-	stream_putc(s, (connected) ? 1 : 0);
+	if (connected)
+		SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_EXTRAMATCH);
+	if (userdata)
+		SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA);
+
+	stream_putc(s, flags);
 	stream_putc(s, (resolve_via_def) ? 1 : 0);
 	stream_putw(s, SAFI_UNICAST);
 	stream_putw(s, PREFIX_FAMILY(p));
@@ -792,6 +798,16 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 	default:
 		break;
 	}
+    if (userdata)
+    {
+        switch (type) {
+    	case NEXTHOP_REGISTER_TYPE_COLOR:
+            stream_putl(s, type);
+    		stream_putl(s, *(uint32_t *)userdata);
+    	default:
+    		zlog_err("error type with userdate:%u", type);
+    	}
+    }
 	stream_putw_at(s, 0, stream_get_endp(s));
 
 	return zclient_send_message(zclient);

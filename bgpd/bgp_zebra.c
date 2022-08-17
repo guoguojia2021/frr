@@ -3238,6 +3238,8 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
         zlog_err("error locator name len:%d", len);
 		return;
 	}
+    if (!bgp)
+        return;
 
 	STREAM_GET(loc_name, s, len);
     loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);

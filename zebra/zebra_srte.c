@@ -55,7 +55,7 @@ struct zebra_sr_policy *zebra_sr_policy_add(uint32_t color,
 	policy->color = color;
 	policy->endpoint = *endpoint;
 	strlcpy(policy->name, name, sizeof(policy->name));
-	policy->status = ZEBRA_SR_POLICY_DOWN;
+	policy->status = ZEBRA_SR_POLICY_UP;
 	RB_INSERT(zebra_sr_policy_instance_head, &zebra_sr_policy_instances,
 		  policy);
 
@@ -148,31 +148,43 @@ static int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
 	}
 	stream_putl(s, policy->color);
 
-	num = 0;
-	frr_each (nhlfe_list_const, &policy->lsp->nhlfe_list, nhlfe) {
-		if (!CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_SELECTED)
-		    || CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_DELETED))
-			continue;
+    num = 0;
+    if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
+    {
+    	frr_each (nhlfe_list_const, &policy->lsp->nhlfe_list, nhlfe) {
+    		if (!CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_SELECTED)
+    		    || CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_DELETED))
+    			continue;
 
-		if (num == 0) {
-			stream_putc(s, re_type_from_lsp_type(nhlfe->type));
-			stream_putw(s, 0); /* instance - not available */
-			stream_putc(s, nhlfe->distance);
-			stream_putl(s, 0); /* metric - not available */
-			nump = stream_get_endp(s);
-			stream_putc(s, 0);
-		}
+    		if (num == 0) {
+    			stream_putc(s, re_type_from_lsp_type(nhlfe->type));
+    			stream_putw(s, 0); /* instance - not available */
+    			stream_putc(s, nhlfe->distance);
+    			stream_putl(s, 0); /* metric - not available */
+    			nump = stream_get_endp(s);
+    			stream_putc(s, 0);
+    		}
 
-		zapi_nexthop_from_nexthop(&znh, nhlfe->nexthop);
-		ret = zapi_nexthop_encode(s, &znh, 0, message);
-		if (ret < 0)
-			goto failure;
+    		zapi_nexthop_from_nexthop(&znh, nhlfe->nexthop);
+    		ret = zapi_nexthop_encode(s, &znh, 0, message);
+    		if (ret < 0)
+    			goto failure;
 
-		num++;
-	}
-	stream_putc_at(s, nump, num);
-	stream_putw_at(s, 0, stream_get_endp(s));
+    		num++;
+    	}
+    	stream_putc_at(s, nump, num);
+    }
+    else if (policy->type == ZEBRA_SR_POLICY_TYPE_SRV6)
+    {
+        stream_putc(s, ZEBRA_ROUTE_SRTE);
+		stream_putw(s, 0); /* instance - not available */
+		stream_putc(s, 0);/* distance - not available */
+		stream_putl(s, 0); /* metric - not available */
+		nump = stream_get_endp(s);
+		stream_putc(s, 0);
+    }
 
+    stream_putw_at(s, 0, stream_get_endp(s));
 	client->nh_last_upd_time = monotime(NULL);
 	return zserv_send_message(client, s);
 
@@ -213,6 +225,13 @@ static void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy)
 	if (!rnh)
 		return;
 
+    /* check color */
+    for (rnh; rnh; rnh = rnh->next)
+        if (rnh->srte_color == policy->color)
+            break;
+    if (!rnh)
+		return;
+
 	for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
 		if (policy->status == ZEBRA_SR_POLICY_UP)
 			zebra_sr_policy_notify_update_client(policy, client);
@@ -242,6 +261,7 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 	bool segment_list_changed;
 
 	policy->lsp = lsp;
+    policy->type = ZEBRA_SR_POLICY_TYPE_LSP;
 
 	bsid_changed =
 		policy->segment_list.local_label != old_tunnel->local_label;
@@ -264,6 +284,45 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 	if (segment_list_changed)
 		zebra_sr_policy_notify_update(policy);
 }
+
+static void zebra_srv6_policy_deactivate(struct zebra_sr_policy *policy)
+{
+	policy->status = ZEBRA_SR_POLICY_DOWN;
+	policy->lsp = NULL;
+	zebra_sr_policy_bsid_uninstall(policy,
+				       policy->segment_list.local_label);
+	zsend_sr_policy_notify_status(policy->color, &policy->endpoint,
+				      policy->name, ZEBRA_SR_POLICY_DOWN);
+	zebra_sr_policy_notify_update(policy);
+}
+
+int zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
+			     struct zapi_srv6te_tunnel *new_tunnel)
+{
+	bool bsid_changed = FALSE;
+	bool segment_list_changed = FALSE;
+
+	/* bsid_changed =
+		policy->srv6_segment_list.path_num != new_tunnel->local_label;
+		*/
+	segment_list_changed =
+		policy->srv6_segment_list.path_num != new_tunnel->path_num
+		|| memcmp(policy->srv6_segment_list.sidlists, new_tunnel->sidlists,
+			  sizeof(struct zapi_srv6_active_sidlist)
+				  * policy->srv6_segment_list.path_num);
+
+    policy->srv6_segment_list = *new_tunnel;
+    policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
+#if 0
+	zsend_sr_policy_notify_status(policy->color, &policy->endpoint,
+				      policy->name, ZEBRA_SR_POLICY_UP);
+#endif
+
+	/* Handle segment-list update. */
+	if (segment_list_changed)
+		zebra_sr_policy_notify_update(policy);
+}
+
 
 static void zebra_sr_policy_deactivate(struct zebra_sr_policy *policy)
 {

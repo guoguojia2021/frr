@@ -36,13 +36,22 @@ enum zebra_sr_policy_update_label_mode {
 	ZEBRA_SR_POLICY_LABEL_REMOVED = 3,
 };
 
+#define ZEBRA_SR_POLICY_TYPE_LSP      1
+#define ZEBRA_SR_POLICY_TYPE_SRV6     2
+
 struct zebra_sr_policy {
 	RB_ENTRY(zebra_sr_policy) entry;
+    /* Binding SID */
+	mpls_label_t binding_sid;
+    /* Binding Srv6 Sid*/
+	struct ipaddr binding_v6_sid;
 	uint32_t color;
 	struct ipaddr endpoint;
+    uint8_t type;
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
 	enum zebra_sr_policy_status status;
 	struct zapi_srte_tunnel segment_list;
+    struct zapi_srv6te_tunnel srv6_segment_list;
 	struct zebra_lsp *lsp;
 	struct zebra_vrf *zvrf;
 };

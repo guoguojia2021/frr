@@ -29,12 +29,14 @@
 #include "vrf.h"
 #include "srv6.h"
 #include "lib/json.h"
+#include "termtable.h"
 
 #include "zebra/zserv.h"
 #include "zebra/zebra_router.h"
 #include "zebra/zebra_vrf.h"
 #include "zebra/zebra_srv6.h"
 #include "zebra/zebra_srv6_vty.h"
+#include "zebra/zebra_srte.h"
 #include "zebra/zebra_rnh.h"
 #include "zebra/redistribute.h"
 #include "zebra/zebra_routemap.h"
@@ -75,6 +77,63 @@ static struct cmd_node srv6_loc_node = {
 	.parent_node = SRV6_LOCS_NODE,
 	.prompt = "%s(config-srv6-locator)# "
 };
+
+DEFUN (show_srv6_tunnel,
+       show_srv6_tunnel_cmd,
+       "show srv6 tunnel [detail]",
+       SHOW_STR
+       "Segment Routing SRv6\n"
+       "tunnel info\n"
+       "Show a detailed summary\n")
+{
+	struct ttable *tt;
+	//struct srte_policy *policy;
+	char *table;
+    struct zebra_sr_policy *policy;
+    bool detail = FALSE;
+
+    if (argc == 1 && argv[0]->arg && strmatch(argv[0]->text, "detail"))
+		detail = TRUE;
+
+	if (RB_EMPTY(zebra_sr_policy_instance_head, &zebra_sr_policy_instances)) {
+		vty_out(vty, "No SR Tunnel to display.\n\n");
+		return CMD_SUCCESS;
+	}
+
+	/* Prepare table. */
+	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
+    if (detail)
+    	ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|Path");
+    else
+        ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status");
+	tt->style.cell.rpad = 2;
+	tt->style.corner = '+';
+	ttable_restyle(tt);
+	ttable_rowseps(tt, 0, BOTTOM, true, '-');
+
+	RB_FOREACH (policy, zebra_sr_policy_instance_head,
+		    &zebra_sr_policy_instances) {
+		char endpoint[46];
+		char binding_sid[16] = "-";
+
+		ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+
+		ttable_add_row(tt, "%s|%u|%s|%s|%s", endpoint, policy->color,
+			       policy->name, binding_sid,
+			       policy->status == ZEBRA_SR_POLICY_UP
+				       ? "Active"
+				       : "Inactive");
+	}
+
+	/* Dump the generated table. */
+	table = ttable_dump(tt, "\n");
+	vty_out(vty, "%s\n", table);
+	XFREE(MTYPE_TMP, table);
+
+	ttable_del(tt);
+
+	return CMD_SUCCESS;
+}
 
 DEFUN (show_srv6_locator,
        show_srv6_locator_cmd,
@@ -537,4 +596,5 @@ void zebra_srv6_vty_init(void)
 	/* Command for operation */
 	install_element(VIEW_NODE, &show_srv6_locator_cmd);
 	install_element(VIEW_NODE, &show_srv6_locator_detail_cmd);
+    install_element(VIEW_NODE, &show_srv6_tunnel_cmd);
 }

@@ -117,6 +117,9 @@ struct zebra_vrf {
 	/* MPLS Segment Routing Global block */
 	struct mpls_srgb mpls_srgb;
 
+    /* srv6 tunnel table.  */
+	struct route_table *srv6_te_table;
+
 	/* Pseudowires. */
 	struct zebra_pw_head pseudowires;
 	struct zebra_static_pw_head static_pseudowires;

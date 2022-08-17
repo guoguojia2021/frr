@@ -739,7 +739,7 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	 * which should provide a better infrastructure to solve this issue in
 	 * a more efficient and elegant way.
 	 */
-	if (nhr.srte_color == 0 && bnc_nhc) {
+	if (bnc_nhc && (nhr.srte_color == 0) || (nhr.srte_color == bnc_nhc->srte_color)) {
 		struct bgp_nexthop_cache *bnc_iter;
 
 		frr_each (bgp_nexthop_cache, &bgp->nexthop_cache_table[afi],
@@ -903,8 +903,13 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 			   zserv_command_string(command), &bnc->prefix,
 			   bnc->bgp->name_pretty);
 
-	ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
-			       resolve_via_default, bnc->bgp->vrf_id);
+    if (bnc->srte_color)
+    	ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
+    			       false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &bnc->srte_color);
+    else
+        ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
+    			       false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);
+	/* TBD: handle the failure */
 	if (ret == ZCLIENT_SEND_FAILURE) {
 		flog_warn(EC_BGP_ZEBRA_SEND,
 			  "sendmsg_nexthop: zclient_send_message() failed");

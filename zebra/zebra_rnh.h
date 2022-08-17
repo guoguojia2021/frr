@@ -29,10 +29,27 @@
 extern "C" {
 #endif
 
+struct rnh_node {
+	/*
+	 * CAUTION
+	 *
+	 * These fields must be the very first fields in this structure.
+	 *
+	 * @see bgp_node_to_rnode
+	 * @see bgp_node_from_rnode
+	 */
+	ROUTE_NODE_FIELDS
+
+	struct bgp_dest *pdest;
+
+	uint8_t flags;
+
+};
+
 extern void zebra_rnh_init(void);
 
-extern struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid,
-				 bool *exists);
+extern struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, 
+			  bool *exists, uint32_t srte_color);
 extern struct rnh *zebra_lookup_rnh(struct prefix *p, vrf_id_t vrfid,
 				    safi_t safi);
 extern void zebra_free_rnh(struct rnh *rnh);

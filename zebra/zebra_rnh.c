@@ -132,7 +132,49 @@ static void zebra_rnh_store_in_routing_table(struct rnh *rnh)
 	route_unlock_node(rn);
 }
 
-struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists)
+static void zebra_rnh_store_in_srte_table(struct rnh *rnh)
+{
+	struct zebra_vrf *zvrf = zebra_vrf_lookup_by_id(rnh->vrf_id);
+	struct route_table *table = zvrf->srv6_te_table;
+	struct route_node *rn;
+	rib_dest_t *dest, *tmpri;
+    struct route_entry *same = NULL;
+
+	rn = route_node_match(table, &rnh->resolved_route);
+	if (!rn)
+		return;
+
+	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+		zlog_debug("%s: %s(%u):%pRN added for tracking on %pRN",
+			   __func__, VRF_LOGNAME(zvrf->vrf), rnh->vrf_id,
+			   rnh->node, rn);
+    dest = rib_dest_from_rnode(rn);
+    /*todo: add sr-te tunnel*/
+    RNODE_FOREACH_RE (rn, same) {
+        if (CHECK_FLAG(same->status, ROUTE_ENTRY_REMOVED)) {
+            continue;
+        }
+    }
+
+	rnh_list_add_tail(&dest->nht, rnh);
+	route_unlock_node(rn);
+}
+
+void zebra_rnh_info_add(struct route_node *dest, struct rnh *pi)
+{
+	struct rnh *top;
+
+	top = dest->info;
+
+	pi->next = top;
+	pi->prev = NULL;
+	if (top)
+		top->prev = pi;
+    dest->info = pi;
+
+	route_lock_node(dest);
+}
+struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color)
 {
 	struct route_table *table;
 	struct route_node *rn;
@@ -163,8 +205,12 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists)
 
 	/* Lookup (or add) route node.*/
 	rn = route_node_get(table, p);
+    /* Check previously received route. */
+    for (rnh = rn->info; rnh; rnh = rnh->next)
+        if (rnh->srte_color == srte_color)
+            break;
 
-	if (!rn->info) {
+	if (!rnh) {
 		rnh = XCALLOC(MTYPE_RNH, sizeof(struct rnh));
 
 		/*
@@ -183,8 +229,10 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists)
 		route_lock_node(rn);
 		rn->info = rnh;
 		rnh->node = rn;
+        rnh->srte_color = srte_color;
 		*exists = false;
-
+        
+        zebra_rnh_info_add(rn, rnh);
 		zebra_rnh_store_in_routing_table(rnh);
 	} else
 		*exists = true;
@@ -345,7 +393,7 @@ void zebra_register_rnh_pseudowire(vrf_id_t vrf_id, struct zebra_pw *pw,
 		return;
 
 	addr2hostprefix(pw->af, &pw->nexthop, &nh);
-	rnh = zebra_add_rnh(&nh, vrf_id, &exists);
+	rnh = zebra_add_rnh(&nh, vrf_id, &exists, 0);
 	if (!rnh)
 		return;
 
