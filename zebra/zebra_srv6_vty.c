@@ -329,14 +329,14 @@ DEFUN_NOSH (srv6_locator_sid,
         return CMD_WARNING_CONFIG_FAILED;
     }
 
-    if (argv_find(argv, argc, "func_bit_len", &idx)) {
-        func_bit_len = strtoul(argv[idx]->arg, NULL, 10);
+    if (argv_find(argv, argc, "func-bits", &idx)) {
+        func_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
-    if (argv_find(argv, argc, "block_bit_len", &idx)) {
-        block_bit_len = strtoul(argv[idx]->arg, NULL, 10);
+    if (argv_find(argv, argc, "block-len", &idx)) {
+        block_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
-    if (argv_find(argv, argc, "node_bit_len", &idx)) {
-        node_bit_len = strtoul(argv[idx]->arg, NULL, 10);
+    if (argv_find(argv, argc, "node-len", &idx)) {
+        node_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
 
 	if (block_bit_len == 0 && node_bit_len == 0) {
