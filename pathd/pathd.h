@@ -485,6 +485,7 @@ struct srte_policy {
 #define F_POLICY_MODIFIED 0x0004
 #define F_POLICY_DELETED 0x0008
 #define F_POLICY_CONF_BFD 0x0010
+#define F_POLICY_TUNNEL_ATTR_UPDATE 0x0020
    
    struct sbfd_session_config *bfd_config;
 	/* SRP id for PcInitiated support */

@@ -882,7 +882,7 @@ DEFPY(srte_policy_binding_v6_sid,
 
 DEFPY(srte_policy_no_binding_sid,
       srte_policy_no_binding_sid_cmd,
-      "no binding-sid [(16-1048575)]",
+      "no binding-sid (16-1048575)",
       NO_STR
       "Segment Routing Policy Binding-SID\n"
       "SR Policy Binding-SID label\n")
@@ -894,7 +894,7 @@ DEFPY(srte_policy_no_binding_sid,
 
 DEFPY(srte_policy_no_binding_v6_sid,
       srte_policy_no_binding_v6_sid_cmd,
-      "no binding-sid X:X::X:X$v6_sid",
+      "no binding-sid [X:X::X:X$v6_sid]",
       NO_STR
       "Segment Routing Policy Binding-SID\n"
       "SR Policy Binding-SID v6 sid\n")

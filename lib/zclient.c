@@ -3502,6 +3502,9 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
     
 	stream_putc(s, zp->tunnel_type);
 
+	stream_putw(s, zp->binding_v6sid.ipa_type);
+	stream_write(s, (uint8_t *)&zp->binding_v6sid.ipaddr_v6, sizeof(struct in6_addr));
+
 	stream_putw(s, zt->path_num);
 
 	for (int i = 0; i < zt->path_num; i++)
@@ -3519,6 +3522,7 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 {
 	memset(zp, 0, sizeof(*zp));
+	enum ipaddr_type_t ipa_type;
 
 	struct zapi_srv6te_tunnel *zt ;
 	
@@ -3530,6 +3534,9 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 
 	/* segment list of active candidate path */
 	STREAM_GETC(s, zp->tunnel_type);
+    STREAM_GETW(s, zp->binding_v6sid.ipa_type);
+	STREAM_GET(&zp->binding_v6sid.ipaddr_v6, s, sizeof(struct in6_addr));
+
 	STREAM_GETW(s, zp->srv6_tunnel.path_num);
 
 	for (int i = 0; i < zt->path_num; i++)

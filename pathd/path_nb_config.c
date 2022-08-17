@@ -440,6 +440,7 @@ int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args)
 		policy = nb_running_get_entry(args->dnode, NULL, true);
 		policy->binding_v6_sid = binding_sid;
 		SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+		SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 		break;
 	}
 
@@ -456,6 +457,7 @@ int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args)
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	memset(&policy->binding_v6_sid, 0 , sizeof(struct ipaddr));
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+	SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 
 	return NB_OK;
 }

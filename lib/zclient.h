@@ -644,6 +644,7 @@ struct zapi_sr_policy {
 	struct zapi_srte_tunnel segment_list;
     /*srv6 tunnel*/
     struct zapi_srv6te_tunnel srv6_tunnel;
+	struct ipaddr binding_v6sid;
 	int status;
 };
 

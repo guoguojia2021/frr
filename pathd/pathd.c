@@ -824,12 +824,13 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 		bool cpath_group_changed = is_candidate_group_changed(new_best_cpath_group);
 
-		if (cpath_group_changed) {
+		if (cpath_group_changed || CHECK_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE)) {
 			zlog_debug("SR-TE(%s, %u): best cpg:%u changed.\n",
 				   endpoint, policy->color,
 				   new_best_cpath_group->preference);
 
 			path_zebra_add_srv6_policy(policy, new_best_cpath_group);
+			UNSET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 		}
 		else
 		{

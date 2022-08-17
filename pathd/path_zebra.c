@@ -232,7 +232,8 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	zp.endpoint = policy->endpoint;
 	strlcpy(zp.name, policy->name, sizeof(zp.name));
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
-	
+	zp.binding_v6sid = policy->binding_v6_sid;
+
 	RB_FOREACH (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths) {
 
 		if (candidate->segment_list == NULL ) 
@@ -257,11 +258,12 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 
     zp.srv6_tunnel.path_num = count;
 
-    char endpoint[46];
+    char endpoint[46], binding_sid[46];
 	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
-	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u",
-		__func__, zp.color, endpoint, zp.name[0] ? "-":zp.name , zp.tunnel_type, zp.srv6_tunnel.path_num);
+	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.\n",
+		__func__, zp.color, endpoint, zp.name[0] ? "-":zp.name , zp.tunnel_type, zp.srv6_tunnel.path_num, binding_sid);
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
 }
@@ -279,7 +281,7 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 	zp.endpoint = policy->endpoint;
 	strlcpy(zp.name, policy->name, sizeof(zp.name));
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
-
+	zp.binding_v6sid = policy->binding_v6_sid;
 	zp.srv6_tunnel.path_num = 0;
 	policy->status = SRTE_POLICY_STATUS_DOWN;
 	
