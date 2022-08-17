@@ -261,7 +261,7 @@ DEFUN_NOSH (srv6_locator_sid,
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 	locator_sid->status_up = true;
-    
+
     prefix = argv[3]->arg;
     ret = str2prefix_ipv6(prefix, &locator_sid->prefix);
     apply_mask_ipv6(&locator_sid->prefix);
@@ -467,11 +467,11 @@ static int zebra_sr_config(struct vty *vty)
 			vty_out(vty, "    prefix %s/%u\n", str,
 				locator->prefix.prefixlen);
             if (locator->block_bits_length)
-				vty_out(vty, " func-bits %u", locator->block_bits_length);
+				vty_out(vty, " func-bits %u", locator->function_bits_length);
 			if (locator->node_bits_length)
-				vty_out(vty, " block-len %u", locator->node_bits_length);
+				vty_out(vty, " block-len %u", locator->block_bits_length);
 			if (locator->function_bits_length)
-				vty_out(vty, " node-len %u", locator->function_bits_length);
+				vty_out(vty, " node-len %u", locator->node_bits_length);
             vty_out(vty, "\n");
             for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
                 inet_ntop(AF_INET6, &sid->ipv6Addr.prefix,
