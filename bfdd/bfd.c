@@ -286,10 +286,7 @@ struct bfd_session *bs_peer_find(struct bfd_peer_cfg *bpc)
 	}
 
 	/* Otherwise fallback to peer/local hash lookup. */
-	// gen_bfd_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop,
-	// 	    bpc->bpc_localif, bpc->bpc_vrfname);
-
-    gen_sbfd_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop, 
+    gen_bfd_common_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop, 
 	    bpc->bpc_localif, bpc->bpc_vrfname, bpc->srte_color, bpc->seglist_name);
 
 	return bfd_key_lookup(key);
@@ -484,7 +481,19 @@ void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo)
 		bfd_xmttimer_update(bfd, jitter);
 }
 
-void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
+/**
+ * @brief generate bfd key apply to classic bfd and seamless bfd
+ * 
+ * @param key generated target bfd common key
+ * @param peer remote address
+ * @param local local address
+ * @param mhop is multihop
+ * @param ifname binding interface name
+ * @param vrfname binding vrf name
+ * @param srte_color policy color (use by sbfd, classic bfd is all zero)
+ * @param seglist_name segment list name (use by sbfd, classic bfd is all zero)
+ */
+void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname, uint32_t srte_color, const char *seglist_name)
 {
@@ -551,6 +560,13 @@ void ptm_bfd_xmt_TO(struct bfd_session *bfd, int fbit)
 
 	/* Restart the timer for next time */
 	ptm_bfd_start_xmt_timer(bfd, false);
+}
+
+void ptm_sbfd_echo_reset(struct bfd_session *bfd)
+{
+	bfd->echo_xmt_TO = BFD_DEF_SLOWTX;
+	bfd->echo_detect_TO = 0;
+	ptm_bfd_echo_xmt_TO(bfd);
 }
 
 void ptm_bfd_echo_stop(struct bfd_session *bfd)
@@ -690,9 +706,7 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	if (old_state == PTM_BFD_UP)
 		control_notify(bfd, PTM_BFD_DOWN);
 
-	/* Stop echo packet transmission if they are active */
-	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
-		ptm_bfd_echo_stop(bfd);
+	ptm_sbfd_echo_reset(bfd);
 
 	if (old_state != bfd->ses_state) {
 		bfd->stats.session_down++;
@@ -820,6 +834,10 @@ int bfd_echo_recvtimer_cb(struct thread *t)
 {
 	struct bfd_session *bs = THREAD_ARG(t);
 
+    if (bglobal.debug_peer_event)
+        zlog_debug("%s:  time-out bfd: [%s]  bfd'state is %s\n",
+		    __func__,  bs_to_string(bs), state_list[bs->ses_state].str);
+
 	switch (bs->ses_state) {
 	case PTM_BFD_INIT:
 	case PTM_BFD_UP:
@@ -870,7 +888,7 @@ struct bfd_session *bfd_session_new(void)
 
 	return bs;
 }
-struct bfd_session *sbfd_session_new(uint8_t segnum)
+struct bfd_session *bfd_common_session_new(uint8_t segnum)
 {
 	struct bfd_session *bs;
 
@@ -887,9 +905,6 @@ struct bfd_session *sbfd_session_new(uint8_t segnum)
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
 	bs->ses_state = PTM_BFD_DOWN;
 
-	bs->echo_xmt_TO = 300 * 1000;
-	bs->echo_detect_TO = 2 * 300 * 1000;
-
 	/* Initiate connection with slow timers. */
 	bs_set_slow_timers(bs);
 
@@ -905,7 +920,6 @@ struct bfd_session *sbfd_session_new(uint8_t segnum)
 	bs->hw_det_count = 0;
 
 	return bs;
-
 }
 
 int bfd_session_update_label(struct bfd_session *bs, const char *nlabel)
@@ -947,8 +961,9 @@ static void sbfd_session_update(struct bfd_session *bs, struct bfd_peer_cfg *bpc
 		bs->detect_mult = bpc->bpc_detectmultiplier;
 		bs->peer_profile.detection_multiplier = bs->detect_mult;
 	}
-	if (bpc->bpc_has_echotxinterval) {
-		bs->timers.desired_min_echo_tx = bpc->bpc_echotxinterval * 1000;
+
+	if (bpc->bpc_has_txinterval) {
+		bs->timers.desired_min_echo_tx = bpc->bpc_txinterval * 1000;
 		bs->peer_profile.min_echo_tx = bs->timers.desired_min_echo_tx;
 	}
 
@@ -1187,12 +1202,19 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 
 	/* Get BFD session storage with its defaults. */
 	// bfd = bfd_session_new();
-	bfd = sbfd_session_new(bpc->seg_num);
+	bfd = bfd_common_session_new(bpc->seg_num);
 	if (bfd == NULL) {
 		zlog_err("session-new: allocation failed");
 		return NULL;
 	}
 
+	if (bpc->bpc_sbfd && bpc->bpc_echo)
+	{
+		bfd->timers.desired_min_echo_tx = bfd->timers.desired_min_tx;
+		bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
+		bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+	}
+    
     if (bpc->seg_num > 0)
 	{
 		/*get seglist name*/
@@ -1207,7 +1229,7 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 			memcpy(&bfd->seg_list[i], &bpc->seg_list[i], sizeof(struct in6_addr));
 		}
 	}
-    
+
 	/*
 	 * Store interface/VRF name in case we need to delay session
 	 * start. See `bfd_session_enable` for more information.
@@ -1531,10 +1553,6 @@ static void sbfd_up_handler(struct bfd_session *bs, int nstate)
 		{
 			ptm_sbfd_sess_dn(bs, BD_ECHO_FAILED);
 		}
-		else
-		{
-            ptm_sbfd_sess_dn(bs, BD_PATH_DOWN);
-		}
 		
 		break;
 
@@ -1574,8 +1592,13 @@ void bs_state_handler(struct bfd_session *bs, int nstate)
 	}
 }
 
-void sbfd_state_handler(struct bfd_session *bs, int nstate)
+void sbfd_echo_state_handler(struct bfd_session *bs, int nstate)
 {
+    if (bglobal.debug_peer_event)
+	    zlog_debug("%s:  bfd(%u) state: %s , notify state: %s\n",
+				__func__,  bs->discrs.my_discr, 
+				state_list[bs->ses_state].str, state_list[nstate].str);
+
 	switch (bs->ses_state) {
 	case PTM_BFD_ADM_DOWN:
 		// bs_admin_down_handler(bs, nstate);
@@ -1658,8 +1681,7 @@ void bs_sbfd_echo_timer_handler(struct bfd_session *bs)
 	 *     Section 3).
 	 *   - Check that we are already at the up state.
 	 */
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO) == 0
-	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) == 0)
 		return;
 
 	/*
@@ -2027,6 +2049,12 @@ const char *bs_to_string(const struct bfd_session *bs)
 	if (bs->key.ifname[0])
 		pos += snprintf(buf + pos, sizeof(buf) - pos, " ifname:%s",
 				bs->key.ifname);
+	if (bs->key.srte_color)
+		pos += snprintf(buf + pos, sizeof(buf) - pos, " color:%u",
+				bs->key.srte_color);
+	if (bs->key.seglist_name[0])
+		pos += snprintf(buf + pos, sizeof(buf) - pos, " sidlist_name:%s",
+				bs->key.seglist_name);
 
 	(void)pos;
 

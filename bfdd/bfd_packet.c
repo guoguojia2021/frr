@@ -380,7 +380,7 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
 		/*sbfd receive echo pkt ,need to update state*/
-		sbfd_state_handler(bfd, PTM_BFD_UP);
+		sbfd_echo_state_handler(bfd, PTM_BFD_UP);
 
 		/* try to offload hw sbfd echo*/
         bfd_fpm_peer_sendmsg(bfd, true);
@@ -393,8 +393,10 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
         }
 	}
 
+	bs_sbfd_echo_timer_handler(bfd);
+
 	/* Compute detect time */
-	bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+	bfd->echo_detect_TO = bfd->detect_mult * bfd->timers.desired_min_echo_tx;
 
 	/* Update echo receive timeout. */
 	if (bfd->echo_detect_TO > 0)
@@ -872,7 +874,7 @@ int bfd_recv_cb(struct thread *t)
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
-        sbfd_state_handler(bfd, PTM_BFD_UP);
+        bs_state_handler(bfd, PTM_BFD_UP);
         /*try to send to hwbfd*/
         bfd_fpm_peer_sendmsg(bfd, true);
         if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))

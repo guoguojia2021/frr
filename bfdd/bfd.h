@@ -639,6 +639,7 @@ void ptm_bfd_echo_stop(struct bfd_session *bfd);
 void ptm_bfd_echo_start(struct bfd_session *bfd);
 void ptm_bfd_xmt_TO(struct bfd_session *bfd, int fbit);
 void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo);
+void ptm_sbfd_echo_reset(struct bfd_session *bfd);
 struct bfd_session *ptm_bfd_sess_find(struct bfd_pkt *cp,
 				      struct sockaddr_any *peer,
 				      struct sockaddr_any *local,
@@ -668,12 +669,12 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname);
 
-void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
+void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname, uint32_t srte_color, const char *seglist_name);
 
 struct bfd_session *bfd_session_new(void);
-struct bfd_session *sbfd_session_new(uint8_t);
+struct bfd_session *bfd_common_session_new(uint8_t);
 struct bfd_session *bs_registrate(struct bfd_session *bs);
 void bfd_session_free(struct bfd_session *bs);
 const struct bfd_session *bfd_session_next(const struct bfd_session *bs,
@@ -901,6 +902,6 @@ void sbfd_reflector_flush(void);
 /*sbfd*/
 void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag);
 void ptm_sbfd_sess_up(struct bfd_session *bfd);
-void sbfd_state_handler(struct bfd_session *bs, int nstate);
+void sbfd_echo_state_handler(struct bfd_session *bs, int nstate);
 
 #endif /* _BFD_H_ */

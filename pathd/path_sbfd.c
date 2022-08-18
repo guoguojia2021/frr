@@ -91,6 +91,11 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 			cpath_group->up_cpath_num = cpath_up_count;
 			policy_up_count ++;
 		}
+		else
+		{
+			cpath_group->status = SRTE_DETECT_DOWN;
+			cpath_group->up_cpath_num = 0;
+		}
 	}
     
 	if (policy_up_count > 0)
