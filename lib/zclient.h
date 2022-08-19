@@ -452,9 +452,11 @@ struct zapi_nexthop {
 	uint32_t seg6local_action;
 	struct seg6local_context seg6local_ctx;
 
-	/* SRv6 Headend-behaviour */
+	/* SRv6 Headend-behaviour:vpn-sid */
 	struct in6_addr seg6_segs;
     struct in6_addr seg6_src;
+
+    char tnlName[];
 };
 
 /*

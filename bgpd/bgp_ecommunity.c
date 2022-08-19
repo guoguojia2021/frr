@@ -983,6 +983,12 @@ char *ecommunity_ecom2str(struct ecommunity *ecom, int format, int filter)
 			} else if (*pnt == ECOMMUNITY_EVPN_SUBTYPE_DEF_GW) {
 				strlcpy(encbuf, "Default Gateway",
 					sizeof(encbuf));
+			} else if (*pnt == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
+                uint32_t color;
+                memcpy(&color, pnt + 3, 4);
+				color = ntohs(color);
+				snprintf(encbuf, sizeof(encbuf), "Color:%ul",
+					 color);
 			} else {
 				unk_ecom = 1;
 			}
@@ -1170,7 +1176,13 @@ char *ecommunity_ecom2str(struct ecommunity *ecom, int format, int filter)
 			if (sub_type == ECOMMUNITY_LINK_BANDWIDTH)
 				ecommunity_lb_str(encbuf, sizeof(encbuf), pnt,
 						  ecom->disable_ieee_floating);
-			else
+			else if (sub_type == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
+				uint32_t color;
+                memcpy(&color, pnt + 2, 4);
+				color = ntohs(color);
+				snprintf(encbuf, sizeof(encbuf), "Color:%ul",
+					 color);
+			} else
 				unk_ecom = 1;
 		} else {
 			sub_type = *pnt++;

@@ -873,17 +873,17 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 	bool resolve_via_default = false;
 	int ret;
 
-	if (!zclient)
-		return;
+    if (!zclient)
+        return;
 
-	/* Don't try to register if Zebra doesn't know of this instance. */
-	if (!IS_BGP_INST_KNOWN_TO_ZEBRA(bnc->bgp)) {
-		if (BGP_DEBUG(zebra, ZEBRA))
-			zlog_debug(
-				"%s: No zebra instance to talk to, not installing NHT entry",
-				__func__);
-		return;
-	}
+    /* Don't try to register if Zebra doesn't know of this instance. */
+    if (!IS_BGP_INST_KNOWN_TO_ZEBRA(bnc->bgp)) {
+        if (BGP_DEBUG(zebra, ZEBRA))
+            zlog_debug(
+                "%s: No zebra instance to talk to, not installing NHT entry",
+                __func__);
+        return;
+    }
 
 	if (!bgp_zebra_num_connects()) {
 		if (BGP_DEBUG(zebra, ZEBRA))
@@ -898,10 +898,10 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 			resolve_via_default = true;
 	}
 
-	if (BGP_DEBUG(zebra, ZEBRA))
-		zlog_debug("%s: sending cmd %s for %pFX (vrf %s)", __func__,
-			   zserv_command_string(command), &bnc->prefix,
-			   bnc->bgp->name_pretty);
+    if (BGP_DEBUG(zebra, ZEBRA))
+        zlog_debug("%s: sending cmd %s for %pFX (vrf %s)", __func__,
+               zserv_command_string(command), &bnc->prefix,
+               bnc->bgp->name_pretty);
 
     if (bnc->srte_color)
     	ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,

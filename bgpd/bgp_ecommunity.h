@@ -90,6 +90,7 @@
 
 /* Low-order octet of the Extended Communities type field for OPAQUE types */
 #define ECOMMUNITY_OPAQUE_SUBTYPE_ENCAP     0x0c
+#define ECOMMUNITY_OPAQUE_SUBTYPE_COLOR     0x0b
 
 /* Extended communities attribute string format.  */
 #define ECOMMUNITY_FORMAT_ROUTE_MAP            0
@@ -234,6 +235,22 @@ static inline void encode_lb_extcomm(as_t as, uint32_t bw, bool non_trans,
 	eval->val[5] = (bandwidth >> 16) & 0xff;
 	eval->val[6] = (bandwidth >> 8) & 0xff;
 	eval->val[7] = bandwidth & 0xff;
+}
+
+static inline void encode_color_extcomm(uint32_t color, bool non_trans,
+				     struct ecommunity_val *eval)
+{
+	memset(eval, 0, sizeof(*eval));
+	eval->val[0] = ECOMMUNITY_ENCODE_OPAQUE;
+	if (non_trans)
+		eval->val[0] |= ECOMMUNITY_FLAG_NON_TRANSITIVE;
+	eval->val[1] = ECOMMUNITY_OPAQUE_SUBTYPE_COLOR;
+	eval->val[2] = 0;
+	eval->val[3] = 0;
+	eval->val[4] = (color >> 24) & 0xff;
+	eval->val[5] = (color >> 16) & 0xff;
+	eval->val[6] = (color >> 8) & 0xff;
+	eval->val[7] = color & 0xff;
 }
 
 extern void ecommunity_init(void);
