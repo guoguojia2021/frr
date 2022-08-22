@@ -667,7 +667,7 @@ void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
 
 	if (type == SRTE_SBFD_ECHO) 
 	{
-		vty_out(vty, "    sbfd echo source-address %s %d %d %d\n",
+		vty_out(vty, "   sbfd echo source-address %s %d %d %d\n",
 		    yang_dnode_get_string(dnode, "./source-address"),
 			yang_dnode_get_uint8(dnode, "./detect-multiplier"),
 			yang_dnode_get_uint32(dnode, "./required-min-receive-interval"),
@@ -675,7 +675,7 @@ void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
 	}
 	else
 	{
-		vty_out(vty, "    sbfd enable remote %d source-address %s %d %d %d\n",
+		vty_out(vty, "   sbfd enable remote %d source-address %s %d %d %d\n",
 		    yang_dnode_get_uint32(dnode, "./remote-discr"),
 			yang_dnode_get_string(dnode, "./source-address"),
 			yang_dnode_get_uint8(dnode, "./detect-multiplier"),
