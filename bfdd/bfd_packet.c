@@ -1689,7 +1689,7 @@ void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h,
 	int i;
 	for(i = 0;i < seg_num;i++)
 	{
-		memcpy(&srv6h->segments[i], &segment_list[i], sizeof(struct in6_addr));
+		memcpy(&srv6h->segments[i], &segment_list[seg_num-1-i], sizeof(struct in6_addr));
 	}
 }
 
@@ -1753,12 +1753,12 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
 
     memset(&sin6,0,sizeof(sin6));
     sin6.sin6_family = AF_INET6;
-	memcpy(&sin6.sin6_addr, &segment_list[seg_num-1], sizeof(sin6.sin6_addr));
+	memcpy(&sin6.sin6_addr, &segment_list[0], sizeof(sin6.sin6_addr));
 
     sin6.sin6_port = 0;
 
     /* SRH IPv6 Header */
-	bp_sbfd_encap_srh_ip6h(&srh_ip6h, sip , &segment_list[seg_num-1], seg_num, datalen);
+	bp_sbfd_encap_srh_ip6h(&srh_ip6h, sip , &segment_list[0], seg_num, datalen);
 
     /* SRH Routing Header */
 	psrv6h = (struct ipv6_sr_hdr*)malloc(sizeof(struct ipv6_sr_hdr) + sizeof(struct in6_addr) * seg_num);
