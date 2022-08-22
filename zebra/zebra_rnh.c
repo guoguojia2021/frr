@@ -227,7 +227,6 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		rnh->safi = safi;
 		rnh->zebra_pseudowire_list = list_new();
 		route_lock_node(rn);
-		rn->info = rnh;
 		rnh->node = rn;
         rnh->srte_color = srte_color;
 		*exists = false;
