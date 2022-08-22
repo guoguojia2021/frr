@@ -825,7 +825,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		bool cpath_group_changed = is_candidate_group_changed(new_best_cpath_group);
 
 		if (cpath_group_changed || CHECK_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE)) {
-			zlog_debug("SR-TE(%s, %u): best cpg:%u changed.\n",
+			zlog_debug("SR-TE(%s, %u): best cpg:%u changed.",
 				   endpoint, policy->color,
 				   new_best_cpath_group->preference);
 
@@ -834,7 +834,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		}
 		else
 		{
-			zlog_debug("SR-TE(%s, %u): best cpg:%u needn't to change.\n",
+			zlog_debug("SR-TE(%s, %u): best cpg:%u needn't to change.",
 				   endpoint, policy->color,
 				   new_best_cpath_group->preference);
 		}
@@ -853,7 +853,7 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			zlog_debug("%s:  cpath (pref:%u, name:%s) has_bfd:%u ,is_bfd_active:%u, status:%u.\n",
+			zlog_debug("%s:  cpath (pref:%u, name:%s) has_bfd:%u ,is_bfd_active:%u, status:%u.",
 					__func__, candidate->preference, candidate->name,
 					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
 					policy->bfd_config ? CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) : 0,

@@ -61,7 +61,7 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.\n",
+			zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.",
 				__func__, candidate->preference, candidate->name,
 				CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
 				candidate->status);
@@ -75,7 +75,7 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 				candidate->status = status;
 			}
 
-			zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.\n",
+			zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.",
 				__func__, candidate->preference, candidate->name,
 				CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
 				candidate->status);
@@ -991,7 +991,7 @@ static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)
 	if (candidate->status == SRTE_DETECT_DOWN 
 		&& status == BFD_STATUS_UP)
 	{
-		zlog_debug( "%s:  cpath %s's status change to up.\n", __func__, candidate->name);
+		zlog_debug( "%s:  cpath %s's status change to up.", __func__, candidate->name);
 		candidate->status = SRTE_DETECT_UP;
 
 		srv6_refresh_policy_state(candidate->policy);

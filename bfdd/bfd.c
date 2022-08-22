@@ -835,7 +835,7 @@ int bfd_echo_recvtimer_cb(struct thread *t)
 	struct bfd_session *bs = THREAD_ARG(t);
 
     if (bglobal.debug_peer_event)
-        zlog_debug("%s:  time-out bfd: [%s]  bfd'state is %s\n",
+        zlog_debug("%s:  time-out bfd: [%s]  bfd'state is %s",
 		    __func__,  bs_to_string(bs), state_list[bs->ses_state].str);
 
 	switch (bs->ses_state) {
@@ -1595,7 +1595,7 @@ void bs_state_handler(struct bfd_session *bs, int nstate)
 void sbfd_echo_state_handler(struct bfd_session *bs, int nstate)
 {
     if (bglobal.debug_peer_event)
-	    zlog_debug("%s:  bfd(%u) state: %s , notify state: %s\n",
+	    zlog_debug("%s:  bfd(%u) state: %s , notify state: %s",
 				__func__,  bs->discrs.my_discr, 
 				state_list[bs->ses_state].str, state_list[nstate].str);
 

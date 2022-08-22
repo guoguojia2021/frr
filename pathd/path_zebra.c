@@ -262,7 +262,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
-	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.\n",
+	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
 		__func__, zp.color, endpoint, zp.name[0] ? "-":zp.name , 
 		zp.tunnel_type, zp.srv6_tunnel.path_num, 
 		policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
@@ -291,7 +291,7 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 	
-	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.\n",
+	zlog_debug("%s: send data : color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
 		__func__, zp.color, endpoint, zp.name[0] ? "-":zp.name , 
 		zp.tunnel_type, zp.srv6_tunnel.path_num, 
 		policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
