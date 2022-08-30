@@ -1904,6 +1904,20 @@ static void vpn_policy_routemap_update(struct bgp *bgp, const char *rmap_name)
 					    bgp_get_default(), bgp);
 		}
 	}
+	if (bgp->evpn_policy.rmap_name[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN] &&
+		!strcmp(rmap_name, bgp->evpn_policy.rmap_name[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN])) {
+
+		if (debug) {
+			zlog_debug("%s: rmap \"%s\" matches vrf-policy from evpn for as %d",
+				__func__, rmap_name, bgp->as);
+		}
+
+		if (advertise_type5_routes(bgp, AFI_IP))
+			bgp_evpn_withdraw_type5_routes(bgp, AFI_IP, SAFI_UNICAST);
+		bgp_evpn_configure_routemap_prechange(bgp);
+		bgp->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN] = rmap;
+		bgp_evpn_configure_routemap_postchange(bgp);
+	}
 }
 
 /* This API is used during router-id change, reflect VPNs

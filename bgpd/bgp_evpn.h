@@ -177,6 +177,26 @@ static inline bool evpn_resolve_overlay_index(void)
 	return bgp ? bgp->resolve_overlay_index : false;
 }
 
+
+static inline vni_t bgp_evpn_get_l3vni_from_path(struct bgp_path_info *path, int type)
+{
+	vni_t vni = 0;
+
+	if (!path->extra || !path->extra->num_labels)
+		return vni;
+
+	if (type == BGP_EVPN_MAC_IP_ROUTE && path->extra->num_labels == 2)
+		vni = label2vni(path->extra->label + 1);
+	else if (type == BGP_EVPN_IP_PREFIX_ROUTE)
+		vni = label2vni(path->extra->label);
+	return vni;
+}
+
+extern void bgp_evpn_route_info_clear(struct bgp_path_info *pi,
+													struct bgp *bgp);
+extern bool is_route_injectable_into_evpn_with_advertise_mode(
+												struct bgp_path_info *pi,
+												struct bgp *bgp);
 extern void bgp_evpn_advertise_type5_route(struct bgp *bgp_vrf,
 					   const struct prefix *p,
 					   struct attr *src_attr, afi_t afi,

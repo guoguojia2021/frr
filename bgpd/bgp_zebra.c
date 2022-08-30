@@ -1110,7 +1110,9 @@ int bgp_zebra_get_table_range(uint32_t chunk_size,
 
 static bool update_ipv4nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 					    struct in_addr *nexthop,
-					    struct attr *attr, bool is_evpn,
+					    struct attr *attr,
+						struct bgp_path_info_extra *extra,
+						bool is_evpn,
 					    struct zapi_nexthop *api_nh)
 {
 	api_nh->gate.ipv4 = *nexthop;
@@ -1135,6 +1137,19 @@ static bool update_ipv4nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 			api_nh->type = NEXTHOP_TYPE_IPV4_IFINDEX;
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
 			api_nh->ifindex = nh_bgp->l3vni_svi_ifindex;
+		}
+		if (extra) {
+			if (extra->num_labels == 2) {
+				api_nh->vni =
+					vxlan_label_pton(&extra->label[1]);
+			}else if (extra->num_labels == 1) {
+				api_nh->vni =
+					vxlan_label_pton(&extra->label[0]);
+			}
+
+			zlog_debug("%u %u : %u %u %u %u ", extra->label[0], extra->label[1],
+				vxlan_label_pton(&extra->label[0]), vxlan_label_pton(&extra->label[1])
+				,label_pton(&extra->label[0]), label_pton(&extra->label[1]));
 		}
 	} else if (nh_othervrf && api_nh->gate.ipv4.s_addr == INADDR_ANY) {
 		api_nh->type = NEXTHOP_TYPE_IFINDEX;
@@ -1432,7 +1447,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			nh_updated = update_ipv4nh_for_route_install(
 				nh_othervrf, bgp_orig,
 				&mpinfo_cp->attr->nexthop, mpinfo_cp->attr,
-				is_evpn, api_nh);
+				mpinfo_cp->extra, is_evpn, api_nh);
 		} else {
 			ifindex_t ifindex = IFINDEX_INTERNAL;
 			struct in6_addr *nexthop;
@@ -1444,7 +1459,8 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				nh_updated = update_ipv4nh_for_route_install(
 					nh_othervrf, bgp_orig,
 					&mpinfo_cp->attr->nexthop,
-					mpinfo_cp->attr, is_evpn, api_nh);
+					mpinfo_cp->attr, mpinfo_cp->extra,
+					is_evpn, api_nh);
 			else
 				nh_updated = update_ipv6nh_for_route_install(
 					nh_othervrf, bgp_orig, nexthop, ifindex,
@@ -1474,12 +1490,10 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			api_nh->label_num = 1;
 			api_nh->labels[0] = label;
 		}
-
-        if (is_evpn
+		if (is_evpn
             && mpinfo->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP) {
                 memcpy(&api_nh->rmac, &(mpinfo->attr->rmac),
                         sizeof(struct ethaddr));
-                api_nh->vni = mpinfo->attr->vni;
             }
 
 		api_nh->weight = nh_weight;

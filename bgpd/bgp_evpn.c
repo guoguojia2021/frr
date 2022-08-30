@@ -2401,6 +2401,25 @@ bgp_create_evpn_bgp_path_info(struct bgp_path_info *parent_pi,
 	return pi;
 }
 
+static bool install_evpn_route_check_l3vni(const struct prefix_evpn *evp,
+					   struct bgp_path_info *parent_pi)
+{
+	vni_t l3vni = 0;
+	struct bgp *bgp_vrf= NULL;
+
+	l3vni = bgp_evpn_get_l3vni_from_path(parent_pi, evp->prefix.route_type);
+	if (l3vni != 0) {
+		bgp_vrf = bgp_lookup_by_l3vni(l3vni);
+		if (bgp_vrf != NULL && is_l3vni_live(bgp_vrf)) {
+			return true;
+		}
+	}
+	if (bgp_debug_zebra(NULL))
+		zlog_debug("evpn prefix %pFX is invalid l3vni %d ifindex %d",
+			evp, l3vni, bgp_vrf ? bgp_vrf->l3vni_svi_ifindex : 0);
+	return false;
+}
+
 /*
  * Install route entry into the VRF routing table and invoke route selection.
  */
@@ -2421,6 +2440,8 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 	bool use_l3nhg = false;
 	bool is_l3nhg_active = false;
 	char buf1[INET6_ADDRSTRLEN];
+	struct attr static_attr = {0};
+	struct bgp_path_info_extra extra = { 0 };
 
 	memset(pp, 0, sizeof(struct prefix));
 	ip_prefix_from_evpn_prefix(evp, pp);
@@ -2430,6 +2451,9 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 			"vrf %s: import evpn prefix %pFX parent %p flags 0x%x",
 			vrf_id_to_name(bgp_vrf->vrf_id), evp, parent_pi,
 			parent_pi->flags);
+
+	if (!install_evpn_route_check_l3vni(evp, parent_pi))
+		return 0;
 
 	/* Create (or fetch) route within the VRF. */
 	/* NOTE: There is no RD here. */
@@ -2443,6 +2467,33 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 		dest = bgp_node_get(bgp_vrf->rib[afi][safi], pp);
 	} else
 		return 0;
+
+	/* shallow copy */
+	static_attr = *parent_pi->attr;
+
+	/*
+	 * evpn route map handling
+	 */
+	if (bgp_vrf->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN]) {
+		struct bgp_path_info info;
+		route_map_result_t ret;
+
+		prep_for_rmap_apply(&info, &extra, dest,
+				    parent_pi, parent_pi->peer, &static_attr);
+
+		ret = route_map_apply(
+			bgp_vrf->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN],
+			pp, &info);
+		if (RMAP_DENYMATCH == ret) {
+			bgp_attr_flush(&static_attr); /* free any added parts */
+			if (debug)
+				zlog_debug(
+					"%s: evpn, vrf %s route map \"%s\" says DENY, returning",
+					__func__, bgp_vrf->name_pretty,
+					bgp_vrf->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN]->name);
+			return 0;
+		}
+	}
 
 	/* EVPN routes currently only support a IPv4 next hop which corresponds
 	 * to the remote VTEP. When importing into a VRF, if it is IPv6 host
@@ -4429,7 +4480,7 @@ void bgp_evpn_withdraw_type5_routes(struct bgp *bgp_vrf, afi_t afi, safi_t safi)
 		/* TODO: Support for AddPath for EVPN. */
 		for (pi = bgp_dest_get_bgp_path_info(dest); pi; pi = pi->next) {
 			if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED)
-			    && is_route_injectable_into_evpn(pi)) {
+			    && is_route_injectable_into_evpn_with_advertise_mode(pi, bgp_vrf)) {
 				bgp_evpn_withdraw_type5_route(
 					bgp_vrf, bgp_dest_get_prefix(dest), afi,
 					safi);
@@ -4458,6 +4509,95 @@ void bgp_evpn_install_uninstall_default_route(struct bgp *bgp_vrf, afi_t afi,
 		bgp_evpn_withdraw_type5_route(bgp_vrf, &ip_prefix,
 					      afi, safi);
 	}
+}
+
+void bgp_evpn_route_info_clear(struct bgp_path_info *pi, struct bgp *bgp)
+{
+	struct attr static_attr = {0};
+	struct attr *new_attr = NULL;
+
+	/* shallow copy */
+	static_attr = *pi->attr;
+
+	struct ecommunity *old_ecom;
+	struct ecommunity *new_ecom;
+
+	/* strip RTs. */
+	old_ecom = static_attr.ecommunity;
+
+	new_ecom = ecommunity_dup(old_ecom);
+	ecommunity_strip_rts(new_ecom);
+	static_attr.ecommunity = new_ecom;
+
+	if (new_ecom->size == 0) {
+		UNSET_FLAG(static_attr.flag,
+			   ATTR_FLAG_BIT(BGP_ATTR_EXT_COMMUNITIES));
+		ecommunity_free(&new_ecom);
+		static_attr.ecommunity = NULL;
+	}
+
+	if (!old_ecom->refcnt)
+		ecommunity_free(&old_ecom);
+
+	/* Set originator ID to "me" */
+	SET_FLAG(static_attr.flag, ATTR_FLAG_BIT(BGP_ATTR_ORIGINATOR_ID));
+	SET_FLAG(static_attr.flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE));
+	static_attr.originator_id = bgp->router_id;
+
+	new_attr = bgp_attr_intern(
+		&static_attr);	/* hashed refcounted everything */
+	bgp_attr_flush(&static_attr); /* free locally-allocated parts */
+
+	/* Now new_attr is an allocated interned attr */
+
+	pi->attr = new_attr;
+}
+
+
+/* Flag if the route is injectable into EVPN with bgp advertise_mode
+ */
+bool is_route_injectable_into_evpn_with_advertise_mode(struct bgp_path_info *pi, struct bgp *bgp)
+{
+	struct bgp_path_info *parent_pi;
+	struct bgp_table *table;
+	struct bgp_dest *dest;
+
+	if (pi->sub_type != BGP_ROUTE_IMPORTED ||
+	    !pi->extra ||
+	    !pi->extra->parent)
+		return true;
+
+	parent_pi = (struct bgp_path_info *)pi->extra->parent;
+	dest = parent_pi->net;
+	if (!dest)
+		return true;
+
+	table = bgp_dest_table(dest);
+	switch (bgp->advertise_mode) {
+		case EVPN_ADVERTISE_MODE_DEFAULT:
+			if (table &&
+				table->afi == AFI_L2VPN &&
+				table->safi == SAFI_EVPN) {
+				return false;
+			} else {
+				return true;
+			}
+		case EVPN_ADVERTISE_MODE_REORIGINATE_ONLY:
+			if (table &&
+				table->afi == AFI_L2VPN &&
+				table->safi == SAFI_EVPN) {
+				break;
+			} else {
+				return false;
+			}
+		case EVPN_ADVERTISE_MODE_REORIGINATE:
+			// fall through
+		default:
+			break;
+	}
+
+	bgp_evpn_route_info_clear(pi, bgp);
+	return true;
 }
 
 
@@ -4502,7 +4642,7 @@ void bgp_evpn_advertise_type5_routes(struct bgp *bgp_vrf, afi_t afi,
 		 */
 		for (pi = bgp_dest_get_bgp_path_info(dest); pi; pi = pi->next) {
 			if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED)
-			    && is_route_injectable_into_evpn(pi)) {
+			    && is_route_injectable_into_evpn_with_advertise_mode(pi, bgp_vrf)) {
 
 				/* apply the route-map */
 				if (bgp_vrf->adv_cmd_rmap[afi][safi].map) {
@@ -4631,6 +4771,21 @@ void bgp_evpn_unconfigure_import_rt_for_vrf(struct bgp *bgp_vrf,
 	/* map VRFs to its RTs and install routes matching this new RT */
 	if (is_l3vni_live(bgp_vrf)) {
 		bgp_evpn_map_vrf_to_its_rts(bgp_vrf);
+		install_routes_for_vrf(bgp_vrf);
+	}
+}
+
+void bgp_evpn_configure_routemap_prechange(struct bgp *bgp_vrf)
+{
+	/* uninstall routes from vrf */
+	if (is_l3vni_live(bgp_vrf))
+		uninstall_routes_for_vrf(bgp_vrf);
+}
+
+void bgp_evpn_configure_routemap_postchange(struct bgp *bgp_vrf)
+{
+	/* install routes to vrf */
+	if (is_l3vni_live(bgp_vrf)) {
 		install_routes_for_vrf(bgp_vrf);
 	}
 }
@@ -5545,6 +5700,77 @@ static void link_l2vni_hash_to_l3vni(struct hash_bucket *bucket,
 		bgpevpn_link_to_l3vni(vpn);
 }
 
+void bgp_evpn_install_uninstall_for_vrf(struct bgp_path_info *pi, bool install)
+{
+	struct listnode *next;
+	struct bgp *bgp_vrf;
+
+	for (ALL_LIST_ELEMENTS_RO(bm->bgp, next, bgp_vrf)) {
+
+		if (bgp_vrf->inst_type != BGP_INSTANCE_TYPE_VRF)
+			continue;
+
+		(void)bgp_evpn_route_entry_install_if_vrf_match(
+			bgp_vrf, pi, install);
+	}
+}
+
+
+void bgp_evpn_install_uninstall(struct bgp *bgp_vrf, bool install)
+{
+	afi_t afi;
+	safi_t safi;
+	vni_t l3vni = 0;
+	struct bgp_dest *rd_dest, *dest;
+	struct bgp_table *table;
+	struct bgp_path_info *pi;
+	struct bgp *bgp_evpn = NULL;
+
+	afi = AFI_L2VPN;
+	safi = SAFI_EVPN;
+	bgp_evpn = bgp_get_evpn();
+	if (!bgp_evpn)
+		return 0;
+
+	/* Walk entire global routing table and evaluate routes which could be
+	 * imported into this VRF. Note that we need to loop through all global
+	 * routes to determine which route matches the import rt on vrf
+	 */
+	for (rd_dest = bgp_table_top(bgp_evpn->rib[afi][safi]); rd_dest;
+	     rd_dest = bgp_route_next(rd_dest)) {
+		table = bgp_dest_get_bgp_table_info(rd_dest);
+		if (!table)
+			continue;
+
+		for (dest = bgp_table_top(table); dest;
+		     dest = bgp_route_next(dest)) {
+			const struct prefix_evpn *evp =
+				(const struct prefix_evpn *)bgp_dest_get_prefix(
+					dest);
+
+			/* if not mac-ip route skip this route */
+			if (!(evp->prefix.route_type == BGP_EVPN_MAC_IP_ROUTE
+			      || evp->prefix.route_type
+					 == BGP_EVPN_IP_PREFIX_ROUTE))
+				continue;
+
+			/* if not a mac+ip route skip this route */
+			if (!(is_evpn_prefix_ipaddr_v4(evp)
+			      || is_evpn_prefix_ipaddr_v6(evp)))
+				continue;
+
+			for (pi = bgp_dest_get_bgp_path_info(dest); pi; pi = pi->next) {
+				l3vni = bgp_evpn_get_l3vni_from_path(pi, evp->prefix.route_type);
+				if (l3vni && l3vni == bgp_vrf->l3vni)
+					bgp_evpn_install_uninstall_for_vrf(pi, install);
+				else
+					bgp_evpn_route_entry_install_if_vrf_match(
+						bgp_vrf, pi, install);
+			}
+		}
+	}
+}
+
 int bgp_evpn_local_l3vni_add(vni_t l3vni, vrf_id_t vrf_id,
 			     struct ethaddr *svi_rmac,
 			     struct ethaddr *vrr_rmac,
@@ -5677,7 +5903,7 @@ int bgp_evpn_local_l3vni_add(vni_t l3vni, vrf_id_t vrf_id,
 
 	/* install all remote routes belonging to this l3vni into correspondng
 	 * vrf */
-	install_routes_for_vrf(bgp_vrf);
+	bgp_evpn_install_uninstall(bgp_vrf, 1);
 
 	return 0;
 }
@@ -5713,7 +5939,7 @@ int bgp_evpn_local_l3vni_del(vni_t l3vni, vrf_id_t vrf_id)
 	 * routes. This will uninstalling the routes from zebra and decremnt the
 	 * bgp info count.
 	 */
-	uninstall_routes_for_vrf(bgp_vrf);
+	bgp_evpn_install_uninstall(bgp_vrf, 0);
 
 	/* delete/withdraw all type-5 routes */
 	delete_withdraw_vrf_routes(bgp_vrf);

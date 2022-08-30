@@ -457,7 +457,8 @@ extern int rib_queue_nhe_add(struct nhg_hash_entry *nhe);
 /* Enqueue evpn route for processing */
 int zebra_rib_queue_evpn_route_add(vrf_id_t vrf_id, const struct ethaddr *rmac,
 				   const struct ipaddr *vtep_ip,
-				   const struct prefix *host_prefix);
+				   const struct prefix *host_prefix,
+                   const vni_t r_vni);
 int zebra_rib_queue_evpn_route_del(vrf_id_t vrf_id,
 				   const struct ipaddr *vtep_ip,
 				   const struct prefix *host_prefix);

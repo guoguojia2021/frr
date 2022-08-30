@@ -3961,11 +3961,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
 	/* If remote-peer is EBGP */
 	if (peer->sort == BGP_PEER_EBGP
-	    && (!CHECK_FLAG(peer->af_flags[afi][safi],
-			    PEER_FLAG_AS_PATH_UNCHANGED)
-		|| attr->aspath->segments == NULL)
-	    && (!CHECK_FLAG(peer->af_flags[afi][safi],
-			    PEER_FLAG_RSERVER_CLIENT))) {
+	    && (!CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_AS_PATH_UNCHANGED)
+			|| attr->aspath->segments == NULL)
+	    && (!CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_RSERVER_CLIENT))
+		&& (!CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE)))) {
 		aspath = aspath_dup(attr->aspath);
 
 		/* Even though we may not be configured for confederations we
@@ -3999,6 +3998,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				aspath = aspath_add_seq(aspath, peer->local_as);
 			}
 		}
+	} else if (CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE))) {
+		/* 添加本地as */
+		aspath = aspath_empty_get();
+		aspath = aspath_add_seq(aspath, peer->local_as);
 	} else if (peer->sort == BGP_PEER_CONFED) {
 		/* A confed member, so we need to do the AS_CONFED_SEQUENCE
 		 * thing */

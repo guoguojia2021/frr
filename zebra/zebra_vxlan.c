@@ -85,7 +85,7 @@ static struct zebra_neigh *zl3vni_nh_add(struct zebra_l3vni *zl3vni,
 					 const struct ipaddr *vtep_ip,
 					 const struct ethaddr *rmac);
 static int zl3vni_nh_del(struct zebra_l3vni *zl3vni, struct zebra_neigh *n);
-static int zl3vni_nh_install(struct zebra_l3vni *zl3vni, struct zebra_neigh *n);
+static int zl3vni_nh_install(struct zebra_l3vni *zl3vni, struct zebra_neigh *n, vni_t r_vni);
 static int zl3vni_nh_uninstall(struct zebra_l3vni *zl3vni,
 			       struct zebra_neigh *n);
 
@@ -375,7 +375,7 @@ static void zl3vni_print_rmac(struct zebra_mac *zrmac, struct vty *vty,
 		vty_out(vty, "MAC: %s\n",
 			prefix_mac2str(&zrmac->macaddr, buf1, sizeof(buf1)));
 		vty_out(vty, " Remote VTEP: %pI4\n",
-			&zrmac->fwd_info.r_vtep_ip);
+			&zrmac->fwd_info.remote.r_vtep_ip);
 		vty_out(vty, " Refcount: %d\n", rb_host_count(&zrmac->host_rb));
 		vty_out(vty, "  Prefixes:\n");
 		RB_FOREACH (hle, host_rb_tree_entry, &zrmac->host_rb)
@@ -386,7 +386,7 @@ static void zl3vni_print_rmac(struct zebra_mac *zrmac, struct vty *vty,
 			json, "routerMac",
 			prefix_mac2str(&zrmac->macaddr, buf1, sizeof(buf1)));
 		json_object_string_addf(json, "vtepIp", "%pI4",
-					&zrmac->fwd_info.r_vtep_ip);
+					&zrmac->fwd_info.remote.r_vtep_ip);
 		json_object_int_add(json, "refCount",
 				    rb_host_count(&zrmac->host_rb));
 		RB_FOREACH (hle, host_rb_tree_entry, &zrmac->host_rb)
@@ -673,13 +673,13 @@ static void zl3vni_print_rmac_hash(struct hash_bucket *bucket, void *ctx)
 	if (!json) {
 		vty_out(vty, "%-17s %-21pI4\n",
 			prefix_mac2str(&zrmac->macaddr, buf, sizeof(buf)),
-			&zrmac->fwd_info.r_vtep_ip);
+			&zrmac->fwd_info.remote.r_vtep_ip);
 	} else {
 		json_object_string_add(
 			json_rmac, "routerMac",
 			prefix_mac2str(&zrmac->macaddr, buf, sizeof(buf)));
 		json_object_string_addf(json_rmac, "vtepIp", "%pI4",
-					&zrmac->fwd_info.r_vtep_ip);
+					&zrmac->fwd_info.remote.r_vtep_ip);
 		json_object_object_add(
 			json, prefix_mac2str(&zrmac->macaddr, buf, sizeof(buf)),
 			json_rmac);
@@ -1235,9 +1235,10 @@ static int zl3vni_rmac_install(struct zebra_l3vni *zl3vni,
 	else
 		vid = 0;
 
-	res = dplane_rem_mac_add(zl3vni->vxlan_if, br_ifp, vid,
-			     &zrmac->macaddr, zrmac->fwd_info.r_vtep_ip, 0, 0,
-				 false /*was_static*/);
+	res = dplane_rem_mac_add(zl3vni->vxlan_if, br_ifp, vid, &zrmac->macaddr,
+				 zrmac->fwd_info.remote.r_vtep_ip, 0, 0,
+				 false /*was_static*/,
+				 zrmac->fwd_info.remote.r_vni);
 	if (res != ZEBRA_DPLANE_REQUEST_FAILURE)
 		return 0;
 	else
@@ -1284,8 +1285,8 @@ static int zl3vni_rmac_uninstall(struct zebra_l3vni *zl3vni,
 	else
 		vid = 0;
 
-	res = dplane_rem_mac_del(zl3vni->vxlan_if, br_ifp, vid,
-			     &zrmac->macaddr, zrmac->fwd_info.r_vtep_ip);
+	res = dplane_rem_mac_del(zl3vni->vxlan_if, br_ifp, vid, &zrmac->macaddr,
+				 zrmac->fwd_info.remote.r_vtep_ip);
 	if (res != ZEBRA_DPLANE_REQUEST_FAILURE)
 		return 0;
 	else
@@ -1296,7 +1297,7 @@ static int zl3vni_rmac_uninstall(struct zebra_l3vni *zl3vni,
 static int zl3vni_remote_rmac_add(struct zebra_l3vni *zl3vni,
 				  const struct ethaddr *rmac,
 				  const struct ipaddr *vtep_ip,
-				  const struct prefix *host_prefix)
+				  const struct prefix *host_prefix, vni_t r_vni)
 {
 	struct zebra_mac *zrmac = NULL;
 
@@ -1307,12 +1308,13 @@ static int zl3vni_remote_rmac_add(struct zebra_l3vni *zl3vni,
 		zrmac = zl3vni_rmac_add(zl3vni, rmac);
 		if (!zrmac) {
 			zlog_debug(
-				"Failed to add RMAC %pEA L3VNI %u Remote VTEP %pIA, prefix %pFX",
-				rmac, zl3vni->vni, vtep_ip, host_prefix);
+				"Failed to add RMAC %pEA L3VNI %u Remote VTEP %pIA, prefix %pFX, r_vni = 0x%x",
+				rmac, zl3vni->vni, vtep_ip, host_prefix, r_vni);
 			return -1;
 		}
 		memset(&zrmac->fwd_info, 0, sizeof(zrmac->fwd_info));
-		zrmac->fwd_info.r_vtep_ip = vtep_ip->ipaddr_v4;
+		zrmac->fwd_info.remote.r_vtep_ip = vtep_ip->ipaddr_v4;
+		zrmac->fwd_info.remote.r_vni = r_vni;
 
 		/* Send RMAC for FPM processing */
 		hook_call(zebra_rmac_update, zrmac, zl3vni, false,
@@ -1320,15 +1322,16 @@ static int zl3vni_remote_rmac_add(struct zebra_l3vni *zl3vni,
 
 		/* install rmac in kernel */
 		zl3vni_rmac_install(zl3vni, zrmac);
-	} else if (!IPV4_ADDR_SAME(&zrmac->fwd_info.r_vtep_ip,
+	} else if (!IPV4_ADDR_SAME(&zrmac->fwd_info.remote.r_vtep_ip,
 				   &vtep_ip->ipaddr_v4)) {
 		if (IS_ZEBRA_DEBUG_VXLAN)
 			zlog_debug(
 				"L3VNI %u Remote VTEP change(%pI4 -> %pIA) for RMAC %pEA, prefix %pFX",
-				zl3vni->vni, &zrmac->fwd_info.r_vtep_ip,
+				zl3vni->vni, &zrmac->fwd_info.remote.r_vtep_ip,
 				vtep_ip, rmac, host_prefix);
 
-		zrmac->fwd_info.r_vtep_ip = vtep_ip->ipaddr_v4;
+		zrmac->fwd_info.remote.r_vtep_ip = vtep_ip->ipaddr_v4;
+		zrmac->fwd_info.remote.r_vni = r_vni;
 
 		/* install rmac in kernel */
 		zl3vni_rmac_install(zl3vni, zrmac);
@@ -1439,7 +1442,8 @@ static int zl3vni_nh_del(struct zebra_l3vni *zl3vni, struct zebra_neigh *n)
 /*
  * Install remote nh as neigh into the kernel.
  */
-static int zl3vni_nh_install(struct zebra_l3vni *zl3vni, struct zebra_neigh *n)
+
+static int zl3vni_nh_install(struct zebra_l3vni *zl3vni, struct zebra_neigh *n, vni_t r_vni)
 {
 	uint8_t flags;
 	int ret = 0;
@@ -1456,7 +1460,7 @@ static int zl3vni_nh_install(struct zebra_l3vni *zl3vni, struct zebra_neigh *n)
 		flags |= DPLANE_NTF_ROUTER;
 
 	dplane_rem_neigh_add(zl3vni->svi_if, &n->ip, &n->emac, flags,
-			false /*was_static*/);
+			false /*was_static*/, r_vni);
 
 	return ret;
 }
@@ -1483,7 +1487,7 @@ static int zl3vni_nh_uninstall(struct zebra_l3vni *zl3vni,
 static int zl3vni_remote_nh_add(struct zebra_l3vni *zl3vni,
 				const struct ipaddr *vtep_ip,
 				const struct ethaddr *rmac,
-				const struct prefix *host_prefix)
+				const struct prefix *host_prefix, vni_t r_vni)
 {
 	struct zebra_neigh *nh = NULL;
 
@@ -1499,7 +1503,7 @@ static int zl3vni_remote_nh_add(struct zebra_l3vni *zl3vni,
 		}
 
 		/* install the nh neigh in kernel */
-		zl3vni_nh_install(zl3vni, nh);
+		zl3vni_nh_install(zl3vni, nh, r_vni);
 	} else if (memcmp(&nh->emac, rmac, ETH_ALEN) != 0) {
 		if (IS_ZEBRA_DEBUG_VXLAN)
 			zlog_debug(
@@ -1509,7 +1513,7 @@ static int zl3vni_remote_nh_add(struct zebra_l3vni *zl3vni,
 
 		memcpy(&nh->emac, rmac, ETH_ALEN);
 		/* install (update) the nh neigh in kernel */
-		zl3vni_nh_install(zl3vni, nh);
+		zl3vni_nh_install(zl3vni, nh, r_vni);
 	}
 
 	rb_find_or_add_host(&nh->host_rb, host_prefix);
@@ -1550,7 +1554,7 @@ static int zl3vni_local_nh_add_update(struct zebra_l3vni *zl3vni,
 	 * If the kernel has aged this entry, re-install.
 	 */
 	if (state & NUD_STALE)
-		zl3vni_nh_install(zl3vni, n);
+		zl3vni_nh_install(zl3vni, n, 0);
 #endif
 	return 0;
 }
@@ -1568,7 +1572,7 @@ static int zl3vni_local_nh_del(struct zebra_l3vni *zl3vni, struct ipaddr *ip)
 	 * If we get an age out notification for these neigh entries, we have to
 	 * install it back
 	 */
-	zl3vni_nh_install(zl3vni, n);
+	zl3vni_nh_install(zl3vni, n, 0);
 
 	return 0;
 }
@@ -2213,7 +2217,8 @@ int is_l3vni_for_prefix_routes_only(vni_t vni)
 /* handle evpn route in vrf table */
 void zebra_vxlan_evpn_vrf_route_add(vrf_id_t vrf_id, const struct ethaddr *rmac,
 				    const struct ipaddr *vtep_ip,
-				    const struct prefix *host_prefix)
+				    const struct prefix *host_prefix,
+				    vni_t r_vni)
 {
 	struct zebra_l3vni *zl3vni = NULL;
 	struct ipaddr ipv4_vtep;
@@ -2226,7 +2231,7 @@ void zebra_vxlan_evpn_vrf_route_add(vrf_id_t vrf_id, const struct ethaddr *rmac,
 	 * add the next hop neighbor -
 	 * neigh to be installed is the ipv6 nexthop neigh
 	 */
-	zl3vni_remote_nh_add(zl3vni, vtep_ip, rmac, host_prefix);
+	zl3vni_remote_nh_add(zl3vni, vtep_ip, rmac, host_prefix, r_vni);
 
 	/*
 	 * if the remote vtep is a ipv4 mapped ipv6 address convert it to ipv4
@@ -2246,7 +2251,7 @@ void zebra_vxlan_evpn_vrf_route_add(vrf_id_t vrf_id, const struct ethaddr *rmac,
 	 * add the rmac - remote rmac to be installed is against the ipv4
 	 * nexthop address
 	 */
-	zl3vni_remote_rmac_add(zl3vni, rmac, &ipv4_vtep, host_prefix);
+	zl3vni_remote_rmac_add(zl3vni, rmac, &ipv4_vtep, host_prefix, r_vni);
 }
 
 /* handle evpn vrf route delete */

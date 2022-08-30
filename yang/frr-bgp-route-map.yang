@@ -162,6 +162,12 @@ module frr-bgp-route-map {
       "Match IPv6 next hop address";
   }
 
+  identity match-vni {
+    base frr-route-map:rmap-match-type;
+    description
+      "Match VNI";
+  }
+
   identity distance {
     base frr-route-map:rmap-set-type;
     description
@@ -529,6 +535,17 @@ module frr-bgp-route-map {
       description
         "Match eVPN VNI";
       leaf evpn-vni {
+        type uint32 {
+          range "1..16777215";
+        }
+      }
+    }
+
+    case match-vni {
+      when "derived-from-or-self(/frr-route-map:lib/frr-route-map:route-map/frr-route-map:entry/frr-route-map:match-condition/frr-route-map:condition, 'frr-bgp-route-map:match-vni')";
+      description
+        "Match VNI";
+      leaf match-vni {
         type uint32 {
           range "1..16777215";
         }

@@ -3940,7 +3940,7 @@ void zebra_evpn_proc_remote_nh(ZAPI_HANDLER_ARGS)
 				"evpn remote nh %d %pIA rmac %pEA add pfx %pFX",
 				vrf_id, &nh, &rmac, &dummy_prefix);
 		zebra_rib_queue_evpn_route_add(vrf_id, &rmac, &nh,
-					       (struct prefix *)&dummy_prefix);
+					       (struct prefix *)&dummy_prefix, 0);
 	} else {
 		if (IS_ZEBRA_DEBUG_EVPN_MH_ES)
 			zlog_debug("evpn remote nh %d %pIA del pfx %pFX",

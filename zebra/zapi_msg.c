@@ -1532,7 +1532,7 @@ bool zserv_nexthop_num_warn(const char *caller, const struct prefix *p,
 /*
  * Create a new nexthop based on a zapi nexthop.
  */
-static struct nexthop *nexthop_from_zapi(const struct zapi_nexthop *api_nh,
+static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 					 uint32_t flags, struct prefix *p,
 					 uint16_t backup_nexthop_num)
 {
@@ -1557,12 +1557,13 @@ static struct nexthop *nexthop_from_zapi(const struct zapi_nexthop *api_nh,
 					    api_nh->vrf_id);
 		break;
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	
 		if (IS_ZEBRA_DEBUG_RECV) {
 			inet_ntop(AF_INET, &api_nh->gate.ipv4, nhbuf,
 				  sizeof(nhbuf));
-			zlog_debug("%s: nh=%s, vrf_id=%d, ifindex=%d",
+			zlog_debug("==%s: nh=%s, vrf_id=%d, ifindex=%d, vni=%u",
 				   __func__, nhbuf, api_nh->vrf_id,
-				   api_nh->ifindex);
+				   api_nh->ifindex, api_nh->vni);
 		}
 
 		nexthop = nexthop_from_ipv4_ifindex(
@@ -1580,11 +1581,19 @@ static struct nexthop *nexthop_from_zapi(const struct zapi_nexthop *api_nh,
 					 NEXTHOP_FLAG_EVPN_RVTEP);
 			memcpy(&(vtep_ip.ipaddr_v4), &(api_nh->gate.ipv4),
 			       sizeof(struct in_addr));
+
 			zebra_rib_queue_evpn_route_add(
-				api_nh->vrf_id, &api_nh->rmac, &vtep_ip, p);
+				api_nh->vrf_id, &api_nh->rmac, &vtep_ip, p, api_nh->vni);
 			memcpy(&nexthop->rmac, &api_nh->rmac, ETH_ALEN);
 			nexthop->nh_encap.vni = api_nh->vni;
 		}
+		struct zebra_l3vni *zl3vni = NULL;
+		zl3vni = zl3vni_lookup(api_nh->vni);
+		if (zl3vni && zl3vni->svi_if) {
+			api_nh->ifindex = zl3vni->svi_if->ifindex;
+		}
+		nexthop->ifindex = api_nh->ifindex;
+
 		break;
 	case NEXTHOP_TYPE_IPV6:
 		if (IS_ZEBRA_DEBUG_RECV) {
@@ -1618,8 +1627,9 @@ static struct nexthop *nexthop_from_zapi(const struct zapi_nexthop *api_nh,
 					 NEXTHOP_FLAG_EVPN_RVTEP);
 			memcpy(&vtep_ip.ipaddr_v6, &(api_nh->gate.ipv6),
 			       sizeof(struct in6_addr));
+
 			zebra_rib_queue_evpn_route_add(
-				api_nh->vrf_id, &api_nh->rmac, &vtep_ip, p);
+				api_nh->vrf_id, &api_nh->rmac, &vtep_ip, p, api_nh->vni);
 			memcpy(&nexthop->rmac, &api_nh->rmac, ETH_ALEN);
 			nexthop->nh_encap.vni = api_nh->vni;
 		}

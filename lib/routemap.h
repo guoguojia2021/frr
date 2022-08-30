@@ -312,6 +312,8 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(C, "frr-bgp-route-map:ipv4-nexthop"))
 #define IS_MATCH_IPV6_NH(C)                                                    \
 	(strmatch(C, "frr-bgp-route-map:ipv6-nexthop"))
+#define IS_MATCH_VNI(C)                                                   \
+	(strmatch(C, "frr-bgp-route-map:match-vni"))
 
 /* Route-map set actions */
 #define IS_SET_IPv4_NH(A)                                                      \

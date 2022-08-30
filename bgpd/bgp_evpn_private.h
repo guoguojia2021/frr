@@ -605,6 +605,9 @@ extern void bgp_evpn_configure_import_rt_for_vrf(struct bgp *bgp_vrf,
 						 struct ecommunity *ecomadd);
 extern void bgp_evpn_unconfigure_import_rt_for_vrf(struct bgp *bgp_vrf,
 						   struct ecommunity *ecomdel);
+extern void bgp_evpn_configure_routemap_prechange(struct bgp *bgp_vrf);
+extern void bgp_evpn_configure_routemap_postchange(struct bgp *bgp_vrf);
+
 extern int bgp_evpn_handle_export_rt_change(struct bgp *bgp,
 					    struct bgpevpn *vpn);
 extern void bgp_evpn_handle_autort_change(struct bgp *bgp);

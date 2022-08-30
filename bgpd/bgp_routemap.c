@@ -943,7 +943,7 @@ static const struct route_map_rule_cmd route_match_mac_address_cmd = {
  * ...RMAP_NOOP to ignore this match check.
  */
 static enum route_map_cmd_result_t
-route_match_vni(void *rule, const struct prefix *prefix, void *object)
+route_match_evpn_vni(void *rule, const struct prefix *prefix, void *object)
 {
 	vni_t vni = 0;
 	unsigned int label_cnt = 0;
@@ -1010,7 +1010,7 @@ static void route_match_vni_free(void *rule)
 /* Route map commands for vni matching. */
 static const struct route_map_rule_cmd route_match_evpn_vni_cmd = {
 	"evpn vni",
-	route_match_vni,
+	route_match_evpn_vni,
 	route_match_vni_compile,
 	route_match_vni_free
 };
@@ -6981,6 +6981,92 @@ DEFUN_YANG (no_set_vni,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+
+DEFUN_YANG (match_vni,
+	    match_vni_cmd,
+	    "match vni " CMD_VNI_RANGE,
+	    MATCH_STR
+	    "Match VNI\n"
+	    "VNI ID\n")
+{
+	const char *xpath =
+		"./match-condition[condition='frr-bgp-route-map:match-vni']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-match-condition/frr-bgp-route-map:match-vni", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY, argv[2]->arg);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFUN_YANG (no_match_vni,
+	    no_match_vni_cmd,
+	    "no match vni " CMD_VNI_RANGE,
+	    NO_STR
+	    MATCH_STR
+	    "Match VNI\n"
+	    "VNI ID\n")
+{
+	const char *xpath =
+		"./match-condition[condition='frr-bgp-route-map:match-vni']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-match-condition/frr-bgp-route-map:match-vni", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_DESTROY, argv[3]->arg);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+
+/*
+ * Match function returns:
+ * ...RMAP_MATCH if match is found.
+ * ...RMAP_NOMATCH if match is not found.
+ * ...RMAP_NOOP to ignore this match check.
+ */
+static enum route_map_cmd_result_t
+route_match_vni(void *rule, const struct prefix *prefix, void *object)
+{
+	vni_t vni = 0;
+	unsigned int label_cnt = 0;
+	struct bgp_path_info *path = NULL;
+
+	vni = *((vni_t *)rule);
+	path = (struct bgp_path_info *)object;
+
+	/*
+	 * This rmap filter is valid for vxlan tunnel type only.
+	 * For any other tunnel type, return noop to ignore
+	 * this check.
+	 */
+	if (path->attr->encap_tunneltype != BGP_ENCAP_TYPE_VXLAN)
+		return RMAP_NOOP;
+
+	if (path->extra == NULL)
+		return RMAP_NOMATCH;
+
+	for (;
+	     label_cnt < BGP_MAX_LABELS && label_cnt < path->extra->num_labels;
+	     label_cnt++) {
+		if (vni == label2vni(&path->extra->label[label_cnt]))
+			return RMAP_MATCH;
+	}
+
+	return RMAP_NOMATCH;
+}
+
+/* Route map commands for vni matching. */
+static const struct route_map_rule_cmd route_match_vni_cmd = {
+	"vni",
+	route_match_vni,
+	route_match_vni_compile,
+	route_match_vni_free
+};
+
 /* Initialization of route map. */
 void bgp_route_map_init(void)
 {
@@ -7073,6 +7159,7 @@ void bgp_route_map_init(void)
     route_map_install_match(&route_match_evpn_rd_cmd);
     route_map_install_match(&route_match_evpn_default_route_cmd);
     route_map_install_match(&route_match_vrl_source_vrf_cmd);
+    route_map_install_match(&route_match_vni_cmd);
 
     route_map_install_set(&route_set_evpn_gateway_ip_ipv4_cmd);
     route_map_install_set(&route_set_evpn_gateway_ip_ipv6_cmd);
@@ -7126,6 +7213,8 @@ void bgp_route_map_init(void)
     install_element(RMAP_NODE, &no_set_evpn_gw_ip_ipv6_cmd);
     install_element(RMAP_NODE, &match_vrl_source_vrf_cmd);
     install_element(RMAP_NODE, &no_match_vrl_source_vrf_cmd);
+	install_element(RMAP_NODE, &match_vni_cmd);
+	install_element(RMAP_NODE, &no_match_vni_cmd);
 
     install_element(RMAP_NODE, &match_aspath_cmd);
     install_element(RMAP_NODE, &no_match_aspath_cmd);

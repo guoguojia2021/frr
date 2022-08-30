@@ -217,6 +217,18 @@ typedef enum {
 	BGP_VPN_POLICY_DIR_MAX = 2
 } vpn_policy_direction_t;
 
+typedef enum {
+	BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN = 0,
+	BGP_EVPN_POLICY_DIR_MAX = 1
+} evpn_policy_direction_t;
+
+typedef enum  {
+	EVPN_ADVERTISE_MODE_DEFAULT = 0,
+	EVPN_ADVERTISE_MODE_REORIGINATE_ONLY = 1,
+	EVPN_ADVERTISE_MODE_REORIGINATE = 2,
+	EVPN_ADVERTISE_MODE_MAX
+} evpn_advertise_mode_t;
+
 struct vpn_policy {
 	struct bgp *bgp; /* parent */
 	afi_t afi;
@@ -255,6 +267,11 @@ struct vpn_policy {
 	struct in6_addr *tovpn_sid;
 	uint32_t tovpn_sid_transpose_label;
 	struct in6_addr *tovpn_zebra_vrf_sid_last_sent;
+};
+
+struct evpn_policy {
+	char *rmap_name[BGP_EVPN_POLICY_DIR_MAX];
+	struct route_map *rmap[BGP_EVPN_POLICY_DIR_MAX];
 };
 
 /*
@@ -685,6 +702,9 @@ struct bgp {
 	 */
 	struct hash *vni_svi_hash;
 
+	/* EVPN advertise mode */
+	evpn_advertise_mode_t advertise_mode;
+
 	/* EVPN enable - advertise gateway macip routes */
 	int advertise_gw_macip;
 
@@ -769,6 +789,8 @@ struct bgp {
 	struct bgp_rmap adv_cmd_rmap[AFI_MAX][SAFI_MAX];
 
 	struct vpn_policy vpn_policy[AFI_MAX];
+
+	struct evpn_policy evpn_policy;
 
 	struct bgp_pbr_config *bgp_pbr_cfg;
 
@@ -1814,6 +1836,7 @@ struct bgp_nlri {
 #define BGP_ATTR_LARGE_COMMUNITIES              32
 #define BGP_ATTR_PREFIX_SID                     40
 #define BGP_ATTR_SRTE_COLOR                     51
+#define BGP_ATTR_AS_OVERWRITE                   52
 #ifdef ENABLE_BGP_VNC_ATTR
 #define BGP_ATTR_VNC                           255
 #endif
@@ -2023,6 +2046,7 @@ extern struct bgp *bgp_get_default(void);
 extern struct bgp *bgp_lookup(as_t, const char *);
 extern struct bgp *bgp_lookup_by_name(const char *);
 extern struct bgp *bgp_lookup_by_vrf_id(vrf_id_t);
+extern struct bgp *bgp_lookup_by_l3vni(const vni_t l3vni);
 extern struct bgp *bgp_get_evpn(void);
 extern void bgp_set_evpn(struct bgp *bgp);
 extern struct peer *peer_lookup(struct bgp *, union sockunion *);

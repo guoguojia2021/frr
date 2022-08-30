@@ -1226,6 +1226,8 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 		if ((new->extra &&bgp_is_valid_label(&new->extra->label[0]))
 		    != (exist->extra
 			&& bgp_is_valid_label(&exist->extra->label[0]))) {
+			if (is_route_parent_evpn(new) && is_route_parent_evpn(exist))
+				*paths_eq = 1;
 			if (debug)
 				zlog_debug(
 					"%s: %s and %s cannot be multipath, one has a label while the other does not",
@@ -3199,7 +3201,7 @@ static void bgp_process_evpn_route_injection(struct bgp *bgp, afi_t afi,
 		return;
 
 	if (advertise_type5_routes(bgp, afi) && new_select
-	    && is_route_injectable_into_evpn(new_select)) {
+	    && is_route_injectable_into_evpn_with_advertise_mode(new_select, bgp)) {
 
 		/* apply the route-map */
 		if (bgp->adv_cmd_rmap[afi][safi].map) {
@@ -3232,7 +3234,7 @@ static void bgp_process_evpn_route_injection(struct bgp *bgp, afi_t afi,
 						       afi, safi);
 		}
 	} else if (advertise_type5_routes(bgp, afi) && old_select
-		   && is_route_injectable_into_evpn(old_select))
+		   && is_route_injectable_into_evpn_with_advertise_mode(old_select, bgp))
 		bgp_evpn_withdraw_type5_route(bgp, p, afi, safi);
 }
 #ifdef ARP2HOST_BACKUP
@@ -9783,7 +9785,7 @@ void route_vty_out(struct vty *vty, const struct prefix *p,
 	}
 
 	/* Print aspath */
-	if (attr->aspath) {
+	if (attr->aspath && !CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE))) {
 		if (json_paths)
 			json_object_string_add(json_path, "path",
 					       attr->aspath->str);
@@ -9949,7 +9951,7 @@ void route_vty_out_tmp(struct vty *vty, struct bgp_dest *dest,
 			json_object_int_add(json_net, "weight", attr->weight);
 
 			/* Print aspath */
-			if (attr->aspath)
+			if (attr->aspath && !CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE)))
 				json_object_string_add(json_net, "path",
 						       attr->aspath->str);
 
@@ -10003,7 +10005,7 @@ void route_vty_out_tmp(struct vty *vty, struct bgp_dest *dest,
 			vty_out(vty, "%7u ", attr->weight);
 
 			/* Print aspath */
-			if (attr->aspath)
+			if (attr->aspath && !CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE)))
 				aspath_print_vty(vty, "%s", attr->aspath, " ");
 
 			/* Print origin */
@@ -10260,7 +10262,8 @@ static void damp_route_vty_out(struct vty *vty, const struct prefix *p,
 						BGP_UPTIME_LEN, afi, safi,
 						use_json, NULL));
 
-		if (attr->aspath)
+		/* Print aspath */
+		if (attr->aspath && !CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE)))
 			aspath_print_vty(vty, "%s", attr->aspath, " ");
 
 		vty_out(vty, "%s", bgp_origin_str[attr->origin]);
@@ -10337,7 +10340,8 @@ static void flap_route_vty_out(struct vty *vty, const struct prefix *p,
 		else
 			vty_out(vty, "%*s ", 8, " ");
 
-		if (attr->aspath)
+		/* Print aspath */
+		if (attr->aspath && !CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE)))
 			aspath_print_vty(vty, "%s", attr->aspath, " ");
 
 		vty_out(vty, "%s", bgp_origin_str[attr->origin]);
@@ -10615,7 +10619,12 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 		vty_out(vty, "\n");
 
 	/* Line1 display AS-path, Aggregator */
-	if (attr->aspath) {
+	if (CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE))) {
+		if (json_paths)
+			json_object_string_add(json_path, "asPath", "Local");
+		else
+			vty_out(vty, "  Local");
+	} else if (attr->aspath) {
 		if (json_paths) {
 			if (!attr->aspath->json)
 				aspath_str_update(attr->aspath, true);

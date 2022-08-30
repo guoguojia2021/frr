@@ -3389,20 +3389,6 @@ static void write_vni_config(struct vty *vty, struct bgpevpn *vpn)
 	}
 }
 
-static vni_t bgp_evpn_get_l3vni_from_path(struct bgp_path_info *path, int type)
-{
-	vni_t vni = 0;
-
-	if (!path->extra || !path->extra->num_labels)
-		return vni;
-
-	if (type == BGP_EVPN_MAC_IP_ROUTE && path->extra->num_labels == 2)
-		vni = label2vni(path->extra->label + 1);
-	else if (type == BGP_EVPN_IP_PREFIX_ROUTE)
-		vni = label2vni(path->extra->label);
-	return vni;
-}
-
 static void bgp_evpn_get_route_id_by_RD(const struct prefix_rd *prd,
 	struct in_addr *router_id)
 {
@@ -3935,13 +3921,15 @@ DEFUN_HIDDEN (no_bgp_evpn_advertise_vni_subnet,
 
 DEFUN (bgp_evpn_advertise_type5,
        bgp_evpn_advertise_type5_cmd,
-       "advertise " BGP_AFI_CMD_STR "" BGP_SAFI_CMD_STR " [gateway-ip] [route-map WORD]",
+       "advertise " BGP_AFI_CMD_STR "" BGP_SAFI_CMD_STR " [gateway-ip] [route-map WORD] [<reoriginate-only|reoriginate>]",
        "Advertise prefix routes\n"
        BGP_AFI_HELP_STR
        BGP_SAFI_HELP_STR
        "advertise gateway IP overlay index\n"
        "route-map for filtering specific routes\n"
-       "Name of the route map\n")
+       "Name of the route map\n"
+       "route reoriginate only\n"
+       "route reoriginate and default\n")
 {
 	struct bgp *bgp_vrf = VTY_GET_CONTEXT(bgp); /* bgp vrf instance */
 	int idx_afi = 0;
@@ -3955,9 +3943,24 @@ DEFUN (bgp_evpn_advertise_type5,
 	int idx_oly = 0;
 	bool adv_flag_changed = false;
 
+	evpn_advertise_mode_t adv_mode =  EVPN_ADVERTISE_MODE_DEFAULT;
+	int idx_adv_mode = 0;
+	bool adv_mode_changed = false;
+
 	argv_find_and_parse_afi(argv, argc, &idx_afi, &afi);
 	argv_find_and_parse_safi(argv, argc, &idx_safi, &safi);
 	argv_find_and_parse_oly_idx(argv, argc, &idx_oly, &oly);
+
+	if (argv_find(argv, argc, "reoriginate-only", &idx_adv_mode)) {
+		adv_mode = EVPN_ADVERTISE_MODE_REORIGINATE_ONLY;
+	} else if (argv_find(argv, argc, "reoriginate", &idx_adv_mode)) {
+		adv_mode = EVPN_ADVERTISE_MODE_REORIGINATE;
+	} else {
+		adv_mode = EVPN_ADVERTISE_MODE_DEFAULT;
+	}
+	if (adv_mode != bgp_vrf->advertise_mode) {
+		adv_mode_changed = true;
+	}
 
 	ret = argv_find(argv, argc, "route-map", &idx_rmap);
 	if (ret) {
@@ -4046,7 +4049,7 @@ DEFUN (bgp_evpn_advertise_type5,
 			 * check if route-map has been modified.
 			 * If not, return an error
 			 */
-			if (!rmap_changed)
+			if ((!rmap_changed) && (!adv_mode_changed))
 				return CMD_WARNING;
 		}
 	} else {
@@ -4106,16 +4109,20 @@ DEFUN (bgp_evpn_advertise_type5,
 			 * check if route-map has been modified.
 			 * If not, return an error
 			 */
-			if (!rmap_changed)
+			if ((!rmap_changed) && (!adv_mode_changed))
 				return CMD_WARNING;
 		}
 	}
 
-	if ((rmap_changed) || (adv_flag_changed)) {
+
+	if ((rmap_changed) || (adv_flag_changed) || (adv_mode_changed)) {
 
 		/* If either of these are changed, then FRR needs to
 		 * withdraw already advertised type5 routes.
 		 */
+
+		// change flag to EVPN_ADVERTISE_MODE_REORIGINATE for routes withdraw
+		bgp_vrf->advertise_mode = EVPN_ADVERTISE_MODE_REORIGINATE;
 		bgp_evpn_withdraw_type5_routes(bgp_vrf, afi, safi);
 		if (rmap_changed) {
 			if (bgp_vrf->adv_cmd_rmap[afi][safi].name) {
@@ -4139,6 +4146,7 @@ DEFUN (bgp_evpn_advertise_type5,
 				bgp_vrf->adv_cmd_rmap[afi][safi].map);
 	}
 
+	bgp_vrf->advertise_mode = adv_mode;
 	/* advertise type-5 routes */
 	if (advertise_type5_routes(bgp_vrf, afi))
 		bgp_evpn_advertise_type5_routes(bgp_vrf, afi, safi);
@@ -4147,11 +4155,15 @@ DEFUN (bgp_evpn_advertise_type5,
 
 DEFUN (no_bgp_evpn_advertise_type5,
        no_bgp_evpn_advertise_type5_cmd,
-       "no advertise " BGP_AFI_CMD_STR "" BGP_SAFI_CMD_STR,
+       "no advertise " BGP_AFI_CMD_STR "" BGP_SAFI_CMD_STR" [route-map WORD] [<reoriginate-only|reoriginate>]",
        NO_STR
        "Advertise prefix routes\n"
        BGP_AFI_HELP_STR
-       BGP_SAFI_HELP_STR)
+       BGP_SAFI_HELP_STR
+	   "route-map for filtering specific routes\n"
+       "Name of the route map\n"
+	   "route reoriginate only\n"
+       "route reoriginate and default\n")
 {
 	struct bgp *bgp_vrf = VTY_GET_CONTEXT(bgp); /* bgp vrf instance */
 	int idx_afi = 0;
@@ -4179,6 +4191,11 @@ DEFUN (no_bgp_evpn_advertise_type5,
 		/* if we are not advertising ipv4 prefix as type-5
 		 * nothing to do
 		 */
+
+
+		// change flag to EVPN_ADVERTISE_MODE_REORIGINATE for routes withdraw
+		bgp_vrf->advertise_mode = EVPN_ADVERTISE_MODE_REORIGINATE;
+
 		if ((CHECK_FLAG(bgp_vrf->af_flags[AFI_L2VPN][SAFI_EVPN],
 				BGP_L2VPN_EVPN_ADV_IPV4_UNICAST)) ||
 		    (CHECK_FLAG(bgp_vrf->af_flags[AFI_L2VPN][SAFI_EVPN],
@@ -4194,6 +4211,8 @@ DEFUN (no_bgp_evpn_advertise_type5,
 		/* if we are not advertising ipv6 prefix as type-5
 		 * nothing to do
 		 */
+		// change flag to EVPN_ADVERTISE_MODE_REORIGINATE for routes withdraw
+		bgp_vrf->advertise_mode = EVPN_ADVERTISE_MODE_REORIGINATE;
 		if ((CHECK_FLAG(bgp_vrf->af_flags[AFI_L2VPN][SAFI_EVPN],
 				BGP_L2VPN_EVPN_ADV_IPV6_UNICAST)) ||
 		    (CHECK_FLAG(bgp_vrf->af_flags[AFI_L2VPN][SAFI_EVPN],
@@ -4213,6 +4232,7 @@ DEFUN (no_bgp_evpn_advertise_type5,
 		bgp_vrf->adv_cmd_rmap[afi][safi].name = NULL;
 		bgp_vrf->adv_cmd_rmap[afi][safi].map = NULL;
 	}
+	bgp_vrf->advertise_mode = EVPN_ADVERTISE_MODE_DEFAULT;
 
 	return CMD_SUCCESS;
 }
@@ -6179,6 +6199,59 @@ DEFUN (no_bgp_evpn_vrf_rt,
 	return CMD_SUCCESS;
 }
 
+DEFPY (bgp_evpn_vrf_route_map,
+       bgp_evpn_vrf_route_map_cmd,
+       "[no] route-map import RMAP$rmap_str",
+       NO_STR
+       "Specify route map\n"
+       "Between default evpn and current evpn\n"
+       "name of route-map\n")
+{
+	struct bgp *bgp = VTY_GET_CONTEXT(bgp);
+	int dir = BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN;
+
+	if (!bgp)
+		return CMD_WARNING;
+
+	int idx = 0;
+	bool yes = true;
+
+	if (argv_find(argv, argc, "no", &idx))
+		yes = false;
+
+	// route-map no change
+	if (yes && bgp->evpn_policy.rmap_name[dir] &&
+			!strcmp(rmap_str, bgp->evpn_policy.rmap_name[dir])) {
+		return CMD_SUCCESS;
+	}
+	if ((!yes) && (!bgp->evpn_policy.rmap_name[dir])) {
+		return CMD_SUCCESS;
+	}
+
+	bgp_evpn_configure_routemap_prechange(bgp);
+
+	if (yes) {
+		if (bgp->evpn_policy.rmap[dir]) {
+			XFREE(MTYPE_ROUTE_MAP_NAME, bgp->evpn_policy.rmap_name[dir]);
+		}
+		bgp->evpn_policy.rmap_name[dir] = XSTRDUP(MTYPE_ROUTE_MAP_NAME, rmap_str);
+		bgp->evpn_policy.rmap[dir] = route_map_lookup_warn_noexist(vty, rmap_str);
+		if (!bgp->evpn_policy.rmap[dir]) {
+				bgp_evpn_configure_routemap_postchange(bgp);
+				return CMD_SUCCESS;
+		}
+	} else {
+		if (bgp->evpn_policy.rmap[dir]) {
+			XFREE(MTYPE_ROUTE_MAP_NAME, bgp->evpn_policy.rmap_name[dir]);
+		}
+		bgp->evpn_policy.rmap_name[dir] = NULL;
+		bgp->evpn_policy.rmap[dir] = NULL;
+	}
+
+	bgp_evpn_configure_routemap_postchange(bgp);
+	return CMD_SUCCESS;
+}
+
 DEFUN (bgp_evpn_vni_rt,
        bgp_evpn_vni_rt_cmd,
        "route-target <both|import|export> RT",
@@ -6527,6 +6600,14 @@ void bgp_config_write_evpn_info(struct vty *vty, struct bgp *bgp, afi_t afi,
 			vty_out(vty, "  advertise ipv6 unicast gateway-ip\n");
 	}
 
+	if (bgp->advertise_mode == EVPN_ADVERTISE_MODE_REORIGINATE) {
+		vty_out(vty, "  advertise mode reoriginate\n");
+	} else if (bgp->advertise_mode == EVPN_ADVERTISE_MODE_REORIGINATE_ONLY) {
+		vty_out(vty, "  advertise mode reoriginate-only\n");
+	} else {
+		vty_out(vty, "  advertise mode default %u\n", bgp->advertise_mode);
+	}
+
 	if (CHECK_FLAG(bgp->af_flags[AFI_L2VPN][SAFI_EVPN],
 		       BGP_L2VPN_EVPN_DEFAULT_ORIGINATE_IPV4))
 		vty_out(vty, "  default-originate ipv4\n");
@@ -6562,6 +6643,12 @@ void bgp_config_write_evpn_info(struct vty *vty, struct bgp *bgp, afi_t afi,
 	if (CHECK_FLAG(bgp->vrf_flags, BGP_VRF_RD_CFGD))
 		vty_out(vty, "  rd %s\n",
 			prefix_rd2str(&bgp->vrf_prd, buf1, sizeof(buf1)));
+
+	/* route import route-map */
+	if (bgp->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN]) {
+		vty_out(vty, "  route-map import %s\n",
+			bgp->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN]->name);
+	}
 
 	/* import route-target */
 	if (CHECK_FLAG(bgp->vrf_flags, BGP_VRF_IMPORT_RT_CFGD)) {
@@ -6770,6 +6857,7 @@ void bgp_ethernetvpn_init(void)
 	install_element(BGP_EVPN_NODE, &bgp_evpn_ead_evi_tx_disable_cmd);
 	install_element(BGP_EVPN_NODE,
 			&bgp_evpn_enable_resolve_overlay_index_cmd);
+	install_element(BGP_EVPN_NODE, &bgp_evpn_vrf_route_map_cmd);
 
 	/* test commands */
 	install_element(BGP_EVPN_NODE, &test_es_add_cmd);

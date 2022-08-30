@@ -32,6 +32,7 @@
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_table.h"
 #include "bgpd/bgp_route.h"
+#include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_attr.h"
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_aspath.h"
@@ -111,6 +112,28 @@ static int bgp_interface_same(struct interface *ifp1, struct interface *ifp2)
 	return (ifp1->ifindex == ifp2->ifindex);
 }
 
+int bgp_path_vni_cmp(struct bgp_path_info *bpi1, struct bgp_path_info *bpi2)
+{
+	vni_t vni1 = 0;
+	vni_t vni2 = 0;
+	if (!is_route_parent_evpn(bpi1) || !is_route_parent_evpn(bpi2))
+		return 0;
+	if (bpi1->extra->num_labels != bpi2->extra->num_labels)
+		return 0;
+	if (bpi1->extra->num_labels == 1) {
+		vni_t vni1 = label2vni(bpi1->extra->label);
+		vni_t vni2 = label2vni(bpi2->extra->label);
+		if (vni1 == vni2)
+			return 0;
+	}
+	if (bpi1->extra->num_labels == 2) {
+		vni_t vni1 = label2vni(bpi1->extra->label + 1);
+		vni_t vni2 = label2vni(bpi2->extra->label + 1);
+		if (vni1 == vni2)
+			return 0;
+	}
+	return 1;
+}
 
 /*
  * bgp_path_info_nexthop_cmp
@@ -195,6 +218,8 @@ int bgp_path_info_nexthop_cmp(struct bgp_path_info *bpi1,
 		}
 	}
 
+	if (!compare)
+		compare = bgp_path_vni_cmp(bpi1, bpi2);
 	return compare;
 }
 

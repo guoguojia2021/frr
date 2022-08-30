@@ -1752,7 +1752,7 @@ static int zfpm_trigger_rmac_update(struct zebra_mac *rmac,
 			return 0;
 	}
 
-	fpm_mac->r_vtep_ip.s_addr = rmac->fwd_info.r_vtep_ip.s_addr;
+	fpm_mac->r_vtep_ip.s_addr = rmac->fwd_info.remote.r_vtep_ip.s_addr;
 	fpm_mac->zebra_flags = rmac->flags;
 	fpm_mac->vxlan_if = vxlan_if ? vxlan_if->ifindex : 0;
 	fpm_mac->svi_if = svi_if ? svi_if->ifindex : 0;

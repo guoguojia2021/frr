@@ -3302,6 +3302,17 @@ struct bgp *bgp_lookup_by_vrf_id(vrf_id_t vrf_id)
 	return (vrf->info) ? (struct bgp *)vrf->info : NULL;
 }
 
+struct bgp *bgp_lookup_by_l3vni(const vni_t l3vni)
+{
+	struct bgp *bgp;
+	struct listnode *node, *nnode;
+
+	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp))
+		if (bgp->l3vni == l3vni)
+			return bgp;
+	return NULL;
+}
+
 /* Sets the BGP instance where EVPN is enabled */
 void bgp_set_evpn(struct bgp *bgp)
 {

@@ -2402,7 +2402,7 @@ static void process_subq_evpn(struct listnode *lnode)
 	if (w->type == WQ_EVPN_WRAPPER_TYPE_VRFROUTE) {
 		if (w->add_p)
 			zebra_vxlan_evpn_vrf_route_add(w->vrf_id, &w->macaddr,
-						       &w->ip, &w->prefix);
+						       &w->ip, &w->prefix, w->vni);
 		else
 			zebra_vxlan_evpn_vrf_route_del(w->vrf_id, &w->ip,
 						       &w->prefix);
@@ -2778,7 +2778,8 @@ int rib_queue_nhe_add(struct nhg_hash_entry *nhe)
  */
 int zebra_rib_queue_evpn_route_add(vrf_id_t vrf_id, const struct ethaddr *rmac,
 				   const struct ipaddr *vtep_ip,
-				   const struct prefix *host_prefix)
+				   const struct prefix *host_prefix,
+                   const vni_t r_vni)
 {
 	struct wq_evpn_wrapper *w;
 
@@ -2790,6 +2791,7 @@ int zebra_rib_queue_evpn_route_add(vrf_id_t vrf_id, const struct ethaddr *rmac,
 	w->macaddr = *rmac;
 	w->ip = *vtep_ip;
 	w->prefix = *host_prefix;
+    w->vni = r_vni;
 
 	if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 		zlog_debug("%s: (%u)%pIA, host prefix %pFX enqueued", __func__,
