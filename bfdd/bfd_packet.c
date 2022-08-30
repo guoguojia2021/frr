@@ -70,6 +70,7 @@ static void bp_bind_ip(int sd, uint16_t port);
 static void bp_set_ipv6opts(int sd);
 static void bp_bind_ipv6(int sd, uint16_t port);
 
+extern int hardwareBFD;
 
 /*
  * Functions
@@ -382,8 +383,9 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 		/*sbfd receive echo pkt ,need to update state*/
 		sbfd_echo_state_handler(bfd, PTM_BFD_UP);
 
-		/* try to offload hw sbfd echo*/
-        bfd_fpm_peer_sendmsg(bfd, true);
+        if (hardwareBFD)
+			/* try to offload hw sbfd echo*/
+			bfd_fpm_peer_sendmsg(bfd, true);
 		
         if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE)
 		  && CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
@@ -391,9 +393,9 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 			ptm_bfd_echo_stop(bfd);
 			return 0;
         }
-	}
 
-	bs_sbfd_echo_timer_handler(bfd);
+		bs_sbfd_echo_timer_handler(bfd);
+	}
 
 	/* Compute detect time */
 	bfd->echo_detect_TO = bfd->detect_mult * bfd->timers.desired_min_echo_tx;
