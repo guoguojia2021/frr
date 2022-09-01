@@ -202,9 +202,12 @@ DEFUN (show_srv6_locator_detail,
 	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
 	struct srv6_locator *locator;
 	struct listnode *node;
+    struct listnode *sidnode;
 	char str[256];
 	const char *locator_name = argv[4]->arg;
 	json_object *json_locator = NULL;
+    struct seg6_sid *sid = NULL;
+    char buf[256];
 
 	if (uj) {
 		locator = zebra_srv6_locator_lookup(locator_name);
@@ -226,8 +229,14 @@ DEFUN (show_srv6_locator_detail,
 		prefix2str(&locator->prefix, str, sizeof(str));
 		vty_out(vty, "Name: %s\n", locator->name);
 		vty_out(vty, "Prefix: %s\n", str);
-		vty_out(vty, "Function-Bit-Len: %u\n",
+		vty_out(vty, "Block-Bit-Len: %u\n",
+			locator->block_bits_length);
+        vty_out(vty, "Function-Bit-Len: %u\n",
+			locator->node_bits_length);
+        vty_out(vty, "Node-Bit-Len: %u\n",
 			locator->function_bits_length);
+        vty_out(vty, "Argument-Bit-Len: %u\n",
+			locator->argument_bits_length);
 
 		vty_out(vty, "Chunks:\n");
 		for (ALL_LIST_ELEMENTS_RO((struct list *)locator->chunks, node,
@@ -236,6 +245,13 @@ DEFUN (show_srv6_locator_detail,
 			vty_out(vty, "- prefix: %s, owner: %s\n", str,
 				zebra_route_string(chunk->proto));
 		}
+        vty_out(vty, "  sids:\n");
+        for (ALL_LIST_ELEMENTS_RO(locator->sids, sidnode, sid)) {
+            prefix2str(&sid->ipv6Addr, buf, sizeof(buf));
+            vty_out(vty, "   -opcode %s\n", buf);
+            vty_out(vty, "    sidaction %s\n", seg6local_action2str(sid->sidaction));
+            vty_out(vty, "    vrf %s\n", sid->vrfName);
+        }
 	}
 
 

@@ -2813,7 +2813,7 @@ static void route_set_ecommunity_color_free(void *rule)
 
 /* Set community rule structure. */
 struct route_map_rule_cmd route_set_ecommunity_color_cmd = {
-	"extcommunity bandwidth",
+	"extcommunity color",
 	route_set_ecommunity_color,
 	route_set_ecommunity_color_compile,
 	route_set_ecommunity_color_free,
@@ -6203,7 +6203,7 @@ DEFUN_YANG (set_ecommunity_color,
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
 	snprintf(xpath_value, sizeof(xpath_value),
-		 "%s/rmap-set-action/frr-bgp-route-map:extcommunity-rt", xpath);
+		 "%s/rmap-set-action/frr-bgp-route-map:extcommunity-color", xpath);
 	str = argv_concat(argv, argc, idx_asn_nn);
 	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY, str);
 	ret = nb_cli_apply_changes(vty, NULL);
@@ -6221,7 +6221,7 @@ DEFUN_YANG (no_set_ecommunity_color,
 	    "VPN extended community\n")
 {
 	const char *xpath =
-		"./set-action[action='frr-bgp-route-map:set-extcommunity-rt']";
+		"./set-action[action='frr-bgp-route-map:set-extcommunity-color']";
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
 	return nb_cli_apply_changes(vty, NULL);
 }
