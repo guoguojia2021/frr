@@ -3700,6 +3700,14 @@ size_t bgp_packet_mpattr_start(struct stream *s, struct peer *peer, afi_t afi,
 				stream_put(s, &attr->mp_nexthop_local,
 					   IPV6_MAX_BYTELEN);
 			}
+            else
+            {
+                stream_putc(s, 24);
+				stream_putl(s, 0); /* RD = 0, per RFC */
+				stream_putl(s, 0);
+                stream_put(s, &attr->mp_nexthop_local,
+					   IPV6_MAX_BYTELEN);
+            }
 		} break;
 		case SAFI_ENCAP:
 			stream_putc(s, IPV6_MAX_BYTELEN);

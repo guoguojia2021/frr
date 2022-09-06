@@ -589,8 +589,10 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
 					    &ipv6, bytelen);
 			} else
+			{
 				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-					    nhi->gateway, bytelen);
+					    nhi->gateway, 16);
+			}
 		}
 
 		if (nhi->if_index) {
@@ -700,8 +702,15 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 		nhi = &ri->nhs[nexthop_num];
 
 		if (nhi->gateway)
-			nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-				    nhi->gateway, bytelen);
+            if (nhi->type == NEXTHOP_TYPE_IPV6) {
+				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
+					    &ipv6, 16);
+			}
+            else
+			{
+				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
+					    &ipv6, bytelen);
+			}
 
 		if (nhi->if_index) {
 			rtnh->rtnh_ifindex = nhi->if_index;
@@ -809,6 +818,7 @@ static void zfpm_log_route_info(struct netlink_route_info *ri,
 	struct netlink_nh_info *nhi;
 	unsigned int i;
 	char buf[PREFIX_STRLEN];
+    uint8_t af = ri->af;
 
 	zfpm_debug("%s : %s %pFX, Proto: %s, Metric: %u", label,
 		   nl_msg_type_to_str(ri->nlmsg_type), ri->prefix,
@@ -817,6 +827,15 @@ static void zfpm_log_route_info(struct netlink_route_info *ri,
 
 	for (i = 0; i < ri->num_nhs; i++) {
 		nhi = &ri->nhs[i];
+        if (nhi->type == NEXTHOP_TYPE_IPV4
+                || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
+            af = AF_INET;
+        }
+    
+        if (nhi->type == NEXTHOP_TYPE_IPV6
+            || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
+            af = AF_INET6;
+        }
 
 		if (ri->af == AF_INET)
 			inet_ntop(AF_INET, &nhi->gateway, buf, sizeof(buf));

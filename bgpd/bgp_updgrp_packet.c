@@ -376,9 +376,6 @@ struct stream *bpacket_reformat_for_peer(struct bpacket *pkt,
 		struct in_addr v4nh, *mod_v4nh;
 		int nh_modified = 0;
 		size_t offset_nh = vec->offset + 1;
-        size_t offset_nhlocal = vec->offset + 1;
-        size_t offset_nhglobal = vec->offset + 1;
-        struct in6_addr v6nhglobal, *mod_v6nhg;
 
 		route_map_sets_nh =
 			(CHECK_FLAG(vec->flags,
@@ -393,11 +390,6 @@ struct stream *bpacket_reformat_for_peer(struct bpacket *pkt,
 		case BGP_ATTR_NHLEN_VPNV4:
 			offset_nh += 8;
 			break;
-		case BGP_ATTR_NHLEN_VPNV6_GLOBAL:
-			offset_nhglobal += 8;
-            mod_v6nhg = &peer->nexthop.v6_global;
-            stream_put_in6_addr_at(s, offset_nhglobal, mod_v6nhg);
-			return s;
 		default:
 			/* TODO: handle IPv6 nexthops */
 			flog_warn(
