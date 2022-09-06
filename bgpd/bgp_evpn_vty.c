@@ -6568,9 +6568,18 @@ void bgp_config_write_evpn_info(struct vty *vty, struct bgp *bgp, afi_t afi,
 		if (bgp->adv_cmd_rmap[AFI_IP][SAFI_UNICAST].name)
 			vty_out(vty, "  advertise ipv4 unicast route-map %s\n",
 				bgp->adv_cmd_rmap[AFI_IP][SAFI_UNICAST].name);
-		else
-			vty_out(vty,
-				"  advertise ipv4 unicast\n");
+		else {
+			if (bgp->advertise_mode == EVPN_ADVERTISE_MODE_REORIGINATE) {
+				vty_out(vty,
+					"  advertise ipv4 unicast reoriginate\n");
+			} else if (bgp->advertise_mode == EVPN_ADVERTISE_MODE_REORIGINATE_ONLY) {
+				vty_out(vty,
+					"  advertise ipv4 unicast reoriginate-only\n");
+			} else {
+				vty_out(vty,
+					"  advertise ipv4 unicast\n");
+			}
+		}
 	} else if (CHECK_FLAG(bgp->af_flags[AFI_L2VPN][SAFI_EVPN],
 		   BGP_L2VPN_EVPN_ADV_IPV4_UNICAST_GW_IP)) {
 		if (bgp->adv_cmd_rmap[AFI_IP][SAFI_UNICAST].name)
@@ -6598,14 +6607,6 @@ void bgp_config_write_evpn_info(struct vty *vty, struct bgp *bgp, afi_t afi,
 				bgp->adv_cmd_rmap[AFI_IP6][SAFI_UNICAST].name);
 		else
 			vty_out(vty, "  advertise ipv6 unicast gateway-ip\n");
-	}
-
-	if (bgp->advertise_mode == EVPN_ADVERTISE_MODE_REORIGINATE) {
-		vty_out(vty, "  advertise mode reoriginate\n");
-	} else if (bgp->advertise_mode == EVPN_ADVERTISE_MODE_REORIGINATE_ONLY) {
-		vty_out(vty, "  advertise mode reoriginate-only\n");
-	} else {
-		vty_out(vty, "  advertise mode default %u\n", bgp->advertise_mode);
 	}
 
 	if (CHECK_FLAG(bgp->af_flags[AFI_L2VPN][SAFI_EVPN],

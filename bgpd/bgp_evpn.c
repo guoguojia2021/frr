@@ -930,6 +930,10 @@ static int evpn_zebra_install(struct bgp *bgp, struct bgpevpn *vpn,
 	int flood_control;
 	uint32_t seq;
 
+	if (BGP_DEBUG(zebra, ZEBRA)) {
+		zlog_debug("evpn zebra install %pFX route_type %d sub_type %d is_local %d",
+				p, p->prefix.route_type, pi->sub_type, bgp_evpn_attr_is_local_es(pi->attr));
+	}
 	if (p->prefix.route_type == BGP_EVPN_MAC_IP_ROUTE) {
 		flags = 0;
 
@@ -959,7 +963,8 @@ static int evpn_zebra_install(struct bgp *bgp, struct bgpevpn *vpn,
 			 * a local ES
 			 */
 			SET_FLAG(flags, ZEBRA_MACIP_TYPE_SYNC_PATH);
-			/* supply the highest peer seq number to zebra
+			
+                        /* supply the highest peer seq number to zebra
 			 * for MM seq syncing
 			 */
 			seq = bgp_evpn_attr_get_sync_seq(pi->attr);
@@ -4571,6 +4576,22 @@ bool is_route_injectable_into_evpn_with_advertise_mode(struct bgp_path_info *pi,
 	dest = parent_pi->net;
 	if (!dest)
 		return true;
+
+	// if route with same vrf vni, not inject
+	if (parent_pi->extra) {
+		uint32_t vni;
+		if (parent_pi->extra->num_labels == 2) {        // type 2 route
+			vni = vxlan_label_pton(&parent_pi->extra->label[1]);
+			if (vni == bgp->l3vni) {
+				return false;
+			}
+		} else if (parent_pi->extra->num_labels == 1) { // type 5 route
+			vni = vxlan_label_pton(&parent_pi->extra->label[0]);
+			if (vni == bgp->l3vni) {
+				return false;
+			}
+		}
+	}
 
 	table = bgp_dest_table(dest);
 	switch (bgp->advertise_mode) {
