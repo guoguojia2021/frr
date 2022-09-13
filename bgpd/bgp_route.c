@@ -3266,12 +3266,21 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 				bgp_zebra_announce(rn, p, old_select, bgp, afi,
 						   safi);
 		}
+
+		/* advertise/withdraw type-5 routes */
+		if (CHECK_FLAG(old_select->flags, BGP_PATH_LINK_BW_CHG) ||
+		    CHECK_FLAG(old_select->flags, BGP_PATH_MULTIPATH_CHG)){
+		    zlog_debug("evpn route injection based on BW/MULTIPATH change.");
+		    bgp_process_evpn_route_injection(bgp, afi, safi, rn, old_select, old_select);
+		}
+
 		UNSET_FLAG(old_select->flags, BGP_PATH_MULTIPATH_CHG);
 		bgp_zebra_clear_route_change_flags(rn);
 
 		/* If there is a change of interest to peers, reannounce the
 		 * route. */
 		if (CHECK_FLAG(old_select->flags, BGP_PATH_ATTR_CHANGED)
+		    || CHECK_FLAG(old_select->flags, BGP_PATH_LINK_BW_CHG)
 		    || CHECK_FLAG(rn->flags, BGP_NODE_LABEL_CHANGED)) {
 			group_announce_route(bgp, afi, safi, rn, new_select);
 
@@ -3282,6 +3291,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 						     SAFI_LABELED_UNICAST, rn,
 						     new_select);
 
+			UNSET_FLAG(old_select->flags, BGP_PATH_LINK_BW_CHG);
 			UNSET_FLAG(old_select->flags, BGP_PATH_ATTR_CHANGED);
 			UNSET_FLAG(rn->flags, BGP_NODE_LABEL_CHANGED);
 		}
@@ -3394,9 +3404,18 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 		}
 
 		if (new_select_backup && new_select_backup->type == ZEBRA_ROUTE_BGP
-		    && (new_select_backup->sub_type == BGP_ROUTE_NORMAL
-			|| new_select_backup->sub_type == BGP_ROUTE_AGGREGATE))
+			&& (new_select_backup->sub_type == BGP_ROUTE_NORMAL
+			|| new_select_backup->sub_type == BGP_ROUTE_AGGREGATE)){
+
+			/* if this is an evpn imported type-5 prefix,
+			* we need to withdraw the route first to clear
+			* the nh neigh and the RMAC entry.
+			*/
+			if (old_select_backup && is_route_parent_evpn(old_select_backup))
+			    bgp_zebra_withdraw(p, old_select_backup, bgp, safi);
+
 			bgp_zebra_announce(rn, p, new_select_backup, bgp, afi, safi);
+		}
 		else {
 			/* Withdraw the route from the kernel. */
 			if (old_select_backup && old_select_backup->type == ZEBRA_ROUTE_BGP
@@ -3407,7 +3426,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	}
 
 end:
-
+	bgp_process_evpn_route_injection(bgp, afi, safi, rn, new_select, old_select);
 	/* Clear any route change flags. */
 	bgp_zebra_clear_route_change_flags(rn);
 	if (unset_later && old_select) {
