@@ -73,6 +73,8 @@ if [[ "$1" = "-h" ]] || [[ "$1" = "--help" ]]; then
 	TOPOTEST_VERBOSE        Show detailed build output.
 	                        Enabled by default, set to 0 to disable.
 
+    TOPOTEST_DOCKER_TAG     Set running tests env docker tag. Default is buster.
+
 	EOF
 	exit 1
 fi
@@ -145,6 +147,9 @@ if [ "${TOPOTEST_PULL:-1}" = "1" ]; then
 	docker pull frrouting/topotests:latest
 fi
 
+if [ -z "$TOPOTEST_DOCKER_TAG" ]; then
+	TOPOTEST_DOCKER_TAG=buster
+fi
 if [[ -n "$TMUX" ]]; then
     TMUX_OPTIONS="-v $(dirname $TMUX):$(dirname $TMUX) -e TMUX=$TMUX -e TMUX_PANE=$TMUX_PANE"
 fi
@@ -165,10 +170,11 @@ set -- --rm -i \
         $SCREEN_OPTINS \
         $TMUX_OPTIONS \
 	$TOPOTEST_OPTIONS \
-	frrouting/topotests:latest "$@"
+	debian/topotests:$TOPOTEST_DOCKER_TAG "$@"
 
 if [ -t 0 ]; then
 	set -- -t "$@"
 fi
 
+echo "$@"
 exec docker run "$@"

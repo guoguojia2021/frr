@@ -24,7 +24,13 @@
 
 cd "$(dirname "$0")"/..
 
-exec docker build --pull \
-		  --compress \
-		  -t frrouting/topotests:latest \
+version=$1
+
+if [ -z "$1" ]; then
+	version="buster"
+fi
+
+exec docker build  \
+		  -t debian/topotests:${version} \
+		  -f Dockerfile.${version} \
 		  .
