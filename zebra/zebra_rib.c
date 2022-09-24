@@ -87,6 +87,8 @@ struct pend_list pending_list = {0};
 
 DEFINE_HOOK(rib_update, (struct route_node * rn, const char *reason),
 	    (rn, reason));
+DEFINE_HOOK(rib_shutdown, (struct route_node * rn), (rn));
+
 
 /* Should we allow non FRR processes to delete our routes */
 extern int allow_delete;
@@ -917,6 +919,9 @@ void zebra_rtable_node_cleanup(struct route_table *table,
 		rib_dest_t *dest = node->info;
 		if (info && CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM))
 			rib_pending_list_del(info->afi, dest);
+
+		/* Remove from update queue of FPM module */
+		hook_call(rib_shutdown, node);
 		rnh_list_fini(&dest->nht);
 		XFREE(MTYPE_RIB_DEST, node->info);
 	}
