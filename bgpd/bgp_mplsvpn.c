@@ -611,7 +611,7 @@ void ensure_vrf_tovpn_sid(struct bgp *bgp_vpn, struct bgp *bgp_vrf, afi_t afi)
         return;
 
     tovpn_sid = XCALLOC(MTYPE_BGP_SRV6_SID, sizeof(struct in6_addr));
-    combine_sid(&locator->prefix.prefix, &sid->ipv6Addr.prefix, tovpn_sid);
+    combine_sid(locator, &sid->ipv6Addr.prefix, tovpn_sid);
 
 #if 0
 	tovpn_sid_index = bgp_vrf->vpn_policy[afi].tovpn_sid_index;

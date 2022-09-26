@@ -3362,10 +3362,6 @@ static int bgp_zebra_process_srv6_locator_delete(ZAPI_CALLBACK_ARGS)
     {
         return 0;
     }
-    // refresh sids
-	for (ALL_LIST_ELEMENTS(loctmp->sids, node, nnode, sid)) {
-		list_delete_node(loctmp->sids, node);
-	}
     listnode_delete(bgp->srv6_locators, loctmp);
     hash_release(bgp->srv6_locators_hash, loctmp);
 	srv6_locator_del(loctmp);

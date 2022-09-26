@@ -137,6 +137,7 @@ struct seg6_sid {
 	enum seg6local_action_t sidaction;
     char vrfName[VRF_NAMSIZ];
 	struct prefix_ipv6 ipv6Addr;
+    char sidstr[PREFIX_STRLEN];
 };
 
 struct seg6_sid_msg {
@@ -218,7 +219,7 @@ extern void srv6_locator_del(struct srv6_locator *locator);
 extern struct srv6_locator *srv6_locator_alloc(const char *name);
 extern struct srv6_locator_chunk *srv6_locator_chunk_alloc(void);
 extern void srv6_locator_free(struct srv6_locator *locator);
-extern void combine_sid(struct in6_addr *locator_addr, struct in6_addr *sid_addr, struct in6_addr *result_addr);
+extern void combine_sid(struct srv6_locator *locator, struct in6_addr *sid_addr, struct in6_addr *result_addr);
 
 extern void srv6_locator_chunk_free(struct srv6_locator_chunk *chunk);
 extern struct seg6_sid *srv6_locator_sid_alloc(void);

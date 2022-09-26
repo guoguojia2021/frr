@@ -662,7 +662,7 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 	struct in6_addr result_sid = {0};
 	struct vrf *vrf;
 
-    combine_sid(&locator->prefix.prefix, &sid->ipv6Addr.prefix, &result_sid);
+    combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
 
 	vrf = vrf_lookup_by_name(sid->vrfName);
 	if (!vrf)
@@ -687,7 +687,7 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
 	struct in6_addr result_sid = {0};
 	struct vrf *vrf;
 
-    combine_sid(&locator->prefix.prefix, &sid->ipv6Addr.prefix, &result_sid);
+    combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
 
 	vrf = vrf_lookup_by_name(sid->vrfName);
 	if (!vrf)

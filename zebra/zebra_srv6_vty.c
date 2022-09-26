@@ -302,8 +302,8 @@ DEFUN_NOSH (srv6_locators,
 
 DEFUN_NOSH (srv6_locator_sid,
         srv6_locator_cmd,
-        "locator WORD prefix X:X::X:X/M$prefix [func-bits (16-64)$func_bit_len] \
-         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len]",
+        "locator WORD prefix X:X::X:X/M$prefix \
+         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-80)$func_bit_len] ",
         "Segment Routing SRv6 locator\n"
         "Specify locator-name\n"
         "Configure SRv6 locator prefix\n"
@@ -475,6 +475,7 @@ DEFPY (locator_prefix,
 	sid->sidaction = sidaction;
     strlcpy(sid->vrfName, vrfName, VRF_NAMSIZ);
     sid->ipv6Addr = ipv6prefix;
+    strncpy(sid->sidstr, prefix, PREFIX_STRLEN);
 	listnode_add(locator->sids, sid);
 
 	zebra_srv6_local_sid_add(locator, sid);
@@ -502,6 +503,8 @@ DEFPY (no_locator_prefix,
     char *prefix = NULL;
     int ret = 0;
     struct prefix_ipv6 ipv6prefix = {0};
+    struct zserv *client;
+    struct listnode *client_node;
 
     prefix = argv[2]->arg;
     ret = str2prefix_ipv6(prefix, &ipv6prefix);
@@ -512,7 +515,14 @@ DEFPY (no_locator_prefix,
 
     for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
         if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
+            for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
+							  client_node,
+            			  client)) {
+
+             	zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+            }
             zebra_srv6_local_sid_del(locator, sid);
+            
             listnode_delete(locator->sids, sid);
             srv6_locator_sid_free(sid);
             return CMD_SUCCESS;
@@ -528,7 +538,6 @@ static int zebra_sr_config(struct vty *vty)
 	struct srv6_locator *locator;
     struct seg6_sid *sid;
 	char str[256];
-    char hex[256];
 
 	vty_out(vty, "!\n");
 	if (zebra_srv6_is_enable()) {
@@ -541,17 +550,15 @@ static int zebra_sr_config(struct vty *vty)
 			vty_out(vty, "   locator %s\n", locator->name);
 			vty_out(vty, "    prefix %s/%u\n", str,
 				locator->prefix.prefixlen);
-            if (locator->block_bits_length)
-				vty_out(vty, " func-bits %u", locator->function_bits_length);
 			if (locator->node_bits_length)
 				vty_out(vty, " block-len %u", locator->block_bits_length);
 			if (locator->function_bits_length)
 				vty_out(vty, " node-len %u", locator->node_bits_length);
+            if (locator->block_bits_length)
+				vty_out(vty, " func-bits %u", locator->function_bits_length);
             vty_out(vty, "\n");
             for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
-                inet_ntop(AF_INET6, &sid->ipv6Addr.prefix,
-				  hex, sizeof(hex));
-                vty_out(vty, "    opcode %s", hex);
+                vty_out(vty, "    opcode %s", sid->sidstr);
                 if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END)
 				    vty_out(vty, " end");
                 else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4)
@@ -575,7 +582,7 @@ static int zebra_sr_config(struct vty *vty)
 			vty_out(vty, "   exit\n");
 			vty_out(vty, "   !\n");
 		}
-		vty_out(vty, "  exit\n");
+        vty_out(vty, "  exit\n");
 		vty_out(vty, "  !\n");
 		vty_out(vty, " exit\n");
 		vty_out(vty, " !\n");
