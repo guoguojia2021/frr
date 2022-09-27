@@ -308,17 +308,19 @@ DEFUN_NOSH (srv6_locators,
 DEFUN_NOSH (srv6_locator_sid,
         srv6_locator_cmd,
         "locator WORD prefix X:X::X:X/M$prefix \
-         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-80)$func_bit_len] ",
+         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-80)$func_bit_len] [argu-bits (16-80)$argu_bit_len]",
         "Segment Routing SRv6 locator\n"
         "Specify locator-name\n"
         "Configure SRv6 locator prefix\n"
         "Specify SRv6 locator prefix\n"
-        "Configure SRv6 locator function length in bits\n"
-        "Specify SRv6 locator function length in bits\n"
         "Configure SRv6 locator block length in bits\n"
         "Specify SRv6 locator block length in bits\n"
         "Configure SRv6 locator node length in bits\n"
-        "Specify SRv6 locator node length in bits\n")
+        "Specify SRv6 locator node length in bits\n"
+        "Configure SRv6 locator argument length in bits\n"
+        "Specify SRv6 locator argument length in bits\n"
+        "Configure SRv6 locator function length in bits\n"
+        "Specify SRv6 locator function length in bits\n")
 {
 	struct srv6_locator *locator_sid = NULL;
     char *prefix = NULL;
@@ -350,15 +352,18 @@ DEFUN_NOSH (srv6_locator_sid,
         vty_out(vty, "Malformed IPv6 prefix\n");
         return CMD_WARNING_CONFIG_FAILED;
     }
-
-    if (argv_find(argv, argc, "func-bits", &idx)) {
-        func_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
-    }
+    
     if (argv_find(argv, argc, "block-len", &idx)) {
         block_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
     if (argv_find(argv, argc, "node-len", &idx)) {
         node_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
+    }
+    if (argv_find(argv, argc, "func-bits", &idx)) {
+        func_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
+    }
+    if (argv_find(argv, argc, "argu-bits", &idx)) {
+        argu_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
 
 	if (block_bit_len == 0 && node_bit_len == 0) {
@@ -567,6 +572,8 @@ static int zebra_sr_config(struct vty *vty)
 				vty_out(vty, " node-len %u", locator->node_bits_length);
             if (locator->block_bits_length)
 				vty_out(vty, " func-bits %u", locator->function_bits_length);
+            if (locator->argument_bits_length)
+				vty_out(vty, " argu-bits %u", locator->function_bits_length);
             vty_out(vty, "\n");
             for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
                 vty_out(vty, "    opcode %s", sid->sidstr);

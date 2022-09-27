@@ -459,8 +459,12 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
 	for (ALL_NEXTHOPS(re->nhe->nhg, nexthop)) {
 		if (ri->num_nhs >= zrouter.multipath_num)
 			break;
-
-		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+        if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
+        {
+            if (nexthop->rparent)
+    			continue;
+        }
+        else if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
 			continue;
 
 		if (nexthop->type == NEXTHOP_TYPE_BLACKHOLE) {
