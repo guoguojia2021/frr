@@ -47,6 +47,11 @@
 #endif
 
 static int zebra_sr_config(struct vty *vty);
+static bool zebra_srv6_my_sid_valid(const uint8_t locator_block_len,
+	const uint8_t locator_node_len,
+	const uint8_t function_len,
+	const uint8_t args_len);
+
 
 static struct cmd_node sr_node = {
 	.name = "sr",
@@ -322,6 +327,7 @@ DEFUN_NOSH (srv6_locator_sid,
     int block_bit_len = 0;
     int node_bit_len = 0;
     int func_bit_len = 0;
+	int args_bit_len = 0;
 
 	locator_sid = zebra_srv6_locator_lookup(argv[1]->arg);
 	if (locator_sid) {
@@ -363,10 +369,15 @@ DEFUN_NOSH (srv6_locator_sid,
 	} else if (node_bit_len == 0) {
 		node_bit_len = locator_sid->prefix.prefixlen - block_bit_len;
 	} else {
-		if (block_bit_len + node_bit_len != locator_sid->prefix.prefixlen) {
-			vty_out(vty, "%% node-bits + block-bits must be equal to the prefix length\n");
+		if (block_bit_len + node_bit_len + func_bit_len != locator_sid->prefix.prefixlen) {
+			vty_out(vty, "%% block-bits + node-bits + func_bit_len must be equal to the prefix length\n");
 			return CMD_WARNING_CONFIG_FAILED;
 		}
+	}
+
+	if (!zebra_srv6_my_sid_valid(block_bit_len, node_bit_len, func_bit_len, args_bit_len)) {
+		vty_out(vty, "%% Malformed locator sid format\n");
+		return CMD_WARNING_CONFIG_FAILED;
 	}
 
 	/*
@@ -387,7 +398,7 @@ DEFUN_NOSH (srv6_locator_sid,
 	locator_sid->block_bits_length = block_bit_len;
 	locator_sid->node_bits_length = node_bit_len;
 	locator_sid->function_bits_length = func_bit_len;
-	locator_sid->argument_bits_length = 0;
+	locator_sid->argument_bits_length = args_bit_len;
     zebra_srv6_locator_add(locator_sid);
 
 	VTY_PUSH_CONTEXT(SRV6_LOC_NODE, locator_sid);
@@ -591,6 +602,42 @@ static int zebra_sr_config(struct vty *vty)
 	}
 	return 0;
 }
+
+static bool zebra_srv6_my_sid_valid(const uint8_t locator_block_len,
+	const uint8_t locator_node_len,
+	const uint8_t function_len,
+	const uint8_t args_len)
+{
+	if (locator_block_len == 32 &&
+		locator_node_len == 16 &&
+		function_len == 0) {
+		// prefix len = 48
+		return true;
+	} else if (locator_block_len == 32 &&
+		locator_node_len == 0 &&
+		function_len == 16) {
+		// prefix len = 48
+		return true;
+	} else if (locator_block_len == 32 &&
+		locator_node_len == 16 &&
+		function_len == 16) {
+		// prefix len = 64
+		return true;
+	} else if (locator_block_len == 32 &&
+		locator_node_len == 16 &&
+		function_len == 32) {
+		// prefix len = 80
+		return true;
+	} else if (locator_block_len == 40 &&
+		locator_node_len == 24 &&
+		function_len == 16 &&
+		args_len == 8) {
+		return true;
+	}
+
+	return false; // Unsupported SID format
+}
+
 
 void zebra_srv6_vty_init(void)
 {
