@@ -363,7 +363,7 @@ DEFUN_NOSH (srv6_locator_sid,
         func_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
     if (argv_find(argv, argc, "argu-bits", &idx)) {
-        argu_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
+        args_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
 
 	if (block_bit_len == 0 && node_bit_len == 0) {
