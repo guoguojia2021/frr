@@ -1529,6 +1529,19 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
                 memcpy(&api_nh->seg6_src, &peer->su_local->sin6.sin6_addr,
     			       sizeof(api_nh->seg6_src));
 
+			if (sid_info->transposition_len != 0) {
+				if (!bgp_is_valid_label(
+					    &mpinfo->extra->label[0]))
+					continue;
+
+				label = label_pton(&mpinfo->extra->label[0]);
+#if 0
+				transpose_sid(&api_nh->seg6_segs, label,
+					      sid_info->transposition_offset,
+					      sid_info->transposition_len);
+#endif
+			}
+
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
 		}
 

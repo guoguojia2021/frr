@@ -573,7 +573,7 @@ static int zebra_sr_config(struct vty *vty)
             if (locator->block_bits_length)
 				vty_out(vty, " func-bits %u", locator->function_bits_length);
             if (locator->argument_bits_length)
-				vty_out(vty, " argu-bits %u", locator->function_bits_length);
+				vty_out(vty, " argu-bits %u", locator->argument_bits_length);
             vty_out(vty, "\n");
             for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
                 vty_out(vty, "    opcode %s", sid->sidstr);

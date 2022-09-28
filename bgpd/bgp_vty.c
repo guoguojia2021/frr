@@ -9575,7 +9575,7 @@ DEFUN (no_bgp_segment_routing_srv6,
 
 DEFPY (bgp_srv6_locator,
        bgp_srv6_locator_cmd,
-       "locator NAME$name",
+       "srv6-locator NAME$name",
        "Specify SRv6 locator\n"
        "Specify SRv6 locator\n")
 {
@@ -9600,13 +9600,14 @@ DEFPY (bgp_srv6_locator,
 	if (ret < 0)
 		return CMD_WARNING_CONFIG_FAILED;
     
+    bgp->srv6_enabled = true;
 
 	return CMD_SUCCESS;
 }
 
 DEFPY (no_bgp_srv6_locator,
        no_bgp_srv6_locator_cmd,
-       "no locator NAME$name",
+       "no srv6-locator NAME$name",
        NO_STR
        "Specify SRv6 locator\n"
        "Specify SRv6 locator\n")
@@ -9626,6 +9627,7 @@ DEFPY (no_bgp_srv6_locator,
 	/* unset locator */
 	if (bgp_srv6_locator_unset(bgp) < 0)
 		return CMD_WARNING_CONFIG_FAILED;
+    bgp->srv6_enabled = false;
 
 	return CMD_SUCCESS;
 }
@@ -19538,10 +19540,10 @@ void bgp_vty_init(void)
 
 	/* srv6 commands */
 	install_element(VIEW_NODE, &show_bgp_srv6_cmd);
-	install_element(BGP_NODE, &bgp_segment_routing_srv6_cmd);
-	install_element(BGP_NODE, &no_bgp_segment_routing_srv6_cmd);
-	install_element(BGP_SRV6_NODE, &bgp_srv6_locator_cmd);
-	install_element(BGP_SRV6_NODE, &no_bgp_srv6_locator_cmd);
+	//install_element(BGP_NODE, &bgp_segment_routing_srv6_cmd);
+	//install_element(BGP_NODE, &no_bgp_segment_routing_srv6_cmd);
+	install_element(BGP_NODE, &bgp_srv6_locator_cmd);
+	install_element(BGP_NODE, &no_bgp_srv6_locator_cmd);
 	install_element(BGP_IPV4_NODE, &af_sid_vpn_export_cmd);
 	install_element(BGP_IPV6_NODE, &af_sid_vpn_export_cmd);
 }
