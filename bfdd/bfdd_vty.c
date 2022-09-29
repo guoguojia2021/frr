@@ -159,7 +159,7 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
-		vty_out(vty, "\t\tPeer Type: reflector\n");
+		vty_out(vty, "\t\tPeer Type: sbfd initiator\n");
 	}
 	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
