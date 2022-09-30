@@ -955,8 +955,7 @@ static int show_ip_bgp_nexthop_table(struct vty *vty, const char *name,
             vty_out(vty, "error nexthop type\n");
     		return CMD_WARNING;
         }
-		
-		bnc = bnc_find(tree[family2afi(nhop.family)], &nhop, 0);
+		bnc = bnc_find(&(*tree)[family2afi(nhop.family)], &nhop, 0);
 		if (!bnc) {
 			vty_out(vty, "specified nexthop does not have entry\n");
 			return CMD_SUCCESS;
