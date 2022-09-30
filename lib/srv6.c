@@ -132,8 +132,10 @@ struct srv6_locator *srv6_locator_new()
 }
 void srv6_locator_del(struct srv6_locator *locator)
 {
-    list_delete(&locator->chunks);
-    list_delete(&locator->sids);
+    if (locator->chunks)
+        list_delete(&locator->chunks);
+    if (locator->sids)
+        list_delete(&locator->sids);
     XFREE(MTYPE_SRV6_LOCATOR, locator);
     return;
 }
