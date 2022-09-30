@@ -9599,6 +9599,10 @@ DEFPY (bgp_srv6_locator,
 	ret = bgp_zebra_srv6_manager_get_locator_chunk(name);
 	if (ret < 0)
 		return CMD_WARNING_CONFIG_FAILED;
+
+    ret = bgp_zebra_srv6_manager_get_locator_sid(name);
+	if (ret < 0)
+		return CMD_WARNING_CONFIG_FAILED;
     
     bgp->srv6_enabled = true;
 
@@ -17878,11 +17882,9 @@ int bgp_config_write(struct vty *vty)
 			vty_out(vty, " bgp fast-convergence\n");
 
 		if (bgp->srv6_enabled) {
-			vty_frame(vty, " !\n segment-routing srv6\n");
 			if (strlen(bgp->srv6_locator_name))
-				vty_out(vty, "  locator %s\n",
+				vty_out(vty, " srv6-locator %s\n",
 					bgp->srv6_locator_name);
-			vty_endframe(vty, " exit\n");
 		}
 
 

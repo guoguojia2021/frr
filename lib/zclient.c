@@ -1176,6 +1176,13 @@ int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
 	stream_putw(s, strlen(loc->name));
 	stream_put(s, loc->name, strlen(loc->name));
     
+    stream_putw(s, loc->prefix.prefixlen);
+	stream_put(s, &loc->prefix.prefix, sizeof(loc->prefix.prefix));
+    stream_putc(s, loc->block_bits_length);
+    stream_putc(s, loc->node_bits_length);
+    stream_putc(s, loc->function_bits_length);
+    stream_putc(s, loc->argument_bits_length);
+    
     stream_putl(s, loc->sids->count);
     for (ALL_LIST_ELEMENTS_RO(loc->sids, node, sidtmp)) {
         stream_putw(s, sidtmp->ipv6Addr.prefixlen);
@@ -3031,6 +3038,34 @@ int srv6_manager_release_locator_chunk(struct zclient *zclient,
 	s = zclient->obuf;
 	stream_reset(s);
 	zclient_create_header(s, ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_CHUNK,
+			      VRF_DEFAULT);
+
+	/* locator_name */
+	stream_putw(s, len);
+	stream_put(s, locator_name, len);
+
+	/* Put length at the first point of the stream. */
+	stream_putw_at(s, 0, stream_get_endp(s));
+
+	return zclient_send_message(zclient);
+}
+
+int srv6_manager_get_locator_sid(struct zclient *zclient,
+				   const char *locator_name)
+{
+	struct stream *s;
+	const size_t len = strlen(locator_name);
+
+	if (zclient_debug)
+		zlog_debug("Getting SRv6-Locator sid %s", locator_name);
+
+	if (zclient->sock < 0)
+		return -1;
+
+	/* send request */
+	s = zclient->obuf;
+	stream_reset(s);
+	zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID,
 			      VRF_DEFAULT);
 
 	/* locator_name */
