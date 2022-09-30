@@ -1,0 +1,30 @@
+{
+    "vrfName": "Vrf1",
+    "routerId": "0.0.0.0",
+    "defaultLocPrf": 100,
+    "localAS": 175,
+    "routes": { "2001::1/128": [
+     {
+       "valid":true,
+       "bestpath":true,
+       "selectionReason":"First path received",
+       "pathFrom":"external",
+       "prefix":"2001::1",
+       "prefixLen":128,
+       "network":"2001::1\/128",
+       "metric":0,
+       "weight":32768,
+       "peerId":"(unspec)",
+       "path":"",
+       "origin":"incomplete",
+       "nexthops":[
+         {
+           "ip":"::",
+           "afi":"ipv6",
+           "scope":"global",
+           "used":true
+         }
+       ]
+     }
+   ] }  
+} 

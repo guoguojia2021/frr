@@ -1,0 +1,9 @@
+{
+    "vrfId": 7,
+    "vrfName": "Vrf1",
+    "tableVersion": 0,
+    "routerId": "0.0.0.0",
+    "defaultLocPrf": 100,
+    "localAS": 174,
+    "routes": {  }  
+}

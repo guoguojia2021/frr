@@ -1,0 +1,12 @@
+{
+  "locators":[
+    {
+      "name":"aaa",
+      "prefix":"1234::\/64",
+      "functionBitsLength":40,
+      "statusUp":true,
+      "chunks":[
+      ]
+    }
+  ]
+}

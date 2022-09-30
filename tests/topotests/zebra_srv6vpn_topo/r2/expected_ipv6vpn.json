@@ -1,0 +1,34 @@
+{
+    "vrfId": 0,
+    "vrfName": "Default",
+    "routerId": "192.0.0.175",
+    "defaultLocPrf": 100,
+    "localAS": 175,
+    "routes": {  
+        "routeDistinguishers" : { 
+            "2:2" : { 
+                "2001::1/128": [
+                {
+                "valid":true,
+                "pathFrom":"external",
+                "prefix":"2001::1",
+                "prefixLen":128,
+                "network":"2001::1\/128",
+                "metric":0,
+                "weight":32768,
+                "peerId":"(unspec)",
+                "path":"",
+                "origin":"incomplete",
+                "announceNexthopSelf":true,
+                "nhVrfName":"Vrf1",
+                "nexthops":[
+                    {
+                    "ip":"::",
+                    "afi":"ipv6",
+                    "used":true
+                    }]
+                }] 
+            } 
+        } 
+    }  
+} 
