@@ -2917,6 +2917,7 @@ void bgp_clearing_batch_begin(struct bgp *bgp);
 /* End a new batch of peers to clear */
 void bgp_clearing_batch_end_event_start(struct bgp *bgp);
 
+
 #ifdef _FRR_ATTRIBUTE_PRINTFRR
 /* clang-format off */
 #pragma FRR printfrr_ext "%pBP" (struct peer *)
