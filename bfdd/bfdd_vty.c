@@ -1507,6 +1507,8 @@ DEFUN_NOSH(show_debugging_bfd,
 	if (bglobal.debug_network)
 		vty_out(vty, "  Network layer debugging is on.\n");
 
+	cmd_show_lib_debugs(vty);
+
 	return CMD_SUCCESS;
 }
 

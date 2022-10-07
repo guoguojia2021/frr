@@ -2455,7 +2455,9 @@ DEFUN_NOSH (show_debugging_bgp,
 	if (BGP_DEBUG(bmp, BMP_ATTR))
 			vty_out(vty, "	BGP bmp(attr) debugging is on\n");
 
+	cmd_show_lib_debugs(vty);
 	vty_out(vty, "\n");
+
 	return CMD_SUCCESS;
 }
 

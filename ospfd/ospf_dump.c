@@ -1827,7 +1827,11 @@ DEFUN_NOSH (show_debugging_ospf,
 	    DEBUG_STR
 	    OSPF_STR)
 {
-	return show_debugging_ospf_common(vty);
+	show_debugging_ospf_common(vty);
+
+	cmd_show_lib_debugs(vty);
+
+	return CMD_SUCCESS;
 }
 
 DEFUN_NOSH (show_debugging_ospf_instance,
@@ -1845,7 +1849,11 @@ DEFUN_NOSH (show_debugging_ospf_instance,
 	if (instance != ospf_instance)
 		return CMD_NOT_MY_INSTANCE;
 
-	return show_debugging_ospf_common(vty);
+	show_debugging_ospf_common(vty);
+
+	cmd_show_lib_debugs(vty);
+
+	return CMD_SUCCESS;
 }
 
 static int config_write_debug(struct vty *vty);

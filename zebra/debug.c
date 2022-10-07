@@ -138,6 +138,9 @@ DEFUN_NOSH (show_debugging_zebra,
 		vty_out(vty, "  Zebra SRV6 debugging is on\n");
 
 	hook_call(zebra_debug_show_debugging, vty);
+
+	cmd_show_lib_debugs(vty);
+
 	return CMD_SUCCESS;
 }
 

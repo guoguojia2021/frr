@@ -1297,7 +1297,6 @@ static const char *objfun_type_name(enum objfun_type type)
 	}
 }
 
-
 static const char *metric_type_name(enum srte_candidate_metric_type type)
 {
 	switch (type) {
