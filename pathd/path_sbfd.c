@@ -379,6 +379,7 @@ void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
 
 	/* Already configured, skip it. */
 	if (policy->bfd_config) {
+		policy->bfd_config->is_echo = is_echo;
 		SET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
 		return ;
 	}
