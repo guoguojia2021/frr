@@ -46,8 +46,15 @@
 #include "zebra/zebra_srv6_vty_clippy.c"
 #endif
 
+enum srv6_format {
+	SRV6_FORMAT_F1 = 0,    ///< Format 1.
+	SRV6_FORMAT_USID_3216, ///< uSID 32/16 Format.
+	SRV6_FORMAT_MAX,
+};
+
 static int zebra_sr_config(struct vty *vty);
-static bool zebra_srv6_my_sid_valid(const uint8_t locator_block_len,
+static bool zebra_srv6_my_sid_valid(const struct prefix_ipv6 *prefix,
+	const uint8_t locator_block_len,
 	const uint8_t locator_node_len,
 	const uint8_t function_len,
 	const uint8_t args_len);
@@ -352,7 +359,7 @@ DEFUN_NOSH (srv6_locator_sid,
         vty_out(vty, "Malformed IPv6 prefix\n");
         return CMD_WARNING_CONFIG_FAILED;
     }
-    
+
     if (argv_find(argv, argc, "block-len", &idx)) {
         block_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
     }
@@ -380,7 +387,7 @@ DEFUN_NOSH (srv6_locator_sid,
 		}
 	}
 
-	if (!zebra_srv6_my_sid_valid(block_bit_len, node_bit_len, func_bit_len, args_bit_len)) {
+	if (!zebra_srv6_my_sid_valid(&locator_sid->prefix, block_bit_len, node_bit_len, func_bit_len, args_bit_len)) {
 		vty_out(vty, "%% Malformed locator sid format\n");
 		return CMD_WARNING_CONFIG_FAILED;
 	}
@@ -538,7 +545,7 @@ DEFPY (no_locator_prefix,
              	zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
             }
             zebra_srv6_local_sid_del(locator, sid);
-            
+
             listnode_delete(locator->sids, sid);
             srv6_locator_sid_free(sid);
             return CMD_SUCCESS;
@@ -610,39 +617,100 @@ static int zebra_sr_config(struct vty *vty)
 	return 0;
 }
 
-static bool zebra_srv6_my_sid_valid(const uint8_t locator_block_len,
+static bool zebra_srv6_my_sid_valid(const struct prefix_ipv6 *prefix,
+	const uint8_t locator_block_len,
 	const uint8_t locator_node_len,
 	const uint8_t function_len,
 	const uint8_t args_len)
 {
+	// Logic is the same as sai_srv6_handler::get_la_sid_format
+	enum srv6_format format = SRV6_FORMAT_MAX;
+
 	if (locator_block_len == 32 &&
 		locator_node_len == 16 &&
 		function_len == 0) {
 		// prefix len = 48
-		return true;
+		format = SRV6_FORMAT_USID_3216;
 	} else if (locator_block_len == 32 &&
 		locator_node_len == 0 &&
 		function_len == 16) {
 		// prefix len = 48
-		return true;
+		format = SRV6_FORMAT_USID_3216;
 	} else if (locator_block_len == 32 &&
 		locator_node_len == 16 &&
 		function_len == 16) {
 		// prefix len = 64
-		return true;
+		format = SRV6_FORMAT_USID_3216;
 	} else if (locator_block_len == 32 &&
 		locator_node_len == 16 &&
 		function_len == 32) {
 		// prefix len = 80
-		return true;
+		format = SRV6_FORMAT_USID_3216;
 	} else if (locator_block_len == 40 &&
 		locator_node_len == 24 &&
 		function_len == 16 &&
 		args_len == 8) {
-		return true;
+		format = SRV6_FORMAT_F1;
 	}
 
-	return false; // Unsupported SID format
+	if (format == SRV6_FORMAT_MAX) {
+		return false; // Unsupported SID format
+	}
+
+	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
+	// addr_lsb
+	uint32_t addr_0 = prefix->prefix.s6_addr32[0];
+	uint32_t addr_1 = prefix->prefix.s6_addr32[1];
+
+	// addr_msb
+	uint32_t addr_2 = prefix->prefix.s6_addr32[2];
+	uint32_t addr_3 = prefix->prefix.s6_addr32[3];
+
+	if (format == SRV6_FORMAT_F1) {
+		if (prefix->prefixlen == 128) {
+			// Verify that bits [39:0] are zero
+			if ((addr_1 & 0xff) == 0 &&
+				(addr_0 & 0xffffffff) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	if (format != SRV6_FORMAT_USID_3216) {
+		return false;
+	}
+
+	// Check for valid prefix lengths. /48, /64, /80.
+	if (prefix->prefixlen == 48) {
+		// Make sure that bits [95:80] are not zero.
+		if ((addr_2 & 0xffff0000) != 0) {
+			return true;
+		}
+		return false;
+	}
+
+	if (prefix->prefixlen == 64) {
+		// Make sure that bits [79:64] are not zero.
+		if ((addr_2 & 0xffff) != 0) {
+			return true;
+		}
+		return false;
+	}
+
+	if (prefix->prefixlen == 80) {
+		// WLIB format
+		// Make sure that [79:64] == 0xfff_0xxx
+		if ((addr_2 & 0xfff8) != 0xfff0) {
+			return false;
+		}
+		// Make sure that bits [63:48] are not zero.
+		if ((addr_1 & 0xffff0000) != 0) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 

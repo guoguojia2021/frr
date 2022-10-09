@@ -58,6 +58,20 @@ const char *seg6local_action2str(uint32_t action)
 		return "End.AS";
 	case ZEBRA_SEG6_LOCAL_ACTION_END_AM:
 		return "End.AM";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX6:
+		return "End.UDX6";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX4:
+		return "End.UDX4";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT6:
+		return "End.UDT6";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT4:
+		return "End.UDT4";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT46:
+		return "End.UDT46";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UN:
+		return "End.UN";
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UA:
+		return "End.UA";
 	case ZEBRA_SEG6_LOCAL_ACTION_UNSPEC:
 		return "unspec";
 	default:
@@ -89,16 +103,20 @@ const char *seg6local_context2str(char *str, size_t size,
 	switch (action) {
 
 	case ZEBRA_SEG6_LOCAL_ACTION_END:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UN:
 		snprintf(str, size, "USP");
 		return str;
 
 	case ZEBRA_SEG6_LOCAL_ACTION_END_X:
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DX6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UA:
 		inet_ntop(AF_INET6, &ctx->nh6, b0, 128);
 		snprintf(str, size, "nh6 %s", b0);
 		return str;
 
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DX4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX4:
 		inet_ntop(AF_INET, &ctx->nh4, b0, 128);
 		snprintf(str, size, "nh4 %s", b0);
 		return str;
@@ -107,6 +125,9 @@ const char *seg6local_context2str(char *str, size_t size,
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT6:
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
     case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT46:
 		snprintf(str, size, "table %u", ctx->table);
 		return str;
 
