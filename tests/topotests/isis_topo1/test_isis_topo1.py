@@ -235,7 +235,6 @@ def test_isis_linux_route6_installation():
         assertmsg = "Router '{}' OS routes mismatch".format(rname)
         assert topotest.json_cmp(actual, expected) is None, assertmsg
 
-
 def test_memory_leak():
     "Run the memory leak test and report results."
     tgen = get_topogen()
