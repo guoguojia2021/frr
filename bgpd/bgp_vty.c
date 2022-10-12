@@ -3663,6 +3663,26 @@ DEFUN (no_bgp_fast_external_failover,
 	return CMD_SUCCESS;
 }
 
+DEFPY (bgp_bestpath_aigp,
+       bgp_bestpath_aigp_cmd,
+       "[no$no] bgp bestpath aigp",
+       NO_STR
+       BGP_STR
+       "Change the default bestpath selection\n"
+       "Evaluate the AIGP attribute during the best path selection process\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	if (no)
+		UNSET_FLAG(bgp->flags, BGP_FLAG_COMPARE_AIGP);
+	else
+		SET_FLAG(bgp->flags, BGP_FLAG_COMPARE_AIGP);
+
+	bgp_recalculate_all_bestpaths(bgp);
+
+	return CMD_SUCCESS;
+}
+
 /* "bgp bestpath compare-routerid" configuration.  */
 DEFUN (bgp_bestpath_compare_router_id,
        bgp_bestpath_compare_router_id_cmd,
@@ -6582,6 +6602,25 @@ DEFUN (no_neighbor_ebgp_multihop,
 	return peer_ebgp_multihop_unset_vty(vty, argv[idx_peer]->arg);
 }
 
+DEFPY (neighbor_aigp,
+       neighbor_aigp_cmd,
+       "[no$no] neighbor <A.B.C.D|X:X::X:X|WORD>$neighbor aigp",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Enable send and receive of the AIGP attribute per neighbor\n")
+{
+	struct peer *peer;
+
+	peer = peer_and_group_lookup_vty(vty, neighbor);
+	if (!peer)
+		return CMD_WARNING_CONFIG_FAILED;
+
+	if (no)
+		return peer_flag_unset_vty(vty, neighbor, PEER_FLAG_AIGP);
+	else
+		return peer_flag_set_vty(vty, neighbor, PEER_FLAG_AIGP);
+}
 
 /* disable-connected-check */
 DEFUN (neighbor_disable_connected_check,
@@ -18141,6 +18180,9 @@ static void bgp_config_write_peer_global(struct vty *vty, struct bgp *bgp,
 				peer->ttl);
 		}
 	}
+	/* aigp */
+	if (peergroup_flag_check(peer, PEER_FLAG_AIGP))
+		vty_out(vty, " neighbor %s aigp\n", addr);
 
 	/* ttl-security hops */
 	if (peer->gtsm_hops != BGP_GTSM_HOPS_DISABLED) {
@@ -19099,6 +19141,8 @@ int bgp_config_write(struct vty *vty)
 		}
 		if (CHECK_FLAG(bgp->flags, BGP_FLAG_COMPARE_ROUTER_ID))
 			vty_out(vty, " bgp bestpath compare-routerid\n");
+		if (CHECK_FLAG(bgp->flags, BGP_FLAG_COMPARE_AIGP))
+			vty_out(vty, " bgp bestpath aigp\n");
 		if (CHECK_FLAG(bgp->flags, BGP_FLAG_MED_CONFED)
 		    || CHECK_FLAG(bgp->flags, BGP_FLAG_MED_MISSING_AS_WORST)) {
 			vty_out(vty, " bgp bestpath med");
@@ -19612,6 +19656,9 @@ void bgp_vty_init(void)
     install_element(BGP_NODE, &bgp_srv6vpn_compatible_cmd);
     install_element(BGP_NODE, &no_bgp_srv6vpn_compatible_cmd);
 
+	/* "neighbor aigp" commands. */
+	install_element(BGP_NODE, &neighbor_aigp_cmd);
+
 	/* bgp disable-ebgp-connected-nh-check */
 	install_element(BGP_NODE, &bgp_disable_connected_route_check_cmd);
 	install_element(BGP_NODE, &no_bgp_disable_connected_route_check_cmd);
@@ -19747,6 +19794,9 @@ void bgp_vty_init(void)
 	/* "bgp fast-external-failover" commands */
 	install_element(BGP_NODE, &bgp_fast_external_failover_cmd);
 	install_element(BGP_NODE, &no_bgp_fast_external_failover_cmd);
+
+	/* "bgp bestpath aigp" commands */
+	install_element(BGP_NODE, &bgp_bestpath_aigp_cmd);
 
 	/* "bgp bestpath compare-routerid" commands */
 	install_element(BGP_NODE, &bgp_bestpath_compare_router_id_cmd);

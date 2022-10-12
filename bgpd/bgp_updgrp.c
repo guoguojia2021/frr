@@ -456,6 +456,11 @@ static unsigned int updgrp_hash_key_make(const void *p)
 		key = jhash_1word(jhash(peer->host, strlen(peer->host), SEED2),
 				  key);
 
+	/* Neighbors configured with the AIGP attribute are put in a separate
+	 * update group from other neighbors.
+	 */
+	key = jhash_1word((peer->flags & PEER_FLAG_AIGP), key);
+
 	if (bgp_debug_neighbor_events(peer)) {
 		zlog_debug(
 			"%pBP Update Group Hash: sort: %d UpdGrpFlags: %" PRIu64

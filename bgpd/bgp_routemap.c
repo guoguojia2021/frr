@@ -3147,6 +3147,46 @@ static const struct route_map_rule_cmd route_set_atomic_aggregate_cmd = {
 	route_set_atomic_aggregate_free,
 };
 
+/* AIGP TLV Metric */
+static enum route_map_cmd_result_t
+route_set_aigp_metric(void *rule, const struct prefix *pfx, void *object)
+{
+	const char *aigp_metric = rule;
+	struct bgp_path_info *path = object;
+	uint32_t aigp = 0;
+
+	if (strmatch(aigp_metric, "igp-metric")) {
+		if (!path->nexthop)
+			return RMAP_NOMATCH;
+
+		bgp_attr_set_aigp_metric(path->attr, path->nexthop->metric);
+	} else {
+		aigp = atoi(aigp_metric);
+		bgp_attr_set_aigp_metric(path->attr, aigp);
+	}
+
+	path->attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_AIGP);
+
+	return RMAP_OKAY;
+}
+
+static void *route_set_aigp_metric_compile(const char *arg)
+{
+	return XSTRDUP(MTYPE_ROUTE_MAP_COMPILED, arg);
+}
+
+static void route_set_aigp_metric_free(void *rule)
+{
+	XFREE(MTYPE_ROUTE_MAP_COMPILED, rule);
+}
+
+static const struct route_map_rule_cmd route_set_aigp_metric_cmd = {
+	"aigp-metric",
+	route_set_aigp_metric,
+	route_set_aigp_metric_compile,
+	route_set_aigp_metric_free,
+};
+
 /* `set aggregator as AS A.B.C.D' */
 struct aggregator {
 	as_t as;
@@ -6707,6 +6747,42 @@ DEFUN_YANG (no_set_atomic_aggregate,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFPY_YANG (set_aigp_metric,
+	    set_aigp_metric_cmd,
+	    "set aigp-metric <igp-metric|(1-4294967295)>$aigp_metric",
+	    SET_STR
+	    "BGP AIGP attribute (AIGP Metric TLV)\n"
+	    "AIGP Metric value from IGP protocol\n"
+	    "Manual AIGP Metric value\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:aigp-metric']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:aigp-metric", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY, aigp_metric);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG (no_set_aigp_metric,
+	    no_set_aigp_metric_cmd,
+	    "no set aigp-metric [<igp-metric|(1-4294967295)>]",
+	    NO_STR
+	    SET_STR
+	    "BGP AIGP attribute (AIGP Metric TLV)\n"
+	    "AIGP Metric value from IGP protocol\n"
+	    "Manual AIGP Metric value\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:aigp-metric']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 DEFUN_YANG (set_aggregator_as,
 	    set_aggregator_as_cmd,
 	    "set aggregator as (1-4294967295) A.B.C.D",
@@ -7578,6 +7654,7 @@ void bgp_route_map_init(void)
 	route_map_install_set(&route_set_evpn_gateway_ip_ipv4_cmd);
 	route_map_install_set(&route_set_evpn_gateway_ip_ipv6_cmd);
 	route_map_install_set(&route_set_srte_color_cmd);
+	route_map_install_set(&route_set_aigp_metric_cmd);
 
     route_map_install_match(&route_match_peer_cmd);
     route_map_install_match(&route_match_alias_cmd);
@@ -7709,6 +7786,8 @@ void bgp_route_map_init(void)
     install_element(RMAP_NODE, &no_set_origin_cmd);
     install_element(RMAP_NODE, &set_atomic_aggregate_cmd);
     install_element(RMAP_NODE, &no_set_atomic_aggregate_cmd);
+	install_element(RMAP_NODE, &set_aigp_metric_cmd);
+	install_element(RMAP_NODE, &no_set_aigp_metric_cmd);
     install_element(RMAP_NODE, &set_aggregator_as_cmd);
     install_element(RMAP_NODE, &no_set_aggregator_as_cmd);
     install_element(RMAP_NODE, &set_community_cmd);
@@ -7742,6 +7821,7 @@ void bgp_route_map_init(void)
 	install_element(RMAP_NODE, &set_ecommunity_color_cmd);
 	install_element(RMAP_NODE, &no_set_ecommunity_color_cmd);
 	install_element(RMAP_NODE, &no_set_ecommunity_color_all_cmd);
+
 #ifdef KEEP_OLD_VPN_COMMANDS
     install_element(RMAP_NODE, &set_vpn_nexthop_cmd);
     install_element(RMAP_NODE, &no_set_vpn_nexthop_cmd);
