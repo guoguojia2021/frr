@@ -355,7 +355,7 @@ static int zebra_srv6_manager_release_locator_chunk(struct zserv *client,
 	return release_srv6_locator_chunk(client->proto, client->instance,
 					  client->session_id, locator_name);
 }
-                            
+
 /**
  * Core function, assigns srv6-locator chunks
  *
@@ -536,7 +536,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
     struct vrf *def_vrf = NULL;
     struct prefix p = {};
     struct nexthop *nexthop;
-    
+
     p.family = AF_INET6;
     p.prefixlen = IPV6_MAX_BITLEN;
     p.u.prefix6 = *result_sid;
@@ -564,7 +564,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 	 * api_nh->vrf_id instead of re->vrf_id ? I only changed
 	 * for cases NEXTHOP_TYPE_IPV4 and NEXTHOP_TYPE_IPV6.
 	 */
-	
+
 	/* Convert zapi nexthop */
     nexthop = nexthop_from_ifindex(vrf->vrf_id, 0);
 
@@ -629,9 +629,9 @@ int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
     struct vrf *def_vrf = NULL;
     int ret = 0;
     uint32_t flags = 0;
-    
+
     struct prefix p = {};
-    
+
     p.family = AF_INET6;
     p.prefixlen = IPV6_MAX_BITLEN;
     p.u.prefix6 = *result_sid;
@@ -654,7 +654,6 @@ int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 
 }
 
-
 void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid)
 {
 	enum seg6local_action_t act;
@@ -675,7 +674,7 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
     ctx.function_bits_length = locator->function_bits_length;
     ctx.argument_bits_length = locator->argument_bits_length;
     strncpy(ctx.vrfName, sid->vrfName, VRF_NAMSIZ + 1);
-    
+
     zebra_route_add(&result_sid, vrf, act, &ctx);
 
 }
@@ -695,10 +694,110 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
 
 	ctx.table = vrf->data.l.table_id;
 	act = sid->sidaction;
-    
+
     zebra_route_del(&result_sid, vrf, act, &ctx);
 
 }
+
+extern bool zebra_srv6_local_sid_get_format(struct srv6_locator *locator)
+{
+	// Logic is the same as sai_srv6_handler::get_la_sid_format
+	if (locator->block_bits_length == 32 &&
+		locator->node_bits_length == 16 &&
+		locator->function_bits_length == 0) {
+		// prefix len = 48
+		locator->format = SRV6_FORMAT_USID_3216;
+		return true;
+	} else if (locator->block_bits_length == 32 &&
+		locator->node_bits_length == 0 &&
+		locator->function_bits_length == 16) {
+		// prefix len = 48
+		locator->format = SRV6_FORMAT_USID_3216;
+		return true;
+	} else if (locator->block_bits_length == 32 &&
+		locator->node_bits_length == 16 &&
+		locator->function_bits_length == 16) {
+		// prefix len = 64
+		locator->format = SRV6_FORMAT_USID_3216;
+		return true;
+	} else if (locator->block_bits_length == 32 &&
+		locator->node_bits_length == 16 &&
+		locator->function_bits_length == 32) {
+		// prefix len = 80
+		locator->format = SRV6_FORMAT_USID_3216;
+		return true;
+	} else if (locator->block_bits_length == 40 &&
+		locator->node_bits_length == 24 &&
+		locator->function_bits_length == 16 &&
+		locator->argument_bits_length == 8) {
+		locator->format = SRV6_FORMAT_F1;
+		return true;
+	}
+
+	return false;
+}
+
+extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, struct seg6_sid *sid)
+{
+	struct in6_addr result_sid = {0};
+	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+
+	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
+	// addr_msb
+	uint32_t addr_0 = result_sid.s6_addr32[0];
+	uint32_t addr_1 = result_sid.s6_addr32[1];
+
+	// addr_lsb
+	uint32_t addr_2 = result_sid.s6_addr32[2];
+	uint32_t addr_3 = result_sid.s6_addr32[3];
+
+	if (locator->format == SRV6_FORMAT_F1) {
+		if (locator->prefix.prefixlen == 128) {
+			// Verify that bits [39:0] are zero
+			if ((addr_2 & 0xff000000) == 0 &&
+				(addr_3 & 0xffffffff) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	if (locator->format != SRV6_FORMAT_USID_3216) {
+		return false;
+	}
+
+	// Check for valid prefix lengths. /48, /64, /80.
+	if (locator->prefix.prefixlen == 48) {
+		// Make sure that bits [95:80] are not zero.
+		if ((addr_1 & 0xffff) != 0) {
+			return true;
+		}
+		return false;
+	}
+
+	if (locator->prefix.prefixlen == 64) {
+		// Make sure that bits [79:64] are not zero.
+		if ((addr_1 & 0xffff0000) != 0) {
+			return true;
+		}
+		return false;
+	}
+
+	if (locator->prefix.prefixlen == 80) {
+		// WLIB format
+		// Make sure that [79:64] == 0xfff_0xxx
+		if ((addr_1 & 0xf8ff0000) != 0xf0ff0000) {
+			return false;
+		}
+		// Make sure that bits [63:48] are not zero.
+		if ((addr_2 & 0xffff) != 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 void zebra_srv6_init(void)
 {

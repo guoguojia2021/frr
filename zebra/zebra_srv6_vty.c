@@ -46,19 +46,7 @@
 #include "zebra/zebra_srv6_vty_clippy.c"
 #endif
 
-enum srv6_format {
-	SRV6_FORMAT_F1 = 0,    ///< Format 1.
-	SRV6_FORMAT_USID_3216, ///< uSID 32/16 Format.
-	SRV6_FORMAT_MAX,
-};
-
 static int zebra_sr_config(struct vty *vty);
-static bool zebra_srv6_my_sid_valid(const struct prefix_ipv6 *prefix,
-	const uint8_t locator_block_len,
-	const uint8_t locator_node_len,
-	const uint8_t function_len,
-	const uint8_t args_len);
-
 
 static struct cmd_node sr_node = {
 	.name = "sr",
@@ -356,6 +344,7 @@ DEFUN_NOSH (srv6_locator_sid,
     ret = str2prefix_ipv6(prefix, &locator_sid->prefix);
     apply_mask_ipv6(&locator_sid->prefix);
     if (!ret) {
+		srv6_locator_del(locator_sid);
         vty_out(vty, "Malformed IPv6 prefix\n");
         return CMD_WARNING_CONFIG_FAILED;
     }
@@ -382,14 +371,10 @@ DEFUN_NOSH (srv6_locator_sid,
 		node_bit_len = locator_sid->prefix.prefixlen - block_bit_len;
 	} else {
 		if (block_bit_len + node_bit_len + func_bit_len != locator_sid->prefix.prefixlen) {
+			srv6_locator_del(locator_sid);
 			vty_out(vty, "%% block-bits + node-bits + func_bit_len must be equal to the prefix length\n");
 			return CMD_WARNING_CONFIG_FAILED;
 		}
-	}
-
-	if (!zebra_srv6_my_sid_valid(&locator_sid->prefix, block_bit_len, node_bit_len, func_bit_len, args_bit_len)) {
-		vty_out(vty, "%% Malformed locator sid format\n");
-		return CMD_WARNING_CONFIG_FAILED;
 	}
 
 	/*
@@ -411,6 +396,13 @@ DEFUN_NOSH (srv6_locator_sid,
 	locator_sid->node_bits_length = node_bit_len;
 	locator_sid->function_bits_length = func_bit_len;
 	locator_sid->argument_bits_length = args_bit_len;
+
+	if (!zebra_srv6_local_sid_get_format(locator_sid)) {
+		vty_out(vty, "%% Malformed locator sid format\n");
+		srv6_locator_del(locator_sid);
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
     zebra_srv6_locator_add(locator_sid);
 
 	VTY_PUSH_CONTEXT(SRV6_LOC_NODE, locator_sid);
@@ -499,8 +491,14 @@ DEFPY (locator_prefix,
     strlcpy(sid->vrfName, vrfName, VRF_NAMSIZ);
     sid->ipv6Addr = ipv6prefix;
     strncpy(sid->sidstr, prefix, PREFIX_STRLEN);
-	listnode_add(locator->sids, sid);
 
+	if (!zebra_srv6_local_sid_format_valid(locator, sid)) {
+		vty_out(vty, "%% Malformed locator sid opcode format\n");
+		srv6_locator_sid_free(sid);
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	listnode_add(locator->sids, sid);
 	zebra_srv6_local_sid_add(locator, sid);
 
     for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
@@ -616,103 +614,6 @@ static int zebra_sr_config(struct vty *vty)
 	}
 	return 0;
 }
-
-static bool zebra_srv6_my_sid_valid(const struct prefix_ipv6 *prefix,
-	const uint8_t locator_block_len,
-	const uint8_t locator_node_len,
-	const uint8_t function_len,
-	const uint8_t args_len)
-{
-	// Logic is the same as sai_srv6_handler::get_la_sid_format
-	enum srv6_format format = SRV6_FORMAT_MAX;
-
-	if (locator_block_len == 32 &&
-		locator_node_len == 16 &&
-		function_len == 0) {
-		// prefix len = 48
-		format = SRV6_FORMAT_USID_3216;
-	} else if (locator_block_len == 32 &&
-		locator_node_len == 0 &&
-		function_len == 16) {
-		// prefix len = 48
-		format = SRV6_FORMAT_USID_3216;
-	} else if (locator_block_len == 32 &&
-		locator_node_len == 16 &&
-		function_len == 16) {
-		// prefix len = 64
-		format = SRV6_FORMAT_USID_3216;
-	} else if (locator_block_len == 32 &&
-		locator_node_len == 16 &&
-		function_len == 32) {
-		// prefix len = 80
-		format = SRV6_FORMAT_USID_3216;
-	} else if (locator_block_len == 40 &&
-		locator_node_len == 24 &&
-		function_len == 16 &&
-		args_len == 8) {
-		format = SRV6_FORMAT_F1;
-	}
-
-	if (format == SRV6_FORMAT_MAX) {
-		return false; // Unsupported SID format
-	}
-
-	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
-	// addr_lsb
-	uint32_t addr_0 = prefix->prefix.s6_addr32[0];
-	uint32_t addr_1 = prefix->prefix.s6_addr32[1];
-
-	// addr_msb
-	uint32_t addr_2 = prefix->prefix.s6_addr32[2];
-	uint32_t addr_3 = prefix->prefix.s6_addr32[3];
-
-	if (format == SRV6_FORMAT_F1) {
-		if (prefix->prefixlen == 128) {
-			// Verify that bits [39:0] are zero
-			if ((addr_1 & 0xff) == 0 &&
-				(addr_0 & 0xffffffff) == 0) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	if (format != SRV6_FORMAT_USID_3216) {
-		return false;
-	}
-
-	// Check for valid prefix lengths. /48, /64, /80.
-	if (prefix->prefixlen == 48) {
-		// Make sure that bits [95:80] are not zero.
-		if ((addr_2 & 0xffff0000) != 0) {
-			return true;
-		}
-		return false;
-	}
-
-	if (prefix->prefixlen == 64) {
-		// Make sure that bits [79:64] are not zero.
-		if ((addr_2 & 0xffff) != 0) {
-			return true;
-		}
-		return false;
-	}
-
-	if (prefix->prefixlen == 80) {
-		// WLIB format
-		// Make sure that [79:64] == 0xfff_0xxx
-		if ((addr_2 & 0xfff8) != 0xfff0) {
-			return false;
-		}
-		// Make sure that bits [63:48] are not zero.
-		if ((addr_1 & 0xffff0000) != 0) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 
 void zebra_srv6_vty_init(void)
 {

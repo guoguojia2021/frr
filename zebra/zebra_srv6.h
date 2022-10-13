@@ -101,4 +101,7 @@ extern int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum se
 extern void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid);
 extern void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid);
 
+extern bool zebra_srv6_local_sid_get_format(struct srv6_locator *locator);
+extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, struct seg6_sid *sid);
+
 #endif /* _ZEBRA_SRV6_H */

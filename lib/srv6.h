@@ -89,6 +89,12 @@ struct seg6local_context {
     char vrfName[VRF_NAMSIZ + 1];
 };
 
+enum srv6_format {
+	SRV6_FORMAT_F1 = 0,    ///< Format 1.
+	SRV6_FORMAT_USID_3216, ///< uSID 32/16 Format.
+	SRV6_FORMAT_MAX,
+};
+
 struct srv6_locator {
 	char name[SRV6_LOCNAME_SIZE];
 	struct prefix_ipv6 prefix;
@@ -115,6 +121,7 @@ struct srv6_locator {
 	uint16_t instance;
 	uint32_t session_id;
 
+	enum srv6_format format;
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(srv6_locator);
