@@ -1078,13 +1078,15 @@ const char *if_link_type_str(enum zebra_link_type llt)
 
 struct if_link_params *if_link_params_get(struct interface *ifp)
 {
+	return ifp->link_params;
+}
+
+struct if_link_params *if_link_params_enable(struct interface *ifp)
+{
+	struct if_link_params *iflp;
 	int i;
 
-	if (ifp->link_params != NULL)
-		return ifp->link_params;
-
-	struct if_link_params *iflp =
-		XCALLOC(MTYPE_IF_LINK_PARAMS, sizeof(struct if_link_params));
+	iflp = if_link_params_init(ifp);
 
 	/* Set TE metric equal to standard metric */
 	iflp->te_metric = ifp->metric;
@@ -1105,6 +1107,20 @@ struct if_link_params *if_link_params_get(struct interface *ifp)
 		LP_TE_METRIC | LP_MAX_BW | LP_MAX_RSV_BW | LP_UNRSV_BW;
 
 	/* Finally attach newly created Link Parameters */
+	ifp->link_params = iflp;
+
+	return iflp;
+}
+
+struct if_link_params *if_link_params_init(struct interface *ifp)
+{
+	struct if_link_params *iflp = if_link_params_get(ifp);
+
+	if (iflp)
+		return iflp;
+
+	iflp = XCALLOC(MTYPE_IF_LINK_PARAMS, sizeof(struct if_link_params));
+
 	ifp->link_params = iflp;
 
 	return iflp;
