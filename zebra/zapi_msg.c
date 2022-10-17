@@ -2804,7 +2804,16 @@ int zsend_srv6_manager_del_sid(struct zserv *client,
 	struct stream *s = stream_new(ZEBRA_MAX_PACKET_SIZ);
     
 	zclient_create_header(s, ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID, vrf_id);
-	zapi_srv6_locator_sid_encode(s, loc);
+    
+    stream_putw(s, strlen(loc->name));
+	stream_put(s, loc->name, strlen(loc->name));
+    
+    stream_putl(s, 1);
+    stream_putw(s, sid->ipv6Addr.prefixlen);
+	stream_put(s, &sid->ipv6Addr.prefix, sizeof(sid->ipv6Addr.prefix));
+    stream_putl(s, sid->sidaction);
+    stream_putw(s, strlen(sid->vrfName));
+	stream_put(s, sid->vrfName, strlen(sid->vrfName));
 	stream_putw_at(s, 0, stream_get_endp(s));
 	return zserv_send_message(client, s);
 }

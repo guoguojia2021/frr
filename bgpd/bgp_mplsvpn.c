@@ -604,11 +604,18 @@ void ensure_vrf_tovpn_sid(struct bgp *bgp_vpn, struct bgp *bgp_vrf, afi_t afi)
 
     locator = locator_lookup_by_name(bgp_vpn->srv6_locators_hash, bgp_vrf->srv6_locator_name);
     if (!locator)
+    {
         return;
+    }
     
     sid = sid_lookup_by_vrf(locator, bgp_vrf->name);
     if (!sid)
+    {
+        if (bgp_vrf->vpn_policy[afi].tovpn_sid)
+            XFREE(MTYPE_BGP_SRV6_SID, bgp_vrf->vpn_policy[afi].tovpn_sid);
+        bgp_vrf->vpn_policy[afi].tovpn_sid_locator = NULL;
         return;
+    }
 
     tovpn_sid = XCALLOC(MTYPE_BGP_SRV6_SID, sizeof(struct in6_addr));
     combine_sid(locator, &sid->ipv6Addr.prefix, tovpn_sid);

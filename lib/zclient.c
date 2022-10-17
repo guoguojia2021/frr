@@ -1261,6 +1261,7 @@ int zapi_srv6_del_sid_decode(struct stream *s,
         for (ALL_LIST_ELEMENTS(sidlist, node, nnode, sid)) {
             if (prefix_match((struct prefix *)(&tmpsid.ipv6Addr.prefix), (struct prefix *)(&sid->ipv6Addr.prefix))){
                 list_delete_node(sidlist, node);
+                srv6_locator_sid_free(sid);
                 break;
             }
         }

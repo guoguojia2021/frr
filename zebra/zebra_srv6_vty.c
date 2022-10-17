@@ -302,8 +302,8 @@ DEFUN_NOSH (srv6_locators,
 
 DEFUN_NOSH (srv6_locator_sid,
         srv6_locator_cmd,
-        "locator WORD prefix X:X::X:X/M$prefix \
-         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-80)$func_bit_len] [argu-bits (16-80)$argu_bit_len]",
+        "locator WORD [ prefix X:X::X:X/M$prefix \
+         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-80)$func_bit_len] [argu-bits (16-80)$argu_bit_len] ]",
         "Segment Routing SRv6 locator\n"
         "Specify locator-name\n"
         "Configure SRv6 locator prefix\n"
@@ -317,14 +317,14 @@ DEFUN_NOSH (srv6_locator_sid,
         "Configure SRv6 locator function length in bits\n"
         "Specify SRv6 locator function length in bits\n")
 {
-	struct srv6_locator *locator_sid = NULL;
+    struct srv6_locator *locator_sid = NULL;
     char *prefix = NULL;
     int ret = 0;
     int idx = 0;
     int block_bit_len = 0;
     int node_bit_len = 0;
     int func_bit_len = 0;
-	int args_bit_len = 0;
+    int args_bit_len = 0;
 
 	locator_sid = zebra_srv6_locator_lookup(argv[1]->arg);
 	if (locator_sid) {
@@ -555,7 +555,7 @@ DEFPY (no_locator_prefix,
 static int zebra_sr_config(struct vty *vty)
 {
 	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
-	struct listnode *node;
+	struct listnode *node, *opcodenode;
 	struct srv6_locator *locator;
     struct seg6_sid *sid;
 	char str[256];
@@ -580,7 +580,7 @@ static int zebra_sr_config(struct vty *vty)
             if (locator->argument_bits_length)
 				vty_out(vty, " argu-bits %u", locator->argument_bits_length);
             vty_out(vty, "\n");
-            for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
+            for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
                 vty_out(vty, "    opcode %s", sid->sidstr);
                 if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END)
 				    vty_out(vty, " end");

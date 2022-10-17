@@ -3297,6 +3297,10 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
     uint16_t len = 0;
     char loc_name[SRV6_LOCNAME_SIZE] = {0};
     struct srv6_locator *loc = NULL;
+    struct prefix_ipv6 tmp_prefi;
+    struct listnode *node;
+	struct bgp *bgp_vrf;
+	struct in6_addr *tovpn_sid;
 
 	s = zclient->ibuf;
     STREAM_GETW(s, len);
@@ -3318,6 +3322,37 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
         zlog_err("can not find the locator by name :%s", loc_name);
 		return;
     }
+#if 0
+    // refresh tovpn_sid
+	for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, bgp_vrf)) {
+		if (bgp_vrf->inst_type != BGP_INSTANCE_TYPE_VRF)
+			continue;
+
+		// refresh vpnv4 tovpn_sid
+		tovpn_sid = bgp_vrf->vpn_policy[AFI_IP].tovpn_sid;
+		if (tovpn_sid) {
+			tmp_prefi.family = AF_INET6;
+			tmp_prefi.prefixlen = 128;
+			tmp_prefi.prefix = *tovpn_sid;
+			if (prefix_match((struct prefix *)&loc.prefix,
+					 (struct prefix *)&tmp_prefi))
+				XFREE(MTYPE_BGP_SRV6_SID,
+				      bgp_vrf->vpn_policy[AFI_IP].tovpn_sid);
+		}
+
+		// refresh vpnv6 tovpn_sid
+		tovpn_sid = bgp_vrf->vpn_policy[AFI_IP6].tovpn_sid;
+		if (tovpn_sid) {
+			tmp_prefi.family = AF_INET6;
+			tmp_prefi.prefixlen = 128;
+			tmp_prefi.prefix = *tovpn_sid;
+			if (prefix_match((struct prefix *)&loc.prefix,
+					 (struct prefix *)&tmp_prefi))
+				XFREE(MTYPE_BGP_SRV6_SID,
+				      bgp_vrf->vpn_policy[AFI_IP6].tovpn_sid);
+		}
+	}
+#endif
 /* todo: ´¥·¢sid export±ä»¯ */
 	vpn_leak_postchange_all();
 
