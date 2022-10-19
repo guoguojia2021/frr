@@ -263,6 +263,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 	struct zebra_if *zif = NULL;
 	vni_t vni = 0;
     struct zebra_l3vni *zl3vni = NULL;
+    struct vrf *srv6vrf = NULL;
 
 	memset(&nhi, 0, sizeof(nhi));
 	src = NULL;
@@ -357,7 +358,13 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
         nhi.encap_info.srv6_encap.function_bits_length = nexthop->nh_srv6->seg6local_ctx.function_bits_length;
         nhi.encap_info.srv6_encap.argument_bits_length = nexthop->nh_srv6->seg6local_ctx.argument_bits_length;
         nhi.encap_info.srv6_encap.sidaction = nexthop->nh_srv6->seg6local_action;
-        strncpy(nhi.encap_info.srv6_encap.vrfName, nexthop->nh_srv6->seg6local_ctx.vrfName, VRF_NAMSIZ + 1);
+        srv6vrf = vrf_lookup_by_name(nexthop->nh_srv6->seg6local_ctx.vrfName);
+        if (!srv6vrf)
+        {
+            zlog_err("can't find the srv6 vrf nexthop:%s", nexthop->nh_srv6->seg6local_ctx.vrfName);
+            return 0;
+        }
+        strncpy(nhi.encap_info.srv6_encap.vrfName, srv6vrf->name, VRF_NAMSIZ + 1);
         
 		zfpm_debug("%s: NEWROUTE:%s/%d, Gateway:%s sid:%s block_bits_length:%d node_bits_length:%d "
             "function_bits_length:%d argument_bits_length:%d "

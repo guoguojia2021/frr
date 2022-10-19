@@ -675,7 +675,8 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
     ctx.argument_bits_length = locator->argument_bits_length;
     strncpy(ctx.vrfName, sid->vrfName, VRF_NAMSIZ + 1);
 
-    zebra_route_add(&result_sid, vrf, act, &ctx);
+    if (CHECK_FLAG(vrf->status, VRF_ACTIVE))
+        zebra_route_add(&result_sid, vrf, act, &ctx);
 
 }
 
@@ -818,3 +819,26 @@ bool zebra_srv6_is_enable(void)
 
 	return listcount(srv6->locators);
 }
+
+int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf)
+{
+    struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+    struct listnode *node, *opcodenode;
+    struct srv6_locator *locator;
+    struct seg6_sid *sid;
+    struct vrf *vrf;
+
+    for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
+        for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
+            vrf = vrf_lookup_by_name(sid->vrfName);
+            if (zvrf->vrf != vrf)
+                continue;
+            if (CHECK_FLAG(vrf->status, VRF_ACTIVE))
+            {
+                zebra_srv6_local_sid_add(locator, sid);
+            }
+        }
+    }
+    return 0;
+}
+

@@ -1650,6 +1650,12 @@ static bool rib_compare_routes(const struct route_entry *re1,
 	if (re1->type == ZEBRA_ROUTE_KERNEL && re1->metric != re2->metric)
 		return false;
 
+    if (re1->type == ZEBRA_ROUTE_STATIC)
+    {
+        if (CHECK_FLAG(re1->flags^re2->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
+            return false;
+    }
+
 	if (CHECK_FLAG(re1->flags, ZEBRA_FLAG_RR_USE_DISTANCE) &&
 	    re1->distance != re2->distance)
 		return false;
