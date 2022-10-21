@@ -206,6 +206,9 @@ struct bgp_master {
 
 	bool local_vrf_leak_enable;
 
+#define BM_DEFAULT_INQ_LIMIT 10000
+	uint32_t inq_limit;
+
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(bgp_master);
