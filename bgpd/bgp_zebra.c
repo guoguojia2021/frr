@@ -2128,6 +2128,7 @@ void bgp_zebra_instance_register(struct bgp *bgp)
 		bgp_zebra_advertise_all_vni(bgp, 1);
 
 	bgp_nht_register_nexthops(bgp);
+    bgp_zebra_srv6_manager_get_locator_all();
 }
 
 /* Deregister this instance with Zebra. Invoked upon the instance
@@ -3265,17 +3266,18 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
         loc->sids = list_new();
         
         strncpy(loc->name, loc_name, len);
-        STREAM_GETW(s, loc->prefix.prefixlen);
-        STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
-        loc->prefix.family = AF_INET6;
-        STREAM_GETC(s, loc->block_bits_length);
-        STREAM_GETC(s, loc->node_bits_length);
-        STREAM_GETC(s, loc->function_bits_length);
-        STREAM_GETC(s, loc->argument_bits_length);
-        
-        listnode_add(bgp->srv6_locators, loc);
-        hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
     }
+    STREAM_GETW(s, loc->prefix.prefixlen);
+    STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
+    loc->prefix.family = AF_INET6;
+    STREAM_GETC(s, loc->block_bits_length);
+    STREAM_GETC(s, loc->node_bits_length);
+    STREAM_GETC(s, loc->function_bits_length);
+    STREAM_GETC(s, loc->argument_bits_length);
+    
+    listnode_add(bgp->srv6_locators, loc);
+    hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
+    
     if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0)
     {
         zlog_err("can not find the locator by name :%s", loc_name);
@@ -3948,6 +3950,12 @@ int bgp_zebra_srv6_manager_get_locator_sid(const char *name)
 {
 	return srv6_manager_get_locator_sid(zclient, name);
 }
+
+int bgp_zebra_srv6_manager_get_locator_all()
+{
+	return srv6_manager_get_locator_all(zclient);
+}
+
 #if 0
 
 int bgp_zebra_srv6_manager_release_locator_sid(const char *name)

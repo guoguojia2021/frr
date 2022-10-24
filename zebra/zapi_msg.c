@@ -3087,6 +3087,16 @@ stream_failure:
 	return;
 }
 
+static void zread_srv6_manager_get_locator_all(struct zserv *client,
+						 struct stream *msg,
+						 vrf_id_t vrf_id)
+{
+	/* call hook to get a chunk using wrapper */
+	srv6_manager_get_locator_all_call(client, vrf_id);
+
+	return;
+}
+
 static void zread_srv6_manager_request(ZAPI_HANDLER_ARGS)
 {
 	switch (hdr->command) {
@@ -3100,6 +3110,10 @@ static void zread_srv6_manager_request(ZAPI_HANDLER_ARGS)
 		break;
     case ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID:
 		zread_srv6_manager_get_locator_sid(client, msg,
+						     zvrf_id(zvrf));
+		break;
+    case ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL:
+		zread_srv6_manager_get_locator_all(client, msg,
 						     zvrf_id(zvrf));
 		break;
 	default:
@@ -3887,6 +3901,7 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_CHUNK] = zread_srv6_manager_request,
 	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID] = zread_srv6_manager_request,
 	[ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID] = zread_srv6_manager_request,
+	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL] = zread_srv6_manager_request,
 	[ZEBRA_CLIENT_CAPABILITIES] = zread_client_capabilities,
 	[ZEBRA_NEIGH_DISCOVER] = zread_neigh_discover,
 	[ZEBRA_NHG_ADD] = zread_nhg_add,

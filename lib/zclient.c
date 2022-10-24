@@ -3079,6 +3079,28 @@ int srv6_manager_get_locator_sid(struct zclient *zclient,
 	return zclient_send_message(zclient);
 }
 
+int srv6_manager_get_locator_all(struct zclient *zclient)
+{
+	struct stream *s;
+
+	if (zclient_debug)
+		zlog_debug("Getting SRv6-Locator all ");
+
+	if (zclient->sock < 0)
+		return -1;
+
+	/* send request */
+	s = zclient->obuf;
+	stream_reset(s);
+	zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL,
+			      VRF_DEFAULT);
+
+	/* Put length at the first point of the stream. */
+	stream_putw_at(s, 0, stream_get_endp(s));
+
+	return zclient_send_message(zclient);
+}
+
 /*
  * Asynchronous label chunk request
  *

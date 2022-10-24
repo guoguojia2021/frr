@@ -282,50 +282,30 @@ static const char *get_afi_safi_json_str(afi_t afi, safi_t safi)
 /* unset srv6 locator */
 static int bgp_srv6_locator_unset(struct bgp *bgp)
 {
-	int ret;
-	struct listnode *node, *nnode;
-	struct prefix_ipv6 *chunk;
-	struct bgp_srv6_function *func;
-	struct bgp *bgp_vrf;
 	struct in6_addr *tovpn_sid;
 
-	/* release chunk notification via ZAPI */
-	ret = bgp_zebra_srv6_manager_release_locator_chunk(
-			bgp->srv6_locator_name);
-	if (ret < 0)
-		return -1;
-
-	/* refresh chunks */
-	for (ALL_LIST_ELEMENTS(bgp->srv6_locator_chunks, node, nnode, chunk))
-		listnode_delete(bgp->srv6_locator_chunks, chunk);
-
-	/* refresh functions */
-	for (ALL_LIST_ELEMENTS(bgp->srv6_functions, node, nnode, func))
-		listnode_delete(bgp->srv6_functions, func);
-
 	/* refresh tovpn_sid */
-	for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, bgp_vrf)) {
-		if (bgp_vrf->inst_type != BGP_INSTANCE_TYPE_VRF)
-			continue;
+	if (bgp->inst_type != BGP_INSTANCE_TYPE_VRF)
+		return 0;
 
-		/* refresh vpnv4 tovpn_sid */
-		tovpn_sid = bgp_vrf->vpn_policy[AFI_IP].tovpn_sid;
-		if (tovpn_sid)
-			XFREE(MTYPE_BGP_SRV6_SID,
-			      bgp_vrf->vpn_policy[AFI_IP].tovpn_sid);
+	/* refresh vpnv4 tovpn_sid */
+	tovpn_sid = bgp->vpn_policy[AFI_IP].tovpn_sid;
+	if (tovpn_sid)
+		XFREE(MTYPE_BGP_SRV6_SID,
+		      bgp->vpn_policy[AFI_IP].tovpn_sid);
 
-		/* refresh vpnv6 tovpn_sid */
-		tovpn_sid = bgp_vrf->vpn_policy[AFI_IP6].tovpn_sid;
-		if (tovpn_sid)
-			XFREE(MTYPE_BGP_SRV6_SID,
-			      bgp_vrf->vpn_policy[AFI_IP6].tovpn_sid);
-	}
-
-	/* update vpn bgp processes */
-	vpn_leak_postchange_all();
-
-	/* clear locator name */
-	memset(bgp->srv6_locator_name, 0, sizeof(bgp->srv6_locator_name));
+	/* refresh vpnv6 tovpn_sid */
+	tovpn_sid = bgp->vpn_policy[AFI_IP6].tovpn_sid;
+	if (tovpn_sid)
+		XFREE(MTYPE_BGP_SRV6_SID,
+		      bgp->vpn_policy[AFI_IP6].tovpn_sid);
+    /* clear locator name */
+    memset(bgp->srv6_locator_name, 0, sizeof(bgp->srv6_locator_name));
+	/* post-change: re-export vpn routes */
+    vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP,
+                bgp_get_default(), bgp);
+    vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP6,
+                bgp_get_default(), bgp);
 
 	return 0;
 }
@@ -9581,6 +9561,8 @@ DEFPY (bgp_srv6_locator,
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
 	int ret;
+    struct srv6_locator *locator = NULL;
+    struct bgp *bgp_vpn = bgp_get_default();
 
 	if (strlen(bgp->srv6_locator_name) > 0
 	    && strcmp(name, bgp->srv6_locator_name) != 0) {
@@ -9590,21 +9572,23 @@ DEFPY (bgp_srv6_locator,
 
 	snprintf(bgp->srv6_locator_name,
 		 sizeof(bgp->srv6_locator_name), "%s", name);
-    /* post-change: re-export vpn routes */
-    vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP,
-                bgp_get_default(), bgp);
-    vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP6,
-                bgp_get_default(), bgp);
-
-	ret = bgp_zebra_srv6_manager_get_locator_chunk(name);
-	if (ret < 0)
-		return CMD_WARNING_CONFIG_FAILED;
-
-    ret = bgp_zebra_srv6_manager_get_locator_sid(name);
-	if (ret < 0)
-		return CMD_WARNING_CONFIG_FAILED;
-    
     bgp->srv6_enabled = true;
+    if (!bgp_vpn)
+        return CMD_SUCCESS;
+    locator = locator_lookup_by_name(bgp_vpn->srv6_locators_hash, bgp->srv6_locator_name);
+    if (!locator)
+    {
+        ret = bgp_zebra_srv6_manager_get_locator_sid(name);
+    	if (ret < 0)
+    		return CMD_WARNING_CONFIG_FAILED;
+        }
+    else{
+        /* post-change: re-export vpn routes */
+        vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP,
+                    bgp_get_default(), bgp);
+        vpn_leak_postchange(BGP_VPN_POLICY_DIR_TOVPN, AFI_IP6,
+                    bgp_get_default(), bgp);
+    }
 
 	return CMD_SUCCESS;
 }

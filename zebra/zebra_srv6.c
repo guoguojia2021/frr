@@ -78,6 +78,10 @@ DEFINE_HOOK(srv6_manager_release_sid,
 	     const char *locator_name,
 	     vrf_id_t vrf_id),
 	    (client, locator_name, vrf_id));
+DEFINE_HOOK(srv6_manager_get_locator_sid_all,
+	    (struct zserv *client,
+	     vrf_id_t vrf_id),
+	    (client, vrf_id));
 
 /* define wrappers to be called in zapi_msg.c (as hooks must be called in
  * source file where they were defined)
@@ -116,6 +120,12 @@ void srv6_manager_release_locator_sid_call(struct zserv *client,
 					     vrf_id_t vrf_id)
 {
 	hook_call(srv6_manager_release_sid, client, locator_name, vrf_id);
+}
+
+void srv6_manager_get_locator_all_call(struct zserv *client,
+					 vrf_id_t vrf_id)
+{
+	hook_call(srv6_manager_get_locator_sid_all, client, vrf_id);
 }
 
 int srv6_manager_client_disconnect_cb(struct zserv *client)
@@ -417,6 +427,26 @@ static int zebra_srv6_manager_get_locator_sid(struct srv6_locator **loc,
 	return ret;
 }
 
+static int zebra_srv6_manager_get_locator_all(struct zserv *client,
+						vrf_id_t vrf_id)
+{
+	int ret = 0;
+    struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+	struct srv6_locator *locator;
+	struct listnode *node;
+
+	for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator))
+	{
+        if (locator->status_up)
+		ret = zsend_srv6_manager_get_locator_sid_response(client,
+								    vrf_id,
+								    locator,
+								    NULL);
+	}
+	
+	return ret;
+}
+
 /**
  * Core function, release no longer used srv6-locator chunks
  *
@@ -538,7 +568,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
     struct nexthop *nexthop;
 
     p.family = AF_INET6;
-    p.prefixlen = IPV6_MAX_BITLEN;
+    p.prefixlen = ctx->block_bits_length + ctx->block_bits_length + ctx->function_bits_length;
     p.u.prefix6 = *result_sid;
 
     def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
@@ -811,6 +841,8 @@ void zebra_srv6_init(void)
 		      zebra_srv6_manager_get_locator_sid);
 	hook_register(srv6_manager_release_sid,
 		      zebra_srv6_manager_release_locator_sid);
+    hook_register(srv6_manager_get_locator_sid_all,
+		      zebra_srv6_manager_get_locator_all);
 }
 
 bool zebra_srv6_is_enable(void)

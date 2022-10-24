@@ -235,6 +235,7 @@ typedef enum {
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_CHUNK,
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID,
+	ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL,
 	ZEBRA_ERROR,
 	ZEBRA_CLIENT_CAPABILITIES,
 	ZEBRA_OPAQUE_MESSAGE,
@@ -1076,6 +1077,9 @@ extern int srv6_manager_get_locator_chunk(struct zclient *zclient,
 					  const char *locator_name);
 extern int srv6_manager_release_locator_chunk(struct zclient *zclient,
 					      const char *locator_name);
+extern int srv6_manager_get_locator_sid(struct zclient *zclient,
+				   const char *locator_name);
+extern int srv6_manager_get_locator_all(struct zclient *zclient);
 
 extern enum zclient_send_status zebra_send_sr_policy(struct zclient *zclient,
 						     int cmd,
