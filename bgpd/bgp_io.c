@@ -50,8 +50,8 @@ static int bgp_process_reads(struct thread *);
 static bool validate_header(struct peer *);
 
 /* generic i/o status codes */
-#define BGP_IO_TRANS_ERR (1 << 0) // EAGAIN or similar occurred
-#define BGP_IO_FATAL_ERR (1 << 1) // some kind of fatal TCP error
+#define BGP_IO_TRANS_ERR (1 << 0) /* EAGAIN or similar occurred */
+#define BGP_IO_FATAL_ERR (1 << 1) /* some kind of fatal TCP error */
 #define BGP_IO_WORK_FULL_ERR (1 << 2) /* No room in work buffer */
 
 /* Thread external API ----------------------------------------------------- */
@@ -231,10 +231,10 @@ static int bgp_process_reads(struct thread *thread)
 	static struct peer *peer;       /* peer to read from */
 	uint16_t status;                /* bgp_read status code */
 	bool fatal = false;             /* whether fatal error occurred */
-	bool added_pkt = false;         /* whether we pushed onto ->connection.ibuf */
+	bool added_pkt = false;         /* whether we pushed onto ->ibuf */
 	int code = 0;                   /* FSM code if error occurred */
-	bool ibuf_full = false; 	// Is peer fifo IN Buffer full
-	static bool ibuf_full_logged; // Have we logged full already
+	bool ibuf_full = false;         /* Is peer fifo IN Buffer full */
+	static bool ibuf_full_logged;   /* Have we logged full already */
 	int ret = 1;
 	/* clang-format on */
 
@@ -505,8 +505,8 @@ done : {
 uint8_t ibuf_scratch[BGP_EXTENDED_MESSAGE_MAX_PACKET_SIZE * BGP_READ_PACKET_MAX];
 static uint16_t bgp_read(struct peer *peer, int *code_p)
 {
-	size_t readsize; // how many bytes we want to read
-	ssize_t nbytes;  // how many bytes we actually read
+	size_t readsize; /* how many bytes we want to read */
+	ssize_t nbytes;  /* how many bytes we actually read */
 	size_t ibuf_work_space; /* space we can read into the work buf */
 	uint16_t status = 0;
 
