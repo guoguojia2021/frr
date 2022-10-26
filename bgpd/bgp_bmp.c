@@ -1199,7 +1199,7 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 	struct bgp_path_info *bpi = NULL, *bpiter;
 	struct bgp_adj_in *adjin = NULL;
 
-	if (afi == AFI_L2VPN && safi == SAFI_EVPN) {
+	if ((afi == AFI_L2VPN && safi == SAFI_EVPN) || (safi == SAFI_MPLS_VPN)) {
 		/* initialize syncrdpos to the first
 		 * mid-layer table entry
 		 */
@@ -1229,7 +1229,8 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 		if (!bn) {
 			bn = bgp_table_get_next(table, &bmp->syncpos);
 			if (!bn) {
-				if (afi == AFI_L2VPN && safi == SAFI_EVPN) {
+				if ((afi == AFI_L2VPN && safi == SAFI_EVPN) || (safi == SAFI_MPLS_VPN))
+				{
 					/* reset bottom-layer pointer */
 					memset(&bmp->syncpos, 0,
 					       sizeof(bmp->syncpos));
@@ -1266,6 +1267,8 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 		if (bmp->targets->afimon[afi][safi] & BMP_MON_ADJ_IN_POSTPOLICY) {
 			for (bpiter = bgp_dest_get_bgp_path_info(bn); bpiter;
 			     bpiter = bpiter->next) {
+				if (bpiter->peer ==  NULL)
+					continue;
 				if (bpiter->peer->su_remote ==  NULL)
 					continue;
 				if (!CHECK_FLAG(bpiter->flags, BGP_PATH_VALID))
@@ -1315,7 +1318,7 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 
 	const struct prefix *bn_p = bgp_dest_get_prefix(bn);
 	struct prefix_rd *prd = NULL;
-	if (afi == AFI_L2VPN && safi == SAFI_EVPN)
+	if ((afi == AFI_L2VPN && safi == SAFI_EVPN) || (safi == SAFI_MPLS_VPN))
 		prd = (struct prefix_rd *)bgp_dest_get_prefix(bmp->syncrdpos);
 
 	if (bpi)
@@ -1460,7 +1463,7 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
         bgp_node_lookup(bmp->targets->bgp->rib[afi][safi], &bqe->p);
 
 	struct prefix_rd *prd = NULL;
-	if (bqe->afi == AFI_L2VPN && bqe->safi == SAFI_EVPN)
+	if ((bqe->afi == AFI_L2VPN && bqe->safi == SAFI_EVPN) || (bqe->safi == SAFI_MPLS_VPN))
 		prd = &bqe->rd;
 
 	if (bmp->targets->afimon[afi][safi] & BMP_MON_ADJ_IN_POSTPOLICY) {
@@ -2744,12 +2747,12 @@ DEFPY(bmp_stats_cfg,
 
 DEFPY(bmp_monitor_cfg,
       bmp_monitor_cmd,
-      "[no] bmp monitor <ipv4|ipv6|l2vpn> <unicast|multicast|evpn> <adj-in | adj-out>$adj <pre-policy|post-policy>$policy",
+      "[no] bmp monitor <ipv4|ipv6|l2vpn> <unicast|multicast|evpn|vpn> <adj-in | adj-out>$adj <pre-policy|post-policy>$policy",
       NO_STR
       BMP_STR
       "Send BMP route monitoring messages\n"
       "Address Family\nAddress Family\nAddress Family\n"
-      "Address Family\nAddress Family\nAddress Family\n"
+      "Address Family\nAddress Family\nAddress Family\nAddress Family\n"
       "Path from peer\n"
       "Path send to peer\n"
       "Send state before policy and filter processing\n"
