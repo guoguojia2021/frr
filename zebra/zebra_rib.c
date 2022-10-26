@@ -2110,7 +2110,7 @@ static void rib_process_result(struct zebra_dplane_ctx *ctx)
 	switch (op) {
 	case DPLANE_OP_ROUTE_INSTALL:
 	case DPLANE_OP_ROUTE_UPDATE:
-		if (status == ZEBRA_DPLANE_REQUEST_SUCCESS) {
+		if (status == ZEBRA_DPLANE_REQUEST_SUCCESS || (re && (CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)))) {
 			if (re) {
 				UNSET_FLAG(re->status, ROUTE_ENTRY_FAILED);
 				SET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);

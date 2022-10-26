@@ -583,6 +583,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 	re->instance = 0;
     SET_FLAG(re->flags, ZEBRA_FLAG_ALLOW_RECURSION);
     SET_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE);
+    SET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);
 	re->uptime = monotime(NULL);
 	re->vrf_id = VRF_DEFAULT;
 

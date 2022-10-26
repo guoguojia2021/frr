@@ -1520,6 +1520,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
             }
 
 		api_nh->weight = nh_weight;
+#if 0
 
 		if (mpinfo->extra && !sid_zero(&mpinfo->extra->sid[0].sid)
 		    && !CHECK_FLAG(api.flags, ZEBRA_FLAG_EVPN_ROUTE)) {
@@ -1535,15 +1536,17 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 					continue;
 
 				label = label_pton(&mpinfo->extra->label[0]);
-#if 0
+
 				transpose_sid(&api_nh->seg6_segs, label,
 					      sid_info->transposition_offset,
 					      sid_info->transposition_len);
-#endif
+
 			}
+
 
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
 		}
+#endif
 
 		valid_nh_count++;
 	}

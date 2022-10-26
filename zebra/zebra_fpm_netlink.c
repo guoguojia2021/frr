@@ -533,6 +533,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	struct vxlan_encap_info_t *vxlan;
     struct srv6_localsid_encap_info_t *srv6_local_sid = NULL;
 	struct in6_addr ipv6;
+    size_t nh_len;
 
 	struct {
 		struct nlmsghdr n;
@@ -601,8 +602,14 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 					    &ipv6, bytelen);
 			} else
 			{
+                if (nhi->type == NEXTHOP_TYPE_IPV4 || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX)
+    				nh_len = af_addr_size(AF_INET);
+    			else if (nhi->type == NEXTHOP_TYPE_IPV6 || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX)
+    				nh_len = af_addr_size(AF_INET6);
+                else
+                    nh_len = bytelen;
 				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-					    nhi->gateway, 16);
+					    nhi->gateway, nh_len);
 			}
 		}
 
@@ -713,15 +720,16 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 		nhi = &ri->nhs[nexthop_num];
 
 		if (nhi->gateway)
-            if (nhi->type == NEXTHOP_TYPE_IPV6) {
-				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-					    &ipv6, 16);
-			}
+		{
+            if (nhi->type == NEXTHOP_TYPE_IPV4 || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX)
+				nh_len = af_addr_size(AF_INET);
+			else if (nhi->type == NEXTHOP_TYPE_IPV6 || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX)
+				nh_len = af_addr_size(AF_INET6);
             else
-			{
-				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-					    &ipv6, bytelen);
-			}
+                nh_len = bytelen;
+			nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
+				    nhi->gateway, nh_len);
+		}
 
 		if (nhi->if_index) {
 			rtnh->rtnh_ifindex = nhi->if_index;
