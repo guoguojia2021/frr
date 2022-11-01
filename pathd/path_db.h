@@ -17,6 +17,10 @@ extern void sidlist_Db_SetEntry(struct srte_segment_list *segl);
 
 extern void sidlist_Db_DelEntry(const char *name);
 
+extern void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_candidate_group *candidate_group);
+
+extern void sr_policy_Db_DelEntry(const char *name);
+
 #endif /* _PATH_DB_H */
 
 

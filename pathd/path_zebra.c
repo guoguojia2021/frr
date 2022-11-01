@@ -268,6 +268,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 		policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
+	sr_policy_Db_SetEntry(policy, candidate_group);
 }
 
 /**
@@ -297,6 +298,11 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 		policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_DELETE, &zp);
+
+	char policy_id[128] = {0};
+	snprintf(policy_id, 128, "%s_%u", endpoint, policy->color);
+
+	sr_policy_Db_DelEntry(policy_id);
 }
 
 /**
