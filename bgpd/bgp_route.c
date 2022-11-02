@@ -4939,10 +4939,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 				extra->num_sids = 1;
 			}
 		}
-        else
+        else if (pi->extra)
         {
-			extra->num_sids = 0;
-        	memset(extra->sid, 0, sizeof(extra->sid));
+			pi->extra->num_sids = 0;
+        	memset(pi->extra->sid, 0, sizeof(extra->sid));
         }
 
 #ifdef ENABLE_BGP_VNC
