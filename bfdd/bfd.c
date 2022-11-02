@@ -2173,6 +2173,7 @@ static unsigned int bfd_key_hash_do(const void *p)
 	 */
 	memset(&key.local, 0, sizeof(key.local));
 	memset(key.ifname, 0, sizeof(key.ifname));
+	memset(key.vrfaliasname, 0, sizeof(key.vrfaliasname));
 
 	return jhash(&key, sizeof(key), 0);
 }
