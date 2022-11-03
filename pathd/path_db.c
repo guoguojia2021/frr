@@ -103,6 +103,7 @@ static DB_FieldValue_List *new_Sidlist_DB_Data(char *key, char *field, char *val
 {
     DB_FieldValue_List *pstDataLst = NULL;
     pstDataLst = (DB_FieldValue_List *)malloc(sizeof(DB_FieldValue_List));
+    memset(pstDataLst, 0, sizeof(pstDataLst));
     if (!pstDataLst)
     {
         zlog_err("pstDataLst malloc failed");
@@ -165,7 +166,7 @@ static void release_Sidlist_DB_Data(DB_FieldValue_List *pstDataLst)
         if (dataTmp)
             free(dataTmp);
 
-		dataTmp = plistTmp;
+        dataTmp = plistTmp;
     }
 }
 
