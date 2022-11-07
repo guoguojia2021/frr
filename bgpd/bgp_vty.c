@@ -2014,6 +2014,49 @@ DEFUN (no_bgp_maxmed_onstartup,
 	return CMD_SUCCESS;
 }
 
+DEFUN (bgp_srv6vpn_compatible,
+       bgp_srv6vpn_compatible_cmd,
+       "bgp srv6vpn_compatible",
+       BGP_STR
+       "Trans srv6 sid with type 4 mode\n")
+{
+    VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+    if (bgp->inst_type != BGP_INSTANCE_TYPE_DEFAULT)
+    {
+		vty_out(vty,
+			"%% Only default bgp can be config for this\n");
+		return CMD_WARNING_CONFIG_FAILED;
+    }
+
+	/* If already set, return */
+	if (CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4)) {
+		return CMD_SUCCESS;
+	}
+
+	SET_FLAG(bgp->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4);
+	//thread_add_timer(bm->master, bgp_adv_to_all, bgp, 1, &bgp->t_adv_to_all);
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_srv6vpn_compatible, 
+       no_bgp_srv6vpn_compatible_cmd,
+       "no bgp srv6vpn_compatible",
+       NO_STR
+       BGP_STR
+       "Trans srv6 sid with type 4 mode\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	/* If already unset, return */
+	if (!CHECK_FLAG (bgp->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4))  {
+		return CMD_SUCCESS;
+	}
+
+	UNSET_FLAG(bgp->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4);
+    return CMD_SUCCESS;
+}
+
 static int bgp_global_update_delay_config_vty(struct vty *vty,
 					      uint16_t update_delay,
 					      uint16_t establish_wait)
@@ -17700,6 +17743,9 @@ int bgp_config_write(struct vty *vty)
 		if (CHECK_FLAG (bgp->alibgp_flags, BGP_FLAG_ADV_LOW_PRIORITY)) {
 			vty_out (vty, " bgp advertise-low-priority\n");
 		}
+        if (CHECK_FLAG (bgp->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4)) {
+            vty_out (vty, " bgp bgp srv6vpn_compatible\n");
+        }
 
 		/* BGP advertise-low-priority peer-up configuration */
 		if (bgp->peer_adv_lprio) {
@@ -18212,6 +18258,8 @@ void bgp_vty_init(void)
 	install_element(BGP_NODE, &no_bgp_adv_lprio_cmd);
 	install_element(BGP_NODE, &bgp_peer_adv_lprio_cmd);
 	install_element(BGP_NODE, &no_bgp_peer_adv_lprio_cmd);
+    install_element(BGP_NODE, &bgp_srv6vpn_compatible_cmd);
+    install_element(BGP_NODE, &no_bgp_srv6vpn_compatible_cmd);
 
 	/* bgp disable-ebgp-connected-nh-check */
 	install_element(BGP_NODE, &bgp_disable_connected_route_check_cmd);

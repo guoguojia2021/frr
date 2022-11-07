@@ -3269,6 +3269,8 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
         loc->sids = list_new();
         
         strncpy(loc->name, loc_name, len);
+        listnode_add(bgp->srv6_locators, loc);
+        hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
     }
     STREAM_GETW(s, loc->prefix.prefixlen);
     STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
@@ -3277,9 +3279,6 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
     STREAM_GETC(s, loc->node_bits_length);
     STREAM_GETC(s, loc->function_bits_length);
     STREAM_GETC(s, loc->argument_bits_length);
-    
-    listnode_add(bgp->srv6_locators, loc);
-    hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
     
     if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0)
     {

@@ -793,19 +793,26 @@ static void attr_show_all_iterator(struct hash_bucket *bucket, struct vty *vty)
 {
 	struct attr *attr = bucket->data;
 	char sid_str[BUFSIZ];
+    int type = 0;
 
 	vty_out(vty, "attr[%ld] nexthop %pI4\n", attr->refcnt, &attr->nexthop);
 
 	sid_str[0] = '\0';
 	if (attr->srv6_l3vpn)
+	{
 		inet_ntop(AF_INET6, &attr->srv6_l3vpn->sid, sid_str, BUFSIZ);
+        type = 5;
+	}
 	else if (attr->srv6_vpn)
+	{
 		inet_ntop(AF_INET6, &attr->srv6_vpn->sid, sid_str, BUFSIZ);
+        type = 4;
+	}
 
 	vty_out(vty,
-		"\tflags: %" PRIu64" distance: %u med: %u local_pref: %u origin: %u weight: %u label: %u sid: %s\n",
-		attr->flag, attr->distance, attr->med, attr->local_pref,
-		attr->origin, attr->weight, attr->label, sid_str);
+		"\tflags: %" PRIu64" med: %u local_pref: %u origin: %u weight: %u label: %u sidtype:%d sid: %s\n",
+		attr->flag, attr->med, attr->local_pref, attr->origin,
+		attr->weight, attr->label, type, sid_str);
 }
 
 void attr_show_all(struct vty *vty)
@@ -4007,7 +4014,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 			}
 		}
 	} else if (CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE))) {
-		/* æ·»åŠ æœ¬åœ°as */
+		/* Ìí¼Ó±¾µØas */
 		aspath = aspath_empty_get();
 		aspath = aspath_add_seq(aspath, peer->local_as);
 	} else if (peer->sort == BGP_PEER_CONFED) {

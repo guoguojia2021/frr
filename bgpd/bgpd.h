@@ -629,6 +629,7 @@ struct bgp {
 	uint32_t alibgp_flags;
 #define BGP_FLAG_ADV_LOW_PRIORITY         (1 << 0)
 #define BGP_FLAG_ADV_FORCE_UPDATES        (1 << 1)
+#define BGP_FLAG_SRV6_SERVICE_SID_TYPE4   (1 << 2)
 
 	/* BGP per AF peer count */
 	uint32_t af_peer_count[AFI_MAX][SAFI_MAX];
