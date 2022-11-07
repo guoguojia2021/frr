@@ -568,7 +568,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
     struct nexthop *nexthop;
 
     p.family = AF_INET6;
-    p.prefixlen = ctx->block_bits_length + ctx->block_bits_length + ctx->function_bits_length;
+    p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
     p.u.prefix6 = *result_sid;
 
     def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
@@ -664,7 +664,7 @@ int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
     struct prefix p = {};
 
     p.family = AF_INET6;
-    p.prefixlen = IPV6_MAX_BITLEN;
+    p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
     p.u.prefix6 = *result_sid;
 
     def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
@@ -718,13 +718,17 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
 	struct in6_addr result_sid = {0};
 	struct vrf *vrf;
 
-    combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
 
 	vrf = vrf_lookup_by_name(sid->vrfName);
 	if (!vrf)
 		return;
 
 	ctx.table = vrf->data.l.table_id;
+	ctx.block_bits_length = locator->block_bits_length;
+	ctx.node_bits_length = locator->node_bits_length;
+	ctx.function_bits_length = locator->function_bits_length;
+	ctx.argument_bits_length = locator->argument_bits_length;
 	act = sid->sidaction;
 
     zebra_route_del(&result_sid, vrf, act, &ctx);
