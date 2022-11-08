@@ -2579,9 +2579,9 @@ static int zclient_handle_error(ZAPI_CALLBACK_ARGS)
 
 static int link_params_set_value(struct stream *s, struct interface *ifp)
 {
-	uint8_t link_params_enabled;
+	uint8_t link_params_enabled, nb_ext_adm_grp;
 	struct if_link_params *iflp;
-	uint32_t bwclassnum;
+	uint32_t bwclassnum, bitmap_data;
 
 	iflp = if_link_params_get(ifp);
 
@@ -2610,6 +2610,15 @@ static int link_params_set_value(struct stream *s, struct interface *ifp)
 				__func__, bwclassnum, MAX_CLASS_TYPE);
 	}
 	STREAM_GETL(s, iflp->admin_grp);
+
+	/* Extended Administrative Group */
+	admin_group_clear(&iflp->ext_admin_grp);
+	STREAM_GETC(s, nb_ext_adm_grp);
+	for (size_t i = 0; i < nb_ext_adm_grp; i++) {
+		STREAM_GETL(s, bitmap_data);
+		admin_group_bulk_set(&iflp->ext_admin_grp, bitmap_data, i);
+	}
+
 	STREAM_GETL(s, iflp->rmt_as);
 	iflp->rmt_ip.s_addr = stream_get_ipv4(s);
 
@@ -2633,9 +2642,9 @@ struct interface *zebra_interface_link_params_read(struct stream *s,
 						   bool *changed)
 {
 	struct if_link_params *iflp;
-	struct if_link_params iflp_prev;
+	struct if_link_params iflp_prev = {0};
 	ifindex_t ifindex;
-	bool iflp_prev_set;
+	bool iflp_prev_set = false;
 
 	STREAM_GETL(s, ifindex);
 
@@ -2649,11 +2658,12 @@ struct interface *zebra_interface_link_params_read(struct stream *s,
 	}
 
 	iflp = if_link_params_get(ifp);
+
 	if (iflp) {
 		iflp_prev_set = true;
-		memcpy(&iflp_prev, ifp->link_params, sizeof(iflp_prev));
-	} else
-		iflp_prev_set = false;
+		admin_group_init(&iflp_prev.ext_admin_grp);
+		if_link_params_copy(&iflp_prev, iflp);
+	}
 
 	/* read the link_params from stream
 	 * Free ifp->link_params if the stream has no params
@@ -2662,22 +2672,28 @@ struct interface *zebra_interface_link_params_read(struct stream *s,
 	if (link_params_set_value(s, ifp) != 0)
 		goto stream_failure;
 
-	if (changed == NULL)
-		return ifp;
+	if (changed != NULL) {
+		iflp = if_link_params_get(ifp);
 
-	if (iflp_prev_set && iflp) {
-		if (memcmp(&iflp_prev, iflp, sizeof(iflp_prev)))
-			*changed = true;
-		else
+		if (iflp_prev_set && iflp) {
+			if (if_link_params_cmp(&iflp_prev, iflp))
+				*changed = false;
+			else
+				*changed = true;
+		} else if (!iflp_prev_set && !iflp)
 			*changed = false;
-	} else if (!iflp_prev_set && !iflp)
-		*changed = false;
-	else
-		*changed = true;
+		else
+			*changed = true;
+	}
+
+	if (iflp_prev_set)
+		admin_group_term(&iflp_prev.ext_admin_grp);
 
 	return ifp;
 
 stream_failure:
+	if (iflp_prev_set)
+		admin_group_term(&iflp_prev.ext_admin_grp);
 	return NULL;
 }
 
@@ -2726,7 +2742,7 @@ stream_failure:
 size_t zebra_interface_link_params_write(struct stream *s,
 					 struct interface *ifp)
 {
-	size_t w;
+	size_t w, nb_ext_adm_grp;
 	struct if_link_params *iflp;
 	int i;
 
@@ -2755,6 +2771,13 @@ size_t zebra_interface_link_params_write(struct stream *s,
 		w += stream_putf(s, iflp->unrsv_bw[i]);
 
 	w += stream_putl(s, iflp->admin_grp);
+
+	/* Extended Administrative Group */
+	nb_ext_adm_grp = admin_group_nb_words(&iflp->ext_admin_grp);
+	w += stream_putc(s, nb_ext_adm_grp);
+	for (size_t i = 0; i < nb_ext_adm_grp; i++)
+		stream_putl(s, admin_group_get_offset(&iflp->ext_admin_grp, i));
+
 	w += stream_putl(s, iflp->rmt_as);
 	w += stream_put_in_addr(s, &iflp->rmt_ip);
 
@@ -4965,11 +4988,11 @@ void zapi_route_init(struct zapi_route *api)
 
 	/* Initialize nexthop information */
 	api->nexthop_num = 0;
-    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
+    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
 
 	/* Initialize backup nexthop information */
 	api->backup_nexthop_num = 0;
-    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
+    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
 
 	/* Initialize other fields */
 	api->nhgid = 0;
