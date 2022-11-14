@@ -57,6 +57,9 @@ extern void vpn_leak_from_vrf_update(struct bgp *bgp_vpn, struct bgp *bgp_vrf,
 
 extern void vpn_leak_from_vrf_withdraw(struct bgp *bgp_vpn, struct bgp *bgp_vrf,
 				       struct bgp_path_info *path_vrf);
+extern void vrf_leak_from_vrf_update(struct bgp *to_vrf,	    /* to */
+			      struct bgp *from_vrf,	    /* from */
+			      struct bgp_path_info *path_vrf);
 
 extern void vpn_leak_from_vrf_withdraw_all(struct bgp *bgp_vpn,
 					   struct bgp *bgp_vrf, afi_t afi);
@@ -270,6 +273,30 @@ static inline bool is_route_injectable_into_vpn(struct bgp_path_info *pi)
 	if (pi->sub_type != BGP_ROUTE_IMPORTED ||
 	    !pi->extra ||
 	    !pi->extra->parent)
+		return true;
+
+	parent_pi = (struct bgp_path_info *)pi->extra->parent;
+	dest = parent_pi->net;
+	if (!dest)
+		return true;
+	table = bgp_dest_table(dest);
+	if (table &&
+	    (table->afi == AFI_IP || table->afi == AFI_IP6) &&
+	    table->safi == SAFI_MPLS_VPN)
+		return false;
+	return true;
+}
+
+/* Flag if the route is from VPN. */
+static inline bool is_route_from_vpn(struct bgp_path_info *pi)
+{
+	struct bgp_path_info *parent_pi;
+	struct bgp_table *table;
+	struct bgp_dest *dest;
+
+	if (pi->sub_type == BGP_ROUTE_IMPORTED &&
+	    pi->extra &&
+	    pi->extra->parent)
 		return true;
 
 	parent_pi = (struct bgp_path_info *)pi->extra->parent;

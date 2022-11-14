@@ -3239,6 +3239,12 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 		bgp->vpn_policy[afi].export_vrf = list_new();
 		bgp->vpn_policy[afi].export_vrf->del =
 			bgp_vrf_string_name_delete;
+        bgp->vpn_policy[afi].redistribute_import_vrf = list_new();
+		bgp->vpn_policy[afi].redistribute_import_vrf->del =
+			bgp_vrf_string_name_delete;
+        bgp->vpn_policy[afi].redistribute_export_vrf = list_new();
+		bgp->vpn_policy[afi].redistribute_export_vrf->del =
+			bgp_vrf_string_name_delete;
 	}
 	if (name)
 		bgp->name = XSTRDUP(MTYPE_BGP, name);
@@ -3887,6 +3893,10 @@ void bgp_free(struct bgp *bgp)
 			list_delete(&bgp->vpn_policy[afi].import_vrf);
 		if (bgp->vpn_policy[afi].export_vrf)
 			list_delete(&bgp->vpn_policy[afi].export_vrf);
+        if (bgp->vpn_policy[afi].redistribute_import_vrf)
+			list_delete(&bgp->vpn_policy[afi].redistribute_import_vrf);
+        if (bgp->vpn_policy[afi].redistribute_export_vrf)
+			list_delete(&bgp->vpn_policy[afi].redistribute_export_vrf);
 
 		dir = BGP_VPN_POLICY_DIR_FROMVPN;
 		if (bgp->vpn_policy[afi].rtlist[dir])
