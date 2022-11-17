@@ -103,12 +103,12 @@ static DB_FieldValue_List *new_Sidlist_DB_Data(char *key, char *field, char *val
 {
     DB_FieldValue_List *pstDataLst = NULL;
     pstDataLst = (DB_FieldValue_List *)malloc(sizeof(DB_FieldValue_List));
-    memset(pstDataLst, 0, sizeof(pstDataLst));
     if (!pstDataLst)
     {
         zlog_err("pstDataLst malloc failed");
         goto err_proc;
     }
+    memset(pstDataLst, 0, sizeof(DB_FieldValue_List));
 
     /*set table:key*/
     pstDataLst->key = strdup(key);
