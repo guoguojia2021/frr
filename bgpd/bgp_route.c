@@ -11096,8 +11096,17 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 				struct vrf *vrf;
 
 				vrf = vrf_lookup_by_id(nexthop_vrfid);
-				vty_out(vty, " vrf %s(%u)",
-					VRF_LOGNAME(vrf), nexthop_vrfid);
+
+				if (vrf->aliasName[0] != '\0')
+				{
+					vty_out(vty, " vrf %s(%u)",
+						vrf->aliasName, nexthop_vrfid);
+				}
+				else
+				{
+					vty_out(vty, " vrf %s(%u)",
+						VRF_LOGNAME(vrf), nexthop_vrfid);
+				}
 			}
 		}
 	}
