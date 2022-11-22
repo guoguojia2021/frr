@@ -427,16 +427,13 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 
 	/* Get peer configuration. */
 	STREAM_GETL(msg, bpc->bpc_recvinterval);
-	bpc->bpc_has_recvinterval =
-		(bpc->bpc_recvinterval != BPC_DEF_RECEIVEINTERVAL);
+	bpc->bpc_has_recvinterval = 1;
 
 	STREAM_GETL(msg, bpc->bpc_txinterval);
-	bpc->bpc_has_txinterval =
-		(bpc->bpc_txinterval != BPC_DEF_TRANSMITINTERVAL);
+	bpc->bpc_has_txinterval = 1;
 
 	STREAM_GETC(msg, bpc->bpc_detectmultiplier);
-	bpc->bpc_has_detectmultiplier =
-		(bpc->bpc_detectmultiplier != BPC_DEF_DETECTMULTIPLIER);
+	bpc->bpc_has_detectmultiplier = 1;
 
 	/* Read (single|multi)hop and its options. */
 	STREAM_GETC(msg, bpc->bpc_mhop);

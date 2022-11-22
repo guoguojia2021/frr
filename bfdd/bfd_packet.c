@@ -716,6 +716,34 @@ static void cp_debug(bool mhop, struct sockaddr_any *peer,
 		   mhop ? "yes" : "no", peerstr, localstr, portstr, vrfstr);
 }
 
+static void bfd_stop_xmt_delay_timer(struct bfd_session *bs)
+{
+	if (bs && bs->xmttimer_ev && bs->ses_state == PTM_BFD_UP
+	    && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE)))
+	{
+		if (!bs->xmttimer_delay)
+		{
+			thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
+		}
+		else
+		{
+			THREAD_OFF(bs->xmttimer_delay);
+			thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
+		}
+	}
+}
+
+static bool bfd_config_timers_changed(struct bfd_session *bs, uint64_t xmt_TO, uint64_t detect_TO, uint8_t detect_mult)
+{
+    if (bs->detect_mult == detect_mult 
+	    && bs->xmt_TO == xmt_TO
+		&& bs->detect_TO == detect_TO)
+	{
+		return false;
+	}
+	return true;
+}
+
 int bfd_recv_cb(struct thread *t)
 {
 	int sd = THREAD_FD(t);
@@ -730,6 +758,9 @@ int bfd_recv_cb(struct thread *t)
 	uint8_t msgbuf[1516];
 	struct interface *ifp = NULL;
 	struct bfd_vrf_global *bvrf = THREAD_ARG(t);
+	uint64_t cur_xmt_TO;
+	uint64_t cur_detect_TO;
+	uint8_t cur_detect_mult;
 
 	if (bvrf)
 		vrfid = bvrf->vrf->vrf_id;
@@ -897,6 +928,11 @@ int bfd_recv_cb(struct thread *t)
 		/* Disable pooling. */
 		bfd->polling = 0;
 
+        /* get current bfd param */
+        cur_xmt_TO = bfd->xmt_TO;
+		cur_detect_TO = bfd->detect_TO;
+		cur_detect_mult = bfd->detect_mult;
+		
 		/* Handle poll finalization. */
 		bs_final_handler(bfd);
         /*try to send to hwbfd*/
@@ -905,6 +941,12 @@ int bfd_recv_cb(struct thread *t)
         {
             bfd_recvtimer_delete(bfd);
         }
+        
+		/* if bfd config interval is not changed , frr stop xmttimer_ev*/
+		if (!bfd_config_timers_changed(bfd, cur_xmt_TO, cur_detect_TO, cur_detect_mult))
+		{
+			bfd_stop_xmt_delay_timer(bfd);
+		}
 	} else {
 		/* Received a packet, lets update the receive timer. */
 		bfd_recvtimer_update(bfd);
@@ -938,6 +980,11 @@ int bfd_recv_cb(struct thread *t)
 	 * RFC 5880, Section 6.5.
 	 */
 	if (BFD_GETPBIT(cp->flags)) {
+        /* get current bfd param */
+        cur_xmt_TO = bfd->xmt_TO;
+		cur_detect_TO = bfd->detect_TO;
+		cur_detect_mult = bfd->detect_mult;
+
 		/* We are finalizing a poll negotiation. */
 		bs_final_handler(bfd);
 
@@ -949,6 +996,12 @@ int bfd_recv_cb(struct thread *t)
         {
             bfd_recvtimer_delete(bfd);
         }
+
+		/* if bfd config interval is not changed , frr stop xmttimer_ev*/
+		if (!bfd_config_timers_changed(bfd, cur_xmt_TO, cur_detect_TO, cur_detect_mult))
+		{
+			bfd_stop_xmt_delay_timer(bfd);
+		}
 	}
 
 	return 0;
