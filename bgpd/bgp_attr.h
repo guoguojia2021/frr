@@ -479,6 +479,8 @@ extern void bgp_packet_mpunreach_end(struct stream *s, size_t attrlen_pnt);
 
 extern bgp_attr_parse_ret_t bgp_attr_nexthop_valid(struct peer *peer,
 						   struct attr *attr);
+void srv6_l3vpn_unintern(struct bgp_attr_srv6_l3vpn **l3vpnp);
+void srv6_vpn_unintern(struct bgp_attr_srv6_vpn **vpnp);
 
 static inline int bgp_rmap_nhop_changed(uint32_t out_rmap_flags,
 					uint32_t in_rmap_flags)

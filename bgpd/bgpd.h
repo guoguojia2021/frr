@@ -279,6 +279,12 @@ typedef enum {
 	BGP_VPN_POLICY_DIR_MAX = 3
 } vpn_policy_direction_t;
 
+struct vrf_redist {
+	char vrfname[VRF_ALIASNAMESIZ + 1];
+
+	/* BGP redistribute route-map.  */
+	struct bgp_rmap rmap;
+};
 typedef enum {
 	BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN = 0,
 	BGP_EVPN_POLICY_DIR_MAX = 1

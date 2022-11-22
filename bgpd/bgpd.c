@@ -3121,6 +3121,22 @@ static void bgp_vrf_string_name_delete(void *data)
 	XFREE(MTYPE_TMP, vname);
 }
 
+/*
+ * On shutdown we call the cleanup function which
+ * does a free of the link list nodes,  free up
+ * the data we are pointing at too.
+ */
+static void bgp_redistribute_import_vrf_delete(void *data)
+{
+    struct vrf_redist *tmp_vrf_red = data;
+
+    if (tmp_vrf_red->rmap.name)
+    {
+        XFREE(MTYPE_ROUTE_MAP_NAME, tmp_vrf_red->rmap.name);
+        route_map_counter_decrement(tmp_vrf_red->rmap.map);
+    }
+    XFREE(MTYPE_TMP, tmp_vrf_red);
+}
 /* BGP instance creation by `router bgp' commands. */
 static struct bgp *bgp_create(as_t *as, const char *name,
 			      enum bgp_instance_type inst_type)
@@ -3241,7 +3257,7 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 			bgp_vrf_string_name_delete;
         bgp->vpn_policy[afi].redistribute_import_vrf = list_new();
 		bgp->vpn_policy[afi].redistribute_import_vrf->del =
-			bgp_vrf_string_name_delete;
+			bgp_redistribute_import_vrf_delete;
         bgp->vpn_policy[afi].redistribute_export_vrf = list_new();
 		bgp->vpn_policy[afi].redistribute_export_vrf->del =
 			bgp_vrf_string_name_delete;

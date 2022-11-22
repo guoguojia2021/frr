@@ -9352,109 +9352,150 @@ DEFPY(bgp_imexport_vrf, bgp_imexport_vrf_cmd,
 
 	return CMD_SUCCESS;
 }
+/* Redistribute vrf with route-map specification.  */
+bool bgp_redistribute_vrf_rmap_set(struct vrf_redist *red, const char *name,
+			       struct route_map *route_map)
+{
+	if (red->rmap.name && (strcmp(red->rmap.name, name) == 0))
+		return false;
+
+	XFREE(MTYPE_ROUTE_MAP_NAME, red->rmap.name);
+	/* Decrement the count for existing routemap and
+	 * increment the count for new route map.
+	 */
+	route_map_counter_decrement(red->rmap.map);
+	red->rmap.name = XSTRDUP(MTYPE_ROUTE_MAP_NAME, name);
+	red->rmap.map = route_map;
+	route_map_counter_increment(red->rmap.map);
+
+	return true;
+}
 
 DEFPY(bgp_redistribute_vrf, bgp_redistribute_vrf_cmd,
-      "[no] redistribute vrf VIEWVRFNAME$import_name",
+      "[no] redistribute vrf VIEWVRFNAME$import_name [route-map RMAP$rmap_str]",
       NO_STR
       "Redistribute routes from another VRF\n"
       "VRF to import from\n"
-      "The name of the VRF\n")
+      "The name of the VRF\n"
+      "route-map\n"
+      "The name of the route-map\n")
 {
-	VTY_DECLVAR_CONTEXT(bgp, bgp);
-	struct listnode *node;
-	struct bgp *vrf_bgp, *bgp_default;
-	int32_t ret = 0;
-	as_t as = bgp->as;
-	bool remove = false;
-	int32_t idx = 0;
-	char *vname;
-	enum bgp_instance_type bgp_type = BGP_INSTANCE_TYPE_VRF;
-	safi_t safi;
-	afi_t afi;
+    VTY_DECLVAR_CONTEXT(bgp, bgp);
+    struct listnode *node;
+    struct bgp *vrf_bgp, *bgp_default;
+    int32_t ret = 0;
+    as_t as = bgp->as;
+    bool remove = false;
+    bool hasRouteMap = false;
+    int32_t idx = 0;
+    char *vname;
+    enum bgp_instance_type bgp_type = BGP_INSTANCE_TYPE_VRF;
+    safi_t safi;
+    afi_t afi;
+    struct vrf_redist *tmpVrfRed = NULL;
+    struct route_map *map;
 
-	if (import_name == NULL) {
-		vty_out(vty, "%% Missing import name\n");
-		return CMD_WARNING;
-	}
+    if (import_name == NULL) {
+        vty_out(vty, "%% Missing import name\n");
+        return CMD_WARNING;
+    }
 
-	if (strcmp(import_name, "route-map") == 0) {
-		vty_out(vty, "%% Must include route-map name\n");
-		return CMD_WARNING;
-	}
+    if (strcmp(import_name, "route-map") == 0) {
+        vty_out(vty, "%% Must include route-map name\n");
+        return CMD_WARNING;
+    }
 
-	if (argv_find(argv, argc, "no", &idx))
-		remove = true;
+    if (argv_find(argv, argc, "no", &idx))
+        remove = true;
 
-	afi = vpn_policy_getafi(vty, bgp, true);
-	if (afi == AFI_MAX)
-		return CMD_WARNING_CONFIG_FAILED;
+    if (rmap_str)
+        hasRouteMap = true;
 
-	safi = bgp_node_safi(vty);
+    afi = vpn_policy_getafi(vty, bgp, true);
+    if (afi == AFI_MAX)
+        return CMD_WARNING_CONFIG_FAILED;
 
-	if (((BGP_INSTANCE_TYPE_DEFAULT == bgp->inst_type)
-	     && (strcmp(import_name, VRF_DEFAULT_NAME) == 0))
-	    || (bgp->name && (strcmp(import_name, bgp->name) == 0))) {
-		vty_out(vty, "%% Cannot %s vrf %s into itself\n",
-			remove ? "unimport" : "import", import_name);
-		return CMD_WARNING;
-	}
+    safi = bgp_node_safi(vty);
 
-	vrf_bgp = bgp_lookup_by_name(import_name);
-	if (!vrf_bgp) {
-		if (strcmp(import_name, VRF_DEFAULT_NAME) == 0)
-		{
-			vty_out(vty,
-				"Default VRF can not be redistributed\n",
-				import_name);
-			return CMD_WARNING;
-		}
-		else
-			/* Auto-create assuming the same AS */
-			ret = bgp_get_vty(&vrf_bgp, &as, import_name, bgp_type);
+    if (((BGP_INSTANCE_TYPE_DEFAULT == bgp->inst_type)
+         && (strcmp(import_name, VRF_DEFAULT_NAME) == 0))
+        || (bgp->name && (strcmp(import_name, bgp->name) == 0))) {
+        vty_out(vty, "%% Cannot %s vrf %s into itself\n",
+            remove ? "unimport" : "import", import_name);
+        return CMD_WARNING;
+    }
 
-		if (ret) {
-			vty_out(vty,
-				"VRF %s is not configured as a bgp instance\n",
-				import_name);
-			return CMD_WARNING;
-		}
-	}
+    vrf_bgp = bgp_lookup_by_name(import_name);
+    if (!vrf_bgp) {
+        if (strcmp(import_name, VRF_DEFAULT_NAME) == 0)
+        {
+            vty_out(vty,
+                "Default VRF can not be redistributed\n",
+                import_name);
+            return CMD_WARNING;
+        }
+        else
+            /* Auto-create assuming the same AS */
+            ret = bgp_get_vty(&vrf_bgp, &as, import_name, bgp_type);
 
-	if (remove) {
-		for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_import_vrf, node,
-					  vname)) {
-			if (strcmp(vname, import_name) == 0)
-			{
+        if (ret) {
+            vty_out(vty,
+                "VRF %s is not configured as a bgp instance\n",
+                import_name);
+            return CMD_WARNING;
+        }
+    }
+
+    if (remove) {
+        for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_import_vrf, node,
+                      tmpVrfRed)) {
+            if (strcmp(&tmpVrfRed->vrfname, import_name) == 0)
+            {
                 vrf_leak_from_vrf_withdraw_all(bgp, vrf_bgp, afi);
-                listnode_delete(bgp->vpn_policy[afi].redistribute_import_vrf, vname);
-                XFREE(MTYPE_TMP, vname);
+                listnode_delete(bgp->vpn_policy[afi].redistribute_import_vrf, tmpVrfRed);
+                if (tmpVrfRed->rmap.name)
+                {
+                    XFREE(MTYPE_ROUTE_MAP_NAME, tmpVrfRed->rmap.name);
+                    route_map_counter_decrement(tmpVrfRed->rmap.map);
+                }
+                XFREE(MTYPE_TMP, tmpVrfRed);
                 for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_export_vrf, node,
-					  vname)) {
-        			if (strcmp(vname, bgp->name) == 0)
-        			{
+                      vname)) {
+                    if (strcmp(vname, bgp->name) == 0)
+                    {
                         listnode_delete(bgp->vpn_policy[afi].redistribute_export_vrf, vname);
                         XFREE(MTYPE_TMP, vname);
-        			}
-        		}
-				return CMD_SUCCESS;
-			}
-		}
-	} else {
-		/* Already importing from "import_vrf"? */
-		for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_import_vrf, node,
-					  vname)) {
-			if (strcmp(vname, import_name) == 0)
-				return CMD_WARNING;
-		}
-        vname = XSTRDUP(MTYPE_TMP, import_name);
-        listnode_add(bgp->vpn_policy[afi].redistribute_import_vrf, vname);
+                    }
+                }
+                return CMD_SUCCESS;
+            }
+        }
+    } else {
+        /* Already importing from "import_vrf"? */
+        for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_import_vrf, node,
+                      tmpVrfRed)) {
+            if (strcmp(&tmpVrfRed->vrfname, import_name) == 0)
+            {
+                vty_out(vty,
+                "%% error: already redistribute this vrf %s\n", import_name);
+                return CMD_WARNING;
+            }
+        }
+        tmpVrfRed = XCALLOC(MTYPE_TMP, sizeof(struct vrf_redist));
+        strncpy(tmpVrfRed->vrfname, import_name, VRF_ALIASNAMESIZ);
+        if (hasRouteMap)
+        {
+            map = route_map_lookup_warn_noexist(vty, rmap_str);
+            bgp_redistribute_vrf_rmap_set(tmpVrfRed, rmap_str, map);
+        }
+        listnode_add(bgp->vpn_policy[afi].redistribute_import_vrf, tmpVrfRed);
         vname = XSTRDUP(MTYPE_TMP, bgp->name);
         listnode_add(vrf_bgp->vpn_policy[afi].redistribute_export_vrf, vname);
 
-		vrf_leak_from_vrf_update_all(bgp, vrf_bgp, afi);
-	}
+        vrf_leak_from_vrf_update_all(bgp, vrf_bgp, afi);
+    }
 
-	return CMD_SUCCESS;
+    return CMD_SUCCESS;
 }
 
 /* This command is valid only in a bgp vrf instance or the default instance */
@@ -17544,6 +17585,7 @@ static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 	struct peer_group *group;
 	struct listnode *node, *nnode;
     char *name;
+    struct vrf_redist *tmp_vrf_red = NULL;
 
 	vty_frame(vty, " !\n address-family ");
 	if (afi == AFI_IP) {
@@ -17630,8 +17672,14 @@ static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 		}
         for (ALL_LIST_ELEMENTS_RO(
 	        bgp->vpn_policy[afi].redistribute_import_vrf, node,
-	        name))
-			vty_out(vty, "  redistribute vrf %s\n", name);
+	        tmp_vrf_red))
+        {
+			vty_out(vty, "  redistribute vrf %s", tmp_vrf_red->vrfname);
+            if (tmp_vrf_red->rmap.name)
+                vty_out(vty, " route-map %s\n", tmp_vrf_red->rmap.name);
+            else
+                vty_out(vty, "\n");
+        }
 	}
 
 	vty_endframe(vty, " exit-address-family\n");

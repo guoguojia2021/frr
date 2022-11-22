@@ -469,7 +469,7 @@ srv6_l3vpn_intern(struct bgp_attr_srv6_l3vpn *l3vpn)
 	return find;
 }
 
-static void srv6_l3vpn_unintern(struct bgp_attr_srv6_l3vpn **l3vpnp)
+void srv6_l3vpn_unintern(struct bgp_attr_srv6_l3vpn **l3vpnp)
 {
 	struct bgp_attr_srv6_l3vpn *l3vpn = *l3vpnp;
 
@@ -504,7 +504,7 @@ static struct bgp_attr_srv6_vpn *srv6_vpn_intern(struct bgp_attr_srv6_vpn *vpn)
 	return find;
 }
 
-static void srv6_vpn_unintern(struct bgp_attr_srv6_vpn **vpnp)
+void srv6_vpn_unintern(struct bgp_attr_srv6_vpn **vpnp)
 {
 	struct bgp_attr_srv6_vpn *vpn = *vpnp;
 
