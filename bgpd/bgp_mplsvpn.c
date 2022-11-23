@@ -928,6 +928,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 			nh_valid = bgp_find_or_add_nexthop(
 				bgp, bgp_nexthop, afi, safi, bpi, NULL, 0, p);
 
+#if 0
 		/*
 		 * If you are using SRv6 VPN instead of MPLS, it need to check
 		 * the SID allocation. If the sid is not allocated, the rib
@@ -938,7 +939,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 			bgp_path_info_unset_flag(bn, bpi, BGP_PATH_VALID);
 			nh_valid = false;
 		}
-
+#endif
 		if (debug)
 			zlog_debug("%s: nexthop is %svalid (in vrf %s)",
 				__func__, (nh_valid ? "" : "not "),
@@ -2191,6 +2192,9 @@ static void vpn_policy_routemap_update(struct bgp *bgp, const char *rmap_name)
 	int debug = BGP_DEBUG(vpn, VPN_LEAK_RMAP_EVENT);
 	afi_t afi;
 	struct route_map *rmap;
+    struct listnode *node;
+    struct vrf_redist *tmpVrfRed = NULL;
+    struct bgp *bgp_vrf = NULL;
 
 	if (bgp->inst_type != BGP_INSTANCE_TYPE_DEFAULT
 	    && bgp->inst_type != BGP_INSTANCE_TYPE_VRF) {
@@ -2252,6 +2256,21 @@ static void vpn_policy_routemap_update(struct bgp *bgp, const char *rmap_name)
 			vpn_leak_postchange(BGP_VPN_POLICY_DIR_FROMVPN, afi,
 					    bgp_get_default(), bgp);
 		}
+
+        for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_import_vrf, node,
+                              tmpVrfRed)) 
+        {
+            if (tmpVrfRed->rmap.name && strcmp(tmpVrfRed->rmap.name, rmap_name) == 0)
+            {
+                bgp_vrf = bgp_lookup_by_name(tmpVrfRed->vrfname);
+                if (bgp_vrf)
+                {
+                    vrf_leak_from_vrf_withdraw_all(bgp, bgp_vrf, afi);
+                    tmpVrfRed->rmap.map = rmap;
+                    vrf_leak_from_vrf_update_all(bgp, bgp_vrf, afi);
+                }
+            }
+        }
 	}
 	if (bgp->evpn_policy.rmap_name[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN] &&
 		!strcmp(rmap_name, bgp->evpn_policy.rmap_name[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN])) {
