@@ -628,11 +628,11 @@ static void show_route_nexthop_helper(struct vty *vty,
 		break;
 
 	case NEXTHOP_TYPE_IFINDEX:
-        if (CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
-        {
-            vty_out(vty, " is directly connected, %s", nexthop->nh_srv6->seg6local_ctx.vrfName);
-            break;
-        }
+		if (re && nexthop->nh_srv6
+			&& CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
+			vty_out(vty, " is directly connected, %s", nexthop->nh_srv6->seg6local_ctx.vrfName);
+			break;
+		}
 		vty_out(vty, " is directly connected, %s",
 			ifindex2ifname(nexthop->ifindex,
 				       nexthop->vrf_id));
