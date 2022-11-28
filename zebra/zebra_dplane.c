@@ -5116,9 +5116,70 @@ static void kernel_dplane_log_detail(struct zebra_dplane_ctx *ctx)
 	}
 }
 
+static int kernel_dplane_process_one_err_result(struct zebra_dplane_ctx *ctx)
+{
+	struct dplane_ctx_q work_list;
+	TAILQ_INIT(&work_list);
+	enum zebra_dplane_result res;
+	struct zebra_dplane_ctx *ictx, *tctx;
+
+	TAILQ_INSERT_TAIL(&work_list, ctx, zd_q_entries);
+
+	kernel_update_multi(&work_list);
+	TAILQ_FOREACH_SAFE (ictx, &work_list, zd_q_entries, tctx) 
+	{
+		if (res = dplane_ctx_get_status(ictx) == ZEBRA_DPLANE_REQUEST_FAILURE )
+		{
+			zlog_err("%s: re-add res=%d,%d,op=%u,seq=%u,pid=%u ", __func__, res, dplane_ctx_get_op(ctx),
+					dplane_ctx_get_ns(ctx)->nls.seq, dplane_ctx_get_ns(ctx)->nls.snl.nl_pid);
+			TAILQ_REMOVE(&work_list, ictx, zd_q_entries);
+			return -1;
+		}
+		else
+		{
+			TAILQ_REMOVE(&work_list, ictx, zd_q_entries);
+		}
+	}
+	return 0;
+}
+
+static void kernel_dplane_process_err_result(struct zebra_dplane_ctx *ctx)
+{
+	char buf[PREFIX_STRLEN];
+
+	enum zebra_dplane_result res = dplane_ctx_get_status(ctx);
+
+	switch (dplane_ctx_get_op(ctx)) 
+	{
+	case DPLANE_OP_MAC_INSTALL:
+		prefix_mac2str(dplane_ctx_mac_get_addr(ctx), buf,sizeof(buf));
+		zlog_info("%s: re-add res=%d,op=%u,mac=%s,seq=%u,pid=%u ", __func__, res, dplane_ctx_get_op(ctx),buf,
+				dplane_ctx_get_ns(ctx)->nls.seq, dplane_ctx_get_ns(ctx)->nls.snl.nl_pid);
+
+		if (kernel_dplane_process_one_err_result(ctx) == -1)
+		{
+			zlog_info("%s: err result process again", __func__);
+			kernel_dplane_process_one_err_result(ctx);
+		}
+		break;
+	/* other dplane op should be adapt and tested. */ 
+	default:
+		break;
+	}
+}
+
 static void kernel_dplane_handle_result(struct zebra_dplane_ctx *ctx)
 {
 	enum zebra_dplane_result res = dplane_ctx_get_status(ctx);
+
+	if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
+	{
+		if (res != ZEBRA_DPLANE_REQUEST_SUCCESS )
+		{
+			zlog_err("%s: ctx res message ctx res=%d,op=%u,seq=%u,pid=%u ", __func__, res, dplane_ctx_get_op(ctx),
+					dplane_ctx_get_ns(ctx)->nls.seq, dplane_ctx_get_ns(ctx)->nls.snl.nl_pid);
+		}
+	}
 
 	switch (dplane_ctx_get_op(ctx)) {
 
@@ -5265,6 +5326,11 @@ static void kernel_dplane_handle_result(struct zebra_dplane_ctx *ctx)
 			atomic_fetch_add_explicit(&zdplane_info.dg_other_errors,
 						  1, memory_order_relaxed);
 		break;
+	}
+
+	if (res != ZEBRA_DPLANE_REQUEST_SUCCESS)
+	{
+		kernel_dplane_process_err_result(ctx);
 	}
 }
 
