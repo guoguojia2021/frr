@@ -190,6 +190,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	BGP_TIMER_OFF(peer->t_connect_check_r);
 	BGP_TIMER_OFF(peer->t_connect_check_w);
 	bgp_peer_adv_lprio_t_off(peer);
+	BGP_TIMER_OFF(peer->t_advertise_delay);
 	BGP_TIMER_OFF(from_peer->t_routeadv);
 	BGP_TIMER_OFF(from_peer->t_connect);
 	BGP_TIMER_OFF(from_peer->t_delayopen);
@@ -197,6 +198,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	BGP_TIMER_OFF(from_peer->t_connect_check_w);
 	BGP_TIMER_OFF(from_peer->t_process_packet);
 	bgp_peer_adv_lprio_t_off(from_peer);
+	BGP_TIMER_OFF(from_peer->t_advertise_delay);
 
 	/*
 	 * At this point in time, it is possible that there are packets pending
@@ -388,6 +390,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case Connect:
@@ -406,6 +409,7 @@ void bgp_timer_set(struct peer *peer)
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case Active:
@@ -429,6 +433,7 @@ void bgp_timer_set(struct peer *peer)
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case OpenSent:
@@ -445,6 +450,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case OpenConfirm:
@@ -465,6 +471,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case Established:
@@ -494,6 +501,7 @@ void bgp_timer_set(struct peer *peer)
 
 		BGP_TIMER_OFF(peer->t_pmax_restart);
 		BGP_TIMER_OFF(peer->t_refresh_stalepath);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 	/* fallthru */
 	case Clearing:
 		BGP_TIMER_OFF(peer->t_start);
@@ -503,6 +511,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
+		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 	case BGP_STATUS_MAX:
 		flog_err(EC_LIB_DEVELOPMENT,
@@ -1332,6 +1341,96 @@ static void bgp_update_delay_process_status_change(struct peer *peer)
 	}
 }
 
+
+/* Do the post-processing needed when bgp comes out of the read-only mode
+   on ending the update delay. */
+void bgp_advertise_delay_end(struct peer *peer)
+{
+	/* Reset advertise-delay related state */
+	peer->advertise_delay_over = 1;
+	frr_timestamp(3, peer->advertise_delay_end_time,
+			 sizeof(peer->advertise_delay_end_time));
+
+	peer->advertise_update_hold = 0;
+	zlog_info( "%s: end advertise delay time(%s)",
+			peer->host, peer->advertise_delay_end_time);
+	BGP_TIMER_OFF(peer->t_routeadv);
+	BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
+}
+
+/* The update delay timer expiry callback. */
+static int bgp_advertise_delay_timer(struct thread *thread)
+{
+	struct peer *peer;
+
+	zlog_info("advertise delay ended - timer expired.");
+
+	peer = THREAD_ARG(thread);
+	BGP_TIMER_OFF(peer->t_advertise_delay);
+	bgp_advertise_delay_end(peer);
+
+	return 0;
+}
+
+/* Steps to begin the advertise delay:
+     - initialize queues if needed
+     - stop the queue processing
+     - start the timer */
+static void bgp_advertise_delay_begin(struct peer *peer)
+{
+	struct listnode *node, *nnode;
+
+	/* Stop the processing of queued work. Enqueue shall continue */
+	peer->advertise_update_hold = 1;
+	peer->advertise_delay_over = 0;
+
+	/* Start the update-delay timer */
+	thread_add_timer(bm->master, bgp_advertise_delay_timer, peer,
+			 peer->bgp->v_advertise_delay, &peer->t_advertise_delay);
+
+	frr_timestamp(3, peer->advertise_delay_begin_time,
+			 sizeof(peer->advertise_delay_begin_time));
+	zlog_info("%s: begin advertise delay time(%s)",
+			peer->host, peer->advertise_delay_begin_time);
+}
+
+bool bgp_advertise_delay_active(struct peer *peer)
+{
+	if (peer->t_advertise_delay)
+		return true;
+	return false;
+}
+
+bool bgp_advertise_delay_configured(struct bgp *bgp)
+{
+	if (bgp->v_advertise_delay)
+		return true;
+
+	return false;
+}
+
+static bool bgp_advertise_delay_applicable(struct peer *peer)
+{
+	/* advertise_delay_over flag should be reset (set to 0) for any new
+	   applicability of the advertise-delay during BGP process lifetime.
+	   And it should be set after an occurence of the advertise-delay is
+	   over)*/
+	if (!peer->advertise_delay_over)
+		return true;
+	return false;
+}
+
+static void bgp_advertise_delay_process_status_change(struct peer *peer)
+{
+	if (peer->status == Established) {
+		bgp_advertise_delay_begin(peer);
+		zlog_info(
+			"Begin read-only mode - advertise-delay timer %d seconds",
+			peer->bgp->v_advertise_delay);
+	}
+}
+
+
 /* Called after event occurred, this function change status and reset
    read/write and timer thread. */
 void bgp_fsm_change_status(struct peer *peer, int status)
@@ -1426,6 +1525,11 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 	if (bgp_update_delay_configured(peer->bgp)
 	    && bgp_update_delay_applicable(peer->bgp))
 		bgp_update_delay_process_status_change(peer);
+
+	/* If advertise-delay processing is applicable, do the necessary. */
+	if (bgp_advertise_delay_configured(peer->bgp)
+	    && bgp_advertise_delay_applicable(peer))
+		bgp_advertise_delay_process_status_change(peer);
 
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug("%s went from %s to %s", peer->host,
@@ -1599,6 +1703,7 @@ int bgp_stop(struct peer *peer)
 	BGP_TIMER_OFF(peer->t_routeadv);
 	BGP_TIMER_OFF(peer->t_delayopen);
 	bgp_peer_adv_lprio_t_off(peer);
+	BGP_TIMER_OFF(peer->t_advertise_delay);
 
 	/* Clear input and output buffer.  */
 	frr_with_mutex(&peer->io_mtx) {
@@ -2350,7 +2455,7 @@ static int bgp_establish(struct peer *peer)
 	 * end
 	 * of read-only mode.
 	 */
-	if (!bgp_update_delay_active(peer->bgp)) {
+	if (!bgp_update_delay_active(peer->bgp) && !bgp_advertise_delay_active(peer)) {
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
 	}

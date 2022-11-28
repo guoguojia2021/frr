@@ -3212,6 +3212,7 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 	}
 
 	bgp->v_update_delay = bm->v_update_delay;
+	bgp->v_advertise_delay = bm->v_advertise_delay;
 	bgp->v_establish_wait = bm->v_establish_wait;
 	bgp->default_local_pref = BGP_DEFAULT_LOCAL_PREF;
 	bgp->default_subgroup_pkt_queue_max =
@@ -8135,6 +8136,7 @@ void bgp_master_init(struct thread_master *master, const int buffer_size,
 	bm->t_rmap_update = NULL;
 	bm->rmap_update_timer = RMAP_DEFAULT_UPDATE_TIMER;
 	bm->v_update_delay = BGP_UPDATE_DELAY_DEF;
+	bm->v_advertise_delay = BGP_ADVERTISE_DELAY_DEF;
 	bm->v_establish_wait = BGP_UPDATE_DELAY_DEF;
 	bm->terminating = false;
 	bm->socket_buffer = buffer_size;

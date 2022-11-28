@@ -2089,6 +2089,12 @@ static int bgp_global_update_delay_config_vty(struct vty *vty,
 		return CMD_WARNING;
 	}
 
+	if (bm->v_advertise_delay != BGP_ADVERTISE_DELAY_DEF) {
+		vty_out(vty,
+			"%%Failed: global update-delay conflict with advertise-delay\n");
+		return CMD_WARNING;
+	}
+
 	if (!establish_wait) { /* update-delay <delay> */
 		bm->v_update_delay = update_delay;
 		bm->v_establish_wait = bm->v_update_delay;
@@ -2209,6 +2215,11 @@ static int bgp_update_delay_config_vty(struct vty *vty, const char *update_delay
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
+	if (bm->v_advertise_delay) {
+		vty_out(vty,
+			"%%Failed: per-vrf update-delay config not permitted with global update-delay\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
 
 	if (!establish_wait) /* update-delay <delay> */
 	{
@@ -2305,7 +2316,6 @@ DEFPY (no_bgp_update_delay,
 {
 	return bgp_update_delay_deconfig_vty(vty);
 }
-
 
 static int bgp_wpkt_quanta_config_vty(struct vty *vty, uint32_t quanta,
 				      bool set)
@@ -14532,6 +14542,55 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 				: "off", p->fd);
 	}
 
+	if (bgp_advertise_delay_configured(p->bgp)) {
+		if (use_json) {
+			json_object_int_add(
+				json_neigh, "advertiseDelayLimit",
+				p->bgp->v_advertise_delay);
+
+			if (bgp_advertise_delay_active(p)) {
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayFirstNeighbor",
+					p->advertise_delay_begin_time);
+				json_object_boolean_true_add(
+					json_neigh,
+					"advertiseDelayInProgress");
+			} else {
+				if (p->advertise_delay_over) {
+					json_object_string_add(
+						json_neigh,
+						"advertiseDelayFirstNeighbor",
+						p->advertise_delay_begin_time);
+					json_object_string_add(
+						json_neigh,
+						"advertiseDelayBestpathResumed",
+						p->advertise_delay_end_time);
+				}
+			}
+		} else {
+			vty_out(vty,
+				"Read-only mode advertise-delay limit: %d seconds\n",
+				p->bgp->v_advertise_delay);
+			if (bgp_advertise_delay_active(p)) {
+				vty_out(vty,
+					"  Neighbor established: %s\n",
+					p->advertise_delay_begin_time);
+				vty_out(vty,
+					"  Delay in progress\n");
+			} else {
+				if (p->advertise_delay_over) {
+					vty_out(vty,
+						"  Neighbor established: %s\n",
+						p->advertise_delay_begin_time);
+					vty_out(vty,
+						"  Best-paths resumed: %s\n",
+						p->advertise_delay_end_time);
+				}
+			}
+		}
+	}
+
 	if (p->notify.code == BGP_NOTIFY_OPEN_ERR
 	    && p->notify.subcode == BGP_NOTIFY_OPEN_UNSUP_CAPBL)
 		bgp_capability_vty_out(vty, p, use_json, json_neigh);
@@ -16582,6 +16641,94 @@ DEFUN(no_neighbor_tcp_mss, no_neighbor_tcp_mss_cmd,
 	return peer_tcp_mss_vty(vty, argv[peer_index]->arg, NULL);
 }
 
+
+static int bgp_global_advertise_delay_config_vty(struct vty *vty,
+					      uint16_t advertise_delay)
+{
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+	bool vrf_cfg = false;
+
+	/*
+	 * See if update-delay is set per-vrf and warn user to delete it
+	 * Note that we only need to check this if this is the first time
+	 * setting the global config.
+	 */
+	if (bm->v_update_delay == BGP_UPDATE_DELAY_DEF) {
+		for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
+			if (bgp->v_update_delay != BGP_UPDATE_DELAY_DEF) {
+				vty_out(vty,
+					"%% update-delay configuration found in vrf %s\n",
+					bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT
+						? VRF_DEFAULT_NAME
+						: bgp->name);
+				vrf_cfg = true;
+			}
+		}
+	}
+
+	if (vrf_cfg) {
+		vty_out(vty,
+			"%%Failed: global advertise-delay config not permitted\n");
+		return CMD_WARNING;
+	}
+
+	if (bm->v_update_delay != BGP_UPDATE_DELAY_DEF) {
+		vty_out(vty,
+			"%%Failed: global advertise-delay config conflict with update-delay\n");
+		return CMD_WARNING;
+	}
+
+	bm->v_advertise_delay = advertise_delay;
+
+	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
+		bgp->v_advertise_delay = bm->v_advertise_delay;
+	}
+
+	return CMD_SUCCESS;
+}
+
+static int bgp_global_advertise_delay_deconfig_vty(struct vty *vty)
+{
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+
+	bm->v_advertise_delay = BGP_ADVERTISE_DELAY_DEF;
+
+	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
+		bgp->v_advertise_delay = bm->v_advertise_delay;
+	}
+
+	return CMD_SUCCESS;
+}
+
+/* Global advertise-delay configuration */
+DEFUN (bgp_global_advertise_delay,
+       bgp_global_advertise_delay_cmd,
+       "bgp advertise-delay (0-3600)",
+       BGP_STR
+       "Force initial delay for advertise routes for all bgp instances\n"
+       "Max delay in seconds\n")
+{
+	int idx_number = 2;
+	uint16_t advertise_delay;
+
+	advertise_delay = strtoul(argv[idx_number]->arg, NULL, 10);
+	return bgp_global_advertise_delay_config_vty(vty, advertise_delay);
+}
+
+/* Global advertise-delay deconfiguration */
+DEFUN (no_bgp_global_advertise_delay,
+       no_bgp_global_advertise_delay_cmd,
+       "no bgp advertise-delay [(0-3600)]",
+       NO_STR
+       BGP_STR
+       "Force initial delay for advertise routes\n"
+       "Max delay in seconds\n")
+{
+	return bgp_global_advertise_delay_deconfig_vty(vty);
+}
+
 static void bgp_config_write_redistribute(struct vty *vty, struct bgp *bgp,
 					  afi_t afi, safi_t safi)
 {
@@ -17706,6 +17853,11 @@ int bgp_config_write(struct vty *vty)
 		vty_out(vty, "\n");
 	}
 
+	if (bm->v_advertise_delay != BGP_ADVERTISE_DELAY_DEF) {
+		vty_out(vty, "bgp advertise-delay %d", bm->v_advertise_delay);
+		vty_out(vty, "\n");
+	}
+
 	if (bm->wait_for_fib)
 		vty_out(vty, "bgp suppress-fib-pending\n");
 
@@ -18366,6 +18518,9 @@ void bgp_vty_init(void)
 	/* global bgp neighbor high route-map */
 	install_element(CONFIG_NODE, &bgp_neighbor_route_map_cmd);
 	install_element(CONFIG_NODE, &no_bgp_neighbor_route_map_cmd);
+
+	install_element(CONFIG_NODE, &bgp_global_advertise_delay_cmd);
+	install_element(CONFIG_NODE, &no_bgp_global_advertise_delay_cmd);
 
 	/* Dummy commands (Currently not supported) */
 	install_element(BGP_NODE, &no_synchronization_cmd);

@@ -183,6 +183,7 @@ struct bgp_master {
 
 	/* global update-delay timer values */
 	uint16_t v_update_delay;
+	uint16_t v_advertise_delay;
 	uint16_t v_establish_wait;
 
 	uint32_t flags;
@@ -547,6 +548,7 @@ struct bgp {
 	uint8_t main_zebra_update_hold;
 	uint8_t main_peers_update_hold;
 	uint16_t v_update_delay;
+	uint16_t v_advertise_delay;
 	uint16_t v_establish_wait;
 	char update_delay_begin_time[64];
 	char update_delay_end_time[64];
@@ -559,7 +561,7 @@ struct bgp {
 #define BGP_UPDATE_DELAY_DEF              0
 #define BGP_UPDATE_DELAY_MIN              0
 #define BGP_UPDATE_DELAY_MAX              3600
-
+#define BGP_ADVERTISE_DELAY_DEF           0
 	/* Reference bandwidth for BGP link-bandwidth. Used when
 	 * the LB value has to be computed based on some other
 	 * factor (e.g., number of multipaths for the prefix)
@@ -1519,6 +1521,8 @@ struct peer {
 	struct thread *t_process_packet_error;
 	struct thread *t_refresh_stalepath;
 	struct thread *t_adv_lprio; /* non-null when max-med onpeerup is on */
+	/* BGP advertise delay on startup */
+	struct thread *t_advertise_delay;
 
 	/* Thread flags. */
 	_Atomic uint32_t thread_flags;
@@ -1706,6 +1710,11 @@ struct peer {
 #define PEER_RMAP_TYPE_IMPORT         (1U << 6) /* neighbor route-map import */
 #define PEER_RMAP_TYPE_EXPORT         (1U << 7) /* neighbor route-map export */
 #define PEER_RMAP_TYPE_AGGREGATE      (1U << 8) /* aggregate-address route-map */
+
+	uint8_t advertise_delay_over;
+	uint8_t advertise_update_hold;
+	char advertise_delay_begin_time[64];
+	char advertise_delay_end_time[64];
 
 	/** Peer overwrite configuration. */
 	struct bfd_session_config {
