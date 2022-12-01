@@ -1629,6 +1629,7 @@ void bgp_fsm_change_status(struct peer_connection *connection, int status)
 		 * (or Deleted).
 		 */
 		if (!CHECK_FLAG(peer->flags, PEER_FLAG_CLEARING_BATCH) &&
+			peer->clear_node_queue &&
 		    !work_queue_is_scheduled(peer->clear_node_queue) &&
 		    status != Deleted)
 			BGP_EVENT_ADD(connection, Clearing_Completed);
@@ -1695,7 +1696,7 @@ static int bgp_clearing_completed(struct peer_connection *connection)
 	struct peer *peer = connection->peer;
 
 	if (rc >= 0)
-		BGP_EVENT_FLUSH(peer);
+		BGP_EVENT_FLUSH(connection);
 
 	return rc;
 }
@@ -1725,13 +1726,13 @@ int bgp_stop(struct peer_connection *connection)
 			zlog_debug("%s (dynamic neighbor) deleted (%s)",
 				   peer->host, __func__);
 		peer_delete(peer);
-		return -1;
+		return -2;
 	}
 
 	/* Can't do this in Clearing; events are used for state transitions */
 	if (connection->status != Clearing) {
 		/* Delete all existing events of the peer */
-		BGP_EVENT_FLUSH(peer);
+		BGP_EVENT_FLUSH(connection);
 	}
 
 	/* Increment Dropped count. */
@@ -1930,7 +1931,7 @@ int bgp_stop(struct peer_connection *connection)
 	if (!CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE)
 	    && !(CHECK_FLAG(peer->flags, PEER_FLAG_DELETE))) {
 		peer_delete(peer);
-		ret = -1;
+		ret = -2;
 	} else {
 		bgp_peer_conf_if_to_su_update(connection);
 	}
@@ -2945,11 +2946,14 @@ int bgp_event(struct thread *thread)
 {
 	struct peer_connection *connection = THREAD_ARG(thread);
 	enum bgp_fsm_events event;
+	struct peer *peer = connection->peer;
 	int ret;
 
 	event = THREAD_VAL(thread);
 
+	peer_lock(peer);
 	ret = bgp_event_update(connection, event);
+	peer_unlock(peer);
 
 	return (ret);
 }
@@ -3009,7 +3013,7 @@ int bgp_event_update(struct peer_connection *connection,
 		}
 
 		/* Make sure timer is set. */
-		bgp_timer_set(peer->connection);
+		bgp_timer_set(connection);
 
 	} else {
 		struct peer_connection *connection = peer->connection;
@@ -3021,7 +3025,7 @@ int bgp_event_update(struct peer_connection *connection,
 		 * we need to indicate that the peer was stopped in the return
 		 * code.
 		 */
-		if (!dyn_nbr && !passive_conn && peer->bgp) {
+		if (!dyn_nbr && !passive_conn && peer->bgp && ret != -2) {
 			flog_err(EC_BGP_FSM,
 				 "%s [FSM] Failure handling event %s in state %s, prior events %s, %s, fd %d, last reset: %s",
 				 peer->host, bgp_event_str[peer->cur_event],

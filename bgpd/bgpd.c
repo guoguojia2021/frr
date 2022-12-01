@@ -1237,7 +1237,7 @@ static void peer_free(struct peer *peer)
 	bgp_writes_off(peer->connection);
 	assert(!peer->connection->t_write);
 	assert(!peer->connection->t_read);
-	BGP_EVENT_FLUSH(peer);
+	BGP_EVENT_FLUSH(peer->connection);
 
 	/* Free connected nexthop, if present */
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE)
@@ -2746,15 +2746,31 @@ int peer_quick_delete(struct peer *peer)
 	bgp = peer->bgp;
 	accept_peer = CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
 
+	bgp_soft_reconfig_table_task_cancel(bgp, NULL, peer);
+
+	bgp_keepalives_off(peer->connection);
+
 	bgp_reads_off(peer->connection);
 	bgp_writes_off(peer->connection);
-	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON));
-	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_READS_ON));
+	assert(!CHECK_FLAG(peer->connection->thread_flags, PEER_THREAD_WRITES_ON));
+	assert(!CHECK_FLAG(peer->connection->thread_flags, PEER_THREAD_READS_ON));
+	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_KEEPALIVES_ON));
+
+	/* Ensure the peer is removed from the connection error list */
+	frr_with_mutex (&bgp->peer_errs_mtx) {
+		if (bgp_peer_conn_errlist_anywhere(peer->connection))
+			bgp_peer_conn_errlist_del(&bgp->peer_conn_errlist,
+						  peer->connection);
+	}
 
 	if (CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_WAIT))
 		peer_nsf_stop(peer);
 
 	SET_FLAG(peer->flags, PEER_FLAG_DELETE);
+
+	/* Remove BFD settings. */
+	if (peer->bfd_config)
+		bgp_peer_remove_bfd_config(peer);
 
 	/* If this peer belongs to peer group, clear up the
 	   relationship.  */
