@@ -576,8 +576,8 @@ static void static_fixup_vrf(struct static_vrf *svrf,
 			continue;
 		frr_each(static_path_list, &si->path_list, pn) {
 			frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
-				if (strcmp(svrf->vrf->name, nh->nh_vrfname)
-				    != 0)
+				if (strcmp(svrf->vrf->aliasName, nh->nh_vrfname) != 0
+					&& strcmp(svrf->vrf->name, nh->nh_vrfname) != 0)
 					continue;
 
 				nh->nh_vrf_id = svrf->vrf->vrf_id;

@@ -118,7 +118,7 @@ struct static_nexthop {
 
 	/* VRF identifier. */
 	vrf_id_t nh_vrf_id;
-	char nh_vrfname[VRF_NAMSIZ + 1];
+	char nh_vrfname[VRF_ALIASNAMESIZ + 1];
 
 	/*
 	 * States that we walk the route through
