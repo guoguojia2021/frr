@@ -719,7 +719,7 @@ static void cp_debug(bool mhop, struct sockaddr_any *peer,
 static void bfd_stop_xmt_delay_timer(struct bfd_session *bs)
 {
 	if (bs && bs->xmttimer_ev && bs->ses_state == PTM_BFD_UP
-	    && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE)))
+	    && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS)))
 	{
 		if (!bs->xmttimer_delay)
 		{

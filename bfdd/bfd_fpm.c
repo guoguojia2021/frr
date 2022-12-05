@@ -481,6 +481,7 @@ static int bfpm_read_cb(struct thread *thread)
         }
 
         if (bs && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))) {
+			UNSET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
             bs->stats.rx_ctrl_pkt += data.recvCount;
             bs->stats.tx_ctrl_pkt += data.sendCount;
             bs->stats.hw_rx_ctrl_pkt = 0;
@@ -496,6 +497,8 @@ static int bfpm_read_cb(struct thread *thread)
     {
         if (bs && bs->xmttimer_ev && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE)))
         {
+			/*recv hw BFD_NOTIFY_UP msg, set flag BFD_HWFLAG_CREATE_SUCCESS*/
+            SET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
             if (!bs->xmttimer_delay)
             {
                 thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
@@ -946,6 +949,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     {
         hdr->msg_type = BFD_DELETE_SESSION;
         UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
+		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
         bfd->counterOid = 0;
     }
 
