@@ -88,7 +88,7 @@ static const char *fpm_nh_encap_type_to_str(enum fpm_nh_encap_type_t encap_type)
 
 	case FPM_NH_ENCAP_VXLAN:
 		return "VxLAN";
-        
+
     case FPM_NH_ENCAP_SRV6_LOCAL_SID:
         return "SRV6 Local Sid";
 
@@ -345,10 +345,12 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 				prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 				nhbuf,
 				prefix_mac2str(&nhi.encap_info.vxlan_encap.rmac, buf, sizeof(buf)),
-                vid, nhi.encap_info.vxlan_encap.vni);		
+                vid, nhi.encap_info.vxlan_encap.vni);
 		}
 	}
 
+    /* Treat srv6 local sid route as ordinary IP route */
+    /*
     if (re && CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE) && nexthop->nh_srv6){
         nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_LOCAL_SID;
 
@@ -365,7 +367,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
             return 0;
         }
         strncpy(nhi.encap_info.srv6_encap.vrfName, srv6vrf->name, VRF_NAMSIZ + 1);
-        
+
 		zfpm_debug("%s: NEWROUTE:%s/%d, Gateway:%s sid:%s block_bits_length:%d node_bits_length:%d "
             "function_bits_length:%d argument_bits_length:%d "
             "sidaction:%s vrfname:%s", __FUNCTION__,
@@ -379,6 +381,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
             seg6local_action2str(nhi.encap_info.srv6_encap.sidaction),
             nhi.encap_info.srv6_encap.vrfName);
 	}
+    */
     else if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
     {
 		zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s", __FUNCTION__,
@@ -715,7 +718,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
             nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
 						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
-            
+
 			nl_attr_nest_end(&req->n, nest);
 			break;
 		}
@@ -851,7 +854,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
             nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
 						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
-            
+
 			nl_attr_nest_end(&req->n, inner_nest);
 			break;
 		}
@@ -891,7 +894,7 @@ static void zfpm_log_route_info(struct netlink_route_info *ri,
                 || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
             af = AF_INET;
         }
-    
+
         if (nhi->type == NEXTHOP_TYPE_IPV6
             || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
             af = AF_INET6;

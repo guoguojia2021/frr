@@ -63,19 +63,19 @@ void path_db_init(void)
         dlsym(g_sidlistHandleRedis, "Redis_Db_GetKey");
 
     g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue =
-        (int (*)(char *key, DB_FieldValue_List *pstDataLst, char *dbErrMsg, int msglen))
+        (int (*)(char *key, DB_FieldValue_List *pstDataLst, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_Db_SetKeyAndFValue");
 
     g_sidlist_appdb_redis.redis_Db_DelKeyLst =
-        (int (*)(DB_Key_List *pstKeylist, char *dbErrMsg, int msglen))
+        (int (*)(DB_Key_List *pstKeylist, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_Db_DelKeyLst");
 
     g_sidlist_appdb_redis.redis_PublishMsg =
-        (int (*)(char *key, char *msg))
+        (int (*)(char *key, char *msg, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_PublishMsgForce");
 
     g_sidlist_appdb_redis.redis_Db_SetSadd =
-        (int (*)(char *key, char *member, char *dbErrMsg, int msglen))
+        (int (*)(char *key, char *member, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_Db_SetSadd");
 
     /* alias redis-appdb='redis-cli  -n 0 -p 6380' */
@@ -84,7 +84,7 @@ void path_db_init(void)
     g_stSrv6SidListRedisDbInfo.sentinelInfo.port = 6380;
     g_stSrv6SidListRedisDbInfo.db = 0;
 
-    ret = g_sidlist_appdb_redis.redis_Connect(&g_stSrv6SidListRedisDbInfo, dbErrMsg, sizeof(dbErrMsg), REDIS_DEFAULT_DB);
+    ret = g_sidlist_appdb_redis.redis_Connect(&g_stSrv6SidListRedisDbInfo, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret == 0)
     {
         g_bPathRedisInUse = true;
@@ -329,7 +329,7 @@ void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_c
     /*sadd KEY_SET*/
     snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_POLICY_TABLE);
     snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", policy_id);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg));
+    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_SetSadd error code : %d", ret);
@@ -420,7 +420,7 @@ void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_c
     }
 
     pstDataLst1->next = pstDataLst2;
-    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst1, dbErrMsg, sizeof(dbErrMsg));
+    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst1, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_SetKeyAndFValue error code : %d", ret);
@@ -430,7 +430,7 @@ void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_c
 
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_POLICY_TABLE);
     zlog_debug("redis publishMsg channel : %d", channel);
-    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G");
+    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_PublishMsg error code : %d", ret);
@@ -456,7 +456,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
     /*sadd KEY_SET*/
     snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_POLICY_TABLE);
     snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", name);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg));
+    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
@@ -464,7 +464,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
     }
     /*sadd DEL_SET*/
     snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_DEL_SET", SRV6_POLICY_TABLE);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg));
+    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
@@ -476,7 +476,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
     item.next = NULL;
     item.key = key;
 
-    ret = g_sidlist_appdb_redis.redis_Db_DelKeyLst(&item, dbErrMsg, sizeof(dbErrMsg));
+    ret = g_sidlist_appdb_redis.redis_Db_DelKeyLst(&item, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_DelKeyLst error code : %d", ret);
@@ -486,7 +486,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
     /*publish*/
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
     zlog_debug("redis publishMsg channel : %d", channel);
-    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G");
+    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_PublishMsg error code : %d", ret);

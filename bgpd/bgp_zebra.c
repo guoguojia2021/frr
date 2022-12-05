@@ -1669,7 +1669,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 					 prefix_mac2str(&api_nh->rmac,
 							buf1, sizeof(buf1)));
 
-			char rmac_buf[PREFIX2STR_BUFFER + 10];
+			char rmac_buf[PREFIX2STR_BUFFER];
 			rmac_buf[0] = '\0';
 			if (!is_zero_mac(&api_nh->rmac)) {
 				char tmp_buf[PREFIX2STR_BUFFER];
@@ -3267,7 +3267,7 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
         loc->chunks = list_new();
         loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
         loc->sids = list_new();
-        
+
         strncpy(loc->name, loc_name, len);
         listnode_add(bgp->srv6_locators, loc);
         hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
@@ -3279,18 +3279,18 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
     STREAM_GETC(s, loc->node_bits_length);
     STREAM_GETC(s, loc->function_bits_length);
     STREAM_GETC(s, loc->argument_bits_length);
-    
+
     if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0)
     {
         zlog_err("can not find the locator by name :%s", loc_name);
         return;
     }
-/* todo: ´¥·¢sid export±ä»¯ */
+/* todo: ï¿½ï¿½ï¿½ï¿½sid exportï¿½ä»¯ */
     /* post-change: re-export vpn routes */
     vpn_leak_postchange_all();
 
 stream_failure:
-    return;   
+    return;
 
 }
 
@@ -3313,6 +3313,9 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
         zlog_err("error locator name len:%d", len);
 		return;
 	}
+
+    if (!bgp)
+        return;
 
 	STREAM_GET(loc_name, s, len);
     loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
@@ -3357,11 +3360,11 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 		}
 	}
 #endif
-/* todo: ´¥·¢sid export±ä»¯ */
+/* todo: ï¿½ï¿½ï¿½ï¿½sid exportï¿½ä»¯ */
 	vpn_leak_postchange_all();
 
 stream_failure:
-	return;   
+	return;
 
 }
 

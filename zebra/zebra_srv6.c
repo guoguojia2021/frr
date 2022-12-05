@@ -30,6 +30,7 @@
 #include "zebra/zebra_router.h"
 #include "zebra/zebra_srv6.h"
 #include "zebra/zebra_errors.h"
+#include "zebra/zebra_db.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -443,7 +444,7 @@ static int zebra_srv6_manager_get_locator_all(struct zserv *client,
 								    locator,
 								    NULL);
 	}
-	
+
 	return ret;
 }
 
@@ -706,9 +707,10 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
     ctx.argument_bits_length = locator->argument_bits_length;
     strncpy(ctx.vrfName, sid->vrfName, VRF_NAMSIZ + 1);
 
-    if (CHECK_FLAG(vrf->status, VRF_ACTIVE))
-        zebra_route_add(&result_sid, vrf, act, &ctx);
-
+    if (CHECK_FLAG(vrf->status, VRF_ACTIVE)) {
+        zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, sid->vrfName, act, &ctx);
+		zebra_route_add(&result_sid, vrf, act, &ctx);
+	}
 }
 
 void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid)
@@ -731,8 +733,8 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
 	ctx.argument_bits_length = locator->argument_bits_length;
 	act = sid->sidaction;
 
+    zebra_Db_Del_SRV6_LOCAL_SID(&result_sid, &ctx);
     zebra_route_del(&result_sid, vrf, act, &ctx);
-
 }
 
 extern bool zebra_srv6_local_sid_get_format(struct srv6_locator *locator)
