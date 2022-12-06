@@ -907,6 +907,15 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		if (bpi->extra && bpi->extra->bgp_orig)
 			bgp_nexthop = bpi->extra->bgp_orig;
 
+        struct bgp_path_info *oripath = NULL;
+        if (((struct bgp_path_info *)parent)->extra)
+            oripath = ((struct bgp_path_info *)parent)->extra->parent;
+    
+        if (oripath && oripath->peer && oripath->peer->bgp)
+        {
+            bgp_nexthop = oripath->peer->bgp;
+        }
+
 		/*
 		 * No nexthop tracking for redistributed routes or for
 		 * EVPN-imported routes that get leaked.
@@ -1025,6 +1034,15 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 
 	if (new->extra->bgp_orig)
 		bgp_nexthop = new->extra->bgp_orig;
+
+    struct bgp_path_info *oripath = NULL;
+    if (((struct bgp_path_info *)parent)->extra)
+        oripath = ((struct bgp_path_info *)parent)->extra->parent;
+
+    if (oripath && oripath->peer && oripath->peer->bgp)
+    {
+        bgp_nexthop = oripath->peer->bgp;
+    }
 
 	/*
 	 * No nexthop tracking for redistributed routes because
