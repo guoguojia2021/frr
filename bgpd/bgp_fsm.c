@@ -1527,8 +1527,7 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 		bgp_update_delay_process_status_change(peer);
 
 	/* If advertise-delay processing is applicable, do the necessary. */
-	if (bgp_advertise_delay_configured(peer->bgp)
-	    && bgp_advertise_delay_applicable(peer))
+	if (bgp_advertise_delay_configured(peer->bgp))
 		bgp_advertise_delay_process_status_change(peer);
 
 	if (bgp_debug_neighbor_events(peer))
