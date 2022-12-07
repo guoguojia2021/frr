@@ -414,6 +414,18 @@ static void show_nexthop_detail_helper(struct vty *vty,
 				       sizeof(buf), 1 /*pretty*/));
 	}
 
+    if (nexthop->nh_srv6) {
+        seg6local_context2str(buf, sizeof(buf),
+                      &nexthop->nh_srv6->seg6local_ctx,
+                      nexthop->nh_srv6->seg6local_action);
+        vty_out(vty, ", seg6local %s %s", seg6local_action2str(
+            nexthop->nh_srv6->seg6local_action), buf);
+
+        inet_ntop(AF_INET6, &nexthop->nh_srv6->seg6_segs, buf,
+              sizeof(buf));
+        vty_out(vty, ", seg6 %s", buf);
+    }
+
 	if (nexthop->weight)
 		vty_out(vty, ", weight %u", nexthop->weight);
 
