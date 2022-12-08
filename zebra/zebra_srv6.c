@@ -708,7 +708,7 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
     strncpy(ctx.vrfName, sid->vrfName, VRF_NAMSIZ + 1);
 
     if (CHECK_FLAG(vrf->status, VRF_ACTIVE)) {
-        zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, sid->vrfName, act, &ctx);
+        zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx);
 		zebra_route_add(&result_sid, vrf, act, &ctx);
 	}
 }
