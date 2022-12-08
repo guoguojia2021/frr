@@ -1218,6 +1218,11 @@ static int zl3vni_rmac_install(struct zebra_l3vni *zl3vni,
 	    || !(CHECK_FLAG(zrmac->flags, ZEBRA_MAC_REMOTE_RMAC)))
 		return 0;
 
+	if (!zl3vni->vxlan_if){
+		zlog_notice("zl3vni_rmac_install NULL vxlan_if");
+		return -1;
+	}
+
 	zif = zl3vni->vxlan_if->info;
 	if (!zif)
 		return -1;
@@ -6252,7 +6257,12 @@ int vni_from_zl3vni(struct zebra_l3vni *zl3vni)
 	const struct zebra_l2info_vxlan *vxl = NULL;
 	const struct interface *br_ifp;
 	vlanid_t vid;
- 
+
+	if (!zl3vni->vxlan_if){
+		zlog_notice("vni_from_zl3vni NULL vxlan_if");
+		return -1;
+	}
+
 	zif = zl3vni->vxlan_if->info;
 	if (!zif)
 		return -1;
