@@ -169,6 +169,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	uint32_t srte_color = 0;
 	int is_bgp_static_route = 0;
 	ifindex_t ifindex = 0;
+    bool isServiceRoute = FALSE;
 
 	if (pi) {
 		is_bgp_static_route = ((pi->type == ZEBRA_ROUTE_BGP)
@@ -341,11 +342,13 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	 * ability to detect nexthops.  So when we have a view
 	 * just tell everyone the nexthop is valid
 	 */
+	if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
+        isServiceRoute = TRUE;
 	if (bgp_route->inst_type == BGP_INSTANCE_TYPE_VIEW)
 		return 1;
 	else if (safi == SAFI_UNICAST && pi
 		 && pi->sub_type == BGP_ROUTE_IMPORTED && pi->extra
-		 && pi->extra->num_labels && !bnc->is_evpn_gwip_nexthop) {
+		 && pi->extra->num_labels && !bnc->is_evpn_gwip_nexthop && !isServiceRoute) {
 		return bgp_isvalid_labeled_nexthop(bnc);
 	} else
 		return (bgp_isvalid_nexthop(bnc));
@@ -977,6 +980,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 	safi_t safi;
 	struct bgp *bgp_path;
 	const struct prefix *p;
+    bool isServiceRoute = FALSE;
 
 	if (BGP_DEBUG(nht, NHT)) {
 		char buf[PREFIX2STR_BUFFER];
@@ -1028,11 +1032,16 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 
 		bool bnc_is_valid_nexthop = false;
 		bool path_valid = false;
+        if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
+            isServiceRoute = TRUE;
+        else
+            isServiceRoute = FALSE;
 
 		if (safi == SAFI_UNICAST && path->sub_type == BGP_ROUTE_IMPORTED
 		    && path->extra && path->extra->num_labels
 		    && (path->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP)
-            && (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))) {
+			&& (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))
+			&& !isServiceRoute) {
 			bnc_is_valid_nexthop =
 				bgp_isvalid_labeled_nexthop(bnc) ? true : false;
 		} else {
