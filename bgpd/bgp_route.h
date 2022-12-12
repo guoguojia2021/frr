@@ -88,7 +88,7 @@ enum bgp_show_adj_route_type {
 #define BGP_MAX_LABELS 2
 
 /* Maximum number of sids we can process or send with a prefix. */
-#define BGP_MAX_SIDS 6
+#define BGP_MAX_SIDS 1
 
 /* Maximum buffer length for storing BGP best path selection reason */
 #define BGP_MAX_SELECTION_REASON_STR_BUF 32
