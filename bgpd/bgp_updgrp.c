@@ -144,6 +144,7 @@ static void conf_copy(struct peer *dst, struct peer *src, afi_t afi,
 	dst->sort = src->sort;
 	dst->as = src->as;
 	dst->v_routeadv = src->v_routeadv;
+	dst->advertise_delay_over = src->advertise_delay_over;
 	dst->flags = src->flags;
 	dst->af_flags[afi][safi] = src->af_flags[afi][safi];
 	dst->pmax_out[afi][safi] = src->pmax_out[afi][safi];
@@ -214,6 +215,12 @@ static void conf_copy(struct peer *dst, struct peer *src, afi_t afi,
 			MTYPE_BGP_FILTER_NAME, CONDITION_MAP_NAME(srcfilter));
 		CONDITION_MAP(dstfilter) = CONDITION_MAP(srcfilter);
 	}
+
+	if (ADVERTISE_DELAY_MAP_NAME(srcfilter)) {
+		ADVERTISE_DELAY_MAP_NAME(dstfilter) = XSTRDUP(
+			MTYPE_BGP_FILTER_NAME, ADVERTISE_DELAY_MAP_NAME(srcfilter));
+		ADVERTISE_DELAY_MAP(dstfilter) = ADVERTISE_DELAY_MAP(srcfilter);
+	}
 }
 
 /**
@@ -240,6 +247,8 @@ static void conf_release(struct peer *src, afi_t afi, safi_t safi)
 	XFREE(MTYPE_BGP_FILTER_NAME, srcfilter->advmap.aname);
 
 	XFREE(MTYPE_BGP_FILTER_NAME, srcfilter->advmap.cname);
+
+	XFREE(MTYPE_BGP_FILTER_NAME, srcfilter->advdelaymap.name);
 
 	XFREE(MTYPE_BGP_PEER_HOST, src->host);
 }
@@ -344,6 +353,7 @@ static unsigned int updgrp_hash_key_make(const void *p)
 	key = jhash_1word(peer->change_local_as, key);
 	key = jhash_1word(peer->max_packet_size, key);
 	key = jhash_1word(peer->pmax_out[afi][safi], key);
+	key = jhash_1word(peer->advertise_delay_over, key);
 
 	if (peer->group)
 		key = jhash_1word(jhash(peer->group->name,
@@ -390,6 +400,11 @@ static unsigned int updgrp_hash_key_make(const void *p)
 			      strlen(peer->default_rmap[afi][safi].name),
 			      SEED1),
 			key);
+
+	if (filter->advdelaymap.name)
+		key = jhash_1word(jhash(filter->advdelaymap.name,
+					strlen(filter->advdelaymap.name), SEED1),
+				  key);
 
 	/* If peer is on a shared network and is exchanging IPv6 prefixes,
 	 * it needs to include link-local address. That's different from
@@ -484,6 +499,8 @@ static bool updgrp_hash_cmp(const void *p1, const void *p2)
 	if (pe1->t_adv_lprio != pe2->t_adv_lprio)
 		return false;
 
+	if (pe1->advertise_delay_over != pe2->advertise_delay_over)
+		return false;
 
 	/* route-map names should be the same */
 	if ((fl1->map[RMAP_OUT].name && !fl2->map[RMAP_OUT].name)
@@ -523,6 +540,12 @@ static bool updgrp_hash_cmp(const void *p1, const void *p2)
 	    || (!fl1->advmap.aname && fl2->advmap.aname)
 	    || (fl1->advmap.aname && fl2->advmap.aname
 		&& strcmp(fl1->advmap.aname, fl2->advmap.aname)))
+		return false;
+
+	if ((fl1->advdelaymap.name && !fl2->advdelaymap.name)
+	    || (!fl1->advdelaymap.name && fl2->advdelaymap.name)
+	    || (fl1->advdelaymap.name && fl2->advdelaymap.name
+		&& strcmp(fl1->advdelaymap.name, fl2->advdelaymap.name)))
 		return false;
 
 	if ((pe1->default_rmap[afi][safi].name
@@ -1708,8 +1731,8 @@ void update_group_adjust_peer(struct peer_af *paf)
 
 	update_subgroup_add_peer(subgrp, paf, 1);
 	if (BGP_DEBUG(update_groups, UPDATE_GROUPS))
-		zlog_debug("u%" PRIu64 ":s%" PRIu64 " add peer %s", updgrp->id,
-			   subgrp->id, paf->peer->host);
+		zlog_debug("u%" PRIu64 ":s%" PRIu64 " add peer %s, advertise_delay_over %d", updgrp->id,
+			  subgrp->id, paf->peer->host, paf->peer->advertise_delay_over);
 
 	return;
 }

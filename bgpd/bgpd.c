@@ -2151,6 +2151,13 @@ static void peer_group2peer_config_copy_af(struct peer_group *group,
 		PEER_ATTR_INHERIT(peer, group, filter[afi][safi].usmap.map);
 	}
 
+	/* advertise-delay filter apply */
+	if (!CHECK_FLAG(pfilter_ovrd[1], PEER_FT_ADVERTISE_DELAY_MAP)) {
+		PEER_STR_ATTR_INHERIT(peer, group, filter[afi][safi].advdelaymap.name,
+				      MTYPE_BGP_FILTER_NAME);
+		PEER_ATTR_INHERIT(peer, group, filter[afi][safi].advdelaymap.map);
+	}
+
 	if (peer->addpath_type[afi][safi] == BGP_ADDPATH_NONE) {
 		peer->addpath_type[afi][safi] = conf->addpath_type[afi][safi];
 		bgp_addpath_type_changed(conf->bgp);
@@ -8462,4 +8469,111 @@ void bgp_vrf_hash_exit(void)
 		hash_clean(bgp_vrf_hash, NULL);
 		hash_free(bgp_vrf_hash);
 	}
+}
+
+/* Set advertise-delay-map to the peer. */
+int peer_advertise_delay_map_set(struct peer *peer, afi_t afi, safi_t safi,
+			    const char *name, struct route_map *route_map)
+{
+	struct peer *member;
+	struct bgp_filter *filter;
+	struct listnode *node, *nnode;
+
+	/* Set configuration on peer. */
+	filter = &peer->filter[afi][safi];
+	if (filter->advdelaymap.name) {
+		/* If the neighbor is configured with the same route-map
+		 * again then, ignore the duplicate configuration.
+		 */
+		if (strcmp(filter->advdelaymap.name, name) == 0)
+			return 0;
+		XFREE(MTYPE_BGP_FILTER_NAME, filter->advdelaymap.name);
+	}
+	route_map_counter_decrement(filter->advdelaymap.map);
+	filter->advdelaymap.name = XSTRDUP(MTYPE_BGP_FILTER_NAME, name);
+	filter->advdelaymap.map = route_map;
+	route_map_counter_increment(route_map);
+
+	/* Check if handling a regular peer. */
+	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
+		/* Set override-flag and process peer route updates. */
+		SET_FLAG(peer->filter_override[afi][safi][1],
+			 PEER_FT_ADVERTISE_DELAY_MAP);
+		/* Skip peer-group mechanics for regular peers. */
+		return 0;
+	}
+
+	/*
+	 * Set configuration on all peer-group members, unless they are
+	 * explicitely overriding peer-group configuration.
+	 */
+	for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
+		/* Skip peers with overridden configuration. */
+		if (CHECK_FLAG(member->filter_override[afi][safi][1],
+			       PEER_FT_ADVERTISE_DELAY_MAP))
+			continue;
+
+		/* Set configuration on peer-group member. */
+		filter = &member->filter[afi][safi];
+		if (filter->advdelaymap.name)
+			XFREE(MTYPE_BGP_FILTER_NAME, filter->advdelaymap.name);
+		route_map_counter_decrement(filter->advdelaymap.map);
+		filter->advdelaymap.name = XSTRDUP(MTYPE_BGP_FILTER_NAME, name);
+		filter->advdelaymap.map = route_map;
+		route_map_counter_increment(route_map);
+	}
+
+	return 0;
+}
+
+/* Unset route-map from the peer. */
+int peer_advertise_delay_map_unset(struct peer *peer, afi_t afi, safi_t safi)
+{
+	struct peer *member;
+	struct bgp_filter *filter;
+	struct listnode *node, *nnode;
+
+	/* Unset override-flag unconditionally. */
+	UNSET_FLAG(peer->filter_override[afi][safi][1], PEER_FT_ADVERTISE_DELAY_MAP);
+
+	/* Inherit configuration from peer-group if peer is member. */
+	if (peer_group_active(peer)) {
+		PEER_STR_ATTR_INHERIT(peer, peer->group,
+				      filter[afi][safi].advdelaymap.name,
+				      MTYPE_BGP_FILTER_NAME);
+		PEER_ATTR_INHERIT(peer, peer->group,
+				  filter[afi][safi].advdelaymap.map);
+	} else {
+		/* Otherwise remove configuration from peer. */
+		filter = &peer->filter[afi][safi];
+		if (filter->advdelaymap.name)
+			XFREE(MTYPE_BGP_FILTER_NAME, filter->advdelaymap.name);
+		route_map_counter_decrement(filter->advdelaymap.map);
+		filter->advdelaymap.name = NULL;
+		filter->advdelaymap.map = NULL;
+	}
+	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
+		/* Skip peer-group mechanics for regular peers. */
+		return 0;
+	}
+	/*
+	 * Remove configuration on all peer-group members, unless they are
+	 * explicitely overriding peer-group configuration.
+	 */
+	for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
+		/* Skip peers with overridden configuration. */
+		if (CHECK_FLAG(member->filter_override[afi][safi][1],
+			       PEER_FT_ADVERTISE_DELAY_MAP))
+			continue;
+
+		/* Remove configuration on peer-group member. */
+		filter = &member->filter[afi][safi];
+		if (filter->advdelaymap.name)
+			XFREE(MTYPE_BGP_FILTER_NAME, filter->advdelaymap.name);
+		route_map_counter_decrement(filter->advdelaymap.map);
+		filter->advdelaymap.name = NULL;
+		filter->advdelaymap.map = NULL;
+	}
+
+	return 0;
 }

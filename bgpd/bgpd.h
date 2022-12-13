@@ -261,6 +261,12 @@ struct bgp_filter {
 
 		enum update_type update_type;
 	} advmap;
+
+	/* Advertise-delay-map */
+	struct {
+		char *name;
+		struct route_map *map;
+	}advdelaymap;
 };
 struct bgp_redist {
 	unsigned short instance;
@@ -1627,6 +1633,7 @@ struct peer {
 #define PEER_FT_ROUTE_MAP             (1U << 3) /* route-map */
 #define PEER_FT_UNSUPPRESS_MAP        (1U << 4) /* unsuppress-map */
 #define PEER_FT_ADVERTISE_MAP         (1U << 5) /* advertise-map */
+#define PEER_FT_ADVERTISE_DELAY_MAP   (1U << 6) /* advertise-delay-map */
 
 	/* ORF Prefix-list */
 	struct prefix_list *orf_plist[AFI_MAX][SAFI_MAX];
@@ -2345,6 +2352,10 @@ void bgp_gr_apply_running_config(void);
 int bgp_global_gr_init(struct bgp *bgp);
 int bgp_peer_gr_init(struct peer *peer);
 
+extern int peer_advertise_delay_map_set(struct peer *peer,afi_t afi,
+	safi_t safi, const char *name, struct route_map *route_map);
+
+extern int peer_advertise_delay_map_unset(struct peer *, afi_t, safi_t);
 
 #define BGP_GR_ROUTER_DETECT_AND_SEND_CAPABILITY_TO_ZEBRA(_bgp, _peer_list)    \
 	do {                                                                   \

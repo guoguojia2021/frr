@@ -415,6 +415,7 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 	afi_t afi;
 	safi_t safi;
 	uint16_t size = 0;
+	struct bgp_filter *filter = NULL;
 
 	wpq = atomic_load_explicit(&peer->bgp->wpkt_quanta,
 				   memory_order_relaxed);
@@ -431,9 +432,6 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 	    || bgp_update_delay_active(peer->bgp))
 		return 0;
 
-	if (peer->advertise_update_hold)
-		return 0;
-
 	if (peer->t_routeadv)
 		return 0;
 
@@ -448,6 +446,16 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 
 			afi = paf->afi;
 			safi = paf->safi;
+			/*
+			 * 1.If config advertise delay route map, should permit
+			 * some route advertise to peer during advertise delay time
+			 * 2.If no confi advertis delay route map, don't permit any
+			 * route advertise to peer
+			 */
+			filter = &peer->filter[afi][safi];
+			if (!ADVERTISE_DELAY_MAP(filter) && peer->advertise_update_hold)
+				continue;
+
 			next_pkt = paf->next_pkt_to_send;
 
 			/*

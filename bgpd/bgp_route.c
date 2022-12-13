@@ -2395,6 +2395,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	struct bgp_filter *bgp_filter;
 	struct bgp *pbgp;
 	route_map_result_t bf_ret = RMAP_PERMITMATCH;
+	route_map_result_t adv_ret = RMAP_PERMITMATCH;
 
 	pbgp = peer->bgp;
 	bgp_filter = &pbgp->filter[afi][safi];
@@ -2412,7 +2413,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	/* Route map & unsuppress-map apply. */
 	if (!post_attr &&
 	    (ROUTE_MAP_OUT_NAME(filter) || ROUTE_MAP_OUT_NAME(bgp_filter) || 
-	    bgp_path_suppressed(pi)|| (high_rmap_name))) {
+	    bgp_path_suppressed(pi)|| ADVERTISE_DELAY_MAP(filter) || (high_rmap_name))) {
 		struct bgp_path_info rmap_path = {0};
 		struct bgp_path_info_extra dummy_rmap_path_extra = {0};
 		struct attr dummy_attr = {0};
@@ -2470,15 +2471,40 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					      &rmap_path);
 		}
 
+		if (bgp_advertise_delay_applicable(peer)) {
+			zlog_debug("advertise delay route-map start");
+			adv_ret = route_map_apply(ADVERTISE_DELAY_MAP(filter), p,
+					      &rmap_path);
+		}
+
 		bgp_attr_flush(&dummy_attr);
 		peer->rmap_type = 0;
 
-		if (ret == RMAP_DENYMATCH || bf_ret == RMAP_DENYMATCH) {
+		if (bf_ret == RMAP_DENYMATCH) {
+			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+				zlog_debug(
+					"%s [Update:SEND] %pFX is filtered by route-map '%s'",
+					peer->host, p,
+					ROUTE_MAP_OUT_NAME(bgp_filter));
+
+			return false;
+		}
+
+		if (ret == RMAP_DENYMATCH) {
 			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
 				zlog_debug(
 					"%s [Update:SEND] %pFX is filtered by route-map '%s'",
 					peer->host, p,
 					ROUTE_MAP_OUT_NAME(filter));
+
+			return false;
+		}
+		if (adv_ret  == RMAP_DENYMATCH) {
+			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+				zlog_debug(
+					"%s [Update:SEND] %pFX is filtered by route-map '%s'",
+					peer->host, p,
+					ADVERTISE_DELAY_MAP_NAME(filter));
 
 			return false;
 		}
@@ -3087,6 +3113,10 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 	afi = SUBGRP_AFI(subgrp);
 	safi = SUBGRP_SAFI(subgrp);
 	bgp = SUBGRP_INST(subgrp);
+
+	if (BGP_DEBUG(update, UPDATE_OUT))
+		zlog_debug("%s: peer host %s, afi %s", __func__, peer->host,
+			get_afi_safi_str(afi, safi, false));
  
 	switch (subgroup_announce_check(dest, pi, subgrp, dest_p, &attr, post_attr, 1)) {
 	case ANNOUNCE_CHK_SUCCESS:

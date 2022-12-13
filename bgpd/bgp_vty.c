@@ -12492,6 +12492,11 @@ static void bgp_show_peer_afi(struct vty *vty, struct peer *p, afi_t afi,
 					       json_advmap);
 		}
 
+		/* advertise-delay-map */
+		if (filter->advdelaymap.name)
+			json_object_string_add(json_addr,
+					       "selectiveAdvertiseDelayRouteMap",
+					       filter->advdelaymap.name);
 		/* Receive prefix count */
 		json_object_int_add(json_addr, "acceptedPrefixCounter",
 				    p->pcount[afi][safi]);
@@ -12800,6 +12805,13 @@ static void bgp_show_peer_afi(struct vty *vty, struct peer *p, afi_t afi,
 				filter->advmap.update_type == ADVERTISE
 					? "Advertise"
 					: "Withdraw");
+
+		/* advertise-delay-map */
+		if (filter->advdelaymap.name)
+			vty_out(vty,
+				"  Route map for advertise delay is %s%s\n",
+				filter->advdelaymap.map ? "*" : "",
+				filter->advdelaymap.name);
 
 		/* Receive prefix count */
 		vty_out(vty, "  %u accepted prefixes\n",
@@ -16729,6 +16741,70 @@ DEFUN (no_bgp_global_advertise_delay,
 	return bgp_global_advertise_delay_deconfig_vty(vty);
 }
 
+/* Set advertise-delay-map to the peer. */
+static int peer_advertise_delay_map_set_vty(struct vty *vty, const char *ip_str,
+				       afi_t afi, safi_t safi,
+				       const char *name_str)
+{
+	int ret;
+	struct peer *peer;
+	struct route_map *route_map;
+
+	peer = peer_and_group_lookup_vty(vty, ip_str);
+	if (!peer)
+		return CMD_WARNING_CONFIG_FAILED;
+
+	route_map = route_map_lookup_warn_noexist(vty, name_str);
+	ret = peer_advertise_delay_map_set(peer, afi, safi, name_str, route_map);
+
+	return bgp_vty_return(vty, ret);
+}
+
+/* Unset advertise-delay from the peer. */
+static int peer_advertise_delay_map_unset_vty(struct vty *vty, const char *ip_str,
+					 afi_t afi, safi_t safi)
+{
+	int ret;
+	struct peer *peer;
+
+	peer = peer_and_group_lookup_vty(vty, ip_str);
+	if (!peer)
+		return CMD_WARNING_CONFIG_FAILED;
+
+	ret = peer_advertise_delay_map_unset(peer, afi, safi);
+
+	return bgp_vty_return(vty, ret);
+}
+
+DEFUN (neighbor_advertise_delay_map,
+       neighbor_advertise_delay_map_cmd,
+       "neighbor <A.B.C.D|X:X::X:X|WORD> advertise-delay-map WORD",
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Route-map to selectively advertise delay routes\n"
+       "Name of route map\n")
+{
+	int idx_peer = 1;
+	int idx_word = 3;
+	return peer_advertise_delay_map_set_vty(vty, argv[idx_peer]->arg,
+		bgp_node_afi(vty), bgp_node_safi(vty),
+		argv[idx_word]->arg);
+}
+
+DEFUN (no_neighbor_advertise_delay_map,
+       no_neighbor_advertise_delay_map_cmd,
+       "no neighbor <A.B.C.D|X:X::X:X|WORD> advertise-delay-map WORD",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Route-map to selectively advertise delay routes\n"
+       "Name of route map\n")
+{
+	int idx_peer = 2;
+	return peer_advertise_delay_map_unset_vty(vty, argv[idx_peer]->arg,
+		bgp_node_afi(vty), bgp_node_safi(vty));
+}
+
 static void bgp_config_write_redistribute(struct vty *vty, struct bgp *bgp,
 					  afi_t afi, safi_t safi)
 {
@@ -16819,6 +16895,8 @@ static bool peergroup_filter_check(struct peer *peer, afi_t afi, safi_t safi,
 		return !!(filter->advmap.aname
 			  && ((filter->advmap.condition == direct)
 			      && filter->advmap.cname));
+	case PEER_FT_ADVERTISE_DELAY_MAP:
+		return !!(filter->advdelaymap.name);
 	default:
 		return false;
 	}
@@ -17039,6 +17117,11 @@ static void bgp_config_write_filter(struct vty *vty, struct peer *peer,
 				   FILTER_OUT))
 		vty_out(vty, "  neighbor %s filter-list %s out\n", addr,
 			filter->aslist[FILTER_OUT].name);
+
+	/* advertise-delay-map */
+	if (peergroup_filter_check(peer, afi, safi, PEER_FT_ADVERTISE_DELAY_MAP, 1))
+		vty_out(vty, "  neighbor %s advertise-delay-map %s\n", addr,
+			filter->advdelaymap.name);
 }
 
 /* BGP peer configuration display function. */
@@ -17679,6 +17762,8 @@ static bool bgp_filter_check(struct bgp *bgp, afi_t afi, safi_t safi,
 		return !!(filter->map[direct].name);
 	case PEER_FT_UNSUPPRESS_MAP:
 		return !!(filter->usmap.name);
+	case PEER_FT_ADVERTISE_DELAY_MAP:
+		return !!(filter->advdelaymap.name);
 	default:
 		return false;
 	}
@@ -17722,6 +17807,10 @@ static void bgp_config_write_bgp_filter(struct vty *vty, struct bgp *bgp,
 
 	if (bgp_filter_check(bgp, afi, safi, PEER_FT_FILTER_LIST, FILTER_OUT))
 		vty_out(vty, "  filter-list %s out\n", filter->aslist[FILTER_OUT].name);
+
+	/* advertise-delay-map */
+	if (bgp_filter_check(bgp, afi, safi, PEER_FT_ADVERTISE_DELAY_MAP, 1))
+		vty_out(vty, "  unsuppress-map %s\n", filter->advdelaymap.name);
 }
 
 /* Address family based peer configuration display.  */
@@ -19896,6 +19985,16 @@ void bgp_vty_init(void)
 	install_element(BGP_NODE, &no_bgp_srv6_locator_cmd);
 	install_element(BGP_IPV4_NODE, &af_sid_vpn_export_cmd);
 	install_element(BGP_IPV6_NODE, &af_sid_vpn_export_cmd);
+
+	/* peer support advertise delay route map */
+	install_element(BGP_IPV4_NODE, &neighbor_advertise_delay_map_cmd);
+	install_element(BGP_IPV4_NODE, &no_neighbor_advertise_delay_map_cmd);
+	install_element(BGP_IPV6_NODE, &neighbor_advertise_delay_map_cmd);
+	install_element(BGP_IPV6_NODE, &no_neighbor_advertise_delay_map_cmd);
+	install_element(BGP_VPNV4_NODE, &neighbor_advertise_delay_map_cmd);
+	install_element(BGP_VPNV4_NODE, &no_neighbor_advertise_delay_map_cmd);
+	install_element(BGP_VPNV6_NODE, &neighbor_advertise_delay_map_cmd);
+	install_element(BGP_VPNV6_NODE, &no_neighbor_advertise_delay_map_cmd);
 }
 
 #include "memory.h"

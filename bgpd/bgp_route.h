@@ -532,6 +532,9 @@ typedef enum {
 #define CONDITION_MAP_NAME(F)	((F)->advmap.cname)
 #define CONDITION_MAP(F)	((F)->advmap.cmap)
 
+#define ADVERTISE_DELAY_MAP_NAME(F)  ((F)->advdelaymap.name)
+#define ADVERTISE_DELAY_MAP(F)       ((F)->advdelaymap.map)
+
 /* path PREFIX (addpath rxid NUMBER) */
 #define PATH_ADDPATH_STR_BUFFER PREFIX2STR_BUFFER + 32
 

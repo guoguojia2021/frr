@@ -3876,6 +3876,9 @@ static void bgp_route_map_process_peer(const char *rmap_name,
 		filter->advmap.cmap = map;
 	}
 
+	if (filter->advdelaymap.name && (strcmp(rmap_name, filter->advdelaymap.name) == 0))
+		filter->advdelaymap.map = map;
+
 	if (peer->default_rmap[afi][safi].name
 	    && (strcmp(rmap_name, peer->default_rmap[afi][safi].name) == 0))
 		peer->default_rmap[afi][safi].map = map;
