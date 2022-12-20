@@ -12346,10 +12346,12 @@ static int bgp_show_table(struct vty *vty, struct bgp *bgp, safi_t safi,
 						   AFI_IP, safi, use_json,
 						   json_paths);
 			else {
-				if (detail_routes) {
-					const struct prefix_rd *prd;
+				if (detail_routes || detail_json) {
+					const struct prefix_rd *prd = NULL;
 
-					prd = bgp_rd_from_dest(dest, safi);
+					if (dest->pdest)
+						prd = bgp_rd_from_dest(
+							dest->pdest, safi);
 
 					if (!use_json)
 						route_vty_out_detail_header(
@@ -12450,7 +12452,8 @@ static int bgp_show_table(struct vty *vty, struct bgp *bgp, safi_t safi,
 
 int bgp_show_table_rd(struct vty *vty, struct bgp *bgp, safi_t safi,
 		      struct bgp_table *table, struct prefix_rd *prd_match,
-		      enum bgp_show_type type, void *output_arg, bool use_json)
+		      enum bgp_show_type type, void *output_arg,
+		      uint16_t show_flags)
 {
 	struct bgp_dest *dest, *next;
 	unsigned long output_cum = 0;
@@ -12458,12 +12461,9 @@ int bgp_show_table_rd(struct vty *vty, struct bgp *bgp, safi_t safi,
 	unsigned long json_header_depth = 0;
 	struct bgp_table *itable;
 	bool show_msg;
-	uint16_t show_flags = 0;
+	bool use_json = !!CHECK_FLAG(show_flags, BGP_SHOW_OPT_JSON);
 
 	show_msg = (!use_json && type == bgp_show_type_normal);
-
-	if (use_json)
-		SET_FLAG(show_flags, BGP_SHOW_OPT_JSON);
 
 	for (dest = bgp_table_top(table); dest; dest = next) {
 		const struct prefix *dest_p = bgp_dest_get_prefix(dest);
@@ -12527,7 +12527,7 @@ static int bgp_show(struct vty *vty, struct bgp *bgp, afi_t afi, safi_t safi,
 	/* use MPLS and ENCAP specific shows until they are merged */
 	if (safi == SAFI_MPLS_VPN) {
 		return bgp_show_table_rd(vty, bgp, safi, table, NULL, type,
-					 output_arg, use_json);
+					 output_arg, show_flags);
 	}
 
 	if (safi == SAFI_FLOWSPEC && type == bgp_show_type_detail) {
