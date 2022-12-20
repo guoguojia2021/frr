@@ -1185,6 +1185,16 @@ void path_nh_map(struct bgp_path_info *path, struct bgp_nexthop_cache *bnc,
  */
 void bgp_nht_register_nexthops(struct bgp *bgp)
 {
+
+	for (afi_t afi = AFI_IP; afi < AFI_MAX; afi++) {
+		struct bgp_nexthop_cache *bic;
+
+		frr_each (bgp_nexthop_cache, &bgp->import_check_table[afi],
+			  bic) {
+			register_zebra_rnh(bic, 1);
+		}
+	}
+
 	for (afi_t afi = AFI_IP; afi < AFI_MAX; afi++) {
 		struct bgp_nexthop_cache *bnc;
 
