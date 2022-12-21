@@ -1441,8 +1441,13 @@ bool bgp_advertise_delay_applicable(struct peer *peer)
 	   applicability of the advertise-delay during BGP process lifetime.
 	   And it should be set after an occurence of the advertise-delay is
 	   over)*/
+
+	if (!bgp_advertise_delay_configured(peer->bgp))
+		return false;
+
 	if (!peer->advertise_delay_over)
 		return true;
+
 	return false;
 }
 
