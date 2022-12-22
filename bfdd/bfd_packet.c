@@ -1505,6 +1505,18 @@ static void bp_bind_ipv6(int sd, uint16_t port)
 		zlog_fatal("bind-ipv6: bind: %s", strerror(errno));
 }
 
+static void bp_set_udp6_no_check6(int sd)
+{
+    if (hardwareBFD)
+	{
+		int disable = BFD_IPV6_UDP_DISABLE_CHECKSUM;
+		if (setsockopt(sd, IPPROTO_UDP, UDP_NO_CHECK6_RX, (void*)&disable,
+				sizeof(disable)) == -1)
+			zlog_fatal("set-ipv6opts: setsockopt(UDP_NO_CHECK6_RX, %d): %s",
+				disable, strerror(errno));
+	}
+}
+
 int bp_udp6_shop(const struct vrf *vrf)
 {
 	int sd;
@@ -1524,6 +1536,7 @@ int bp_udp6_shop(const struct vrf *vrf)
 
 	bp_set_ipv6opts(sd);
 	bp_bind_ipv6(sd, BFD_DEFDESTPORT);
+    bp_set_udp6_no_check6(sd);
 
 	return sd;
 }
@@ -1547,6 +1560,7 @@ int bp_udp6_mhop(const struct vrf *vrf)
 
 	bp_set_ipv6opts(sd);
 	bp_bind_ipv6(sd, BFD_DEF_MHOP_DEST_PORT);
+    bp_set_udp6_no_check6(sd);
 
 	return sd;
 }

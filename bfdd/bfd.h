@@ -404,6 +404,8 @@ struct sbfd_reflector{
 #define BFD_DEF_SBFD_DEST_PORT 7784
 
 #define BFD_SBFD_INITIATOR_DEMAND 1
+#define BFD_IPV6_UDP_DISABLE_CHECKSUM 1
+#define UDP_NO_CHECK6_RX 102
 
 /*
  * control.c
