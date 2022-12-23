@@ -109,6 +109,9 @@ extern void zsend_nhrp_neighbor_notify(int cmd, struct interface *ifp,
 				       struct ipaddr *ipaddr, int ndm_state,
 				       union sockunion *link_layer_ipv4);
 
+extern void zsend_bfdd_neighbor_notify(int cmd, struct interface *ifp,
+                struct ipaddr *ipaddr, struct ethaddr *mac, int ndm_state);
+
 extern int zsend_client_close_notify(struct zserv *client,
 				     struct zserv *closed_client);
 

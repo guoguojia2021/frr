@@ -32,6 +32,7 @@
 #include "lib/qobj.h"
 #include "lib/queue.h"
 #include "lib/vrf.h"
+#include "lib/openbsd-tree.h"
 
 #include "bfdctl.h"
 
@@ -370,6 +371,20 @@ TAILQ_HEAD(obslist, bfd_session_observer);
 struct sbfd_reflector{
 	uint32_t discr; 
 };
+
+struct bfd_nd_info {
+	RB_ENTRY(bfd_nd_info) entry;
+	char ifname[INTERFACE_NAMSIZ];
+	int ifindex;
+	struct ipaddr ipaddr;
+	struct ethaddr mac;
+	uint32_t ndm_state;
+};
+
+RB_HEAD(bfd_nd_info_head, bfd_nd_info);
+RB_PROTOTYPE(bfd_nd_info_head, bfd_nd_info, entry, bfd_nd_info_compare);
+
+extern struct bfd_nd_info_head bfd_nd_info_tree;
 
 /* States defined per 4.1 */
 #define PTM_BFD_ADM_DOWN 0
@@ -905,5 +920,9 @@ void sbfd_reflector_flush(void);
 void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag);
 void ptm_sbfd_sess_up(struct bfd_session *bfd);
 void sbfd_echo_state_handler(struct bfd_session *bs, int nstate);
+
+struct bfd_nd_info *bfdd_neigh_tree_find(int ifindex, struct ipaddr *ipaddr);
+void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struct ethaddr *mac, uint32_t ndm_state);
+void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr);
 
 #endif /* _BFD_H_ */

@@ -3909,6 +3909,9 @@ static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 		if (IS_ZEBRA_DEBUG_KERNEL)
 			zlog_debug(
 				"    Neighbor Entry received is not on a VLAN or a BRIDGE, ignoring");
+
+		zsend_bfdd_neighbor_notify(cmd, ifp, &ip, &mac, ndm->ndm_state);
+
 		return 0;
 	}
 

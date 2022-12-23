@@ -965,6 +965,76 @@ static int bfdd_interface_address_update(ZAPI_CALLBACK_ARGS)
 	return 0;
 }
 
+static void bfdd_neighbor_info_add_update(struct zapi_nd_info *nd_api)
+{
+	struct bfd_nd_info *bni;
+	bni = bfdd_neigh_tree_find(nd_api->ifindex, &nd_api->ipaddr);
+
+	if (bni)
+	{
+		strncpy(bni->ifname, nd_api->ifname, INTERFACE_NAMSIZ);
+		bni->mac = nd_api->mac;
+		bni->ndm_state = nd_api->ndm_state;
+	}
+	else
+	{
+		bfdd_neigh_tree_add(nd_api->ifindex, nd_api->ifname, &nd_api->ipaddr, &nd_api->mac, nd_api->ndm_state);
+	}
+}
+
+static void bfdd_neighbor_info_del(struct zapi_nd_info *nd_api)
+{
+    bfdd_neigh_tree_del(nd_api->ifindex, &nd_api->ipaddr);
+}
+
+static void bfdd_neighbor_info_proc(struct stream *msg, vrf_id_t vrf_id)
+{
+	struct zapi_nd_info nd_api = {0};
+
+    if (zclient_nd_info_decode(msg, &nd_api) == -1)
+	    return;
+	
+	switch (nd_api.ndm_state)
+	{
+		case ZEBRA_NEIGH_STATE_REACHABLE:
+		case ZEBRA_NEIGH_STATE_STALE:
+			/* code */
+			bfdd_neighbor_info_add_update(&nd_api);
+			break;
+		case ZEBRA_NEIGH_STATE_FAILED:
+		    bfdd_neighbor_info_del(&nd_api);
+			break;
+		default:
+			if (bglobal.debug_zebra)
+				zlog_debug("%s invalid neighbor state %u", __func__, nd_api.ndm_state);
+			break;
+	}
+	
+}
+
+static int bfdd_neighbor_handle(ZAPI_CALLBACK_ARGS)
+{
+	struct stream *msg = zclient->ibuf;
+
+	switch (cmd) {
+	case ZEBRA_NHRP_NEIGH_ADDED:
+	case ZEBRA_NHRP_NEIGH_REMOVED:
+		bfdd_neighbor_info_proc(msg, vrf_id);
+		break;
+
+	default:
+		if (bglobal.debug_zebra)
+			zlog_debug("%s invalid message type %u", __func__, cmd);
+		return -1;
+	}
+
+	return 0;
+
+stream_failure:
+	zlog_err("%s: handle msg failed", __func__);
+	return -1;
+}
+
 static int bfd_ifp_create(struct interface *ifp)
 {
 	if (bglobal.debug_zebra)
@@ -989,6 +1059,9 @@ static zclient_handler *const bfd_handlers[] = {
 	/* Learn about new addresses being registered. */
 	[ZEBRA_INTERFACE_ADDRESS_ADD] = bfdd_interface_address_update,
 	[ZEBRA_INTERFACE_ADDRESS_DELETE] = bfdd_interface_address_update,
+
+	[ZEBRA_NHRP_NEIGH_ADDED] = bfdd_neighbor_handle,
+	[ZEBRA_NHRP_NEIGH_REMOVED] = bfdd_neighbor_handle,
 };
 
 void bfdd_zclient_init(struct zebra_privs_t *bfdd_priv)
@@ -1001,6 +1074,7 @@ void bfdd_zclient_init(struct zebra_privs_t *bfdd_priv)
 
 	/* Send replay request on zebra connect. */
 	zclient->zebra_connected = bfdd_zebra_connected;
+
 }
 
 void bfdd_zclient_register(vrf_id_t vrf_id)

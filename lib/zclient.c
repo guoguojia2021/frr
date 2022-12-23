@@ -4582,6 +4582,101 @@ int zclient_neigh_ip_decode(struct stream *s, struct zapi_neigh_ip *api)
 	return -1;
 }
 
+int zclient_nd_info_encode(struct stream *s,
+			    int cmd,
+			    struct interface *ifp,
+			    struct ipaddr *ipaddr,
+			    struct ethaddr *mac,
+				int ndm_state)
+{
+	/*
+	 * Message format:
+	 * - header: command, vrf
+	 * - c: family
+	 *   - AF_INET6:
+	 *     - 16 bytes: ipv6
+	 * - c: ifname length
+	 * - X bytes: interface name
+	 * - l: interface index
+
+	 * - c: family
+	 *   - AF_INET:
+	 *     - 4 bytes: ipv4
+	 *   - AF_INET6:
+	 *     - 16 bytes: ipv6
+	 *   - c: prefix length
+	 * - c: cbit
+	 * - l: color
+	 * - c: ifname length
+	 * - X bytes: interface name
+	 * Commands: ZEBRA_BFD_DEST_REPLAY
+	 *
+	 * q(64), l(32), w(16), c(8)
+	 */
+
+	int ret = 0;
+	uint8_t len = 0;
+
+	zclient_create_header(s, cmd, ifp->vrf->vrf_id);
+	// fill ip
+	stream_putc(s, ipaddr_family(ipaddr));
+	stream_put(s, &ipaddr->ipaddr_v6, sizeof(struct in6_addr));
+
+	// fill if
+	len = strlen(ifp->name);
+	stream_putc(s, len);
+	if (len > 0)
+	{
+        stream_put(s, ifp->name, len);
+	}
+    
+	stream_putl(s, ifp->ifindex);
+    
+	// fill mac
+    stream_put(s, mac, sizeof(struct ethaddr));
+
+	// fill state
+	stream_putl(s, ndm_state);
+
+	return ret;
+}
+
+int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api)
+{
+	int ret;
+
+	uint8_t family;
+	uint8_t ifnamelen;
+
+	STREAM_GETC(s, family);
+	if (family != AF_INET6)
+		return -1;
+
+    api->ipaddr.ipa_type = IPADDR_V6;
+	STREAM_GET(&api->ipaddr.ipaddr_v6, s, sizeof(struct in6_addr));
+    STREAM_GETC(s, ifnamelen);
+
+	if (ifnamelen >= INTERFACE_NAMSIZ)
+	{
+		return -1;
+	}
+	else
+	{
+		STREAM_GET(api->ifname, s, ifnamelen);
+		api->ifname[ifnamelen] = 0;
+	}
+
+	STREAM_GETL(s, api->ifindex);
+    
+	STREAM_GET(&api->mac, s, sizeof(struct ethaddr));
+
+	STREAM_GETL(s, api->ndm_state);
+
+	return 0;
+ stream_failure:
+	return -1;
+}
+
 int zclient_send_zebra_gre_request(struct zclient *client,
 				   struct interface *ifp)
 {

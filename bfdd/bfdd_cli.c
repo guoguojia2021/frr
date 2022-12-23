@@ -828,6 +828,47 @@ DEFPY(
 	return CMD_SUCCESS;
 }
 
+DEFPY(
+	bfd_nd_info_show, bfd_nd_info_show_cmd,
+	"show bfd nd infos",
+	"show\n"
+    "BFD\n"
+	"Neighbor Discovery\n"
+    "info\n")
+{
+	struct ttable *tt;
+	char *out;
+	struct bfd_nd_info *bni, *safe_entry;
+	int count = 0;
+
+	vty_out(vty, "BFD ND infos :\n");
+	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
+	ttable_add_row(tt, "IPADDR|DEV|DEV_IDX|MAC");
+	ttable_rowseps(tt, 0, BOTTOM, true, '-');
+
+	RB_FOREACH_SAFE (bni, bfd_nd_info_head, &bfd_nd_info_tree, safe_entry)
+	{
+
+	    char ebuf[ETHER_ADDR_STRLEN];
+	    char ibuf[INET6_ADDRSTRLEN];
+
+    	ttable_add_row(tt, "%s|%s|%d|%s",
+	                ipaddr2str(&bni->ipaddr, ibuf, sizeof(ibuf)), 
+					bni->ifname,
+					bni->ifindex,
+					prefix_mac2str(&bni->mac, ebuf, sizeof(ebuf)));	
+	    
+		count++;
+	}
+
+	out = ttable_dump(tt, "\n");
+	vty_out(vty, "%s", out);
+	vty_out(vty, " Total number : %d\n", count);
+	XFREE(MTYPE_TMP, out);
+	ttable_del(tt);
+
+	return CMD_SUCCESS;
+}
 
 
 void bfd_cli_peer_profile_show(struct vty *vty, const struct lyd_node *dnode,
@@ -871,6 +912,7 @@ bfdd_cli_init(void)
 	install_element(BFD_NODE, &no_sbfd_reflector_all_cmd);
 	install_element(BFD_NODE, &no_sbfd_reflector_cmd);
     install_element(VIEW_NODE, &sbfd_reflector_show_info_cmd);
+    install_element(VIEW_NODE, &bfd_nd_info_show_cmd);
 	
 	install_element(BFD_PEER_NODE, &bfd_peer_shutdown_cmd);
 	install_element(BFD_PEER_NODE, &bfd_peer_mult_cmd);
