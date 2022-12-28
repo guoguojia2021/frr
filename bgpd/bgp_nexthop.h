@@ -67,6 +67,7 @@ struct bgp_nexthop_cache {
 #define BGP_STATIC_ROUTE              (1 << 4)
 #define BGP_STATIC_ROUTE_EXACT_MATCH  (1 << 5)
 #define BGP_NEXTHOP_LABELED_VALID     (1 << 6)
+#define BGP_CONDITION_TRACK_ROUTE     (1 << 7)
 
 /*
  * This flag is added for EVPN gateway IP nexthops.
@@ -100,6 +101,10 @@ struct bgp_nexthop_cache {
 	void *nht_info; /* In BGP, peer session */
 	LIST_HEAD(path_list, bgp_path_info) paths;
 	unsigned int path_count;
+
+    /*add for condition track route*/
+	LIST_HEAD(filter_list, bgp_filter) peer_filters;
+	unsigned int peerfilters_count;
 	struct bgp *bgp;
 
 	/* This flag is set to TRUE for a bnc that is gateway IP overlay index

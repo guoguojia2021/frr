@@ -40,6 +40,10 @@ extern void bgp_conditional_adv_enable(struct peer *peer, afi_t afi,
 				       safi_t safi);
 extern void bgp_conditional_adv_disable(struct peer *peer, afi_t afi,
 					safi_t safi);
+extern void bgp_trackroute_adv_enable(struct peer *peer, afi_t afi, safi_t safi, struct bgp_filter *filter);
+extern void bgp_trackroute_adv_disable(struct peer *peer, afi_t afi, safi_t safi, struct bgp_filter *filter);
+extern void bgp_notify_condition_peer(struct bgp_nexthop_cache *bnc);
+
 #ifdef __cplusplus
 }
 #endif

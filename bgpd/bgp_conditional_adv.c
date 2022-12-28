@@ -22,6 +22,7 @@
 
 #include "bgpd/bgp_conditional_adv.h"
 #include "bgpd/bgp_vty.h"
+#include "bgpd/bgp_nht.h"
 
 static route_map_result_t
 bgp_check_rmap_prefixes_in_bgp_table(struct bgp_table *table,
@@ -261,6 +262,25 @@ static int bgp_conditional_adv_timer(struct thread *t)
 					(ret == RMAP_PERMITMATCH) ? WITHDRAW
 								  : ADVERTISE;
 
+			/*
+			 * Update condadv update type so
+			 * subgroup_announce_check() can properly apply
+			 * outbound policy according to advertisement state
+			 */
+			paf = peer_af_find(peer, afi, safi);
+			if (paf && (SUBGRP_PEER(PAF_SUBGRP(paf))
+					    ->filter[afi][safi]
+					    .advmap.update_type !=
+				    filter->advmap.update_type)) {
+				/* Handle change to peer advmap */
+				if (BGP_DEBUG(update, UPDATE_OUT))
+					zlog_debug(
+						"%s: advmap.update_type changed for peer %s, adjusting update_group.",
+						__func__, peer->host);
+
+				update_group_adjust_peer(paf);
+			}
+
 			/* Send regular update as per the existing policy.
 			 * There is a change in route-map, match-rule, ACLs,
 			 * or route-map filter configuration on the same peer.
@@ -273,11 +293,10 @@ static int bgp_conditional_adv_timer(struct thread *t)
 						__func__, peer->host,
 						get_afi_safi_str(afi, safi,
 								 false));
-
-				paf = peer_af_find(peer, afi, safi);
 				if (paf) {
 					update_subgroup_split_peer(paf, NULL);
 					subgrp = paf->subgroup;
+
 					if (subgrp && subgrp->update_group)
 						subgroup_announce_table(
 							paf->subgroup, NULL);
@@ -344,3 +363,143 @@ void bgp_conditional_adv_disable(struct peer *peer, afi_t afi, safi_t safi)
 	/* Last filter removed. So cancel conditional routes polling thread. */
 	THREAD_OFF(bgp->t_condition_check);
 }
+
+void bgp_trackroute_adv_enable(struct peer *peer, afi_t afi, safi_t safi, struct bgp_filter *filter)
+{
+    struct bgp *bgp = peer->bgp;
+    struct bgp_nexthop_cache_head *tree = NULL;
+    struct bgp_nexthop_cache *bnc = NULL;
+
+    assert(bgp);
+
+    /* This flag is used to monitor conditional routes status in BGP table,
+     * and advertise/withdraw routes only when there is a change in BGP
+     * table w.r.t conditional routes
+     */
+    peer->advmap_config_change[afi][safi] = true;
+
+    tree = &bgp->condition_track_table[afi];
+    bnc = bnc_find(tree, &filter->advmap.condition_route, 0);
+    if (!bnc) {
+        bnc = bnc_new(tree, &filter->advmap.condition_route, 0);
+        bnc->bgp = bgp;
+        bnc->ifindex = 0;
+        char buf[PREFIX2STR_BUFFER];
+
+        zlog_debug("Allocated bnc %s(%u)(%s) peer %p --track route",
+               bnc_str(bnc, buf, PREFIX2STR_BUFFER),
+               bnc->srte_color, bnc->bgp->name_pretty,
+               peer);
+    } else {
+        char buf[PREFIX2STR_BUFFER];
+
+        zlog_debug(
+            "Found existing bnc %s(%s) flags 0x%x #peers %d peer %p ---trace route",
+            bnc_str(bnc, buf, PREFIX2STR_BUFFER),
+            bnc->bgp->name_pretty, bnc->flags, 
+            bnc->peerfilters_count, peer);
+    }
+    SET_FLAG(bnc->flags, BGP_CONDITION_TRACK_ROUTE);
+    SET_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH);
+
+    if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED))
+        register_zebra_rnh(bnc, 1);
+
+    if (filter->advmap.condition_nexthop != bnc) {
+        peer_nh_map(peer, bnc, afi, safi, true);
+    }
+    if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_VALID))
+        filter->advmap.update_type = ADVERTISE;
+    else
+        filter->advmap.update_type = WITHDRAW;
+
+}
+
+void bgp_trackroute_adv_disable(struct peer *peer, afi_t afi, safi_t safi, struct bgp_filter *filter)
+{
+    struct bgp *bgp = peer->bgp;
+    struct bgp_nexthop_cache_head *tree = NULL;
+    struct bgp_nexthop_cache *bnc = NULL;
+
+    assert(bgp);
+
+    /* This flag is used to monitor conditional routes status in BGP table,
+     * and advertise/withdraw routes only when there is a change in BGP
+     * table w.r.t conditional routes
+     */
+    peer->advmap_config_change[afi][safi] = true;
+
+    tree = &bgp->condition_track_table[afi];
+    bnc = bnc_find(tree, &filter->advmap.condition_route, 0);
+    if (!bnc) {
+        return;
+    } 
+
+    peer_nh_map(peer, bnc, afi, safi, false);
+
+    if (LIST_EMPTY(&(bnc->peer_filters))) {
+        /* only unregister if this is the last nh for this prefix*/
+        if (!bnc_existing_for_prefix(bnc))
+            unregister_zebra_rnh(bnc, 1);
+        bnc_free(bnc);
+    }
+    
+}
+
+
+/**
+ * bgp_notify_condition_peer - notify conditional peer to update/withdraw route
+ */
+void bgp_notify_condition_peer(struct bgp_nexthop_cache *bnc)
+{
+    int afi;
+    safi_t safi;
+    struct bgp_filter *filter = NULL;
+    struct peer *peer = NULL;
+    struct peer_af *paf = NULL;
+    bool bnc_is_valid_nexthop = false;
+    struct bgp_table *table = NULL;
+    struct bgp *bgp = NULL;
+
+    LIST_FOREACH (filter, &(bnc->peer_filters), nh_thread) {
+        afi = filter->afi;
+        safi = filter->safi;
+        peer = filter->peer;
+        bgp = peer->bgp;
+
+        bnc_is_valid_nexthop = bgp_isvalid_nexthop(bnc) ? true : false;
+
+        if (bnc_is_valid_nexthop)
+        {
+            filter->advmap.update_type = ADVERTISE;
+        }
+        else
+            filter->advmap.update_type = WITHDRAW;
+
+        /* Skip non established peer. */
+        if (peer->status != Established)
+            continue;
+        /*
+         * Update condadv update type so
+         * subgroup_announce_check() can properly apply
+         * outbound policy according to advertisement state
+         */
+        paf = peer_af_find(peer, afi, safi);
+        if (paf && (SUBGRP_PEER(PAF_SUBGRP(paf))
+                    ->filter[afi][safi]
+                    .advmap.update_type !=
+                filter->advmap.update_type)) {
+            update_group_adjust_peer(paf);
+        }
+        table = bgp->rib[afi][safi];
+        if (!table)
+            continue;
+        /* Send update as per the conditional advertisement */
+        bgp_conditional_adv_routes(peer, afi, safi, table,
+                       filter->advmap.amap,
+                       filter->advmap.update_type);
+    }
+
+    RESET_FLAG(bnc->change_flags);
+}
+

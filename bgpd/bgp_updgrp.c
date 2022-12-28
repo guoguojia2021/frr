@@ -221,6 +221,8 @@ static void conf_copy(struct peer *dst, struct peer *src, afi_t afi,
 			MTYPE_BGP_FILTER_NAME, ADVERTISE_DELAY_MAP_NAME(srcfilter));
 		ADVERTISE_DELAY_MAP(dstfilter) = ADVERTISE_DELAY_MAP(srcfilter);
 	}
+
+	dstfilter->advmap.update_type = srcfilter->advmap.update_type;
 }
 
 /**
@@ -394,6 +396,9 @@ static unsigned int updgrp_hash_key_make(const void *p)
 					strlen(filter->advmap.aname), SEED1),
 				  key);
 
+	if (filter->advmap.update_type)
+		key = jhash_1word(filter->advmap.update_type, key);
+
 	if (peer->default_rmap[afi][safi].name)
 		key = jhash_1word(
 			jhash(peer->default_rmap[afi][safi].name,
@@ -546,6 +551,9 @@ static bool updgrp_hash_cmp(const void *p1, const void *p2)
 	    || (!fl1->advdelaymap.name && fl2->advdelaymap.name)
 	    || (fl1->advdelaymap.name && fl2->advdelaymap.name
 		&& strcmp(fl1->advdelaymap.name, fl2->advdelaymap.name)))
+		return false;
+
+	if (fl1->advmap.update_type != fl2->advmap.update_type)
 		return false;
 
 	if ((pe1->default_rmap[afi][safi].name

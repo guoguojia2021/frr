@@ -75,12 +75,21 @@ extern void bgp_cleanup_nexthops(struct bgp *bgp);
  */
 extern void path_nh_map(struct bgp_path_info *path,
 			struct bgp_nexthop_cache *bnc, bool make);
+extern void peer_nh_map(struct peer *peer, struct bgp_nexthop_cache *bnc, afi_t afi, safi_t safi, 
+		 bool make);
+
 /*
  * When we actually have the connection to
  * the zebra daemon, we need to reregister
  * any nexthops we may have sitting around
  */
 extern void bgp_nht_register_nexthops(struct bgp *bgp);
+extern void register_zebra_rnh(struct bgp_nexthop_cache *bnc,
+			       int is_bgp_static_route);
+extern void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc,
+				 int is_bgp_import_route);
+
+extern int bgp_isvalid_nexthop(struct bgp_nexthop_cache *bnc);
 
 /*
  * When we have the the PEER_FLAG_CAPABILITY_ENHE flag

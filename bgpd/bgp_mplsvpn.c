@@ -569,7 +569,7 @@ static uint32_t alloc_new_sid_ex(struct bgp *bgp, struct seg6_sid *sid,
 	if (!bgp || !sid_locator || !sid)
 		return 0;
     
-    combine_sid(&sid_locator->prefix.prefix, &sid->ipv6Addr.prefix, &sid_buf);
+    combine_sid(sid_locator, &sid->ipv6Addr.prefix, &sid_buf);
 
 	if (sid_exist(bgp, &sid_buf))
 		return 3;
@@ -1488,7 +1488,7 @@ void vrf_leak_from_vrf_update(struct bgp *to_vrf,       /* to */
     static_attr = *path_vrf->attr;
     for (ALL_LIST_ELEMENTS_RO(to_vrf->vpn_policy[afi].redistribute_import_vrf, node, tmp_vrf_red)) 
     {
-        if (strcmp(&tmp_vrf_red->vrfname, from_vrf->name) == 0)
+        if (strcmp(tmp_vrf_red->vrfname, from_vrf->name) == 0)
         {
             red_map = tmp_vrf_red->rmap.map;
             break;

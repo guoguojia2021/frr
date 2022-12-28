@@ -7647,6 +7647,64 @@ ALIAS_HIDDEN(neighbor_advertise_map, neighbor_advertise_map_hidden_cmd,
 	     "Advertise routes only if prefixes in non-exist-map are not installed in BGP table\n"
 	     "Name of the exist or non exist map\n")
 
+/* Set advertise-map to the peer. */
+static int peer_advertise_map_set_trackroute_vty(struct vty *vty, const char *ip_str,
+				      afi_t afi, safi_t safi,
+				      const char *advertise_str,
+				      const char *condition_route, 
+				      bool set)
+{
+	int ret = CMD_WARNING_CONFIG_FAILED;
+	struct peer *peer;
+	struct route_map *advertise_map;
+	struct route_map *condition_map;
+
+	peer = peer_and_group_lookup_vty(vty, ip_str);
+	if (!peer)
+		return ret;
+
+	advertise_map = route_map_lookup_warn_noexist(vty, advertise_str);
+
+	if (set)
+		ret = peer_advertise_map_set_trackroute(peer, afi, safi, advertise_str,
+					     advertise_map, condition_route);
+	else
+		ret = peer_advertise_map_unset_trackroute(peer, afi, safi, advertise_str,
+					       advertise_map, condition_route);
+
+	return bgp_vty_return(vty, ret);
+}
+
+DEFPY (neighbor_advertise_map_troute,
+       neighbor_advertise_map_troute_cmd,
+       "[no$no] neighbor <A.B.C.D|X:X::X:X|WORD>$neighbor advertise-map WORD$advertise_str track <A.B.C.D|X:X::X:X|WORD>$condition_route",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Route-map to conditionally advertise routes\n"
+       "Name of advertise map\n"
+       "track route\n"
+       "track route\n")
+{
+
+	return peer_advertise_map_set_trackroute_vty(vty, neighbor, bgp_node_afi(vty),
+					  bgp_node_safi(vty), advertise_str,
+					  condition_route, !no);
+}
+
+ALIAS_HIDDEN(neighbor_advertise_map_troute,
+       neighbor_advertise_map_troute_hidden_cmd,
+       "[no$no] neighbor <A.B.C.D|X:X::X:X|WORD>$neighbor advertise-map WORD$advertise_str track <A.B.C.D|X:X::X:X|WORD>$condition_route",
+       NO_STR
+       NEIGHBOR_STR
+       NEIGHBOR_ADDR_STR2
+       "Route-map to conditionally advertise routes\n"
+       "Name of advertise map\n"
+       "track route\n"
+       "track route\n")
+
+
+
 /* Set route-map to the peer. */
 static int peer_route_map_set_vty(struct vty *vty, const char *ip_str,
 				  afi_t afi, safi_t safi, const char *name_str,
@@ -19680,6 +19738,15 @@ void bgp_vty_init(void)
 	install_element(BGP_IPV6L_NODE, &neighbor_advertise_map_cmd);
 	install_element(BGP_VPNV4_NODE, &neighbor_advertise_map_cmd);
 	install_element(BGP_VPNV6_NODE, &neighbor_advertise_map_cmd);
+
+    install_element(BGP_IPV4_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_IPV4M_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_IPV4L_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_IPV6_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_IPV6M_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_IPV6L_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_VPNV4_NODE, &neighbor_advertise_map_troute_cmd);
+	install_element(BGP_VPNV6_NODE, &neighbor_advertise_map_troute_cmd);
 
 	/* neighbor maximum-prefix-out commands. */
 	install_element(BGP_NODE, &neighbor_maximum_prefix_out_cmd);

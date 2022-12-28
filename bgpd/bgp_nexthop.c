@@ -80,6 +80,7 @@ struct bgp_nexthop_cache *bnc_new(struct bgp_nexthop_cache_head *tree,
 	bnc->srte_color = srte_color;
 	bnc->tree = tree;
 	LIST_INIT(&(bnc->paths));
+    LIST_INIT(&(bnc->peer_filters));
 	bgp_nexthop_cache_add(tree, bnc);
 
 	return bnc;
@@ -1083,6 +1084,7 @@ void bgp_scan_init(struct bgp *bgp)
 	for (afi = AFI_IP; afi < AFI_MAX; afi++) {
 		bgp_nexthop_cache_init(&bgp->nexthop_cache_table[afi]);
 		bgp_nexthop_cache_init(&bgp->import_check_table[afi]);
+        bgp_nexthop_cache_init(&bgp->condition_track_table[afi]);
 		bgp->connected_table[afi] = bgp_table_init(bgp, afi,
 			SAFI_UNICAST);
 	}

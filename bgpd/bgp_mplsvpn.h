@@ -60,6 +60,9 @@ extern void vpn_leak_from_vrf_withdraw(struct bgp *bgp_vpn, struct bgp *bgp_vrf,
 extern void vrf_leak_from_vrf_update(struct bgp *to_vrf,	    /* to */
 			      struct bgp *from_vrf,	    /* from */
 			      struct bgp_path_info *path_vrf);
+extern void vrf_leak_from_vrf_withdraw(struct bgp *to_vrf,		/* to */
+				struct bgp *from_vrf,		/* from */
+				struct bgp_path_info *path_vrf); /* route */
 
 extern void vpn_leak_from_vrf_withdraw_all(struct bgp *bgp_vpn,
 					   struct bgp *bgp_vrf, afi_t afi);

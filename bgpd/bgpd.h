@@ -258,8 +258,11 @@ struct bgp_filter {
 
 		char *cname;
 		struct route_map *cmap;
+        struct prefix condition_route;
 
 		enum update_type update_type;
+        /* Back pointer to the nexthop structure */
+    	struct bgp_nexthop_cache *condition_nexthop;
 	} advmap;
 
 	/* Advertise-delay-map */
@@ -267,6 +270,11 @@ struct bgp_filter {
 		char *name;
 		struct route_map *map;
 	}advdelaymap;
+    /* For condition route linked list */
+    LIST_ENTRY(bgp_filter) nh_thread;
+    struct peer *peer;
+    afi_t afi;
+	safi_t safi;
 };
 struct bgp_redist {
 	unsigned short instance;
@@ -657,6 +665,9 @@ struct bgp {
 
 	/* Tree for import-check */
 	struct bgp_nexthop_cache_head import_check_table[AFI_MAX];
+
+    /* Tree for condition track */
+	struct bgp_nexthop_cache_head condition_track_table[AFI_MAX];
 
 	struct bgp_table *connected_table[AFI_MAX];
 
@@ -2305,6 +2316,18 @@ extern int peer_advertise_map_unset(struct peer *peer, afi_t afi, safi_t safi,
 				    const char *condition_name,
 				    struct route_map *condition_map,
 				    bool condition);
+extern void peer_advertise_map_trackroute_update(struct peer *peer, afi_t afi,
+					     safi_t safi, const char *amap_name,
+					     struct route_map *amap,
+					     const char *croute, bool set);
+extern int peer_advertise_map_set_trackroute(struct peer *peer, afi_t afi, safi_t safi,
+			   const char *advertise_name,
+			   struct route_map *advertise_map,
+			   const char *condition_route);
+extern int peer_advertise_map_unset_trackroute(struct peer *peer, afi_t afi, safi_t safi,
+			     const char *advertise_name,
+			     struct route_map *advertise_map,
+			    const char *condition_route);
 
 extern int peer_maximum_prefix_set(struct peer *, afi_t, safi_t, uint32_t,
 				   uint8_t, int, uint16_t, bool force);
