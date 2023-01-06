@@ -428,6 +428,8 @@ extern unsigned int attrhash_key_make(const void *);
 extern void attr_show_all(struct vty *);
 extern unsigned long int attr_count(void);
 extern unsigned long int attr_unknown_count(void);
+extern void bgp_path_attribute_discard_vty(struct vty *vty, struct peer *peer,
+					   const char *discard_attrs);
 
 /* Cluster list prototypes. */
 extern bool cluster_loop_check(struct cluster_list *, struct in_addr);

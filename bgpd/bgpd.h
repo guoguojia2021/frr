@@ -2024,6 +2024,10 @@ struct peer {
 	/* Linkage for hash of clearing peers being cleared in a batch */
 	struct bgp_clearing_hash_item clear_hash_link;
 
+#define BGP_ATTR_MAX 255
+	/* Path attributes discard */
+	bool discard_attrs[BGP_ATTR_MAX];
+
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(peer);
@@ -2889,6 +2893,7 @@ extern void bgp_recalculate_afi_safi_bestpaths(struct bgp *bgp, afi_t afi,
 					       safi_t safi);
 
 extern void peer_on_policy_change(struct peer *peer, afi_t afi, safi_t safi, int outbound);
+extern bool bgp_path_attribute_discard(struct peer *peer, char *buf, size_t size);
 extern int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi, int direct,
 							const char *name, struct route_map *route_map);
 extern int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int direct);
