@@ -5006,10 +5006,18 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 #ifdef ENABLE_BGP_VNC
 		if (SAFI_MPLS_VPN == safi) {
 			zlog_debug("number of labels:%d", num_labels);
-			mpls_label_t label_decoded = decode_label(label);
 
-			rfapiProcessUpdate(peer, NULL, p, prd, attr, afi, safi,
-					   type, sub_type, &label_decoded);
+			if (num_labels)
+			{
+				mpls_label_t label_decoded = decode_label(label);
+				rfapiProcessUpdate(peer, NULL, p, prd, attr, afi, safi,
+						type, sub_type, &label_decoded);
+			}
+			else
+			{
+				rfapiProcessUpdate(peer, NULL, p, prd, attr, afi, safi, type,
+						sub_type, NULL);
+			}
 		}
 		if (SAFI_ENCAP == safi) {
 			rfapiProcessUpdate(peer, NULL, p, prd, attr, afi, safi,

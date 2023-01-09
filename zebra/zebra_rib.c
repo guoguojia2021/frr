@@ -73,13 +73,17 @@ DEFINE_MTYPE_STATIC(ZEBRA, WQ_WRAPPER, "WQ wrapper");
 static pthread_mutex_t dplane_mutex;
 static struct thread *t_dplane;
 static struct dplane_ctx_q rib_dplane_q;
+static unsigned long ip4_sent_fib_count = 0;
+static unsigned long ip4_pending_fib_count = 0;
+static unsigned long ip6_sent_fib_count = 0;
+static unsigned long ip6_pending_fib_count = 0;
 
 DEFINE_HOOK(rib_update, (struct route_node * rn, const char *reason),
 	    (rn, reason));
 
 /* Should we allow non FRR processes to delete our routes */
 extern int allow_delete;
-extern int ZEBRA_TABLE_FIB_MAX;
+extern unsigned long ZEBRA_TABLE_FIB_MAX;
 
 /* Each route type's string and default distance value. */
 static const struct {
@@ -854,25 +858,56 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 				struct route_entry *new)
 {
 	rib_dest_t *dest = rib_dest_from_rnode(rn);
-	struct route_table *  table = srcdest_rnode_table(rn);
 	if (IS_ZEBRA_DEBUG_RIB_DETAILED){
 		char buf[SRCDEST2STR_BUFFER];
 		srcdest_rnode2str(rn, buf, sizeof(buf));
 		zlog_debug("%u:%s: rib_process_add_fib rn %p", zvrf_id(zvrf), buf, rn);
 	}
-	if (table->sent_fib_count < ZEBRA_TABLE_FIB_MAX)
+	struct rib_table_info *info = srcdest_rnode_table_info(rn);
+	if((info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))
 	{
-		(table->sent_fib_count)++;
-		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-			zlog_debug("sent_fib_count < ZEBRA_TABLE_FIB_MAX, add: %lu %lu",table->sent_fib_count,table->pending_fib_count);
-		UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
-		hook_call(rib_update, rn, "new route selected");
+		if (ip4_sent_fib_count < ZEBRA_TABLE_FIB_MAX)
+		{
+			if(ip4_sent_fib_count >= 0.8 * ZEBRA_TABLE_FIB_MAX)
+				zlog_warn("current ip4 fib count: %lu, more than 80 percent of max fib count %lu",ip4_sent_fib_count, ZEBRA_TABLE_FIB_MAX);
+			(ip4_sent_fib_count)++;
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+				zlog_debug("ip4_sent_fib_count < ZEBRA_TABLE_FIB_MAX, add: %lu %lu",ip4_sent_fib_count,ip4_pending_fib_count);
+			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+			hook_call(rib_update, rn, "new route selected");
+		}
+		else
+		{
+			(ip4_pending_fib_count)++;
+			zlog_crit("ip4_sent_fib_count >= ZEBRA_TABLE_FIB_MAX, pending: %lu %lu",ip4_sent_fib_count,ip4_pending_fib_count);
+			SET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+		}
+	}
+	else if((info->afi == AFI_IP6) && (info->safi == SAFI_UNICAST))
+	{
+		if (ip6_sent_fib_count < ZEBRA_TABLE_FIB_MAX)
+		{
+			if(ip6_sent_fib_count >= 0.8 * ZEBRA_TABLE_FIB_MAX)
+				zlog_warn("current ip6 fib count: %lu, more than 80 percent of max fib count %lu",ip6_sent_fib_count, ZEBRA_TABLE_FIB_MAX);
+			(ip6_sent_fib_count)++;
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+				zlog_debug("ip6_sent_fib_count < ZEBRA_TABLE_FIB_MAX, add: %lu %lu",ip6_sent_fib_count,ip6_pending_fib_count);
+			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+			hook_call(rib_update, rn, "new route selected");
+		}
+		else
+		{
+			(ip6_pending_fib_count)++;
+			zlog_crit("ip6_sent_fib_count >= ZEBRA_TABLE_FIB_MAX, pending: %lu %lu",ip6_sent_fib_count,ip6_pending_fib_count);
+			SET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+		}
 	}
 	else
 	{
-		(table->pending_fib_count)++;
-		zlog_crit("sent_fib_count >= ZEBRA_TABLE_FIB_MAX, pending: %lu %lu",table->sent_fib_count,table->pending_fib_count);
-		SET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("no fib count restriction on afi %d safi %d",(int)(info->afi), (int)(info->safi));
+		UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
+		hook_call(rib_update, rn, "new route selected");
 	}
 
 	/* Update real nexthop. This may actually determine if nexthop is active
@@ -901,7 +936,6 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 {
 
 	rib_dest_t *dest = rib_dest_from_rnode(rn);
-	struct route_table * table = srcdest_rnode_table(rn);
 	if (IS_ZEBRA_DEBUG_RIB_DETAILED){
 		char buf[SRCDEST2STR_BUFFER];
 		srcdest_rnode2str(rn, buf, sizeof(buf));
@@ -931,15 +965,39 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 	else
 		UNSET_FLAG(old->status, ROUTE_ENTRY_CHANGED);
 
+	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
-		(table->pending_fib_count)--;
-		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-			zlog_debug("deleting pending fib, decrease pending_fib_count: %lu %lu",table->sent_fib_count,table->pending_fib_count);
+		if((info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))
+		{
+			(ip4_pending_fib_count)--;
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+				zlog_debug("deleting pending fib, decrease ip4_pending_fib_count: %lu %lu",ip4_sent_fib_count,ip4_pending_fib_count);
+		}
+		else if ((info->afi == AFI_IP6) && (info->safi == SAFI_UNICAST))
+		{
+			(ip6_pending_fib_count)--;
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+				zlog_debug("deleting pending fib, decrease ip6_pending_fib_count: %lu %lu",ip6_sent_fib_count,ip6_pending_fib_count);
+		}
+		else
+		{
+			zlog_warn("only support RIB_DEST_PENDING_FPM flag on ip4 and ip6 unicast route");
+		}
 		UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
-	} else {
-		(table->sent_fib_count)--;
-		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-			zlog_debug("deleting sent fib, decrease sent_fib_count: %lu %lu",table->sent_fib_count,table->pending_fib_count);
+	}
+	else {
+		if((info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))
+		{
+			(ip4_sent_fib_count)--;
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+				zlog_debug("deleting sent fib, decrease ip4_sent_fib_count: %lu %lu",ip4_sent_fib_count,ip4_pending_fib_count);
+		}
+		else if ((info->afi == AFI_IP6) && (info->safi == SAFI_UNICAST))
+		{
+			(ip6_sent_fib_count)--;
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+				zlog_notice("deleting sent fib, decrease ip6_sent_fib_count: %lu %lu",ip6_sent_fib_count,ip6_pending_fib_count);
+		}
 	}
 }
 
@@ -1156,6 +1214,7 @@ static void rib_process(struct route_node *rn)
 	rib_dest_t *dest;
 	struct zebra_vrf *zvrf = NULL;
 	struct vrf *vrf;
+    char buf[SRCDEST2STR_BUFFER];
 
 	vrf_id_t vrf_id = VRF_UNKNOWN;
 
@@ -1173,6 +1232,12 @@ static void rib_process(struct route_node *rn)
 	vrf_id = zvrf_id(zvrf);
 
 	vrf = vrf_lookup_by_id(vrf_id);
+
+	if (IS_ZEBRA_DEBUG_RIB)
+		srcdest_rnode2str(rn, buf, sizeof(buf));
+
+	if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+		zlog_debug("%u:%s: Processing rn %p", vrf_id, buf, rn);
 
 	/*
 	 * we can have rn's that have a NULL info pointer
@@ -1341,16 +1406,25 @@ static void rib_process(struct route_node *rn)
 	struct route_table * table = srcdest_rnode_table(rn);
 	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-		zlog_debug("table:%p, afi: %d, safi: %d, sent_fib_count: %lu , pending_fib_count: %lu ",table,(int)(info->afi),(int)(info->safi), table->sent_fib_count,table->pending_fib_count);
+    {
+        zlog_debug("table:%p, afi: %d, safi: %d",table,(int)(info->afi),(int)(info->safi));
+        if (info->afi == AFI_IP && info->safi == SAFI_UNICAST)
+            zlog_debug("ip4_sent_fib_count: %lu, ip4_pending_fib_count: %lu",ip4_sent_fib_count,ip4_pending_fib_count);
+        else if (info->afi == AFI_IP6 && info->safi == SAFI_UNICAST)
+            zlog_debug("ip6_sent_fib_count: %lu, ip6_pending_fib_count: %lu",ip6_sent_fib_count,ip6_pending_fib_count);
+        else
+            zlog_debug("no fib count restriction on table:%p, afi: %d, safi: %d",table,(int)(info->afi),(int)(info->safi));
+    }
 
 	//handle the pending rn, trigger them to fpm if not exceeds threshold
 	struct route_node * it_rn;
 	rib_dest_t * it_dest;
 	//only release pending fib to fpm when there is pending fib and sent_fib_count not exceed threshold
-	if((table->pending_fib_count>0) && ((table->pending_fib_count + table->sent_fib_count) <= ZEBRA_TABLE_FIB_MAX))
+	if((info->afi == AFI_IP && info->safi == SAFI_UNICAST) &&
+	(ip4_pending_fib_count > 0) && ((ip4_pending_fib_count + ip4_sent_fib_count) <= ZEBRA_TABLE_FIB_MAX))
 	{
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-			zlog_debug("release all pending routes");
+			zlog_debug("release all ip4 pending routes");
 		for (it_rn = route_top(table); it_rn; it_rn = srcdest_route_next(it_rn))
 		{
 			if(!(it_rn->info))
@@ -1361,18 +1435,45 @@ static void rib_process(struct route_node *rn)
 			if(CHECK_FLAG(it_dest->flags,RIB_DEST_PENDING_FPM))
 			{
 				if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-					zlog_debug("handle pending rn %p", it_rn);
+					zlog_debug("handle pending ip4 rn %p", it_rn);
 				UNSET_FLAG(it_dest->flags,RIB_DEST_PENDING_FPM);
-				table->pending_fib_count--;
-				table->sent_fib_count++;
+				ip4_pending_fib_count--;
+				ip4_sent_fib_count++;
 				hook_call(rib_update, it_rn, "pending route release to fpm");
-				if((table->pending_fib_count==0)||(table->sent_fib_count>=ZEBRA_TABLE_FIB_MAX))
+				if((ip4_pending_fib_count==0)||(ip4_sent_fib_count>=ZEBRA_TABLE_FIB_MAX))
 					break;
 			}
 		}
-		zlog_notice("after handle all pending routes, sent_fib_count: %lu , pending_fib_count: %lu ",table->sent_fib_count,table->pending_fib_count);
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("after handle all pending routes, ip4_sent_fib_count: %lu, ip4_pending_fib_count: %lu",ip4_sent_fib_count,ip4_pending_fib_count);
 	}
-
+	else if((info->afi == AFI_IP6 && info->safi == SAFI_UNICAST) &&
+	(ip6_pending_fib_count > 0) && ((ip6_pending_fib_count + ip6_sent_fib_count) <= ZEBRA_TABLE_FIB_MAX))
+	{
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("release all ip6 pending routes");
+		for (it_rn = route_top(table); it_rn; it_rn = srcdest_route_next(it_rn))
+		{
+			if(!(it_rn->info))
+				continue;
+			it_dest = rib_dest_from_rnode(it_rn);
+			if(!it_dest)
+				continue;
+			if(CHECK_FLAG(it_dest->flags,RIB_DEST_PENDING_FPM))
+			{
+				if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+					zlog_notice("handle pending ip6 rn %p", it_rn);
+				UNSET_FLAG(it_dest->flags,RIB_DEST_PENDING_FPM);
+				ip6_pending_fib_count--;
+				ip6_sent_fib_count++;
+				hook_call(rib_update, it_rn, "pending route release to fpm");
+				if((ip6_pending_fib_count==0)||(ip6_sent_fib_count>=ZEBRA_TABLE_FIB_MAX))
+					break;
+			}
+		}
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug("after handle all pending routes, ip6_sent_fib_count: %lu, ip6_pending_fib_count: %lu",ip6_sent_fib_count,ip6_pending_fib_count);
+	}
 
 	/* Update SELECTED entry */
 	if (old_selected != new_selected || selected_changed) {

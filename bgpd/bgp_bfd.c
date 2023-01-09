@@ -402,13 +402,9 @@ void bgp_bfd_peer_config_write(struct vty *vty, const struct peer *peer,
 	if ((!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)
 	     && peer->bfd_config->manual)
 	    || CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
-#if HAVE_BFDD > 0
-		vty_out(vty, " neighbor %s bfd\n", addr);
-#else
 		vty_out(vty, " neighbor %s bfd %d %d %d\n", addr,
 			peer->bfd_config->detection_multiplier,
 			peer->bfd_config->min_rx, peer->bfd_config->min_tx);
-#endif /* HAVE_BFDD */
 	}
 
 	if (peer->bfd_config->profile[0])
@@ -453,11 +449,7 @@ DEFUN (neighbor_bfd,
 	return CMD_SUCCESS;
 }
 
-#if HAVE_BFDD > 0
-DEFUN_HIDDEN(
-#else
 DEFUN(
-#endif /* HAVE_BFDD */
        neighbor_bfd_param,
        neighbor_bfd_param_cmd,
        "neighbor <A.B.C.D|X:X::X:X|WORD> bfd (2-255) (50-60000) (50-60000)",

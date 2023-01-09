@@ -751,6 +751,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	struct bgp_path_info *new;
 	struct bgp_path_info_extra *extra;
 	uint32_t num_sids = 0;
+    char buf[PREFIX2STR_BUFFER];
 
 	if (new_attr->srv6_l3vpn || new_attr->srv6_vpn)
 		num_sids = 1;
@@ -879,6 +880,12 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		if (bpi_ultimate->sub_type == BGP_ROUTE_REDISTRIBUTE ||
 		    is_pi_family_evpn(bpi_ultimate))
 			nh_valid = 1;
+		else if (is_pi_family_vpn(bpi_ultimate) && new_attr && new_attr->vni && !is_zero_mac(&new_attr->rmac))
+		{
+			if (debug)
+				zlog_debug("%s(): classify MPLS_VPN with VNI(%d) RMAC(%s) as EVPN, nh valid",__func__, new_attr->vni, prefix_mac2str(&new_attr->rmac, buf, sizeof(buf)));
+			nh_valid = 1;
+		}
 		else
 			/*
 			 * TBD do we need to do anything about the
@@ -994,6 +1001,12 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	if (bpi_ultimate->sub_type == BGP_ROUTE_REDISTRIBUTE ||
 	    is_pi_family_evpn(bpi_ultimate))
 		nh_valid = 1;
+	else if (is_pi_family_vpn(bpi_ultimate) && new_attr && new_attr->vni && !is_zero_mac(&new_attr->rmac))
+	{
+		if (debug)
+			zlog_debug("%s(): classify MPLS_VPN with VNI(%d) RMAC(%s) as EVPN, nh valid",__func__, new_attr->vni, prefix_mac2str(&new_attr->rmac, buf, sizeof(buf)));
+		nh_valid = 1;
+	}
 	else
 		/*
 		 * TBD do we need to do anything about the

@@ -226,6 +226,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 
 	memset(&nhi, 0, sizeof(nhi));
 	src = NULL;
+	char nhbuf[INET6_ADDRSTRLEN] = {0};
 
 	if (ri->num_nhs >= (int)array_size(ri->nhs))
 		return 0;
@@ -240,6 +241,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 		nhi.gateway = &nexthop->gate;
 		if (nexthop->src.ipv4.s_addr != INADDR_ANY)
 			src = &nexthop->src;
+		inet_ntop(AF_INET, nhi.gateway, nhbuf, INET_ADDRSTRLEN);
 	}
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV6
@@ -250,6 +252,8 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 			nhi.gateway = &ipv4ll_gateway;
 		else
 			nhi.gateway = &nexthop->gate;
+
+		inet_ntop(AF_INET6, nhi.gateway, nhbuf,INET6_ADDRSTRLEN);
 	}
 
 	if (nexthop->type == NEXTHOP_TYPE_IFINDEX) {
@@ -298,7 +302,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 			nhi.encap_info.vxlan_encap.vlan = vid;
 			zfpm_debug("%s: NEWROUTE:%s/%d, Gateway:%s RMAC:%s VLAN:%d VNI:%d", __FUNCTION__,
 				prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
-				addr_to_a(ri->af, &nhi.gateway),
+				nhbuf,
 				prefix_mac2str(&nhi.encap_info.vxlan_encap.rmac, buf, sizeof(buf)),
                 vid, nhi.encap_info.vxlan_encap.vni);		
 		}

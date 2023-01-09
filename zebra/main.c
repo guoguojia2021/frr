@@ -97,7 +97,7 @@ uint32_t rcvbufsize = 128 * 1024;
 const struct option longopts[] = {
 	{"batch", no_argument, NULL, 'b'},
 	{"allow_delete", no_argument, NULL, 'a'},
-	{"large_fib", no_argument, NULL, 'L'},
+	{"large_fib", required_argument, NULL, 'L'},
 	{"socket", required_argument, NULL, 'z'},
 	{"ecmp", required_argument, NULL, 'e'},
 	{"retain", no_argument, NULL, 'r'},
@@ -303,14 +303,14 @@ int main(int argc, char **argv)
 	frr_preinit(&zebra_di, argc, argv);
 
 	frr_opt_add(
-		"bLpaz:e:rK:s:"
+		"bL:paz:e:rK:s:"
 #ifdef HAVE_NETLINK
 		"n"
 #endif
 		,
 		longopts,
 		"  -b, --batch              Runs in batch mode\n"
-		"  -L, --large_fib          Set the max fib size to 128K, which is 50K by default\n"
+		"  -L, --large_fib          Set the max fib size, which is 50K by default\n"
 		"  -a, --allow_delete       Allow other processes to delete zebra routes\n"
 		"  -z, --socket             Set path of zebra socket\n"
 		"  -e, --ecmp               Specify ECMP to use.\n"
@@ -373,7 +373,7 @@ int main(int argc, char **argv)
 			graceful_restart = atoi(optarg);
 			break;
 		case 'L':
-			ZEBRA_TABLE_FIB_MAX = 131072;
+			ZEBRA_TABLE_FIB_MAX = (unsigned long)atoi(optarg);
 			break;
 		case 'p':
 			preserve_bgp = 1;

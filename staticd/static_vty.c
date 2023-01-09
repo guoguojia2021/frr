@@ -1118,10 +1118,14 @@ DEFPY_YANG(ip_route_vrf_etag,
 
 DEFPY_YANG(ip_route_evpn_vrf,
       ip_route_evpn_vrf_cmd,
-      "[no] ip route\
-	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
-	A.B.C.D$gate                                   \
-    nexthop-vni " CMD_VNI_RANGE " nexthop-rmac WORD",
+      "[no] ip route                                    \
+	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask>      \
+	A.B.C.D$gate                                        \
+    nexthop-vni " CMD_VNI_RANGE " nexthop-rmac WORD     \
+    [{                                                  \
+        tag (1-4294967295)                              \
+        |(1-255)$distance                               \
+    }]",
       NO_STR IP_STR
       "Establish static routes\n"
       "IP destination prefix (e.g. 10.0.0.0/8)\n"
@@ -1131,7 +1135,10 @@ DEFPY_YANG(ip_route_evpn_vrf,
 	  "Remote Vtep VNI\n"
       "VNID\n"
       "RMAC\n"
-      "mac-address (e.g. 0a:0a:0a:0a:0a:0a)\n")
+      "mac-address (e.g. 0a:0a:0a:0a:0a:0a)\n"
+      "Set tag for this route\n"
+      "Tag value\n"
+      "Distance value for this prefix\n")
 {
 	const struct lyd_node *vrf_dnode;
 	const char *vrfname;
@@ -1149,8 +1156,51 @@ DEFPY_YANG(ip_route_evpn_vrf,
 
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, gate_str,
-				 buf, NULL, NULL, NULL, NULL, NULL,
+				 buf, NULL, tag_str, NULL, distance_str, NULL,
 				 NULL, true, NULL, nexthop_vni_str,
+				 nexthop_rmac);
+}
+
+DEFPY_YANG(ipv6_route_evpn_vrf,
+      ipv6_route_evpn_vrf_cmd,
+      "[no] ipv6 route                                  \
+	<X:X::X:X/M$prefix>                                 \
+	X:X::X:X$gate                                       \
+    nexthop-vni " CMD_VNI_RANGE " nexthop-rmac WORD     \
+    [{                                                  \
+        tag (1-4294967295)                              \
+        |(1-255)$distance                               \
+    }]",
+      NO_STR IPV6_STR
+      "Establish static routes\n"
+      "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
+      "IPv6 gateway address\n"
+	  "Remote Vtep VNI\n"
+      "VNID\n"
+      "RMAC\n"
+      "mac-address (e.g. 0a:0a:0a:0a:0a:0a)\n"
+      "Set tag for this route\n"
+      "Tag value\n"
+     "Distance value for this prefix\n")
+{
+	const struct lyd_node *vrf_dnode;
+	const char *vrfname;
+	char buf[IF_NAMESIZE];
+
+	vrf_dnode =
+		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
+	if (!vrf_dnode) {
+		vty_out(vty, "%% Failed to get vrf dnode in candidate db\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
+	
+	snprintf(buf, IF_NAMESIZE, "Brvxlan%s", nexthop_vni_str);
+
+	return static_route_leak(vty, vrfname, vrfname, AFI_IP6, SAFI_UNICAST,
+				 no, prefix, NULL, NULL, gate_str,
+				 buf, NULL, tag_str, NULL, distance_str, NULL,
+				 NULL, true, NULL,  nexthop_vni_str,
 				 nexthop_rmac);
 }
 
@@ -1497,6 +1547,7 @@ void static_vty_init(void)
 	install_element(VRF_NODE, &ip_route_vrf_etag_cmd);
 	install_element(CONFIG_NODE, &ip_route_etag_cmd);
 	install_element(VRF_NODE, &ip_route_evpn_vrf_cmd);
+	install_element(VRF_NODE, &ipv6_route_evpn_vrf_cmd);
 
 	install_element(ENABLE_NODE, &show_debugging_static_cmd);
 	install_element(ENABLE_NODE, &debug_staticd_cmd);
