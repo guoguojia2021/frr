@@ -7684,6 +7684,8 @@ DEFPY (neighbor_advertise_map_troute,
        "Route-map to conditionally advertise routes\n"
        "Name of advertise map\n"
        "track route\n"
+       "track ipv4 route\n"
+       "track ipv6 route\n"
        "track route\n")
 {
 
@@ -7701,6 +7703,8 @@ ALIAS_HIDDEN(neighbor_advertise_map_troute,
        "Route-map to conditionally advertise routes\n"
        "Name of advertise map\n"
        "track route\n"
+       "track ipv4 route\n"
+       "track ipv6 route\n"
        "track route\n")
 
 
@@ -12532,22 +12536,39 @@ static void bgp_show_peer_afi(struct vty *vty, struct peer *p, afi_t afi,
 
 		/* advertise-map */
 		if (filter->advmap.aname) {
-			json_advmap = json_object_new_object();
-			json_object_string_add(json_advmap, "condition",
-					       filter->advmap.condition
-						       ? "EXIST"
-						       : "NON_EXIST");
-			json_object_string_add(json_advmap, "conditionMap",
-					       filter->advmap.cname);
-			json_object_string_add(json_advmap, "advertiseMap",
-					       filter->advmap.aname);
-			json_object_string_add(json_advmap, "advertiseStatus",
-					       filter->advmap.update_type
-							       == ADVERTISE
-						       ? "Advertise"
-						       : "Withdraw");
-			json_object_object_add(json_addr, "advertiseMap",
-					       json_advmap);
+            if (filter->advmap.condition != CONDITION_TRACK)
+            {
+    			json_advmap = json_object_new_object();
+    			json_object_string_add(json_advmap, "condition",
+    					       filter->advmap.condition
+    						       ? "EXIST"
+    						       : "NON_EXIST");
+    			json_object_string_add(json_advmap, "conditionMap",
+    					       filter->advmap.cname);
+    			json_object_string_add(json_advmap, "advertiseMap",
+    					       filter->advmap.aname);
+    			json_object_string_add(json_advmap, "advertiseStatus",
+    					       filter->advmap.update_type
+    							       == ADVERTISE
+    						       ? "Advertise"
+    						       : "Withdraw");
+    			json_object_object_add(json_addr, "advertiseMap",
+    					       json_advmap);
+            }
+            else{
+                json_advmap = json_object_new_object();
+    			json_object_string_add(json_advmap, "trackRoute",
+    					       filter->advmap.cname);
+    			json_object_string_add(json_advmap, "advertiseMap",
+    					       filter->advmap.aname);
+    			json_object_string_add(json_advmap, "advertiseStatus",
+    					       filter->advmap.update_type
+    							       == ADVERTISE
+    						       ? "Advertise"
+    						       : "Withdraw");
+    			json_object_object_add(json_addr, "advertiseMap",
+    					       json_advmap);
+            }
 		}
 
 		/* advertise-delay-map */
@@ -12851,7 +12872,7 @@ static void bgp_show_peer_afi(struct vty *vty, struct peer *p, afi_t afi,
 				filter->usmap.name);
 
 		/* advertise-map */
-		if (filter->advmap.aname && filter->advmap.cname)
+		if (filter->advmap.aname && filter->advmap.cname && filter->advmap.condition != CONDITION_TRACK)
 			vty_out(vty,
 				"  Condition %s, Condition-map %s%s, Advertise-map %s%s, status: %s\n",
 				filter->advmap.condition ? "EXIST"
@@ -12863,6 +12884,16 @@ static void bgp_show_peer_afi(struct vty *vty, struct peer *p, afi_t afi,
 				filter->advmap.update_type == ADVERTISE
 					? "Advertise"
 					: "Withdraw");
+
+        if (filter->advmap.aname && filter->advmap.cname && filter->advmap.condition == CONDITION_TRACK)
+            vty_out(vty,
+                "  Track-route %s, Advertise-map %s%s, status: %s\n",
+                filter->advmap.cname,
+                filter->advmap.amap ? "*" : "",
+                filter->advmap.aname,
+                filter->advmap.update_type == ADVERTISE
+                    ? "Advertise"
+                    : "Withdraw");
 
 		/* advertise-delay-map */
 		if (filter->advdelaymap.name)
@@ -16929,35 +16960,44 @@ static bool peergroup_af_flag_check(struct peer *peer, afi_t afi, safi_t safi,
 }
 
 static bool peergroup_filter_check(struct peer *peer, afi_t afi, safi_t safi,
-				   uint8_t type, int direct)
+                   uint8_t type, int direct)
 {
-	struct bgp_filter *filter;
+    struct bgp_filter *filter;
 
-	if (peer_group_active(peer))
-		return !!CHECK_FLAG(peer->filter_override[afi][safi][direct],
-				    type);
+    if (peer_group_active(peer))
+    {
+        if (type != PEER_FT_ADVERTISE_TRACK_ROUTE)
+            return !!CHECK_FLAG(peer->filter_override[afi][safi][direct],
+                        type);
+        else
+            return !!CHECK_FLAG(peer->filter_override[afi][safi][RMAP_OUT],
+                        type);
+    }
 
-	filter = &peer->filter[afi][safi];
-	switch (type) {
-	case PEER_FT_DISTRIBUTE_LIST:
-		return !!(filter->dlist[direct].name);
-	case PEER_FT_FILTER_LIST:
-		return !!(filter->aslist[direct].name);
-	case PEER_FT_PREFIX_LIST:
-		return !!(filter->plist[direct].name);
-	case PEER_FT_ROUTE_MAP:
-		return !!(filter->map[direct].name);
-	case PEER_FT_UNSUPPRESS_MAP:
-		return !!(filter->usmap.name);
-	case PEER_FT_ADVERTISE_MAP:
-		return !!(filter->advmap.aname
-			  && ((filter->advmap.condition == direct)
-			      && filter->advmap.cname));
-	case PEER_FT_ADVERTISE_DELAY_MAP:
-		return !!(filter->advdelaymap.name);
-	default:
-		return false;
-	}
+    filter = &peer->filter[afi][safi];
+    switch (type) {
+    case PEER_FT_DISTRIBUTE_LIST:
+        return !!(filter->dlist[direct].name);
+    case PEER_FT_FILTER_LIST:
+        return !!(filter->aslist[direct].name);
+    case PEER_FT_PREFIX_LIST:
+        return !!(filter->plist[direct].name);
+    case PEER_FT_ROUTE_MAP:
+        return !!(filter->map[direct].name);
+    case PEER_FT_UNSUPPRESS_MAP:
+        return !!(filter->usmap.name);
+    case PEER_FT_ADVERTISE_MAP:
+        return !!(filter->advmap.aname
+              && ((filter->advmap.condition == direct)
+                  && filter->advmap.cname));
+    case PEER_FT_ADVERTISE_DELAY_MAP:
+        return !!(filter->advdelaymap.name);
+    case PEER_FT_ADVERTISE_TRACK_ROUTE:
+        return !!(filter->advmap.aname
+              && (filter->advmap.condition == direct));
+    default:
+        return false;
+    }
 }
 
 /* Return true if the addpath type is set for peer and different from
@@ -17164,6 +17204,11 @@ static void bgp_config_write_filter(struct vty *vty, struct peer *peer,
 				   CONDITION_EXIST))
 		vty_out(vty, "  neighbor %s advertise-map %s exist-map %s\n",
 			addr, filter->advmap.aname, filter->advmap.cname);
+    
+    if (peergroup_filter_check(peer, afi, safi, PEER_FT_ADVERTISE_TRACK_ROUTE,
+                       CONDITION_TRACK))
+        vty_out(vty, "  neighbor %s advertise-map %s track %s\n",
+            addr, filter->advmap.aname, filter->advmap.cname);
 
 	/* filter-list. */
 	if (peergroup_filter_check(peer, afi, safi, PEER_FT_FILTER_LIST,

@@ -210,8 +210,9 @@ DECLARE_QOBJ_TYPE(bgp_master);
 #define BGP_GTSM_HOPS_CONNECTED 1
 
 /* Advertise map */
-#define CONDITION_NON_EXIST	false
-#define CONDITION_EXIST		true
+#define CONDITION_NON_EXIST	0
+#define CONDITION_EXIST		1
+#define CONDITION_TRACK		2
 
 enum update_type { WITHDRAW, ADVERTISE };
 
@@ -254,7 +255,7 @@ struct bgp_filter {
 		char *aname;
 		struct route_map *amap;
 
-		bool condition;
+		uint32_t condition;
 
 		char *cname;
 		struct route_map *cmap;
@@ -1645,6 +1646,7 @@ struct peer {
 #define PEER_FT_UNSUPPRESS_MAP        (1U << 4) /* unsuppress-map */
 #define PEER_FT_ADVERTISE_MAP         (1U << 5) /* advertise-map */
 #define PEER_FT_ADVERTISE_DELAY_MAP   (1U << 6) /* advertise-delay-map */
+#define PEER_FT_ADVERTISE_TRACK_ROUTE   (1U << 7) /* advertise-delay-map with track route*/
 
 	/* ORF Prefix-list */
 	struct prefix_list *orf_plist[AFI_MAX][SAFI_MAX];

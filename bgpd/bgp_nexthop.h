@@ -69,6 +69,12 @@ struct bgp_nexthop_cache {
 #define BGP_NEXTHOP_LABELED_VALID     (1 << 6)
 #define BGP_CONDITION_TRACK_ROUTE     (1 << 7)
 
+
+#define BGP_NEXTHOP_TYPE_NEXTHOP     1
+#define BGP_NEXTHOP_TYPE_IMPORT      2
+#define BGP_NEXTHOP_TYPE_TRACK       3
+
+
 /*
  * This flag is added for EVPN gateway IP nexthops.
  * If the nexthop is RIB reachable, but a MAC/IP is not yet

@@ -2157,6 +2157,13 @@ static void peer_group2peer_config_copy_af(struct peer_group *group,
 				      MTYPE_BGP_FILTER_NAME);
 		PEER_ATTR_INHERIT(peer, group, filter[afi][safi].advdelaymap.map);
 	}
+    /* advertise-track-route filter apply */
+    //(filter->advmap.aname && (filter->advmap.condition == direct))
+	if (!CHECK_FLAG(pfilter_ovrd[RMAP_OUT], PEER_FT_ADVERTISE_TRACK_ROUTE)) {
+		PEER_STR_ATTR_INHERIT(peer, group, filter[afi][safi].advmap.aname,
+				      MTYPE_BGP_FILTER_NAME);
+		PEER_ATTR_INHERIT(peer, group, filter[afi][safi].advmap.condition);
+	}
 
 	if (peer->addpath_type[afi][safi] == BGP_ADDPATH_NONE) {
 		peer->addpath_type[afi][safi] = conf->addpath_type[afi][safi];
@@ -2569,7 +2576,9 @@ int peer_delete(struct peer *peer)
 		for (i = RMAP_IN; i < RMAP_MAX; i++) {
 			XFREE(MTYPE_BGP_FILTER_NAME, filter->map[i].name);
 		}
-
+        if (filter->advmap.condition_nexthop)
+            bgp_trackroute_adv_disable(peer, afi, safi, filter);
+        
 		XFREE(MTYPE_BGP_FILTER_NAME, filter->usmap.name);
 		XFREE(MTYPE_ROUTE_MAP_NAME, peer->default_rmap[afi][safi].name);
 	}
@@ -7537,7 +7546,7 @@ void peer_advertise_map_trackroute_update(struct peer *peer, afi_t afi,
     if (ret <= 0) {
         return;
     }
-    filter->advmap.condition = true;
+    filter->advmap.condition = CONDITION_TRACK;
     route_map_counter_increment(filter->advmap.amap);
     peer->advmap_config_change[afi][safi] = true;
 
@@ -7566,7 +7575,7 @@ int peer_advertise_map_set_trackroute(struct peer *peer, afi_t afi, safi_t safi,
 	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
 		/* Set override-flag and process peer route updates. */
 		SET_FLAG(peer->filter_override[afi][safi][RMAP_OUT],
-			 PEER_FT_ADVERTISE_MAP);
+			 PEER_FT_ADVERTISE_TRACK_ROUTE);
 		return 0;
 	}
 
@@ -7577,7 +7586,7 @@ int peer_advertise_map_set_trackroute(struct peer *peer, afi_t afi, safi_t safi,
 	for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
 		/* Skip peers with overridden configuration. */
 		if (CHECK_FLAG(member->filter_override[afi][safi][RMAP_OUT],
-			       PEER_FT_ADVERTISE_MAP))
+			       PEER_FT_ADVERTISE_TRACK_ROUTE))
 			continue;
 
 		/* Set configuration on peer-group member. */
@@ -7604,7 +7613,7 @@ int peer_advertise_map_unset_trackroute(struct peer *peer, afi_t afi, safi_t saf
 
 	/* Unset override-flag unconditionally. */
 	UNSET_FLAG(peer->filter_override[afi][safi][RMAP_OUT],
-		   PEER_FT_ADVERTISE_MAP);
+		   PEER_FT_ADVERTISE_TRACK_ROUTE);
 
 	/* Inherit configuration from peer-group if peer is member. */
 	if (peer_group_active(peer)) {
@@ -7612,7 +7621,7 @@ int peer_advertise_map_unset_trackroute(struct peer *peer, afi_t afi, safi_t saf
 				      filter[afi][safi].advmap.aname,
 				      MTYPE_BGP_FILTER_NAME);
 		PEER_ATTR_INHERIT(peer, peer->group,
-				  filter[afi][safi].advmap.amap);
+				  filter[afi][safi].advmap.condition);
 	} else
 		peer_advertise_map_trackroute_update(
 			peer, afi, safi, advertise_name, advertise_map,
@@ -7637,7 +7646,7 @@ int peer_advertise_map_unset_trackroute(struct peer *peer, afi_t afi, safi_t saf
 	for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
 		/* Skip peers with overridden configuration. */
 		if (CHECK_FLAG(member->filter_override[afi][safi][RMAP_OUT],
-			       PEER_FT_ADVERTISE_MAP))
+			       PEER_FT_ADVERTISE_TRACK_ROUTE))
 			continue;
 		/* Remove configuration on peer-group member. */
 		peer_advertise_map_trackroute_update(

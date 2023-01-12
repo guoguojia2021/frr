@@ -887,16 +887,30 @@ static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 }
 
 static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
-			      bool import_table)
+			      uint8_t import_table)
 {
 	struct bgp_nexthop_cache *bnc;
 	afi_t afi;
 	struct bgp_nexthop_cache_head(*tree)[AFI_MAX];
 
-	if (import_table)
-		vty_out(vty, "Current BGP import check cache:\n");
-	else
-		vty_out(vty, "Current BGP nexthop cache:\n");
+    switch (import_table) {
+    case BGP_NEXTHOP_TYPE_NEXTHOP:
+        vty_out(vty, "Current BGP nexthop cache:\n");
+        tree = &bgp->nexthop_cache_table;
+        break;
+    case BGP_NEXTHOP_TYPE_IMPORT:
+        vty_out(vty, "Current BGP import check cache:\n");
+        tree = &bgp->import_check_table;
+        break;
+    case BGP_NEXTHOP_TYPE_TRACK:
+        vty_out(vty, "Current BGP track route cache:\n");
+        tree = &bgp->condition_track_table;
+        break;
+    default:
+        vty_out(vty, "error nexthop type\n");
+        return CMD_WARNING;
+    }
+
 	if (import_table)
 		tree = &bgp->import_check_table;
 	else
@@ -909,7 +923,7 @@ static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
 
 static int show_ip_bgp_nexthop_table(struct vty *vty, const char *name,
 				     const char *nhopip_str,
-				     bool import_table)
+				     uint8_t import_table)
 {
 	struct bgp *bgp;
 
@@ -931,8 +945,21 @@ static int show_ip_bgp_nexthop_table(struct vty *vty, const char *name,
 			vty_out(vty, "nexthop address is malformed\n");
 			return CMD_WARNING;
 		}
-		tree = import_table ? &bgp->import_check_table
-				    : &bgp->nexthop_cache_table;
+        switch (import_table) {
+        case BGP_NEXTHOP_TYPE_NEXTHOP:
+            tree = &bgp->nexthop_cache_table;
+            break;
+        case BGP_NEXTHOP_TYPE_IMPORT:
+            tree = &bgp->import_check_table;
+            break;
+        case BGP_NEXTHOP_TYPE_TRACK:
+            tree = &bgp->condition_track_table;
+            break;
+        default:
+            vty_out(vty, "error nexthop type\n");
+    		return CMD_WARNING;
+        }
+		
 		bnc = bnc_find(tree[family2afi(nhop.family)], &nhop, 0);
 		if (!bnc) {
 			vty_out(vty, "specified nexthop does not have entry\n");
@@ -984,7 +1011,7 @@ DEFUN (show_ip_bgp_nexthop,
 	    || argv_find(argv, argc, "X:X::X:X", &nh_idx))
 		nhop_ip = argv[nh_idx]->arg;
 
-	return show_ip_bgp_nexthop_table(vty, vrf, nhop_ip, false);
+	return show_ip_bgp_nexthop_table(vty, vrf, nhop_ip, BGP_NEXTHOP_TYPE_NEXTHOP);
 }
 
 DEFUN (show_ip_bgp_import_check,
@@ -1004,7 +1031,27 @@ DEFUN (show_ip_bgp_import_check,
 	    || argv_find(argv, argc, "vrf", &idx))
 		vrf = argv[++idx]->arg;
 
-	return show_ip_bgp_nexthop_table(vty, vrf, NULL, true);
+	return show_ip_bgp_nexthop_table(vty, vrf, NULL, BGP_NEXTHOP_TYPE_IMPORT);
+}
+
+DEFUN (show_ip_bgp_track_table,
+       show_ip_bgp_track_table_cmd,
+       "show [ip] bgp [<view|vrf> VIEWVRFNAME] track-table [detail]",
+       SHOW_STR
+       IP_STR
+       BGP_STR
+       BGP_INSTANCE_HELP_STR
+       "BGP track table\n"
+       "Show detailed information\n")
+{
+	int idx = 0;
+	char *vrf = NULL;
+
+	if (argv_find(argv, argc, "view", &idx)
+	    || argv_find(argv, argc, "vrf", &idx))
+		vrf = argv[++idx]->arg;
+
+	return show_ip_bgp_nexthop_table(vty, vrf, NULL, BGP_NEXTHOP_TYPE_TRACK);
 }
 
 DEFUN (show_ip_bgp_instance_all_nexthop,
@@ -1094,6 +1141,7 @@ void bgp_scan_vty_init(void)
 {
 	install_element(VIEW_NODE, &show_ip_bgp_nexthop_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_import_check_cmd);
+    install_element(VIEW_NODE, &show_ip_bgp_track_table_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_instance_all_nexthop_cmd);
 	install_element(VIEW_NODE, &show_ip_bgp_instance_all_connected_cmd);
 }
