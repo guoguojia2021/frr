@@ -227,6 +227,8 @@ static inline const char *zvrf_name(struct zebra_vrf *zvrf)
 
 static inline const char *zvrf_alias_name(struct zebra_vrf *zvrf)
 {
+    if (!zvrf || !zvrf->vrf)
+		return "Unknown";
 	return zvrf->vrf->aliasName;
 }
 static inline bool zvrf_is_active(struct zebra_vrf *zvrf)

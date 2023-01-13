@@ -752,7 +752,7 @@ void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 			if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 				zlog_debug(
 					"%s(%u):%pRN has Nexthop(%pRN) depending on it, evaluating %u:%u",
-					zvrf_name(zvrf), zvrf_id(zvrf), rn,
+					zvrf_alias_name(zvrf), zvrf_id(zvrf), rn,
 					rnh->node, seq, rnh->seqno);
 
 			/*
@@ -919,7 +919,7 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 
 	if (IS_ZEBRA_DEBUG_RIB)
 		zlog_debug("%s(%u:%u):%pRN: Adding route rn %p, re %p (%s)",
-			   zvrf_name(zvrf), zvrf_id(zvrf), new->table, rn, rn,
+			   zvrf_alias_name(zvrf), zvrf_id(zvrf), new->table, rn, rn,
 			   new, zebra_route_string(new->type));
 
 	/* If labeled-unicast route, install transit LSP. */
@@ -946,7 +946,7 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 	/* Uninstall from kernel. */
 	if (IS_ZEBRA_DEBUG_RIB)
 		zlog_debug("%s(%u:%u):%pRN: Deleting route rn %p, re %p (%s)",
-			   zvrf_name(zvrf), zvrf_id(zvrf), old->table, rn, rn,
+			   zvrf_alias_name(zvrf), zvrf_id(zvrf), old->table, rn, rn,
 			   old, zebra_route_string(old->type));
 
 	/* If labeled-unicast route, uninstall transit LSP. */
@@ -1047,7 +1047,7 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 				if (new != old)
 					zlog_debug(
 						"%s(%u:%u):%pRN: Updating route rn %p, re %p (%s) old %p (%s)",
-						zvrf_name(zvrf), zvrf_id(zvrf),
+						zvrf_alias_name(zvrf), zvrf_id(zvrf),
 						new->table, rn, rn, new,
 						zebra_route_string(new->type),
 						old,
@@ -1055,7 +1055,7 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 				else
 					zlog_debug(
 						"%s(%u:%u):%pRN: Updating route rn %p, re %p (%s)",
-						zvrf_name(zvrf), zvrf_id(zvrf),
+						zvrf_alias_name(zvrf), zvrf_id(zvrf),
 						new->table, rn, rn, new,
 						zebra_route_string(new->type));
 			}
@@ -1085,7 +1085,7 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 				if (new != old)
 					zlog_debug(
 						"%s(%u:%u):%pRN: Deleting route rn %p, re %p (%s) old %p (%s) - nexthop inactive",
-						zvrf_name(zvrf), zvrf_id(zvrf),
+						zvrf_alias_name(zvrf), zvrf_id(zvrf),
 						new->table, rn, rn, new,
 						zebra_route_string(new->type),
 						old,
@@ -1093,7 +1093,7 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 				else
 					zlog_debug(
 						"%s(%u:%u):%pRN: Deleting route rn %p, re %p (%s) - nexthop inactive",
-						zvrf_name(zvrf), zvrf_id(zvrf),
+						zvrf_alias_name(zvrf), zvrf_id(zvrf),
 						new->table, rn, rn, new,
 						zebra_route_string(new->type));
 			}
@@ -1538,7 +1538,7 @@ static void zebra_rib_evaluate_mpls(struct route_node *rn)
 		if (IS_ZEBRA_DEBUG_MPLS)
 			zlog_debug(
 				"%s(%u): Scheduling all LSPs upon RIB completion",
-				zvrf_name(zvrf), zvrf_id(zvrf));
+				zvrf_alias_name(zvrf), zvrf_id(zvrf));
 		zebra_mpls_lsp_schedule(zvrf);
 		mpls_unmark_lsps_for_processing(rn);
 	}
@@ -2630,7 +2630,7 @@ static void process_subq_route(struct listnode *lnode, uint8_t qindex)
 			re = re_list_first(&dest->routes);
 
 		zlog_debug("%s(%u:%u):%pRN rn %p dequeued from sub-queue %u",
-			   zvrf_name(zvrf), zvrf_id(zvrf), re ? re->table : 0,
+			   zvrf_alias_name(zvrf), zvrf_id(zvrf), re ? re->table : 0,
 			   rnode, rnode, qindex);
 	}
 

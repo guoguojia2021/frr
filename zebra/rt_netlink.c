@@ -1082,7 +1082,7 @@ static int netlink_route_change_read_multicast(struct nlmsghdr *h,
 		ifp = if_lookup_by_index(iif, vrf);
 		zlog_debug(
 			"MCAST VRF: %s(%d) %s (%pI4,%pI4) IIF: %s(%d) OIF: %s jiffies: %lld",
-			zvrf_name(zvrf), vrf, nl_msg_type_to_str(h->nlmsg_type),
+			zvrf_alias_name(zvrf), vrf, nl_msg_type_to_str(h->nlmsg_type),
 			&m->sg.src, &m->sg.grp, ifp ? ifp->name : "Unknown",
 			iif, oif_list,
 			m->lastused);

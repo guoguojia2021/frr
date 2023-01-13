@@ -65,7 +65,7 @@ static void zebra_vrf_add_update(struct zebra_vrf *zvrf)
 	struct zserv *client;
 
 	if (IS_ZEBRA_DEBUG_EVENT)
-		zlog_debug("MESSAGE: ZEBRA_VRF_ADD %s", zvrf_name(zvrf));
+		zlog_debug("MESSAGE: ZEBRA_VRF_ADD %s", zvrf_alias_name(zvrf));
 
 	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
 		/* Do not send unsolicited messages to synchronous clients. */
@@ -82,7 +82,7 @@ static void zebra_vrf_delete_update(struct zebra_vrf *zvrf)
 	struct zserv *client;
 
 	if (IS_ZEBRA_DEBUG_EVENT)
-		zlog_debug("MESSAGE: ZEBRA_VRF_DELETE %s", zvrf_name(zvrf));
+		zlog_debug("MESSAGE: ZEBRA_VRF_DELETE %s", zvrf_alias_name(zvrf));
 
 	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
 		/* Do not send unsolicited messages to synchronous clients. */

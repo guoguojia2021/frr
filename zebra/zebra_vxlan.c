@@ -5250,7 +5250,7 @@ int zebra_vxlan_process_vrf_vni_cmd(struct zebra_vrf *zvrf, vni_t vni,
 		return -1;
 
 	if (IS_ZEBRA_DEBUG_VXLAN)
-		zlog_debug("vrf %s vni %u %s", zvrf_name(zvrf), vni,
+		zlog_debug("vrf %s vni %u %s", zvrf_alias_name(zvrf), vni,
 			   add ? "ADD" : "DEL");
 
 	if (add) {
@@ -5766,7 +5766,7 @@ void zebra_vxlan_advertise_all_vni(ZAPI_HANDLER_ARGS)
 
 	if (IS_ZEBRA_DEBUG_VXLAN)
 		zlog_debug("EVPN VRF %s(%u) VNI Adv %s, currently %s, flood control %u",
-			   zvrf_name(zvrf), zvrf_id(zvrf),
+			   zvrf_alias_name(zvrf), zvrf_id(zvrf),
 			   advertise ? "enabled" : "disabled",
 			   is_evpn_enabled() ? "enabled" : "disabled",
 			   flood_ctrl);

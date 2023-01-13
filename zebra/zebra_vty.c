@@ -2453,7 +2453,7 @@ static void vty_show_ip_route_summary(struct vty *vty,
 	if (!use_json)
 		vty_out(vty, "%-20s %-20s %s  (vrf %s)\n", "Route Source",
 			"Routes", "FIB",
-			zvrf_name(((struct rib_table_info *)
+			zvrf_alias_name(((struct rib_table_info *)
 					   route_table_get_info(table))
 					  ->zvrf));
 
@@ -2625,7 +2625,7 @@ static void vty_show_ip_route_summary_prefix(struct vty *vty,
 	if (!use_json)
 		vty_out(vty, "%-20s %-20s %s  (vrf %s)\n", "Route Source",
 			"Prefix Routes", "FIB",
-			zvrf_name(((struct rib_table_info *)
+			zvrf_alias_name(((struct rib_table_info *)
 					   route_table_get_info(table))
 					  ->zvrf));
 
