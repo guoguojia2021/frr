@@ -4954,7 +4954,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			if (!(afi == AFI_L2VPN && safi == SAFI_EVPN))
 				bgp_set_valid_label(&extra->label[0]);
 		}
-
+#if 0
 		/* Update SRv6 SID */
 		if (attr->srv6_l3vpn) {
 			extra = bgp_path_info_extra_get(pi);
@@ -5008,7 +5008,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			pi->extra->num_sids = 0;
         	memset(pi->extra->sid, 0, sizeof(extra->sid));
         }
-
+#endif
 #ifdef ENABLE_BGP_VNC
 		if ((afi == AFI_IP || afi == AFI_IP6)
 		    && (safi == SAFI_UNICAST)) {
@@ -5212,7 +5212,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		if (!(afi == AFI_L2VPN && safi == SAFI_EVPN))
 			bgp_set_valid_label(&extra->label[0]);
 	}
-
+#if 0
 	/* Update SRv6 SID */
 	if (safi == SAFI_MPLS_VPN) {
 		extra = bgp_path_info_extra_get(new);
@@ -5242,7 +5242,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			extra->num_sids = 1;
 		}
 	}
-
+#endif
 	/* Nexthop reachability check. */
 	if (((afi == AFI_IP || afi == AFI_IP6)
 	    && (safi == SAFI_UNICAST || safi == SAFI_LABELED_UNICAST  || safi == SAFI_MPLS_VPN))
@@ -11531,10 +11531,24 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 		else
 			vty_out(vty, "      Remote label: %d\n", label);
 	}
-
+#if 0
 	/* Remote SID */
 	if (path->extra && path->extra->num_sids > 0 && safi != SAFI_EVPN) {
 		inet_ntop(AF_INET6, &path->extra->sid[0].sid, buf, sizeof(buf));
+		if (json_paths)
+			json_object_string_add(json_path, "remoteSid", buf);
+		else
+			vty_out(vty, "      Remote SID: %s\n", buf);
+	}
+#endif
+
+	/* Remote SID */
+	if ((attr->srv6_vpn || attr->srv6_l3vpn) && safi != SAFI_EVPN) {
+		if (attr->srv6_l3vpn)
+			inet_ntop(AF_INET6, &attr->srv6_l3vpn->sid, buf, sizeof(buf));
+		else
+			inet_ntop(AF_INET6, &attr->srv6_vpn->sid, buf, sizeof(buf));
+
 		if (json_paths)
 			json_object_string_add(json_path, "remoteSid", buf);
 		else

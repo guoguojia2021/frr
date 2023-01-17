@@ -430,7 +430,7 @@ void rfapi_vty_out_vncinfo(struct vty *vty, const struct prefix *p,
 		else
 			vty_out(vty, " label=%u",
 				decode_label(&bpi->extra->label[0]));
-
+#if 0
 		if (bpi->extra->num_sids) {
 			char buf[BUFSIZ];
 
@@ -446,6 +446,7 @@ void rfapi_vty_out_vncinfo(struct vty *vty, const struct prefix *p,
 					bpi->extra->sid[0].arg_len);
 			}
 		}
+#endif
 	}
 
 	if (!rfapiGetVncLifetime(bpi->attr, &lifetime)) {

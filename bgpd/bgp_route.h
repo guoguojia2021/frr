@@ -178,11 +178,11 @@ struct bgp_path_info_extra {
 	/* af specific flags */
 	uint16_t af_flags;
 #define BGP_EVPN_MACIP_TYPE_SVI_IP (1 << 0)
-
+#if 0
 	/* SRv6 SID(s) for SRv6-VPN */
 	struct bgp_sid_info sid[BGP_MAX_SIDS];
 	uint32_t num_sids;
-
+#endif
 #ifdef ENABLE_BGP_VNC
 	union {
 

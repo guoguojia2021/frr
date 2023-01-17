@@ -733,6 +733,7 @@ static void setlabels(struct bgp_path_info *bpi,
 	extra->num_labels = num_labels;
 }
 
+#if 0
 /*
  * make encoded route SIDs match specified encoded sid set
  */
@@ -767,7 +768,7 @@ static void unsetsids(struct bgp_path_info *bpi)
 	extra->num_sids = 0;
 	memset(extra->sid, 0, sizeof(extra->sid));
 }
-
+#endif
 /*
  * returns pointer to new bgp_path_info upon success
  */
@@ -784,12 +785,14 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	struct bgp_path_info *bpi_ultimate;
 	struct bgp_path_info *new;
 	struct bgp_path_info_extra *extra;
+
+#if 0
 	uint32_t num_sids = 0;
     char buf[PREFIX2STR_BUFFER];
 
 	if (new_attr->srv6_l3vpn || new_attr->srv6_vpn)
 		num_sids = 1;
-
+#endif
 	if (debug)
 		zlog_debug(
 			"%s: entry: leak-to=%s, p=%pBD, type=%d, sub_type=%d",
@@ -863,7 +866,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		 */
 		if (!labelssame)
 			setlabels(bpi, label, num_labels);
-
+#if 0
 		/*
 		 * rewrite sid
 		 */
@@ -897,7 +900,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 					num_sids);
 		} else
 			unsetsids(bpi);
-
+#endif
 		if (nexthop_self_flag)
 			bgp_path_info_set_flag(bn, bpi, BGP_PATH_ANNC_NH_SELF);
 
@@ -986,7 +989,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		bgp_path_info_set_flag(bn, new, BGP_PATH_ANNC_NH_SELF);
 
 	bgp_path_info_extra_get(new);
-
+#if 0
 	/*
 	 * rewrite sid
 	 */
@@ -1014,7 +1017,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 			setsids(new, &new_attr->srv6_vpn->sid, num_sids);
 	} else
 		unsetsids(new);
-
+#endif
 	if (num_labels)
 		setlabels(new, label, num_labels);
 

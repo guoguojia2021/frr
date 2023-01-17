@@ -1548,6 +1548,30 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 		}
 #endif
 
+				if (peer->status == Established && peer->su_local->sa.sa_family == AF_INET6)
+					memcpy(&api_nh->seg6_src, &peer->su_local->sin6.sin6_addr,
+						sizeof(api_nh->seg6_src));
+
+				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
+			}
+		}
+		if (mpinfo->attr->srv6_l3vpn && !CHECK_FLAG(api.flags, ZEBRA_FLAG_EVPN_ROUTE)) {
+			if (!sid_zero(&mpinfo->attr->srv6_l3vpn->sid)) {
+				memcpy(&api_nh->seg6_segs, &mpinfo->attr->srv6_l3vpn->sid,
+					sizeof(api_nh->seg6_segs));
+
+				if (peer->status == Established && peer->su_local->sa.sa_family == AF_INET6)
+					memcpy(&api_nh->seg6_src, &peer->su_local->sin6.sin6_addr,
+						sizeof(api_nh->seg6_src));
+
+				if (mpinfo->attr->srv6_l3vpn->transposition_len != 0) {
+					if (!bgp_is_valid_label(
+							&mpinfo->extra->label[0]))
+						continue;
+				}
+				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
+			}
+		}
 		valid_nh_count++;
 	}
 
