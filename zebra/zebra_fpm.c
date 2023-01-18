@@ -1126,6 +1126,11 @@ static int zfpm_build_route_updates(void)
 			zfpm_g->stats.nop_deletes_skipped++;
 		}
 
+		/* If this is a srv6 local sid route, skip it */
+		if (re && CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
+			write_msg = 0;
+		}
+
 		if (write_msg) {
 			data_len = zfpm_encode_route(dest, re, (char *)data,
 						     buf_end - data, &msg_type);
@@ -1152,7 +1157,7 @@ static int zfpm_build_route_updates(void)
 		UNSET_FLAG(dest->flags, RIB_DEST_UPDATE_FPM);
 		TAILQ_REMOVE(&zfpm_g->dest_q, dest, fpm_q_entries);
 
-		if (is_add) {
+		if (is_add && write_msg) {
 			SET_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM);
 		} else {
 			UNSET_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM);
