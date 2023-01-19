@@ -219,8 +219,9 @@ struct bgp_master {
 
 	bool local_vrf_leak_enable;
 
-#define BM_DEFAULT_INQ_LIMIT 10000
+#define BM_DEFAULT_Q_LIMIT 10000
 	uint32_t inq_limit;
+	uint32_t outq_limit;
 
 	/* ID value for peer clearing batches */
 	uint32_t peer_clearing_batch_id;

@@ -8911,7 +8911,8 @@ void bgp_master_init(struct thread_master *master, const int buffer_size,
 	bm->socket_buffer = buffer_size;
 	bm->wait_for_fib = false;
 	bm->local_vrf_leak_enable = LOCAL_VRF_IMPORT_ENABLE;
-	bm->inq_limit = BM_DEFAULT_INQ_LIMIT;
+	bm->inq_limit = BM_DEFAULT_Q_LIMIT;
+	bm->outq_limit = BM_DEFAULT_Q_LIMIT;
 
 	bm->peer_clearing_batch_id = 1;
 	/* TODO -- make these configurable */

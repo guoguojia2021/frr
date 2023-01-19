@@ -434,6 +434,16 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 	if (peer->connection->t_routeadv)
 		return 0;
 
+	/*
+	 * Since the following is a do while loop
+	 * let's stop adding to the outq if we are
+	 * already at the limit.
+	 */
+	if (connection->obuf->count >= bm->outq_limit) {
+		bgp_write_proceed_actions(peer);
+		return 0;
+	}
+
 	do {
 		enum bgp_af_index index;
 
@@ -575,7 +585,8 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			bpacket_queue_advance_peer(paf);
 
 		}
-	} while (s && (++generated < wpq));
+	} while (s && (++generated < wpq) &&
+		 (connection->obuf->count <= bm->outq_limit));
 
 	if (generated)
 		bgp_writes_on(connection);
