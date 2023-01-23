@@ -2438,8 +2438,12 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 			&& peer->shared_network
 			&& (from == bgp->peer_self
 			    || peer->sort == BGP_PEER_EBGP))) {
-			attr->mp_nexthop_len =
-				BGP_ATTR_NHLEN_IPV6_GLOBAL_AND_LL;
+			if (safi == SAFI_MPLS_VPN)
+				attr->mp_nexthop_len =
+					BGP_ATTR_NHLEN_VPNV6_GLOBAL_AND_LL;
+			else
+				attr->mp_nexthop_len =
+					BGP_ATTR_NHLEN_IPV6_GLOBAL_AND_LL;
 		}
 
 		/* Clear off link-local nexthop in source, whenever it is not
