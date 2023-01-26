@@ -203,7 +203,7 @@ DEFPY_YANG(
 		nb_cli_enqueue_change(vty, "./source-any", NB_OP_CREATE, NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -366,7 +366,7 @@ DEFPY_YANG(
 				      NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -516,7 +516,7 @@ DEFPY_YANG(
 		nb_cli_enqueue_change(vty, "./any", NB_OP_CREATE, NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -597,7 +597,7 @@ DEFPY_YANG(
 
 	remark = argv_concat(argv, argc, 3);
 	nb_cli_enqueue_change(vty, "./remark", NB_OP_CREATE, remark);
-	rv = nb_cli_apply_changes(vty, xpath);
+	rv = nb_cli_apply_changes(vty, "%s", xpath);
 	XFREE(MTYPE_TMP, remark);
 
 	return rv;
@@ -706,7 +706,7 @@ DEFPY_YANG(
 		nb_cli_enqueue_change(vty, "./any", NB_OP_CREATE, NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -790,7 +790,7 @@ DEFPY_YANG(
 
 	remark = argv_concat(argv, argc, 4);
 	nb_cli_enqueue_change(vty, "./remark", NB_OP_CREATE, remark);
-	rv = nb_cli_apply_changes(vty, xpath);
+	rv = nb_cli_apply_changes(vty, "%s", xpath);
 	XFREE(MTYPE_TMP, remark);
 
 	return rv;
@@ -893,7 +893,7 @@ DEFPY_YANG(
 		nb_cli_enqueue_change(vty, "./any", NB_OP_CREATE, NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -972,7 +972,7 @@ DEFPY_YANG(
 
 	remark = argv_concat(argv, argc, 4);
 	nb_cli_enqueue_change(vty, "./remark", NB_OP_CREATE, remark);
-	rv = nb_cli_apply_changes(vty, xpath);
+	rv = nb_cli_apply_changes(vty, "%s", xpath);
 	XFREE(MTYPE_TMP, remark);
 
 	return rv;
@@ -1341,7 +1341,7 @@ DEFPY_YANG(
 		nb_cli_enqueue_change(vty, "./any", NB_OP_CREATE, NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -1412,7 +1412,7 @@ DEFPY_YANG(
 
 	remark = argv_concat(argv, argc, 4);
 	nb_cli_enqueue_change(vty, "./remark", NB_OP_CREATE, remark);
-	rv = nb_cli_apply_changes(vty, xpath);
+	rv = nb_cli_apply_changes(vty, "%s", xpath);
 	XFREE(MTYPE_TMP, remark);
 
 	return rv;
@@ -1545,7 +1545,7 @@ DEFPY_YANG(
 		nb_cli_enqueue_change(vty, "./any", NB_OP_CREATE, NULL);
 	}
 
-	return nb_cli_apply_changes(vty, xpath_entry);
+	return nb_cli_apply_changes(vty, "%s", xpath_entry);
 }
 
 DEFPY_YANG(
@@ -1616,7 +1616,7 @@ DEFPY_YANG(
 
 	remark = argv_concat(argv, argc, 4);
 	nb_cli_enqueue_change(vty, "./remark", NB_OP_CREATE, remark);
-	rv = nb_cli_apply_changes(vty, xpath);
+	rv = nb_cli_apply_changes(vty, "%s", xpath);
 	XFREE(MTYPE_TMP, remark);
 
 	return rv;
