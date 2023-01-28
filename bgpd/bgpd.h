@@ -191,6 +191,10 @@ struct bgp_master {
 #define BM_FLAG_SEND_EXTRA_DATA_TO_ZEBRA (1 << 1)
 
 	bool terminating;	/* global flag that sigint terminate seen */
+    /* Hash table of Import RTs to VRFs */
+    struct hash *vrf_import_rt_hash;
+    unsigned long *bitmap_leakvrf;
+
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(bgp_master);
@@ -2207,6 +2211,7 @@ extern int peer_remote_as(struct bgp *, union sockunion *, const char *, as_t *,
 			  int);
 extern int peer_group_remote_as(struct bgp *, const char *, as_t *, int);
 extern int peer_delete(struct peer *peer);
+extern int peer_quick_delete(struct peer *peer);
 extern void peer_notify_unconfig(struct peer *peer);
 extern int peer_group_delete(struct peer_group *);
 extern int peer_group_remote_as_delete(struct peer_group *);
@@ -2583,11 +2588,11 @@ static inline void bgp_vrf_link(struct bgp *bgp, struct vrf *vrf)
 /* Unlink BGP instance from VRF. */
 static inline void bgp_vrf_unlink(struct bgp *bgp, struct vrf *vrf)
 {
+    bgp->vrf_id = VRF_UNKNOWN;
 	if (vrf->info == (void *)bgp) {
 		vrf->info = NULL;
 		bgp_unlock(bgp);
 	}
-	bgp->vrf_id = VRF_UNKNOWN;
 }
 
 static inline bool bgp_in_graceful_shutdown(struct bgp *bgp)

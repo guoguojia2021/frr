@@ -8973,10 +8973,32 @@ DEFPY (af_rt_vpn_imexport,
 			return ret;
 		}
 	}
+    /*BEGIN:added for bgp route learning optimization*/
+    if (dodir[BGP_VPN_POLICY_DIR_FROMVPN] == 1) {
+        if (yes) {
+            if (bgp->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN]) {
+                bgp_unmap_vrf_to_its_rts(bgp->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN], bgp);
+            }
+            bgp_map_vrf_to_its_rts(ecom, bgp);
+        }
+        else if (bgp->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN]){
+            bgp_unmap_vrf_to_its_rts(bgp->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN], bgp);
+        }
+    }
+    /*END:added for bgp route learning optimization*/
 
 	for (dir = 0; dir < BGP_VPN_POLICY_DIR_MAX; ++dir) {
 		if (!dodir[dir])
 			continue;
+        if (yes && bgp->vpn_policy[afi].rtlist[dir]) {
+			if (ecommunity_cmp(bgp->vpn_policy[afi].rtlist[dir], ecom)){
+				continue;
+			}
+		}
+
+		if (!yes && (NULL == bgp->vpn_policy[afi].rtlist[dir])) {
+			continue;
+		}
 
 		vpn_leak_prechange(dir, afi, bgp_get_default(), bgp);
 

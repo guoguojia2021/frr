@@ -2609,7 +2609,7 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 	bgp_process(bgp_vrf, dest, afi, safi);
 
 	/* Process for route leaking. */
-	vpn_leak_from_vrf_update(bgp_get_default(), bgp_vrf, pi);
+	vpn_leak_from_vrf_update(bgp_get_default(), bgp_vrf, pi, NULL);
 
 	bgp_dest_unlock_node(dest);
 

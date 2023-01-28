@@ -24,6 +24,7 @@
 #include "bgpd/bgp_route.h"
 #include "bgpd/bgp_rd.h"
 #include "bgpd/bgp_zebra.h"
+#include "bgpd/bgp_route_target.h"
 
 #define MPLS_LABEL_IS_SPECIAL(label) ((label) <= MPLS_LABEL_EXTENSION)
 #define MPLS_LABEL_IS_NULL(label)                                              \
@@ -53,7 +54,7 @@ extern int bgp_show_mpls_vpn(struct vty *vty, afi_t afi, struct prefix_rd *prd,
 			     int tags, bool use_json);
 
 extern void vpn_leak_from_vrf_update(struct bgp *bgp_vpn, struct bgp *bgp_vrf,
-				     struct bgp_path_info *path_vrf);
+				     struct bgp_path_info *path_vrf, struct ecommunity *old_extcom);
 
 extern void vpn_leak_from_vrf_withdraw(struct bgp *bgp_vpn, struct bgp *bgp_vrf,
 				       struct bgp_path_info *path_vrf);
@@ -80,6 +81,9 @@ extern void vpn_leak_to_vrf_update(struct bgp *bgp_vpn,
 
 extern void vpn_leak_to_vrf_withdraw(struct bgp *bgp_vpn,
 				     struct bgp_path_info *path_vpn);
+extern void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn,       /* from */
+			    struct bgp_path_info *info_vpn,  /* route */
+			    struct ecommunity *old_extcom);
 
 extern void vpn_leak_zebra_vrf_label_update(struct bgp *bgp, afi_t afi);
 extern void vpn_leak_zebra_vrf_label_withdraw(struct bgp *bgp, afi_t afi);

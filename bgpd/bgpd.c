@@ -2594,6 +2594,185 @@ int peer_delete(struct peer *peer)
 	return 0;
 }
 
+int peer_quick_delete(struct peer *peer)
+{
+	int i;
+	afi_t afi;
+	safi_t safi;
+	struct bgp *bgp;
+	struct bgp_filter *filter;
+	struct listnode *pn;
+	int accept_peer;
+
+	assert(peer->status != Deleted);
+
+	bgp = peer->bgp;
+	accept_peer = CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
+
+	bgp_reads_off(peer);
+	bgp_writes_off(peer);
+	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_WRITES_ON));
+	assert(!CHECK_FLAG(peer->thread_flags, PEER_THREAD_READS_ON));
+
+	if (CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_WAIT))
+		peer_nsf_stop(peer);
+
+	SET_FLAG(peer->flags, PEER_FLAG_DELETE);
+
+	/* If this peer belongs to peer group, clear up the
+	   relationship.  */
+	if (peer->group) {
+		if (peer_dynamic_neighbor(peer))
+			peer_drop_dynamic_neighbor(peer);
+
+		if ((pn = listnode_lookup(peer->group->peer, peer))) {
+			peer = peer_unlock(
+				peer); /* group->peer list reference */
+			list_delete_node(peer->group->peer, pn);
+		}
+		peer->group = NULL;
+	}
+
+	/* Withdraw all information from routing table.  We can not use
+	 * BGP_EVENT_ADD (peer, BGP_Stop) at here.  Because the event is
+	 * executed after peer structure is deleted.
+	 */
+	peer->last_reset = PEER_DOWN_NEIGHBOR_DELETE;
+	bgp_stop(peer);
+	UNSET_FLAG(peer->flags, PEER_FLAG_DELETE);
+
+	if (peer->doppelganger) {
+		peer->doppelganger->doppelganger = NULL;
+		peer->doppelganger = NULL;
+	}
+
+	UNSET_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
+	peer->status = Deleted;
+	//bgp_fsm_change_status(peer, Deleted);
+
+	/* Remove from NHT */
+	if (CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
+		bgp_unlink_nexthop_by_peer(peer);
+
+	/* Password configuration */
+	if (CHECK_FLAG(peer->flags, PEER_FLAG_PASSWORD)) {
+		XFREE(MTYPE_PEER_PASSWORD, peer->password);
+
+		if (!accept_peer && !BGP_PEER_SU_UNSPEC(peer)
+		    && !CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP))
+			bgp_md5_unset(peer);
+	}
+
+	bgp_timer_set(peer); /* stops all timers for Deleted */
+
+	/* Delete from all peer list. */
+	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)
+	    && (pn = listnode_lookup(bgp->peer, peer))) {
+		peer_unlock(peer); /* bgp peer list reference */
+		list_delete_node(bgp->peer, pn);
+		hash_release(bgp->peerhash, peer);
+
+	}
+
+	/* Buffers.  */
+	if (peer->ibuf) {
+		stream_fifo_free(peer->ibuf);
+		peer->ibuf = NULL;
+	}
+
+	if (peer->obuf) {
+		stream_fifo_free(peer->obuf);
+		peer->obuf = NULL;
+	}
+
+	if (peer->ibuf_work) {
+		ringbuf_del(peer->ibuf_work);
+		peer->ibuf_work = NULL;
+	}
+
+	if (peer->obuf_work) {
+		stream_free(peer->obuf_work);
+		peer->obuf_work = NULL;
+	}
+
+	if (peer->scratch) {
+		stream_free(peer->scratch);
+		peer->scratch = NULL;
+	}
+
+	/* Local and remote addresses. */
+	if (peer->su_local) {
+		sockunion_free(peer->su_local);
+		peer->su_local = NULL;
+	}
+
+	if (peer->su_remote) {
+		sockunion_free(peer->su_remote);
+		peer->su_remote = NULL;
+	}
+
+	/* Free filter related memory.  */
+	FOREACH_AFI_SAFI (afi, safi) {
+		filter = &peer->filter[afi][safi];
+
+		for (i = FILTER_IN; i < FILTER_MAX; i++) {
+			if (filter->dlist[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->dlist[i].name);
+				filter->dlist[i].name = NULL;
+			}
+
+			if (filter->plist[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->plist[i].name);
+				filter->plist[i].name = NULL;
+			}
+
+			if (filter->aslist[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->aslist[i].name);
+				filter->aslist[i].name = NULL;
+			}
+		}
+
+		for (i = RMAP_IN; i < RMAP_MAX; i++) {
+			if (filter->map[i].name) {
+				XFREE(MTYPE_BGP_FILTER_NAME,
+				      filter->map[i].name);
+				filter->map[i].name = NULL;
+			}
+		}
+
+		if (filter->usmap.name) {
+			XFREE(MTYPE_BGP_FILTER_NAME, filter->usmap.name);
+			filter->usmap.name = NULL;
+		}
+
+		if (peer->default_rmap[afi][safi].name) {
+			XFREE(MTYPE_ROUTE_MAP_NAME,
+			      peer->default_rmap[afi][safi].name);
+			peer->default_rmap[afi][safi].name = NULL;
+		}
+	}
+
+	FOREACH_AFI_SAFI (afi, safi)
+		peer_af_delete(peer, afi, safi);
+
+	if (peer->hostname) {
+		XFREE(MTYPE_BGP_PEER_HOST, peer->hostname);
+		peer->hostname = NULL;
+	}
+
+	if (peer->domainname) {
+		XFREE(MTYPE_BGP_PEER_HOST, peer->domainname);
+		peer->domainname = NULL;
+	}
+
+	peer_unlock(peer); /* initial reference */
+
+	return 0;
+}
+
 static int peer_group_cmp(struct peer_group *g1, struct peer_group *g2)
 {
 	return strcmp(g1->name, g2->name);
@@ -3675,6 +3854,7 @@ int bgp_delete(struct bgp *bgp, int check_gr)
 
 	struct graceful_restart_info *gr_info;
 	int i, stop_notify;
+    vpn_policy_direction_t dir;
 
 	assert(bgp);
 
@@ -3782,6 +3962,16 @@ int bgp_delete(struct bgp *bgp, int check_gr)
 	bgp_cleanup_routes(bgp);
 
 	for (afi = 0; afi < AFI_MAX; ++afi) {
+        /*delete the irt node*/
+		if (bgp->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN]) {
+			bgp_unmap_vrf_to_its_rts(bgp->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN], bgp);
+		}
+		for (dir = 0; dir < BGP_VPN_POLICY_DIR_MAX; ++dir) {
+			if (bgp->vpn_policy[afi].rtlist[dir]) {
+				ecommunity_free(&bgp->vpn_policy[afi].rtlist[dir]);
+				bgp->vpn_policy[afi].rtlist[dir] = NULL;
+			}
+		}
 		if (!bgp->vpn_policy[afi].import_redirect_rtlist)
 			continue;
 		ecommunity_free(
@@ -3809,8 +3999,6 @@ int bgp_delete(struct bgp *bgp, int check_gr)
 
 	vrf = bgp_vrf_lookup_by_instance_type(bgp);
 	bgp_handle_socket(bgp, vrf, VRF_UNKNOWN, false);
-	if (vrf)
-		bgp_vrf_unlink(bgp, vrf);
 
 	/* Update EVPN VRF pointer */
 	if (bm->bgp_evpn == bgp) {
@@ -3838,6 +4026,7 @@ void bgp_free(struct bgp *bgp)
 	struct bgp_rmap *rmap;
 	struct bgp_filter *filter;
 	int i;
+    struct vrf *vrf;
 
 	QOBJ_UNREG(bgp);
 
@@ -3938,6 +4127,9 @@ void bgp_free(struct bgp *bgp)
 		if (bgp->vpn_policy[afi].rtlist[dir])
 			ecommunity_free(&bgp->vpn_policy[afi].rtlist[dir]);
 	}
+    vrf = bgp_vrf_lookup_by_instance_type(bgp);
+    if (vrf)
+        bgp_vrf_unlink(bgp, vrf);
 
 	XFREE(MTYPE_BGP, bgp->name);
 	XFREE(MTYPE_BGP, bgp->name_pretty);
@@ -8319,6 +8511,10 @@ void bgp_master_init(struct thread_master *master, const int buffer_size,
 
 	/* mpls label dynamic allocation pool */
 	bgp_lp_init(bm->master, &bm->labelpool);
+    bm->vrf_import_rt_hash =
+        hash_create(bgp_import_rt_hash_key_make, bgp_import_rt_hash_cmp,
+                "BGP VRF Import RT Hash");
+    bm->bitmap_leakvrf = bitmap_allocate(BGP_VRF_RANGE);
 
 	bgp_l3nhg_init();
 	bgp_evpn_mh_init();
@@ -8519,6 +8715,12 @@ void bgp_terminate(void)
                             BGP_NOTIFY_CEASE_PEER_UNCONFIG);
 
 	BGP_TIMER_OFF(bm->t_rmap_update);
+    if (bm->vrf_import_rt_hash)
+    {
+        hash_clean(bm->vrf_import_rt_hash, bgp_hash_irt_free);
+        hash_free(bm->vrf_import_rt_hash);
+    }
+    bitmap_free(bm->bitmap_leakvrf);
 
 	bgp_mac_finish();
 }

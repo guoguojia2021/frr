@@ -1546,7 +1546,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
 		}
-#endif
+
 
 				if (peer->status == Established && peer->su_local->sa.sa_family == AF_INET6)
 					memcpy(&api_nh->seg6_src, &peer->su_local->sin6.sin6_addr,
@@ -1554,7 +1554,9 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 
 				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
 			}
+
 		}
+#endif
 		if (mpinfo->attr->srv6_l3vpn && !CHECK_FLAG(api.flags, ZEBRA_FLAG_EVPN_ROUTE)) {
 			if (!sid_zero(&mpinfo->attr->srv6_l3vpn->sid)) {
 				memcpy(&api_nh->seg6_segs, &mpinfo->attr->srv6_l3vpn->sid,

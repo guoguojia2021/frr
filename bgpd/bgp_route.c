@@ -4476,6 +4476,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 	uint8_t pi_sub_type = 0;
 	bool force_evpn_import = false;
 	safi_t orig_safi = safi;
+    struct ecommunity *old_ecommunity = NULL;
 
 	if (frrtrace_enabled(frr_bgp, process_update)) {
 		char pfxprint[PREFIX2STR_BUFFER];
@@ -4938,6 +4939,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 				}
 			}
 		}
+        /*restore ext-community for withdraw check*/
+        if (pi->attr->ecommunity != attr_new->ecommunity) {
+            old_ecommunity = ecommunity_dup(pi->attr->ecommunity);
+        }
 
 		/* Update to new attribute.  */
 		bgp_attr_unintern(&pi->attr);
@@ -5039,6 +5044,8 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			ret = bgp_damp_update(pi, dest, afi, safi);
 			if (ret == BGP_DAMP_SUPPRESSED) {
 				bgp_dest_unlock_node(dest);
+                if (old_ecommunity)
+					ecommunity_free(&old_ecommunity);
 				return 0;
 			}
 		}
@@ -5130,12 +5137,12 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		    && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF
 			|| bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
 
-			vpn_leak_from_vrf_update(bgp_get_default(), bgp, pi);
+			vpn_leak_from_vrf_update(bgp_get_default(), bgp, pi, old_ecommunity);
 		}
 		if ((SAFI_MPLS_VPN == safi)
 		    && (bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
 
-			vpn_leak_to_vrf_update(bgp, pi);
+			vpn_leak_to_vrf_update_ex(bgp, pi, old_ecommunity);
 		}
         if (SAFI_UNICAST == safi
 		    && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
@@ -5148,6 +5155,8 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
                     vrf_leak_from_vrf_update(tovrf, bgp, pi);
             }
 		}
+        if (old_ecommunity)
+			ecommunity_free(&old_ecommunity);
 
 #ifdef ENABLE_BGP_VNC
 		if (SAFI_MPLS_VPN == safi) {
@@ -5318,12 +5327,12 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 	if (SAFI_UNICAST == safi
 	    && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF
 		|| bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
-		vpn_leak_from_vrf_update(bgp_get_default(), bgp, new);
+		vpn_leak_from_vrf_update(bgp_get_default(), bgp, new, NULL);
 	}
 	if ((SAFI_MPLS_VPN == safi)
 	    && (bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
 
-		vpn_leak_to_vrf_update(bgp, new);
+		vpn_leak_to_vrf_update_ex(bgp, new, NULL);
 	}
     if (SAFI_UNICAST == safi
 	    && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
@@ -6677,6 +6686,7 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 	struct attr attr;
 	struct attr *attr_new;
 	route_map_result_t ret;
+    struct ecommunity *old_ecommunity = NULL;
 #ifdef ENABLE_BGP_VNC
 	int vnc_implicit_withdraw = 0;
 #endif
@@ -6774,6 +6784,11 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 				}
 			}
 #endif
+            /*restore ext-community for withdraw check*/
+            if (pi->attr->ecommunity != attr_new->ecommunity) {
+                old_ecommunity = ecommunity_dup(pi->attr->ecommunity);
+            }
+
 			bgp_attr_unintern(&pi->attr);
 			pi->attr = attr_new;
 			pi->uptime = bgp_clock();
@@ -6837,8 +6852,10 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 				|| bgp->inst_type
 					   == BGP_INSTANCE_TYPE_DEFAULT)) {
 				vpn_leak_from_vrf_update(bgp_get_default(), bgp,
-							 pi);
+							 pi, old_ecommunity);
 			}
+            if (old_ecommunity)
+				ecommunity_free(&old_ecommunity);
 
 			bgp_dest_unlock_node(dest);
 			aspath_unintern(&attr.aspath);
@@ -6891,7 +6908,7 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 	if (SAFI_UNICAST == safi
 	    && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF
 		|| bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
-		vpn_leak_from_vrf_update(bgp_get_default(), bgp, new);
+		vpn_leak_from_vrf_update(bgp_get_default(), bgp, new, NULL);
 	}
 
 	/* Unintern original. */
@@ -6991,6 +7008,7 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
 	mpls_label_t label = 0;
 #endif
 	uint32_t num_labels = 0;
+    struct ecommunity *old_ecommunity = NULL;
 
 	assert(bgp_static);
 
@@ -7087,6 +7105,10 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
 				bgp_path_info_restore(dest, pi);
 			else
 				bgp_aggregate_decrement(bgp, p, pi, afi, safi);
+            /*restore ext-community for withdraw check*/
+			if (pi->attr->ecommunity != attr_new->ecommunity) {
+				old_ecommunity = ecommunity_dup(pi->attr->ecommunity);
+			}
 			bgp_attr_unintern(&pi->attr);
 			pi->attr = attr_new;
 			pi->uptime = bgp_clock();
@@ -7101,8 +7123,10 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
 
 			if (SAFI_MPLS_VPN == safi
 			    && bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
-				vpn_leak_to_vrf_update(bgp, pi);
+				vpn_leak_to_vrf_update_ex(bgp, pi, old_ecommunity);
 			}
+            if (old_ecommunity)
+				ecommunity_free(&old_ecommunity);
 #ifdef ENABLE_BGP_VNC
 			rfapiProcessUpdate(pi->peer, NULL, p, &bgp_static->prd,
 					   pi->attr, afi, safi, pi->type,
@@ -7141,7 +7165,7 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
 
 	if (SAFI_MPLS_VPN == safi
 	    && bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
-		vpn_leak_to_vrf_update(bgp, new);
+		vpn_leak_to_vrf_update_ex(bgp, new, NULL);
 	}
 #ifdef ENABLE_BGP_VNC
 	rfapiProcessUpdate(new->peer, NULL, p, &bgp_static->prd, new->attr, afi,
@@ -9216,6 +9240,7 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 	afi_t afi;
 	route_map_result_t ret;
 	struct bgp_redist *red;
+    struct ecommunity *old_ecommunity = NULL;
 
 	/* Make default attribute. */
 	bgp_attr_default_set(&attr, BGP_ORIGIN_INCOMPLETE);
@@ -9327,6 +9352,10 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 				else
 					bgp_aggregate_decrement(
 						bgp, p, bpi, afi, SAFI_UNICAST);
+                /*restore ext-community for withdraw check*/
+				if (bpi->attr->ecommunity != attr_new.ecommunity) {
+					old_ecommunity = ecommunity_dup(bpi->attr->ecommunity);
+				}
 				bgp_attr_unintern(&bpi->attr);
 				bpi->attr = new_attr;
 				bpi->uptime = bgp_clock();
@@ -9343,8 +9372,10 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 					== BGP_INSTANCE_TYPE_DEFAULT)) {
 
 					vpn_leak_from_vrf_update(
-						bgp_get_default(), bgp, bpi);
+						bgp_get_default(), bgp, bpi, old_ecommunity);
 				}
+                if (old_ecommunity)
+					ecommunity_free(&old_ecommunity);
 				return;
 			}
 		}
@@ -9362,7 +9393,7 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 		if ((bgp->inst_type == BGP_INSTANCE_TYPE_VRF)
 		    || (bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
 
-			vpn_leak_from_vrf_update(bgp_get_default(), bgp, new);
+			vpn_leak_from_vrf_update(bgp_get_default(), bgp, new, NULL);
 		}
 	}
 

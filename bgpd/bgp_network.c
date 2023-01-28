@@ -527,7 +527,11 @@ static int bgp_accept(struct thread *thread)
 			zlog_debug(
 				"[Event] New active connection from peer %s, Killing previous active connection",
 				peer1->host);
-		peer_delete(peer1->doppelganger);
+        if (peer1->status != Established) {
+			peer_quick_delete(peer1->doppelganger);
+		}
+		else
+    		peer_delete(peer1->doppelganger);
 	}
 
 	if (bgp_set_socket_ttl(peer1, bgp_sock) < 0)
