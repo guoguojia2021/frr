@@ -882,6 +882,8 @@ int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf)
 
     for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
         for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
+            if (sid->vrfName == NULL)
+                continue;
             vrf = vrf_lookup_by_name(sid->vrfName);
             if (zvrf->vrf != vrf)
                 continue;

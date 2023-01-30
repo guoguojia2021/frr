@@ -518,7 +518,10 @@ DEFPY (locator_prefix,
 
 	sid = srv6_locator_sid_alloc();
 	sid->sidaction = sidaction;
-    strlcpy(sid->vrfName, vrfName, VRF_NAMSIZ);
+
+    if (vrfName != NULL)
+        strlcpy(sid->vrfName, vrfName, VRF_NAMSIZ);
+
     sid->ipv6Addr = ipv6prefix;
     strncpy(sid->sidstr, prefix, PREFIX_STRLEN);
 	if (ifName)
