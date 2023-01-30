@@ -38,6 +38,7 @@ DEFINE_MTYPE_STATIC(BFDD, BFDD_SESSION_OBSERVER, "Session observer");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_VRF, "BFD VRF");
 DEFINE_MTYPE_STATIC(BFDD, SBFD_REFLECTOR, "SBFD REFLECTOR");
 DEFINE_MTYPE_STATIC(BFDD, BFD_ND, "SBFD BFD_ND");
+DEFINE_MTYPE_STATIC(BFDD, BFD_SRENDX, "SBFD SR END-X info");
 
 /*
  * Prototypes
@@ -373,7 +374,7 @@ int bfd_session_enable(struct bfd_session *bs)
 		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) 
 		    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
 		{
-            psock = bp_peer_srh_socketv6(bs);
+            psock = bp_peer_raw_eth_socket(bs);
 		}
 		else
 		{
@@ -804,6 +805,17 @@ int bfd_recvtimer_cb(struct thread *t)
 	case PTM_BFD_INIT:
 	case PTM_BFD_UP:
 		ptm_bfd_sess_dn(bs, BD_CONTROL_EXPIRED);
+		break;
+
+	default:
+		/* Second detect time expiration, zero remote discr (section
+		 * 6.5.1)
+		 */
+		if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
+		{
+            bs->discrs.remote_discr = 0;
+		}
+
 		break;
 	}
 
@@ -2415,7 +2427,7 @@ static void _sbfd_reflector_free(struct hash_bucket *hb,
     uint32_t discr = sr->discr;
 
 	sbfd_reflector_free(sr->discr);
-	bfd_fpm_sbfd_reflector_sendmsg(discr, false);
+	bfd_fpm_sbfd_reflector_sendmsg(sr, false);
 }
 
 void bfd_shutdown(void)
@@ -2738,7 +2750,7 @@ unsigned long bfd_get_session_count(void)
 	return bfd_key_hash->count;
 }
 
-struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr)
+struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct in6_addr *sip)
 {
 	struct sbfd_reflector *sr;
 
@@ -2748,11 +2760,12 @@ struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr)
 
 	sr = XCALLOC(MTYPE_SBFD_REFLECTOR, sizeof(*sr));
     sr->discr = discr;
-    
+	memcpy(&sr->local, sip, sizeof(struct in6_addr));
+
 	sbfd_discr_insert(sr);
 
     /*send to bfdsyncd */
-	bfd_fpm_sbfd_reflector_sendmsg(discr, true);
+	bfd_fpm_sbfd_reflector_sendmsg(sr, true);
 
 	return sr;
 }
@@ -2832,3 +2845,50 @@ static inline int bfd_nd_info_compare(const struct bfd_nd_info *a,
 RB_GENERATE(bfd_nd_info_head, bfd_nd_info, entry, bfd_nd_info_compare)
 
 struct bfd_nd_info_head bfd_nd_info_tree = RB_INITIALIZER(&bfd_nd_info_tree);
+
+struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid)
+{
+	struct bfd_sr_endx_info search;
+    
+	search.sid = *sid;
+	return RB_FIND(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, &search);
+}
+
+void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *nexthop)
+{
+	struct bfd_sr_endx_info *bi;
+
+	// first to find is exist or not
+	bi = bfdd_sr_endx_tree_find(sid);
+	if (bi)
+	    return bi;
+
+	bi = XCALLOC(MTYPE_BFD_SRENDX, sizeof(*bi));
+	strncpy(bi->ifname, ifname, INTERFACE_NAMSIZ);
+	bi->sid = *sid;
+	bi->nexthop = *nexthop;
+
+	RB_INSERT(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, bi);
+
+}
+
+void bfdd_sr_endx_tree_del(struct in6_addr *sid)
+{
+	struct bfd_sr_endx_info *bi;
+
+	bi = bfdd_sr_endx_tree_find(sid);
+	if (!bi)
+	    return;
+
+	RB_REMOVE(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, bi);
+	XFREE(MTYPE_BFD_SRENDX, bi);
+}
+
+static inline int bfd_sr_endx_info_compare(const struct bfd_sr_endx_info *a,
+					 const struct bfd_sr_endx_info *b)
+{
+	return memcmp((void *)&a->sid, (void *)&b->sid, sizeof(a->sid));
+}
+RB_GENERATE(bfd_sr_endx_info_head, bfd_sr_endx_info, entry, bfd_sr_endx_info_compare)
+
+struct bfd_sr_endx_info_head bfd_sr_endx_info_tree = RB_INITIALIZER(&bfd_sr_endx_info_tree);

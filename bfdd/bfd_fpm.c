@@ -1013,7 +1013,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 /*
  * bfd_fpm_sbfd_reflector_sendmsg - Format and send a sbfd reflector register/Unregister
  */
-void bfd_fpm_sbfd_reflector_sendmsg(uint32_t discr, bool create)
+void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
 {
     struct stream *msg = NULL;
     int ret;
@@ -1048,7 +1048,9 @@ void bfd_fpm_sbfd_reflector_sendmsg(uint32_t discr, bool create)
     }
 
     data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
-    data->discrs.my_discr = htonl(discr);
+    data->discrs.my_discr = htonl(sr->discr);
+	inet_ntop(AF_INET6, &sr->local, data->bpc_local, sizeof(data->bpc_local));
+	strncpy(data->bpc_vrfname, VRF_DEFAULT_NAME, MAXNAMELEN);
 	data->bpc_type = BPC_TYPE_SBFD_RFLT;
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);

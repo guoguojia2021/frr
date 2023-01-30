@@ -1031,6 +1031,25 @@ void zsend_bfdd_neighbor_notify(int cmd, struct interface *ifp,
 	}
 }
 
+void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, char *ifname, struct in6_addr *nexthop)
+{
+	struct stream *s;
+	struct listnode *node, *nnode;
+	struct zserv *client;
+
+	if (IS_ZEBRA_DEBUG_PACKET)
+		zlog_debug("%s: Notifying Srv6 end-x local sid (%u)", __func__, cmd);
+    
+	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
+		if (client->proto != ZEBRA_ROUTE_BFD)
+		    continue;
+
+		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+		zclient_loc_sid_info_encode(s, cmd, sid, ifname, nexthop);
+		stream_putw_at(s, 0, stream_get_endp(s));
+		zserv_send_message(client, s);
+	}
+}
 
 /* Router-id is updated. Send ZEBRA_ROUTER_ID_UPDATE to client. */
 int zsend_router_id_update(struct zserv *client, afi_t afi, struct prefix *p,

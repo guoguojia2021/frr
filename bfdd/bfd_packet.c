@@ -38,7 +38,9 @@
 #include "lib/sockopt.h"
 
 #include "bfd.h"
+#include <ifaddrs.h>
 
+#define BUF_SIZ 1024
 /*
  * Prototypes
  */
@@ -63,6 +65,12 @@ int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
 int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list);
+
+int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
+    struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t src_port, uint16_t dst_port,
+    uint8_t seg_num, struct in6_addr* segment_list, 
+	char *ifname, struct in6_addr *nhp);
 
 /* socket related prototypes */
 static void bp_set_ipopts(int sd);
@@ -146,6 +154,7 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 
 	int seg_num;
 	struct in6_addr* segment_list;
+	struct bfd_sr_endx_info* endx_info = NULL;
 
 	if (!bvrf)
 		return -1;
@@ -156,23 +165,18 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	else
 	    return -1;
 
-	if (bvrf->bg_sbfd == -1)
-		return -1;
+	endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
+	if (!endx_info)
+	    return -1;
 
-	sd = bvrf->bg_sbfd;
-	memset(&sin6, 0, sizeof(sin6));
-	sin6.sin6_family = AF_INET6;
-	memcpy(&sin6.sin6_addr, &bfd->seg_list[seg_num-1], sizeof(sin6.sin6_addr)); // first_segment
-	if (bfd->ifp && IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
-		sin6.sin6_scope_id = bfd->ifp->ifindex;
+	sd = bfd->sock;
 
-	sin6.sin6_port = 0;
-#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
-	sin6.sin6_len = sizeof(sin6);
-#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
+	if (seg_num > 1)
+	    segment_list++;
 
-    if (bp_raw_sbfd_send(sd, (uint8_t *)data, datalen, &bfd->key.local , &bfd->key.peer, 
-	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, &bfd->key.local , &bfd->key.peer, 
+	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, 1, segment_list, 
+	   endx_info->ifname, &endx_info->nexthop) < 0)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
@@ -1437,6 +1441,25 @@ int bp_peer_srh_socketv6(struct bfd_session *bs)
 	return sd;
 }
 
+int bp_peer_raw_eth_socket(struct bfd_session *bs)
+{
+	int sd;
+	struct sockaddr_in6 sin6;
+	const char *device_to_bind = NULL;
+
+	frr_with_privs(&bglobal.bfdd_privs) {
+		sd = vrf_socket(AF_PACKET, SOCK_RAW, IPPROTO_IP,
+				bs->vrf->vrf_id, device_to_bind);
+	}
+	if (sd == -1) {
+		zlog_err("ipv6-new: failed to create socket: %s",
+			  strerror(errno));
+		return -1;
+	}
+
+	return sd;
+}
+
 int bp_set_ttlv6(int sd, uint8_t value)
 {
 	int ttl = value;
@@ -1739,6 +1762,37 @@ void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h,
 			+ datalen);
     srh_ip6h->ip6_nxt = IPPROTO_ROUTING;
     srh_ip6h->ip6_hlim = BFD_TTL_VAL;
+	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
+
+    memcpy(&(srh_ip6h->ip6_src), sip, sizeof(struct in6_addr));
+	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
+}
+
+void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h, 
+    struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen)
+{
+    /* SRH IPv6 Header */
+    srh_ip6h->ip6_flow = 0;
+    srh_ip6h->ip6_vfc = 6 << 4;
+	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
+
+	if (seg_num == 1)
+	{
+		srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
+				+ sizeof(struct udphdr) 
+				+ datalen);
+        srh_ip6h->ip6_nxt = IPPROTO_IPV6;
+	}
+	else
+	{
+		srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
+				+ sizeof(struct udphdr) 
+				+ sizeof(struct ipv6_sr_hdr) 
+				+ sizeof(struct in6_addr) * seg_num
+				+ datalen);
+        srh_ip6h->ip6_nxt = IPPROTO_ROUTING;
+	}
+    srh_ip6h->ip6_hlim = BFD_TTL_VAL;
 
     memcpy(&(srh_ip6h->ip6_src), sip, sizeof(struct in6_addr));
 	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
@@ -1770,6 +1824,7 @@ void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struc
     ip6h->ip6_plen = htons(sizeof(struct udphdr) + datalen);
     ip6h->ip6_nxt = IPPROTO_UDP;
     ip6h->ip6_hlim = BFD_TTL_VAL;
+	ip6h->ip6_flow = (BFD_TOS_VAL << 20);
     
     memcpy(&(ip6h->ip6_src), sip, sizeof(struct in6_addr));
 	memcpy(&(ip6h->ip6_dst), dip, sizeof(struct in6_addr));
@@ -1869,4 +1924,262 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
 
 	return ret;
 
+}
+
+static int get_intf_smac(char *ifname, uint8_t *mac)
+{
+	int ret = 0;
+	int sd;
+    struct ifreq ifr;
+	vrf_id_t vrfid;
+	struct interface *ifp = NULL;
+	struct vrf *vrf = NULL;
+
+    size_t if_name_len = strlen(ifname);
+    if (if_name_len < sizeof(ifr.ifr_name)) 
+	{
+        memcpy(ifr.ifr_name, ifname, if_name_len);
+        ifr.ifr_name[if_name_len]=0;
+    } 
+	else 
+	{
+		zlog_err("get_intf_smac: interface name is too long, name is %s. \n", ifname);
+		return -1;
+    }
+
+	ifp = if_lookup_by_name_all_vrf(ifname);
+	if (!ifp)
+	    return -1;
+
+	vrf = vrf_lookup_by_id(ifp->vrf->vrf_id);
+	if (!vrf)
+	    return -1;
+	
+	sd = vrf_socket(AF_UNIX, SOCK_DGRAM, AF_UNSPEC, vrf->vrf_id, vrf->name);
+	if (sd < 0)
+	{
+		zlog_err("get_intf_smac: socket: %s", safe_strerror(errno));
+		return -1;
+	}
+	ret = ioctl(sd, SIOCGIFHWADDR, &ifr);
+	close(sd);
+
+	if (ret < 0)
+	{
+		zlog_err("get_intf_smac: ioctl SIOCGIFHWADDR failed");
+		return -1;		
+	}
+	else
+	{
+		memcpy(mac, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+	}
+
+    if (bglobal.debug_network)
+		zlog_debug("%02X:%02X:%02X:%02X:%02X:%02X\n", 
+		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    
+	return 0;
+}
+
+static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
+{
+	struct ifaddrs *ifaddr;
+	int family, s;
+	char host[NI_MAXHOST];
+
+	if (getifaddrs(&ifaddr) == -1) {
+		zlog_err("get_iftf_ipv6addr: getifaddrs failed");
+		return -1;
+	}
+
+	/* Walk through linked list, maintaining head pointer so we
+		can free list later. */
+
+	for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
+	{
+		if (ifa->ifa_addr == NULL)
+			continue;
+
+		if (strcmp(ifa->ifa_name, ifname) != 0)
+			continue;
+
+		family = ifa->ifa_addr->sa_family;
+
+		if (family == AF_INET6) {
+			s = getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in6),
+					host, NI_MAXHOST,
+					NULL, 0, NI_NUMERICHOST);
+			if (s != 0) {
+				zlog_err("get_iftf_ipv6addr: getnameinfo() failed: %s", gai_strerror(s));
+				return -1;
+			}
+            
+			if (bglobal.debug_network)
+				zlog_debug("%s'saddress: <%s>\n", ifa->ifa_name, host);
+            
+            inet_pton(AF_INET6, host, ipv6addr);
+			break;
+		} 
+	}
+	freeifaddrs(ifaddr);
+	return 0;	
+}
+
+static int get_nhp_mac(char* ifname, struct ipaddr *nhp, uint8_t* dmac)
+{
+	uint32_t ifindex;
+	ifindex = if_nametoindex(ifname);
+	if (ifindex == 0)
+	{
+		zlog_err("get_nhp_mac: if_nametoindex() failed");
+		return -1;
+	}
+
+    struct bfd_nd_info *nd = NULL;
+    
+	nd = bfdd_neigh_tree_find(ifindex, nhp);
+	if (!nd)
+	{
+		zlog_err("get_nhp_mac: get nd failed");
+		return -1;		
+	}
+
+	memcpy(dmac, &nd->mac, ETH_ALEN);
+
+	if (bglobal.debug_network)
+	{
+	    char ebuf[ETHER_ADDR_STRLEN];
+	    char ibuf[INET6_ADDRSTRLEN];
+		zlog_debug("%s and nexthop %s 's mac is address: %s\n", 
+		    ifname, ipaddr2str(nhp, ibuf, sizeof(ibuf)), prefix_mac2str(dmac, ebuf, sizeof(ebuf)));
+	}
+
+	return 0;
+}
+
+static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t *dmac)
+{
+	memcpy(eth->ether_shost, smac, sizeof(eth->ether_shost));
+	memcpy(eth->ether_dhost, dmac, sizeof(eth->ether_dhost));
+    eth->ether_type = htons(ETH_P_IPV6);  
+}
+
+
+/**
+ * @brief encap srv6 to send raw socker red mode, just support ecore 2.5 case
+ * 
+ * @param sd  sokcet
+ * @param data actual data, e.g. bfd packet or bfd echo packet
+ * @param datalen actual data length
+ * @param sip source ip address of outer ipv6 header and inner ipv6 header 
+ * @param dip destination ip address of inner ipv6 header 
+ * @param src_port source port of udp 
+ * @param dst_port destination port of udp 
+ * @param seg_num segment number of srh header
+ * @param segment_list segment list of srh header and the last one segment is destination ip address of outer ipv6 header 
+ * @param ifname out interface name
+ * @param vrfname vrf name
+ * @param nhp specified nexthop
+ * @return int 
+ */
+int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
+    struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t src_port, uint16_t dst_port,
+    uint8_t seg_num, struct in6_addr* segment_list, 
+	char *ifname, struct in6_addr *nhp)
+{
+    struct msghdr msg  = {0};
+    struct iovec iov;
+	int flags = 0;
+	int ret = 0;
+    
+	struct ether_header *eth;
+	struct ip6_hdr *srh_ip6h;
+    struct ip6_hdr *ip6h;
+	struct udphdr *udp;
+	uint8_t *payload;
+
+	uint8_t src_mac[6];
+	uint8_t dst_mac[6];
+    struct in6_addr out_sip = {0};
+	struct sockaddr_ll sadr_ll = {0};
+
+	char sendbuf[BUF_SIZ];
+	memset(sendbuf, 0, sizeof(sendbuf));
+	int total_len = 0;
+
+	if (!segment_list || seg_num == 0 || seg_num != 1)
+	{
+		zlog_err(
+			"sbfd segment_list is invalid , seg_num = %d .", seg_num);
+		return -1;
+	}
+
+    // get interface smac
+	if (get_intf_smac(ifname, src_mac) == -1)
+	{
+		return -1;
+	}
+
+	// get interface ipaddress
+	if (get_intf_ipv6addr(ifname, &out_sip) == -1)
+	{
+		return -1;
+	}
+
+	// get interface dmac
+    if (get_nhp_mac(ifname, nhp, dst_mac) == -1)
+	{
+		return -1;
+	}
+    
+	/* Ether Header */
+	eth = (struct ether_header *) sendbuf;
+    bp_sbfd_encap_ether(eth, src_mac, dst_mac);
+	total_len += sizeof(struct ether_header);
+
+    /* SRH IPv6 Header */
+    srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
+	bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip , &segment_list[0], seg_num, datalen);
+    total_len += sizeof(struct ip6_hdr);
+
+	/* Inner IPv6 Header */
+	ip6h = (struct ip6_hdr *)(sendbuf + total_len);
+	bp_sbfd_encap_inner_ip6h(ip6h, sip , dip, datalen);
+	total_len += sizeof(struct ip6_hdr);
+
+	/* UDP  Header */
+	udp = (struct udphdr *)(sendbuf + total_len);
+	bp_sbfd_encap_udp(udp, ip6h, src_port, dst_port, data, datalen);
+	total_len += sizeof(struct udphdr);
+    
+	/* BFD payload*/
+	payload = (uint8_t *)(sendbuf + total_len);
+    memcpy(payload, data, datalen);
+	total_len += datalen;
+
+    /* set sadr_ll */
+	sadr_ll.sll_family=AF_PACKET;
+	sadr_ll.sll_ifindex = if_nametoindex (ifname);
+	sadr_ll.sll_halen = ETH_ALEN;
+	memcpy(sadr_ll.sll_addr, dst_mac, ETH_ALEN);
+
+	/* message data. */
+	iov.iov_base = (uint8_t *)sendbuf;
+	iov.iov_len = total_len;
+
+	msg.msg_name = &sadr_ll;
+	msg.msg_namelen = sizeof(sadr_ll);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+    
+	/* sendmsg */
+    ret = sendmsg(sd, &msg, flags);
+    if (ret < 0)
+    {
+		zlog_err(
+			"sbfd send failed , ret : %d .", ret);
+    }
+
+    return 0;
 }

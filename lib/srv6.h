@@ -24,6 +24,7 @@
 #include "prefix.h"
 #include "json.h"
 #include "vrf.h"
+#include "if.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -153,6 +154,8 @@ struct seg6_sid {
     char vrfName[VRF_NAMSIZ];
 	struct prefix_ipv6 ipv6Addr;
     char sidstr[PREFIX_STRLEN];
+	char ifname[INTERFACE_NAMSIZ];
+	struct in6_addr nexthop;
 };
 
 struct seg6_sid_msg {

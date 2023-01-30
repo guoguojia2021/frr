@@ -336,7 +336,7 @@ static const char *local_action2str(enum seg6local_action_t action)
 }
 
 void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *vrf_name,
-                    enum seg6local_action_t act, const struct seg6local_context *ctx)
+    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct in6_addr *nexthop)
 {
     int ret;
     char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
@@ -354,6 +354,8 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     DB_FieldValue_List *pstDataLst_argu_len = NULL;
     DB_FieldValue_List *pstDataLst_action = NULL;
     DB_FieldValue_List *pstDataLst_vrf = NULL;
+    DB_FieldValue_List *pstDataLst_ifname = NULL;
+    DB_FieldValue_List *pstDataLst_nhp = NULL;
 
     char my_local_sid[ZEBRA_DB_MAX_KEY_LEN] = {0};
     struct prefix p = {};
@@ -434,10 +436,10 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "action");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", local_action2str(act));
     pstDataLst_action = create_DB_Data(key, field, value);
-    if (pstDataLst_argu_len == NULL)
+    if (pstDataLst_action == NULL)
     {
         destroy_DB_Data(pstDataLst_head);
-        zlog_err("create argu len field segment failed.");
+        zlog_err("create action field segment failed.");
         return;
     }
     pstDataLst_argu_len->next = pstDataLst_action;
@@ -447,13 +449,44 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "vrf");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", vrf_name);
     pstDataLst_vrf = create_DB_Data(key, field, value);
-    if (pstDataLst_argu_len == NULL)
+    if (pstDataLst_vrf == NULL)
     {
         destroy_DB_Data(pstDataLst_head);
-        zlog_err("create argu len field segment failed.");
+        zlog_err("create vrf field segment failed.");
         return;
     }
     pstDataLst_action->next = pstDataLst_vrf;
+
+    /* ifname */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "ifname");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", ifname ? ifname : "NULL");
+    pstDataLst_ifname = create_DB_Data(key, field, value);
+    if (pstDataLst_ifname == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create vrf field segment failed.");
+        return;
+    }
+    pstDataLst_vrf->next = pstDataLst_ifname;
+
+    /* nexthop */
+    if (nexthop)
+    {
+        char nhp_buf[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, nexthop, nhp_buf, sizeof(nhp_buf));
+        snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+        snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "nexthop");
+        snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", nhp_buf);
+        pstDataLst_nhp = create_DB_Data(key, field, value);
+        if (pstDataLst_nhp == NULL)
+        {
+            destroy_DB_Data(pstDataLst_head);
+            zlog_err("create nexthop field segment failed.");
+            return;
+        }
+        pstDataLst_ifname->next = pstDataLst_nhp;
+    }
 
     ret = g_zebra_redis_appdb.redis_Db_SetKeyAndFValue(key, pstDataLst_head, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)

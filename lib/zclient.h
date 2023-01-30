@@ -236,6 +236,8 @@ typedef enum {
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL,
+	ZEBRA_SRV6_ENDX_SID_ADD,
+	ZEBRA_SRV6_ENDX_SID_DEL,
 	ZEBRA_ERROR,
 	ZEBRA_CLIENT_CAPABILITIES,
 	ZEBRA_OPAQUE_MESSAGE,
@@ -381,6 +383,8 @@ struct zclient {
 
 	zclient_handler *const *handlers;
 	size_t n_handlers;
+	void (*srv6_endx_add)(ZAPI_CALLBACK_ARGS);
+	void (*srv6_endx_del)(ZAPI_CALLBACK_ARGS);
 };
 
 /* lib handlers added in bfd.c */
@@ -900,6 +904,20 @@ int zclient_nd_info_encode(struct stream *s,
 				int ndm_state);
 
 int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api);
+
+struct zapi_loc_sid_info {
+	struct in6_addr sid;
+	char ifname[INTERFACE_NAMSIZ];
+	struct in6_addr nexthop;
+};
+
+int zclient_loc_sid_info_encode(struct stream *s,
+			    int cmd,
+			    struct in6_addr *sid,
+				char *ifname,
+			    struct in6_addr *nexthop);
+
+int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api);
 
 /*
  * We reserve the top 4 bits for l2-NHG, everything else

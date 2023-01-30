@@ -369,7 +369,8 @@ TAILQ_HEAD(obslist, bfd_session_observer);
 
 /*sbfd reflector struct*/
 struct sbfd_reflector{
-	uint32_t discr; 
+	uint32_t discr;
+	struct in6_addr local;
 };
 
 struct bfd_nd_info {
@@ -385,6 +386,18 @@ RB_HEAD(bfd_nd_info_head, bfd_nd_info);
 RB_PROTOTYPE(bfd_nd_info_head, bfd_nd_info, entry, bfd_nd_info_compare);
 
 extern struct bfd_nd_info_head bfd_nd_info_tree;
+
+struct bfd_sr_endx_info {
+	RB_ENTRY(bfd_sr_endx_info) entry;
+	struct in6_addr sid;
+	struct in6_addr nexthop;
+	char ifname[INTERFACE_NAMSIZ];
+};
+
+RB_HEAD(bfd_sr_endx_info_head, bfd_sr_endx_info);
+RB_PROTOTYPE(bfd_sr_endx_info_head, bfd_sr_endx_info, entry, bfd_sr_endx_info_compare);
+
+extern struct bfd_sr_endx_info_head bfd_sr_endx_info_tree;
 
 /* States defined per 4.1 */
 #define PTM_BFD_ADM_DOWN 0
@@ -606,6 +619,7 @@ int bp_udp6_mhop(const struct vrf *vrf);
 int bp_peer_socket(struct bfd_session *bs);
 int bp_peer_socketv6(struct bfd_session *bs);
 int bp_peer_srh_socketv6(struct bfd_session *bs);
+int bp_peer_raw_eth_socket(struct bfd_session *bs);
 int bp_echo_socket(const struct vrf *vrf);
 int bp_echov6_socket(const struct vrf *vrf);
 int bp_sbfd_socket(const struct vrf *vrf);
@@ -912,7 +926,7 @@ int bfd_dplane_update_session_counters(struct bfd_session *bs);
 void bfd_dplane_show_counters(struct vty *vty);
 
 /*sbfd relfector*/
-struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr);
+struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct in6_addr *sip);
 void sbfd_reflector_free(const uint32_t discr);
 void sbfd_reflector_flush(void);
 
@@ -924,5 +938,9 @@ void sbfd_echo_state_handler(struct bfd_session *bs, int nstate);
 struct bfd_nd_info *bfdd_neigh_tree_find(int ifindex, struct ipaddr *ipaddr);
 void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struct ethaddr *mac, uint32_t ndm_state);
 void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr);
+
+struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid);
+void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *nexthop);
+void bfdd_sr_endx_tree_del(struct in6_addr *sid);
 
 #endif /* _BFD_H_ */

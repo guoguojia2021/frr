@@ -4677,6 +4677,77 @@ int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api)
 	return -1;
 }
 
+
+int zclient_loc_sid_info_encode(struct stream *s,
+			    int cmd,
+			    struct in6_addr *sid,
+				char *ifname,
+			    struct in6_addr *nexthop)
+{
+	/*
+	 * Message format:
+	 * - header: command, vrf
+	 * - w: sid
+	 * - c: ifname length
+	 * - X bytes: interface name
+	 * - c: family
+	 *   - AF_INET6:
+	 *     - 16 bytes: ipv6
+	 *
+	 * q(64), l(32), w(16), c(8)
+	 */
+
+	int ret = 0;
+	uint8_t len = 0;
+
+	zclient_create_header(s, cmd, VRF_DEFAULT);
+	// fill sid
+	stream_put(s, sid, sizeof(struct in6_addr));
+
+	// fill ifname
+	len = strlen(ifname);
+	stream_putc(s, len);
+	if (len > 0)
+	{
+        stream_put(s, ifname, len);
+	}
+
+	// fill nexthop
+	stream_put(s, nexthop, sizeof(struct in6_addr));
+
+	return ret;
+}
+
+int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api)
+{
+	int ret;
+
+	uint8_t family;
+	uint8_t ifnamelen;
+    
+	//get sid
+	STREAM_GET(&api->sid, s, sizeof(struct in6_addr));
+
+	//get ifname
+    STREAM_GETC(s, ifnamelen);
+	if (ifnamelen >= INTERFACE_NAMSIZ)
+	{
+		return -1;
+	}
+	else
+	{
+		STREAM_GET(api->ifname, s, ifnamelen);
+		api->ifname[ifnamelen] = 0;
+	}
+    
+    // get nexthop
+	STREAM_GET(&api->nexthop, s, sizeof(struct in6_addr));
+
+	return 0;
+ stream_failure:
+	return -1;
+}
+
 int zclient_send_zebra_gre_request(struct zclient *client,
 				   struct interface *ifp)
 {

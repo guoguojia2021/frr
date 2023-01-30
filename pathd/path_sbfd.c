@@ -271,8 +271,8 @@ void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *po
 		seg_num++;
 	}
 	// last sid is endpoint
-	memcpy(&seglist[seg_num], &policy->endpoint.ipaddr_v6, sizeof(struct in6_addr));
-	seg_num++;
+	// memcpy(&seglist[seg_num], &policy->endpoint.ipaddr_v6, sizeof(struct in6_addr));
+	// seg_num++;
     
 	// set sidlist info
 	sbfd_sess_set_segments(sbs->session, segl->name, seg_num, seglist);
