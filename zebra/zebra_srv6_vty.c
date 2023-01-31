@@ -520,7 +520,7 @@ DEFPY (locator_prefix,
 	sid->sidaction = sidaction;
 
     if (vrfName != NULL)
-        strlcpy(sid->vrfName, vrfName, VRF_NAMSIZ);
+        strlcpy(sid->vrfName, vrfName, VRF_ALIASNAMESIZ);
 
     sid->ipv6Addr = ipv6prefix;
     strncpy(sid->sidstr, prefix, PREFIX_STRLEN);

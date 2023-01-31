@@ -222,11 +222,12 @@ void srv6_locator_chunk_free(struct srv6_locator_chunk *chunk)
 }
 struct seg6_sid *srv6_locator_sid_alloc(void)
 {
-	struct seg6_sid *sid = NULL;
+    struct seg6_sid *sid = NULL;
 
-	sid = XCALLOC(MTYPE_SRV6_LOCATOR_CHUNK,
-			sizeof(struct seg6_sid));
-	return sid;
+    sid = XCALLOC(MTYPE_SRV6_LOCATOR_CHUNK,
+        sizeof(struct seg6_sid));
+    strlcpy(sid->vrfName, "Default", sizeof(sid->vrfName));
+    return sid;
 }
 void srv6_locator_sid_free(struct seg6_sid *sid)
 {

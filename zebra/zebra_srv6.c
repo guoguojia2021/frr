@@ -705,7 +705,7 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
     ctx.node_bits_length = locator->node_bits_length;
     ctx.function_bits_length = locator->function_bits_length;
     ctx.argument_bits_length = locator->argument_bits_length;
-    strncpy(ctx.vrfName, sid->vrfName, VRF_NAMSIZ + 1);
+    strncpy(ctx.vrfName, sid->vrfName, VRF_ALIASNAMESIZ + 1);
 
     if (CHECK_FLAG(vrf->status, VRF_ACTIVE)) {
 		if (act != ZEBRA_SEG6_LOCAL_ACTION_END_X)
