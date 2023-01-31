@@ -2271,7 +2271,7 @@ static void bmp_active_connect(struct bmp_active *ba)
 		case connect_error:
 			sockunion2str(&ba->addrs[ba->addrpos], buf,
 				      sizeof(buf));
-			zlog_warn("bmp[%s]: failed to connect to %s:%d",
+			zlog_debug("bmp[%s]: failed to connect to %s:%d",
 				  ba->hostname, buf, ba->port);
 			close(ba->socket);
 			ba->socket = -1;
@@ -2351,7 +2351,7 @@ static int bmp_active_thread(struct thread *t)
 	sockunion2str(&ba->addrs[ba->addrpos], buf, sizeof(buf));
 	if (ret < 0 || status != 0) {
 		ba->last_err = strerror(status);
-		zlog_warn("bmp[%s]: failed to connect to %s:%d: %s",
+		zlog_debug("bmp[%s]: failed to connect to %s:%d: %s",
 			  ba->hostname, buf, ba->port, ba->last_err);
 		goto out_next;
 	}
