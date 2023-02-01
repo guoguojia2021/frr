@@ -1762,7 +1762,6 @@ void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h,
 			+ datalen);
     srh_ip6h->ip6_nxt = IPPROTO_ROUTING;
     srh_ip6h->ip6_hlim = BFD_TTL_VAL;
-	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
 
     memcpy(&(srh_ip6h->ip6_src), sip, sizeof(struct in6_addr));
 	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
@@ -1772,9 +1771,8 @@ void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
     struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen)
 {
     /* SRH IPv6 Header */
-    srh_ip6h->ip6_flow = 0;
-    srh_ip6h->ip6_vfc = 6 << 4;
 	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
+	srh_ip6h->ip6_vfc = 6 << 4;
 
 	if (seg_num == 1)
 	{
@@ -1819,12 +1817,11 @@ void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h,
 void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struct in6_addr* dip, size_t datalen)
 {
     /* IPv6 Header */
-    ip6h->ip6_flow = 0;
+    ip6h->ip6_flow = (BFD_TOS_VAL << 20);
     ip6h->ip6_vfc = 6 << 4;
     ip6h->ip6_plen = htons(sizeof(struct udphdr) + datalen);
     ip6h->ip6_nxt = IPPROTO_UDP;
     ip6h->ip6_hlim = BFD_TTL_VAL;
-	ip6h->ip6_flow = (BFD_TOS_VAL << 20);
     
     memcpy(&(ip6h->ip6_src), sip, sizeof(struct in6_addr));
 	memcpy(&(ip6h->ip6_dst), dip, sizeof(struct in6_addr));
@@ -1985,7 +1982,7 @@ static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
 {
 	struct ifaddrs *ifaddr;
 	int family, s;
-	char host[NI_MAXHOST];
+	struct sockaddr_in6 *s6;
 
 	if (getifaddrs(&ifaddr) == -1) {
 		zlog_err("get_iftf_ipv6addr: getifaddrs failed");
@@ -2006,18 +2003,15 @@ static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
 		family = ifa->ifa_addr->sa_family;
 
 		if (family == AF_INET6) {
-			s = getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in6),
-					host, NI_MAXHOST,
-					NULL, 0, NI_NUMERICHOST);
-			if (s != 0) {
-				zlog_err("get_iftf_ipv6addr: getnameinfo() failed: %s", gai_strerror(s));
-				return -1;
-			}
+			s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+			memcpy(ipv6addr, &s6->sin6_addr, sizeof(struct in6_addr));
             
 			if (bglobal.debug_network)
-				zlog_debug("%s'saddress: <%s>\n", ifa->ifa_name, host);
-            
-            inet_pton(AF_INET6, host, ipv6addr);
+			{
+				char buf[INET6_ADDRSTRLEN];
+				zlog_debug("%s's ipv6 address: <%s>\n", ifa->ifa_name, 
+				    inet_ntop(ifa->ifa_addr->sa_family, ipv6addr, buf, sizeof(buf)));
+			}
 			break;
 		} 
 	}
@@ -2025,9 +2019,12 @@ static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
 	return 0;	
 }
 
-static int get_nhp_mac(char* ifname, struct ipaddr *nhp, uint8_t* dmac)
+static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
 {
 	uint32_t ifindex;
+	struct ipaddr ipaddr = {0};
+	struct bfd_nd_info *nd = NULL;
+
 	ifindex = if_nametoindex(ifname);
 	if (ifindex == 0)
 	{
@@ -2035,9 +2032,10 @@ static int get_nhp_mac(char* ifname, struct ipaddr *nhp, uint8_t* dmac)
 		return -1;
 	}
 
-    struct bfd_nd_info *nd = NULL;
+	SET_IPADDR_V6(&ipaddr);
+	memcpy(&ipaddr.ipaddr_v6, nhp, sizeof(struct in6_addr));
     
-	nd = bfdd_neigh_tree_find(ifindex, nhp);
+	nd = bfdd_neigh_tree_find(ifindex, &ipaddr);
 	if (!nd)
 	{
 		zlog_err("get_nhp_mac: get nd failed");
