@@ -664,7 +664,7 @@ DEFPY(
 	"binding source ip address\n"
 	IPV6_STR
 	"discriminator\n"
-	"discriminator value or range\n")
+	"discriminator value or range (e.g. 100 or 100 200 300 or 100-300)\n")
 {
 	int ret;
 	int idx_discr = 5;
@@ -795,11 +795,13 @@ static void _sbfd_reflector_show(struct hash_bucket *hb,
 {
 	struct sbfd_reflector *sr = hb->data;
 	struct ttable *tt;
+	char buf[INET6_ADDRSTRLEN];
 
 	tt = (struct ttable *) arg;
-
-	ttable_add_row(tt, "%u|%s|%s",
-				sr->discr, 
+	
+	ttable_add_row(tt, "%u|%s|%s|%s",
+				sr->discr,
+				inet_ntop(AF_INET6, &sr->local, buf, sizeof(buf)), 
 				"Active",
 				"Hardware");	
 }
@@ -817,7 +819,7 @@ DEFPY(
     
 	vty_out(vty, "sbfd refector discriminator :\n");
 	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-	ttable_add_row(tt, "SBFD-Discr|State|CreateType");
+	ttable_add_row(tt, "SBFD-Discr|SourceIP|State|CreateType");
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
 
     sbfd_discr_iterate(_sbfd_reflector_show, tt);
