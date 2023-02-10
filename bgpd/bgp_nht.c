@@ -379,7 +379,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 			bnc->nht_info = (void *)peer; /* NHT peer reference */
 	}
 
-    if (pi && pi->te_nexthop != te_bnc) {
+    if (pi && te_bnc && pi->te_nexthop != te_bnc) {
         bgp_unlink_te_nexthop(pi);
 		/* updates NHT pi list reference */
 		path_tenh_map(pi, te_bnc, true);
