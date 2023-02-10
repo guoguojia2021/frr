@@ -435,6 +435,15 @@ static void show_nexthop_detail_helper(struct vty *vty,
 		for (i = 1; i < nexthop->backup_num; i++)
 			vty_out(vty, ",%d", nexthop->backup_idx[i]);
 	}
+    if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+    {
+    	if(inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, INET6_ADDRSTRLEN))
+    		vty_out(vty, ", srv6tunnel(endpoint|color):%s|%u", 
+                buf,
+                nexthop->srte_color);
+        else
+            vty_out(vty, ", srv6tunnel(endpoint|color):unknown tunnel");
+    }
 }
 
 static void zebra_show_ip_route_opaque(struct vty *vty, struct route_entry *re,

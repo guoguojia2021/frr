@@ -93,7 +93,7 @@ bool bnc_existing_for_prefix(struct bgp_nexthop_cache *bnc)
 	frr_each (bgp_nexthop_cache, bnc->tree, bnc_tmp) {
 		if (bnc_tmp == bnc)
 			continue;
-		if (prefix_cmp(&bnc->prefix, &bnc_tmp->prefix) == 0)
+		if ((prefix_cmp(&bnc->prefix, &bnc_tmp->prefix) == 0) && (bnc->srte_color == bnc_tmp->srte_color))
 			return true;
 	}
 	return false;
@@ -911,10 +911,6 @@ static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
         return CMD_WARNING;
     }
 
-	if (import_table)
-		tree = &bgp->import_check_table;
-	else
-		tree = &bgp->nexthop_cache_table;
 	for (afi = AFI_IP; afi < AFI_MAX; afi++) {
 		frr_each (bgp_nexthop_cache, &(*tree)[afi], bnc)
 			bgp_show_nexthop(vty, bgp, bnc, false);

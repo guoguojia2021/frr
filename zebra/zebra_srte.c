@@ -96,7 +96,17 @@ struct zebra_sr_policy *zebra_sr_policy_find_by_name(char *name)
 	return NULL;
 }
 
-static int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
+struct zebra_sr_policy *zebra_sr_policy_find_by_rnh(struct rnh *rnh)
+{
+    struct ipaddr ip = {0};
+    if (!prefix2ipaddr(&rnh->node->p, &ip))
+    {
+        return zebra_sr_policy_find(rnh->srte_color, &ip);
+    }
+    return NULL;
+}
+
+int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
 						struct zserv *client)
 {
 	const struct zebra_nhlfe *nhlfe;
@@ -181,7 +191,10 @@ static int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
 		stream_putc(s, 0);/* distance - not available */
 		stream_putl(s, 0); /* metric - not available */
 		nump = stream_get_endp(s);
-		stream_putc(s, 0);
+        if (policy->status == ZEBRA_SR_POLICY_UP)
+    		stream_putc(s, 1);
+        else
+            stream_putc(s, 0);
     }
 
     stream_putw_at(s, 0, stream_get_endp(s));
@@ -194,53 +207,107 @@ failure:
 	return -1;
 }
 
-static void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy)
+void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy)
 {
-	struct rnh *rnh;
-	struct prefix p = {};
-	struct zebra_vrf *zvrf;
-	struct listnode *node;
-	struct zserv *client;
+    struct rnh *rnh;
+    struct prefix p = {};
+    struct zebra_vrf *zvrf;
+    struct listnode *node;
+    struct zserv *client;
 
-	zvrf = policy->zvrf;
-	switch (policy->endpoint.ipa_type) {
-	case IPADDR_V4:
-		p.family = AF_INET;
-		p.prefixlen = IPV4_MAX_BITLEN;
-		p.u.prefix4 = policy->endpoint.ipaddr_v4;
-		break;
-	case IPADDR_V6:
-		p.family = AF_INET6;
-		p.prefixlen = IPV6_MAX_BITLEN;
-		p.u.prefix6 = policy->endpoint.ipaddr_v6;
-		break;
-	default:
-		flog_warn(EC_LIB_DEVELOPMENT,
-			  "%s: unknown policy endpoint address family: %u",
-			  __func__, policy->endpoint.ipa_type);
-		exit(1);
-	}
+    zvrf = policy->zvrf;
+    switch (policy->endpoint.ipa_type) {
+    case IPADDR_V4:
+        p.family = AF_INET;
+        p.prefixlen = IPV4_MAX_BITLEN;
+        p.u.prefix4 = policy->endpoint.ipaddr_v4;
+        break;
+    case IPADDR_V6:
+        p.family = AF_INET6;
+        p.prefixlen = IPV6_MAX_BITLEN;
+        p.u.prefix6 = policy->endpoint.ipaddr_v6;
+        break;
+    default:
+        flog_warn(EC_LIB_DEVELOPMENT,
+              "%s: unknown policy endpoint address family: %u",
+              __func__, policy->endpoint.ipa_type);
+        exit(1);
+    }
 
-	rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), SAFI_UNICAST);
-	if (!rnh)
-		return;
+    rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), SAFI_UNICAST);
+    if (!rnh)
+        return;
 
     /* check color */
     for (rnh; rnh; rnh = rnh->next)
         if (rnh->srte_color == policy->color)
             break;
     if (!rnh)
-		return;
+        return;
+    
+    if (policy->status == rnh->srp_status) {
+        return;
+    }
+    rnh->srp_status = policy->status;
 
-	for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
-		if (policy->status == ZEBRA_SR_POLICY_UP)
-			zebra_sr_policy_notify_update_client(policy, client);
-		else
-			/* Fallback to the IGP shortest path. */
-			zebra_send_rnh_update(rnh, client, zvrf_id(zvrf),
-					      policy->color);
-	}
+    for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
+        zebra_sr_policy_notify_update_client(policy, client);
+        /*todo: Fallback to the IGP shortest path. */
+    }
 }
+
+int zebra_sr_policy_notify_unknown(struct rnh *rnh,
+						struct zserv *client)
+{
+	struct stream *s;
+	uint32_t message = 0;
+    struct route_node *rn;
+
+    rn = rnh->node;
+
+	/* Get output stream. */
+	s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+
+	zclient_create_header(s, ZEBRA_NEXTHOP_UPDATE, rnh->vrf_id);
+
+	/* Message flags. */
+	SET_FLAG(message, ZAPI_MESSAGE_SRTE);
+	stream_putl(s, message);
+
+	switch (rn->p.family) {
+	case AF_INET:
+		stream_putw(s, AF_INET);
+		stream_putc(s, IPV4_MAX_BITLEN);
+		stream_put_in_addr(s, &rn->p.u.prefix4);
+		break;
+	case AF_INET6:
+		stream_putw(s, AF_INET6);
+		stream_putc(s, IPV6_MAX_BITLEN);
+		stream_put(s, &rn->p.u.prefix6, IPV6_MAX_BYTELEN);
+		break;
+	default:
+		flog_warn(EC_LIB_DEVELOPMENT,
+			  "%s: unknown policy endpoint address family: %u",
+			  __func__, rn->p.family);
+		exit(1);
+	}
+	stream_putl(s, rnh->srte_color);
+
+    stream_putc(s, ZEBRA_ROUTE_SRTE);
+	stream_putw(s, 0); /* instance - not available */
+	stream_putc(s, 0);/* distance - not available */
+	stream_putl(s, 0); /* metric - not available */
+    /*set nexthop num to 0 */
+    stream_putc(s, 0);
+
+    stream_putw_at(s, 0, stream_get_endp(s));
+	client->nh_last_upd_time = monotime(NULL);
+	client->last_write_cmd = ZEBRA_NEXTHOP_UPDATE;
+	return zserv_send_message(client, s);
+
+}
+
+
 
 static void zebra_sr_policy_activate(struct zebra_sr_policy *policy,
 				     struct zebra_lsp *lsp)
@@ -285,21 +352,9 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 		zebra_sr_policy_notify_update(policy);
 }
 
-static void zebra_srv6_policy_deactivate(struct zebra_sr_policy *policy)
-{
-	policy->status = ZEBRA_SR_POLICY_DOWN;
-	policy->lsp = NULL;
-	zebra_sr_policy_bsid_uninstall(policy,
-				       policy->segment_list.local_label);
-	zsend_sr_policy_notify_status(policy->color, &policy->endpoint,
-				      policy->name, ZEBRA_SR_POLICY_DOWN);
-	zebra_sr_policy_notify_update(policy);
-}
-
 int zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 			     struct zapi_srv6te_tunnel *new_tunnel)
 {
-	bool bsid_changed = FALSE;
 	bool segment_list_changed = FALSE;
 
 	/* bsid_changed =
@@ -328,8 +383,11 @@ static void zebra_sr_policy_deactivate(struct zebra_sr_policy *policy)
 {
 	policy->status = ZEBRA_SR_POLICY_DOWN;
 	policy->lsp = NULL;
-	zebra_sr_policy_bsid_uninstall(policy,
-				       policy->segment_list.local_label);
+    if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
+    {
+        zebra_sr_policy_bsid_uninstall(policy, policy->segment_list.local_label);
+    }
+	
 	zsend_sr_policy_notify_status(policy->color, &policy->endpoint,
 				      policy->name, ZEBRA_SR_POLICY_DOWN);
 	zebra_sr_policy_notify_update(policy);

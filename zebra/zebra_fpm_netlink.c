@@ -136,11 +136,15 @@ enum srv6_localsid_encap_info_type_t {
 enum srv6_servicesid_encap_info_type_t {
 	SEG6_ADDR = 0,
 	SEG6_SRC = 1,
+	SEG6_ENDPOINT = 2,
+	SEG6_COLOR = 3,
 };
 
 struct srv6_servicesid_encap_info_t {
 	struct in6_addr seg6;
 	struct in6_addr seg_src;
+    struct in6_addr endpoint;
+	uint8_t color;
 };
 
 struct fpm_nh_encap_info_t {
@@ -387,13 +391,20 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 		zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s", __FUNCTION__,
 			prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 			addr_to_a(AF_INET6, &nexthop->nh_srv6->seg6_segs),
-			addr_to_a(AF_INET6, &nexthop->nh_srv6->seg6_src));
+			addr_to_a(AF_INET6, &nexthop->nh_srv6->seg6_src),
+			addr_to_a(AF_INET6, &nexthop->gate.ipv6),
+			nexthop->srte_color);
 
         nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_SERVICE_SID;
         nhi.encap_info.srv6_service_encap.seg6 = nexthop->nh_srv6->seg6_segs;
         nhi.encap_info.srv6_service_encap.seg_src = nexthop->nh_srv6->seg6_src;
+        if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+        {
+            nhi.encap_info.srv6_service_encap.endpoint = nexthop->gate.ipv6;
+            nhi.encap_info.srv6_service_encap.color = nexthop->srte_color;
+        }
     }
-
+    
 	/*
 	 * We have a valid nhi. Copy the structure over to the route_info.
 	 */
@@ -718,10 +729,15 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
             nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
 						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
+            nl_attr_put(&req->n, in_buf_len, SEG6_ENDPOINT,
+                        &nhi->encap_info.srv6_service_encap.endpoint, 
+                        sizeof(nhi->encap_info.srv6_service_encap.endpoint));
+            nl_attr_put32(&req->n, in_buf_len, SEG6_COLOR, 
+                nhi->encap_info.srv6_service_encap.color);
 
 			nl_attr_nest_end(&req->n, nest);
 			break;
-		}
+        }
 
 		goto done;
 	}
@@ -854,6 +870,11 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
             nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
 						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
+            nl_attr_put(&req->n, in_buf_len, SEG6_ENDPOINT,
+                        &nhi->encap_info.srv6_service_encap.endpoint, 
+                        sizeof(nhi->encap_info.srv6_service_encap.endpoint));
+            nl_attr_put32(&req->n, in_buf_len, SEG6_COLOR, 
+                nhi->encap_info.srv6_service_encap.color);
 
 			nl_attr_nest_end(&req->n, inner_nest);
 			break;

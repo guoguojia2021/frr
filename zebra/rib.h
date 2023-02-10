@@ -37,6 +37,7 @@
 #include "mpls.h"
 #include "srcdest_table.h"
 #include "zebra/zebra_nhg.h"
+#include "srte.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,6 +85,7 @@ struct rnh {
 
 	struct rnh_list_item rnh_list_item;
     uint32_t srte_color;
+    enum zebra_sr_policy_status srp_status;
 };
 
 #define DISTANCE_INFINITY  255

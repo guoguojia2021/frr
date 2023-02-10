@@ -20,7 +20,7 @@ struct bgp_irt_node {
 	struct list *vrfs;
 };
 
-unsigned int bgp_import_rt_hash_key_make(void *p);
+unsigned int bgp_import_rt_hash_key_make(const void *p);
 bool bgp_import_rt_hash_cmp(const void *p1, const void *p2);
 struct bgp_irt_node *bgp_import_rt_new(struct ecommunity_val *rt);
 struct bgp_irt_node *bgp_lookup_import_rt(struct ecommunity_val *rt);

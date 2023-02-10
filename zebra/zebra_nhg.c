@@ -2001,8 +2001,8 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	nexthop->resolved = NULL;
 
 	/* Next hops (remote VTEPs) for EVPN routes are fully resolved. */
-	if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP))
-		return 1;
+    if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP) && nexthop->type != NEXTHOP_TYPE_IPV4)
+        return 1;
     if (nexthop->nh_srv6 && nexthop->nh_srv6->seg6local_action != ZEBRA_SEG6_LOCAL_ACTION_UNSPEC)
         return 1;
 
@@ -2011,8 +2011,8 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	 * Some nexthop types get special handling, possibly skipping
 	 * the normal processing.
 	 */
-	switch (nexthop->type) {
-	case NEXTHOP_TYPE_IFINDEX:
+    switch (nexthop->type) {
+    case NEXTHOP_TYPE_IFINDEX:
 
 		ifp = if_lookup_by_index(nexthop->ifindex, nexthop->vrf_id);
 		/*
@@ -2124,22 +2124,25 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 
 		policy = zebra_sr_policy_find(nexthop->srte_color, &endpoint);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
-			resolved = 0;
-			frr_each_safe (nhlfe_list, &policy->lsp->nhlfe_list,
-				       nhlfe) {
-				if (!CHECK_FLAG(nhlfe->flags,
-						NHLFE_FLAG_SELECTED)
-				    || CHECK_FLAG(nhlfe->flags,
-						  NHLFE_FLAG_DELETED))
-					continue;
-				SET_FLAG(nexthop->flags,
-					 NEXTHOP_FLAG_RECURSIVE);
-				nexthop_set_resolved(afi, nhlfe->nexthop,
-						     nexthop, policy);
-				resolved = 1;
-			}
-			if (resolved)
-				return 1;
+            if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
+            {
+    			resolved = 0;
+    			frr_each_safe (nhlfe_list, &policy->lsp->nhlfe_list,
+    				       nhlfe) {
+    				if (!CHECK_FLAG(nhlfe->flags,
+    						NHLFE_FLAG_SELECTED)
+    				    || CHECK_FLAG(nhlfe->flags,
+    						  NHLFE_FLAG_DELETED))
+    					continue;
+    				SET_FLAG(nexthop->flags,
+    					 NEXTHOP_FLAG_RECURSIVE);
+    				nexthop_set_resolved(afi, nhlfe->nexthop,
+    						     nexthop, policy);
+    				resolved = 1;
+    			}
+                if (resolved)
+				    return 1;
+            }
 		}
 	}
 

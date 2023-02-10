@@ -380,29 +380,6 @@ static int zebra_srv6_manager_release_locator_chunk(struct zserv *client,
  * @return Pointer to the assigned srv6-locator chunk,
  *         or NULL if the request could not be satisfied
  */
-static struct srv6_locator *
-assign_srv6_locator_sid(uint8_t proto,
-			  uint16_t instance,
-			  uint32_t session_id,
-			  const char *locator_name)
-{
-	struct srv6_locator *loc = NULL;
-
-	loc = zebra_srv6_locator_lookup(locator_name);
-	if (!loc) {
-		zlog_info("%s: locator %s was not found",
-			  __func__, locator_name);
-		return NULL;
-	}
-    if (loc->proto != NO_PROTO && loc->proto != proto)
-		return NULL;
-
-	loc->proto = proto;
-	loc->instance = instance;
-	loc->session_id = session_id;
-	return loc;
-}
-
 static int zebra_srv6_manager_get_locator_sid(struct srv6_locator **loc,
 						struct zserv *client,
 						const char *locator_name,
@@ -457,43 +434,6 @@ static int zebra_srv6_manager_get_locator_all(struct zserv *client,
  * @param locator_name SRv6-locator name, to identify the actual locator
  * @return 0 on success, -1 otherwise
  */
-static int release_srv6_locator_sid(uint8_t proto, uint16_t instance,
-				      uint32_t session_id,
-				      const char *locator_name)
-{
-	int ret = -1;
-	struct listnode *node;
-	struct srv6_locator_chunk *chunk;
-	struct srv6_locator *loc = NULL;
-
-	loc = zebra_srv6_locator_lookup(locator_name);
-	if (!loc)
-		return -1;
-
-	if (IS_ZEBRA_DEBUG_PACKET)
-		zlog_debug("%s: Releasing srv6-locator on %s", __func__,
-			   locator_name);
-
-	for (ALL_LIST_ELEMENTS_RO((struct list *)loc->chunks, node, chunk)) {
-		if (chunk->proto != proto ||
-		    chunk->instance != instance ||
-		    chunk->session_id != session_id)
-			continue;
-		chunk->proto = NO_PROTO;
-		chunk->instance = 0;
-		chunk->session_id = 0;
-		chunk->keep = 0;
-		ret = 0;
-		break;
-	}
-
-	if (ret != 0)
-		flog_err(EC_ZEBRA_SRV6M_UNRELEASED_LOCATOR_CHUNK,
-			 "%s: SRv6 locator chunk not released", __func__);
-
-	return ret;
-}
-
 static int zebra_srv6_manager_release_locator_sid(struct zserv *client,
 						    const char *locator_name,
 						    vrf_id_t vrf_id)
@@ -795,7 +735,7 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 
 	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
 	// addr_msb
-	uint32_t addr_0 = result_sid.s6_addr32[0];
+	//uint32_t addr_0 = result_sid.s6_addr32[0];
 	uint32_t addr_1 = result_sid.s6_addr32[1];
 
 	// addr_lsb

@@ -67,6 +67,8 @@ void zebra_sr_policy_del(struct zebra_sr_policy *policy);
 struct zebra_sr_policy *zebra_sr_policy_find(uint32_t color,
 					     struct ipaddr *endpoint);
 struct zebra_sr_policy *zebra_sr_policy_find_by_name(char *name);
+struct zebra_sr_policy *zebra_sr_policy_find_by_rnh(struct rnh *rnh);
+
 int zebra_sr_policy_validate(struct zebra_sr_policy *policy,
 			     struct zapi_srte_tunnel *new_tunnel);
 int zebra_sr_policy_bsid_install(struct zebra_sr_policy *policy);
@@ -75,6 +77,12 @@ void zebra_sr_policy_bsid_uninstall(struct zebra_sr_policy *policy,
 void zebra_srte_init(void);
 int zebra_sr_policy_label_update(mpls_label_t label,
 				 enum zebra_sr_policy_update_label_mode mode);
+extern int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
+                            struct zserv *client);
+extern void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy);
+extern int zebra_sr_policy_notify_unknown(struct rnh *rnh,            struct zserv *client);
+extern int zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
+                     struct zapi_srv6te_tunnel *new_tunnel);
 
 #ifdef __cplusplus
 }

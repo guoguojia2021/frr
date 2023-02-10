@@ -1299,7 +1299,7 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 			flag_changed = true;
 
 		/* Anything not AF_INET/INET6 has been filtered out above */
-		if (!exist || flag_changed)
+		if (!srte_color && (!exist || flag_changed))
 			zebra_evaluate_rnh(zvrf, family2afi(p.family), 1, &p,
 					   safi);
 
@@ -1318,6 +1318,8 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 	struct prefix p;
 	unsigned short l = 0;
 	safi_t safi;
+    uint32_t userdata_type = 0;
+    uint32_t srte_color = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
 		zlog_debug(
@@ -1329,10 +1331,9 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 
 	while (l < hdr->length) {
 		uint8_t ignore;
+		uint8_t flags;
 
-		STREAM_GETC(s, ignore);
-		if (ignore != 0)
-			goto stream_failure;
+		STREAM_GETC(s, flags);
 		STREAM_GETC(s, ignore);
 		if (ignore != 0)
 			goto stream_failure;
@@ -1368,7 +1369,21 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 				p.family);
 			return;
 		}
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
+		{
+			STREAM_GETL(s, userdata_type);
+			switch (userdata_type) {
+			case NEXTHOP_REGISTER_TYPE_COLOR:
+				STREAM_GETL(s, srte_color);
+			default:
+				zlog_err("recv error type with userdate:%u", userdata_type);
+			}
+		}
 		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
+		/* check color */
+		for (rnh; rnh; rnh = rnh->next)
+			if (rnh->srte_color == srte_color)
+				break;
 		if (rnh) {
 			client->nh_dereg_time = monotime(NULL);
 			zebra_remove_rnh_client(rnh, client);
@@ -1759,6 +1774,11 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 			}
 		}
 	}
+    if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
+    {
+        SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+        nexthop->srte_color = api_nh->srte_color;
+    }
 
 done:
 	return nexthop;
@@ -2732,20 +2752,21 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 	}
     
     old_policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
-	if (!old_policy)
-		policy = zebra_sr_policy_add(zp.color, &zp.endpoint, zp.name);
+    if (!old_policy)
+        policy = zebra_sr_policy_add(zp.color, &zp.endpoint, zp.name);
     else
         policy = old_policy;
     
-	policy->zvrf = zvrf;
+    policy->zvrf = zvrf;
 
-	zebra_srv6_policy_validate(policy, &zp.srv6_tunnel);
+    zebra_srv6_policy_validate(policy, &zp.srv6_tunnel);
 }
 
 static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 {
 	struct stream *s;
 	struct zapi_sr_policy zp;
+    struct zebra_sr_policy *policy = NULL;
 	// struct zebra_sr_policy *policy;
 
 	/* Get input stream.  */
@@ -2756,6 +2777,10 @@ static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 				   __func__);
 		return;
 	}
+    policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
+	if (!policy)
+		return;
+    zebra_sr_policy_del(policy);
 }
 
 int zsend_sr_policy_notify_status(uint32_t color, struct ipaddr *endpoint,

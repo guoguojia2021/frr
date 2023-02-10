@@ -31,6 +31,7 @@
 #include "lib/network.h"
 
 #include "bfd.h"
+#include "bfd_fpm.h"
 
 DEFINE_MTYPE_STATIC(BFDD, BFDD_CONFIG, "long-lived configuration memory");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_PROFILE, "long-lived profile memory");

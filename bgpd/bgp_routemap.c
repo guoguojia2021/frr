@@ -2819,6 +2819,41 @@ struct route_map_rule_cmd route_set_ecommunity_color_cmd = {
 	route_set_ecommunity_color_free,
 };
 
+const uint8_t *ecommunity_color_present(struct ecommunity *ecom, uint32_t *color)
+{
+	const uint8_t *eval;
+	uint32_t i;
+
+	if (color)
+		*color = 0;
+
+	if (!ecom || !ecom->size)
+		return NULL;
+
+	for (i = 0; i < ecom->size; i++) {
+		const uint8_t *pnt;
+		uint8_t type, sub_type;
+		uint32_t colorval;
+
+		eval = pnt = (ecom->val + (i * ECOMMUNITY_SIZE));
+		type = *pnt++;
+		sub_type = *pnt++;
+
+		if ((type == ECOMMUNITY_ENCODE_OPAQUE ||
+		     type == ECOMMUNITY_ENCODE_OPAQUE_NON_TRANS) &&
+		    sub_type == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
+			pnt += 2;
+			pnt = ptr_get_be32(pnt, &colorval);
+			(void)pnt; /* consume value */
+			if (color)
+				*color = colorval;
+			return eval;
+		}
+	}
+
+	return NULL;
+}
+
 /* `set extcommunity bandwidth' */
 
 struct rmap_ecomm_lb_set {

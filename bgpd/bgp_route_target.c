@@ -5,7 +5,7 @@
 /*
  * Make import route target hash key.
  */
-unsigned int bgp_import_rt_hash_key_make(void *p)
+unsigned int bgp_import_rt_hash_key_make(const void *p)
 {
 	struct bgp_irt_node *irt = p;
 	char *pnt = irt->rt.val;

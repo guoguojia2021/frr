@@ -474,9 +474,11 @@ struct zapi_nexthop {
 #define ZAPI_NEXTHOP_FLAG_LABEL		0x02
 #define ZAPI_NEXTHOP_FLAG_WEIGHT	0x04
 #define ZAPI_NEXTHOP_FLAG_HAS_BACKUP	0x08 /* Nexthop has a backup */
-#define ZAPI_NEXTHOP_FLAG_SEG6		0x10
-#define ZAPI_NEXTHOP_FLAG_SEG6LOCAL	0x20
-#define ZAPI_NEXTHOP_FLAG_VNI       0x30
+#define ZAPI_NEXTHOP_FLAG_VNI       0x10
+#define ZAPI_NEXTHOP_FLAG_SEG6		0x20
+#define ZAPI_NEXTHOP_FLAG_SEG6LOCAL	0x40
+#define ZAPI_NEXTHOP_FLAG_SRTE      0x80
+
 /*
  * ZAPI Nexthop Group. For use with protocol creation of nexthop groups.
  */

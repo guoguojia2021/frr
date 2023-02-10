@@ -68,6 +68,7 @@ struct bgp_nexthop_cache {
 #define BGP_STATIC_ROUTE_EXACT_MATCH  (1 << 5)
 #define BGP_NEXTHOP_LABELED_VALID     (1 << 6)
 #define BGP_CONDITION_TRACK_ROUTE     (1 << 7)
+#define BGP_NEXTHOP_SRV6TE_VALID      (1 << 8)
 
 
 #define BGP_NEXTHOP_TYPE_NEXTHOP     1

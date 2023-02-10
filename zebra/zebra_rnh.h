@@ -66,6 +66,8 @@ extern void zebra_print_rnh_table(vrf_id_t vrfid, afi_t afi, struct vty *vty,
 				  struct prefix *p);
 
 extern int rnh_resolve_via_default(struct zebra_vrf *zvrf, int family);
+extern void zebra_rnh_info_add(struct route_node *dest, struct rnh *pi);
+extern void zebra_rnh_info_del(struct route_node *dest, struct rnh *pi);
 
 extern bool rnh_nexthop_valid(const struct route_entry *re,
 			      const struct nexthop *nh);

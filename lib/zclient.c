@@ -1062,7 +1062,7 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 	}
 
 	/* Color for Segment Routing TE. */
-	if (CHECK_FLAG(api_message, ZAPI_MESSAGE_SRTE))
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
 		stream_putl(s, api_nh->srte_color);
 
 	/* Index of backup nexthop */
@@ -1545,7 +1545,7 @@ int zapi_nexthop_decode(struct stream *s, struct zapi_nexthop *api_nh,
 	}
 
 	/* Color for Segment Routing TE. */
-	if (CHECK_FLAG(api_message, ZAPI_MESSAGE_SRTE))
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
 		STREAM_GETL(s, api_nh->srte_color);
 
 	/* Backup nexthop index */
@@ -2111,6 +2111,8 @@ bool zapi_nexthop_update_decode(struct stream *s, struct prefix *match,
 	STREAM_GETC(s, nhr->distance);
 	STREAM_GETL(s, nhr->metric);
 	STREAM_GETC(s, nhr->nexthop_num);
+    if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE))
+        return true;
 
 	for (i = 0; i < nhr->nexthop_num; i++) {
 		if (zapi_nexthop_decode(s, &(nhr->nexthops[i]), 0, 0) != 0)

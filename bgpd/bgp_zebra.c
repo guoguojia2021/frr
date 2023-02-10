@@ -1312,6 +1312,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	uint64_t cum_bw = 0;
 	uint32_t nhg_id = 0;
 	bool is_add;
+    uint32_t srte_color = 0;
 
 	/* Don't try to install if we're not connected to Zebra or Zebra doesn't
 	 * know of this instance.
@@ -1378,9 +1379,10 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 		api.tableid = info->attr->rmap_table_id;
 	}
 
+    /*
 	if (CHECK_FLAG(info->attr->flag, ATTR_FLAG_BIT(BGP_ATTR_SRTE_COLOR)))
 		SET_FLAG(api.message, ZAPI_MESSAGE_SRTE);
-
+    */
 	/* Metric is currently based on the best-path only */
 	metric = info->attr->med;
 
@@ -1430,10 +1432,6 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 		}
 		api_nh = &api.nexthops[valid_nh_count];
 
-		if (CHECK_FLAG(info->attr->flag,
-			       ATTR_FLAG_BIT(BGP_ATTR_SRTE_COLOR)))
-			api_nh->srte_color = info->attr->srte_color;
-
 		if (bgp_debug_zebra(&api.prefix)) {
 			if (mpinfo->extra) {
 				zlog_debug("%s: p=%pFX, bgp_is_valid_label: %d",
@@ -1463,7 +1461,11 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				tag = mpinfo_cp->attr->tag;
 			}
 		}
-
+        if (mpinfo->te_nexthop && CHECK_FLAG(mpinfo->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+        {
+            SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
+            api_nh->srte_color = mpinfo->te_nexthop->srte_color;
+        }
 		BGP_ORIGINAL_UPDATE(bgp_orig, mpinfo, bgp);
 
 		if (nh_family == AF_INET) {

@@ -49,6 +49,7 @@
 #include "zebra/zebra_srte.h"
 #include "zebra/interface.h"
 #include "zebra/zebra_errors.h"
+#include "zebra/zebra_srte.h"
 
 DEFINE_MTYPE_STATIC(ZEBRA, RNH, "Nexthop tracking object");
 
@@ -132,34 +133,6 @@ static void zebra_rnh_store_in_routing_table(struct rnh *rnh)
 	route_unlock_node(rn);
 }
 
-static void zebra_rnh_store_in_srte_table(struct rnh *rnh)
-{
-	struct zebra_vrf *zvrf = zebra_vrf_lookup_by_id(rnh->vrf_id);
-	struct route_table *table = zvrf->srv6_te_table;
-	struct route_node *rn;
-	rib_dest_t *dest, *tmpri;
-    struct route_entry *same = NULL;
-
-	rn = route_node_match(table, &rnh->resolved_route);
-	if (!rn)
-		return;
-
-	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
-		zlog_debug("%s: %s(%u):%pRN added for tracking on %pRN",
-			   __func__, VRF_LOGNAME(zvrf->vrf), rnh->vrf_id,
-			   rnh->node, rn);
-    dest = rib_dest_from_rnode(rn);
-    /*todo: add sr-te tunnel*/
-    RNODE_FOREACH_RE (rn, same) {
-        if (CHECK_FLAG(same->status, ROUTE_ENTRY_REMOVED)) {
-            continue;
-        }
-    }
-
-	rnh_list_add_tail(&dest->nht, rnh);
-	route_unlock_node(rn);
-}
-
 void zebra_rnh_info_add(struct route_node *dest, struct rnh *pi)
 {
 	struct rnh *top;
@@ -174,6 +147,17 @@ void zebra_rnh_info_add(struct route_node *dest, struct rnh *pi)
 
 	route_lock_node(dest);
 }
+
+void zebra_rnh_info_del(struct route_node *dest, struct rnh *pi)
+{
+	if (pi->next)
+		pi->next->prev = pi->prev;
+	if (pi->prev)
+		pi->prev->next = pi->next;
+	else
+		dest->info = pi->next;
+}
+
 struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color)
 {
 	struct route_table *table;
@@ -229,6 +213,7 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		route_lock_node(rn);
 		rnh->node = rn;
         rnh->srte_color = srte_color;
+        rnh->srp_status = ZEBRA_SR_POLICY_DOWN;
 		*exists = false;
         
         zebra_rnh_info_add(rn, rnh);
@@ -308,9 +293,8 @@ static void zebra_delete_rnh(struct rnh *rnh)
 		zlog_debug("%s(%u): Del RNH %pRN", VRF_LOGNAME(vrf),
 			   rnh->vrf_id, rnh->node);
 	}
-
+    zebra_rnh_info_del(rn, rnh);
 	zebra_free_rnh(rnh);
-	rn->info = NULL;
 	route_unlock_node(rn);
 }
 
@@ -325,6 +309,8 @@ static void zebra_delete_rnh(struct rnh *rnh)
 void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 			  vrf_id_t vrf_id)
 {
+    struct zebra_sr_policy *policy = NULL;
+    struct ipaddr ip = {0};
 	if (IS_ZEBRA_DEBUG_NHT) {
 		struct vrf *vrf = vrf_lookup_by_id(vrf_id);
 
@@ -339,7 +325,19 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 	 * We always need to respond with known information,
 	 * currently multiple daemons expect this behavior
 	 */
-	zebra_send_rnh_update(rnh, client, vrf_id, 0);
+	if (!rnh->srte_color)
+		zebra_send_rnh_update(rnh, client, vrf_id, rnh->srte_color);
+	else
+	{
+		if (!prefix2ipaddr(&rnh->node->p, &ip))
+		{
+			policy = zebra_sr_policy_find_by_rnh(rnh);
+			if (policy)
+				zebra_sr_policy_notify_update(policy);
+			else
+				zebra_sr_policy_notify_unknown(rnh, client);
+		}
+	}
 }
 
 void zebra_remove_rnh_client(struct rnh *rnh, struct zserv *client)
@@ -517,7 +515,7 @@ static void zebra_rnh_notify_protocol_clients(struct zebra_vrf *zvrf, afi_t afi,
 					zebra_route_string(client->proto));
 		}
 
-		zebra_send_rnh_update(rnh, client, zvrf->vrf->vrf_id, 0);
+		zebra_send_rnh_update(rnh, client, zvrf->vrf->vrf_id, rnh->srte_color);
 	}
 
 	if (re)
@@ -1215,9 +1213,6 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 
 	zclient_create_header(s, ZEBRA_NEXTHOP_UPDATE, vrf_id);
 
-	/* Message flags. */
-	if (srte_color)
-		SET_FLAG(message, ZAPI_MESSAGE_SRTE);
 	stream_putl(s, message);
 
 	/*
@@ -1362,10 +1357,10 @@ static void print_rnh(struct route_node *rn, struct vty *vty)
 	char buf[BUFSIZ];
 
 	rnh = rn->info;
-	vty_out(vty, "%s%s\n",
+	vty_out(vty, "%s%s - color %u\n",
 		inet_ntop(rn->p.family, &rn->p.u.prefix, buf, BUFSIZ),
 		CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED) ? "(Connected)"
-							    : "");
+							    : "", rnh->srte_color);
 	if (rnh->state) {
 		vty_out(vty, " resolved via %s\n",
 			zebra_route_string(rnh->state->type));

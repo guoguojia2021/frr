@@ -284,6 +284,7 @@ static void bgp_path_info_free(struct bgp_path_info *path)
 	bgp_attr_unintern(&path->attr);
 
 	bgp_unlink_nexthop(path);
+    bgp_unlink_te_nexthop(path);
 	bgp_path_info_extra_free(&path->extra);
 	bgp_path_info_mpath_free(&path->mpath);
 	if (path->net)
@@ -10807,6 +10808,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 	int i;
 	char *nexthop_hostname =
 		bgp_nexthop_hostname(path->peer, path->nexthop);
+	char nexthopstr[128];
 
 	if (json_paths) {
 		json_path = json_object_new_object();
@@ -10985,10 +10987,28 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 	     || bn_p->family == AF_EVPN)
 	    && (safi == SAFI_MPLS_VPN || safi == SAFI_ENCAP || safi == SAFI_EVPN
 		|| !BGP_ATTR_NEXTHOP_AFI_IP6(attr))) {
+
 		if (safi == SAFI_MPLS_VPN || safi == SAFI_ENCAP
 		    || safi == SAFI_EVPN) {
+			int af = NEXTHOP_FAMILY(attr->mp_nexthop_len);
+
+			switch (af) {
+			case AF_INET:
+				snprintf(nexthopstr, sizeof(nexthopstr), "%s",
+					 inet_ntop(af, &attr->mp_nexthop_global_in, buf,
+						   BUFSIZ));
+				break;
+			case AF_INET6:
+				snprintf(nexthopstr, sizeof(nexthopstr), "%s",
+					 inet_ntop(af, &attr->mp_nexthop_global, buf,
+						   BUFSIZ));
+                break;
+			default:
+				snprintf(nexthopstr, sizeof(nexthopstr), "?");
+				break;
+			}
 			if (json_paths) {
-				json_object_string_addf(
+				json_object_string_add(
 					json_nexthop_global, "ip", "%pI4",
 					&attr->mp_nexthop_global_in);
 
@@ -10998,12 +11018,11 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 						path->peer->hostname);
 			} else {
 				if (nexthop_hostname)
-					vty_out(vty, "    %pI4(%s)",
-						&attr->mp_nexthop_global_in,
-						nexthop_hostname);
+					vty_out(vty, "    %s(%s)", nexthopstr, nexthop_hostname);
 				else
-					vty_out(vty, "    %pI4",
-						&attr->mp_nexthop_global_in);
+				{
+					vty_out(vty, "    %s", nexthopstr);
+				}
 			}
 		} else {
 			if (json_paths) {
@@ -11225,6 +11244,69 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 
 	if (!json_paths)
 		vty_out(vty, "\n");
+
+	if (path->nexthop)
+	{
+		struct nexthop *nexthop;
+		struct bgp_nexthop_cache *bnc = path->nexthop;
+		if (!json_paths)
+		{
+			vty_out(vty, "      Relay-Nexthop(ip):");
+			for (nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next) {
+				switch (nexthop->type) {
+				case NEXTHOP_TYPE_IPV6:
+					vty_out(vty, " gate %s, ",
+						inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+							  sizeof(buf)));
+					break;
+				case NEXTHOP_TYPE_IPV6_IFINDEX:
+					vty_out(vty, " gate %s, if %s, ",
+						inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+							  sizeof(buf)),
+						ifindex2ifname(bnc->ifindex ? bnc->ifindex
+										: nexthop->ifindex,
+								   bgp->vrf_id));
+					break;
+				case NEXTHOP_TYPE_IPV4:
+					vty_out(vty, " gate %s, ",
+						inet_ntop(AF_INET, &nexthop->gate.ipv4, buf,
+							  sizeof(buf)));
+					break;
+				case NEXTHOP_TYPE_IFINDEX:
+					vty_out(vty, " if %s, ",
+						ifindex2ifname(bnc->ifindex ? bnc->ifindex
+										: nexthop->ifindex,
+								   bgp->vrf_id));
+					break;
+				case NEXTHOP_TYPE_IPV4_IFINDEX:
+					vty_out(vty, " gate %s, if %s, ",
+						inet_ntop(AF_INET, &nexthop->gate.ipv4, buf,
+							  sizeof(buf)),
+						ifindex2ifname(bnc->ifindex ? bnc->ifindex
+										: nexthop->ifindex,
+								   bgp->vrf_id));
+					break;
+				case NEXTHOP_TYPE_BLACKHOLE:
+					vty_out(vty, " blackhole, ");
+					break;
+				default:
+					vty_out(vty, " invalid nexthop type %u\n",
+						nexthop->type);
+				}
+			}
+            vty_out(vty, "\n");
+            if (path->te_nexthop)
+            {
+                bnc = path->te_nexthop;
+                vty_out(vty, "      Relay-Nexthop(tunnel):");
+    			if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
+    				vty_out(vty, " srv6-tunnel:%s|%u(endpoint|color), ", 
+    						inet_ntop(bnc->prefix.family, &bnc->prefix.u.prefix, buf, sizeof(buf)),
+    						bnc->srte_color);
+                vty_out(vty, "\n");
+            }
+		}
+	}
 
 	/* display the link-local nexthop */
 	if (attr->mp_nexthop_len == BGP_ATTR_NHLEN_IPV6_GLOBAL_AND_LL) {
