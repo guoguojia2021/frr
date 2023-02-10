@@ -12487,6 +12487,23 @@ static int bgp_show_table(struct vty *vty, struct bgp *bgp, safi_t safi,
 				else
 					vty_out(vty, ",\"%pFX\": ", dest_p);
 			}
+
+			if (json_detail_header && json_paths != NULL) {
+				const struct prefix_rd *prd;
+
+				vty_out(vty, "{\n");
+
+				prd = bgp_rd_from_dest(dest, safi);
+
+				route_vty_out_detail_header(
+					vty, bgp, dest,
+					bgp_dest_get_prefix(dest), prd,
+					table->afi, safi, json_paths, true);
+
+				vty_out(vty, "\"paths\": ");
+				json_detail_header_used = true;
+			}
+
 			/*
 			 * We are using no_pretty here because under
 			 * extremely high settings( say lots and lots of
@@ -12497,6 +12514,10 @@ static int bgp_show_table(struct vty *vty, struct bgp *bgp, safi_t safi,
 			 * routers out there
 			 */
 			vty_json_no_pretty(vty, json_paths);
+
+			if (json_detail_header_used)
+				vty_out(vty, "} ");
+
 			json_paths = NULL;
 			first = 0;
 		} else
