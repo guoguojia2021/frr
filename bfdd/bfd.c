@@ -1632,6 +1632,32 @@ void sbfd_echo_state_handler(struct bfd_session *bs, int nstate)
 	}
 }
 
+void sbfd_initiator_state_handler(struct bfd_session *bs, int nstate)
+{
+    if (bglobal.debug_peer_event)
+	    zlog_debug("%s:  sbfd(%u) state: %s , notify state: %s",
+				__func__,  bs->discrs.my_discr, 
+				state_list[bs->ses_state].str, state_list[nstate].str);	
+
+	switch (bs->ses_state) {
+	case PTM_BFD_ADM_DOWN:
+		// bs_admin_down_handler(bs, nstate);
+		break;
+	case PTM_BFD_DOWN:
+		sbfd_down_handler(bs, nstate);
+		break;
+	case PTM_BFD_UP:
+		sbfd_up_handler(bs, nstate);
+		break;
+
+	default:
+		if (bglobal.debug_peer_event)
+			zlog_debug("state-change: [%s] is in invalid state: %d",
+				   bs_to_string(bs), nstate);
+		break;
+	}
+}
+
 /*
  * Handles echo timer manipulation after updating timer.
  */

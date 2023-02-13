@@ -934,6 +934,7 @@ void sbfd_reflector_flush(void);
 void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag);
 void ptm_sbfd_sess_up(struct bfd_session *bfd);
 void sbfd_echo_state_handler(struct bfd_session *bs, int nstate);
+void sbfd_initiator_state_handler(struct bfd_session *bs, int nstate);
 
 struct bfd_nd_info *bfdd_neigh_tree_find(int ifindex, struct ipaddr *ipaddr);
 void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struct ethaddr *mac, uint32_t ndm_state);

@@ -911,7 +911,7 @@ int bfd_recv_cb(struct thread *t)
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
-        bs_state_handler(bfd, PTM_BFD_UP);
+		sbfd_initiator_state_handler(bfd, PTM_BFD_UP);
         /*try to send to hwbfd*/
         bfd_fpm_peer_sendmsg(bfd, true);
         if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
