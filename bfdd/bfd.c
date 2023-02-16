@@ -2451,7 +2451,6 @@ static void _sbfd_reflector_free(struct hash_bucket *hb,
 		      void *arg __attribute__((__unused__)))
 {
 	struct sbfd_reflector *sr = hb->data;
-    uint32_t discr = sr->discr;
 
 	sbfd_reflector_free(sr->discr);
 	bfd_fpm_sbfd_reflector_sendmsg(sr, false);
@@ -2833,7 +2832,7 @@ void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struc
 	// first to find is exist or not
 	bni = bfdd_neigh_tree_find(ifindex, ipaddr);
 	if (bni)
-	    return bni;
+	    return;
 
 	bni = XCALLOC(MTYPE_BFD_ND, sizeof(*bni));
 	bni->ifindex = ifindex;
@@ -2887,7 +2886,7 @@ void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *
 	// first to find is exist or not
 	bi = bfdd_sr_endx_tree_find(sid);
 	if (bi)
-	    return bi;
+	    return;
 
 	bi = XCALLOC(MTYPE_BFD_SRENDX, sizeof(*bi));
 	strncpy(bi->ifname, ifname, INTERFACE_NAMSIZ);

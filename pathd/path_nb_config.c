@@ -470,7 +470,7 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 	struct srte_policy *policy;
 	struct srte_candidate *candidate;
 	uint32_t preference, weight;
-	char *name;
+	const char *name;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -800,7 +800,6 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 {
 	struct srte_candidate *candidate;
 	const char *segment_list_name;
-	struct srte_segment_list *old_segment_list;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;

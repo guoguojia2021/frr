@@ -3583,7 +3583,7 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 
 	stream_putw(s, zt->path_num);
 
-	for (int i = 0; i < zt->path_num; i++)
+	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 		stream_write(s, &zt->sidlists[i].sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 		stream_putw(s, zt->sidlists[i].weight);
@@ -3598,8 +3598,6 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 {
 	memset(zp, 0, sizeof(*zp));
-	enum ipaddr_type_t ipa_type;
-
 	struct zapi_srv6te_tunnel *zt ;
 	
 	zt = &zp->srv6_tunnel;
@@ -3615,7 +3613,7 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 
 	STREAM_GETW(s, zp->srv6_tunnel.path_num);
 
-	for (int i = 0; i < zt->path_num; i++)
+	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 	    STREAM_GET(&zt->sidlists[i].sidlist_name, s, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 		STREAM_GETW(s, zt->sidlists[i].weight);
@@ -4645,8 +4643,6 @@ int zclient_nd_info_encode(struct stream *s,
 
 int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api)
 {
-	int ret;
-
 	uint8_t family;
 	uint8_t ifnamelen;
 
@@ -4722,9 +4718,6 @@ int zclient_loc_sid_info_encode(struct stream *s,
 
 int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api)
 {
-	int ret;
-
-	uint8_t family;
 	uint8_t ifnamelen;
     
 	//get sid

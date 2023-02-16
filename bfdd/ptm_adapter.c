@@ -265,9 +265,13 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 	case PTM_BFD_DOWN:
 	case PTM_BFD_INIT:
         if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN|BFD_SESS_FLAG_REM_ADMIN_DOWN))
+		{
             stream_putl(msg, BFD_STATUS_ADMIN_DOWN);
+		}
         else
-    		stream_putl(msg, BFD_STATUS_DOWN);
+		{
+            stream_putl(msg, BFD_STATUS_DOWN);
+		}
 		break;
 
 	default:
@@ -1012,7 +1016,7 @@ static void bfdd_neighbor_info_proc(struct stream *msg, vrf_id_t vrf_id)
 	
 }
 
-static int bfdd_neighbor_handle(ZAPI_CALLBACK_ARGS)
+static void bfdd_neighbor_handle(ZAPI_CALLBACK_ARGS)
 {
 	struct stream *msg = zclient->ibuf;
 
@@ -1025,14 +1029,9 @@ static int bfdd_neighbor_handle(ZAPI_CALLBACK_ARGS)
 	default:
 		if (bglobal.debug_zebra)
 			zlog_debug("%s invalid message type %u", __func__, cmd);
-		return -1;
 	}
 
-	return 0;
-
-stream_failure:
-	zlog_err("%s: handle msg failed", __func__);
-	return -1;
+	return;
 }
 
 static void bfdd_srv6_endx_info_update(struct zapi_loc_sid_info *lsinfo)
@@ -1057,7 +1056,7 @@ static void bfdd_srv6_endx_info_delete(struct zapi_loc_sid_info *lsinfo)
     bfdd_sr_endx_tree_del(&lsinfo->sid);
 }
 
-static int bfdd_srv6_endx_handle(ZAPI_CALLBACK_ARGS)
+static void bfdd_srv6_endx_handle(ZAPI_CALLBACK_ARGS)
 {
 	struct stream *msg = zclient->ibuf;
 
@@ -1075,14 +1074,10 @@ static int bfdd_srv6_endx_handle(ZAPI_CALLBACK_ARGS)
 	default:
 		if (bglobal.debug_zebra)
 			zlog_debug("%s invalid message type %u", __func__, cmd);
-		return -1;
 	}
 
-	return 0;
+	return;
 
-stream_failure:
-	zlog_err("%s: handle msg failed", __func__);
-	return -1;
 }
 
 static int bfd_ifp_create(struct interface *ifp)

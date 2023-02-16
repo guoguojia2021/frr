@@ -33,6 +33,7 @@
 
 #include "bfd.h"
 #include "bfdd_nb.h"
+#include "bfd_fpm.h"
 
 /*
  * Definitions.
@@ -666,11 +667,12 @@ DEFPY(
 	"discriminator\n"
 	"discriminator value or range (e.g. 100 or 100 200 300 or 100-300)\n")
 {
-	int ret;
 	int idx_discr = 5;
-	int i,j;
-	uint32_t discr, discr_from, discr_to;
-	struct sbfd_reflector *sr;
+	int i;
+	uint32_t j;
+	uint32_t discr = 0;
+	uint32_t discr_from = 0;
+	uint32_t discr_to = 0;
 
 	for (i = idx_discr; i < argc; i++) {
         /* check validity*/
@@ -680,7 +682,7 @@ DEFPY(
 		if (strspn(pstr, "0123456789")==strlen(pstr))
         {
 			discr = atol(pstr);
-			sr = sbfd_reflector_new(discr, &srcip);
+			sbfd_reflector_new(discr, &srcip);
         }
 		/*discr segment*/
         else if (strspn(pstr, "0123456789-")==strlen(pstr))
@@ -703,13 +705,13 @@ DEFPY(
 
 			for (j = discr_from; j <= discr_to; j++)
 			{
-                sr = sbfd_reflector_new(j, &srcip);
+                sbfd_reflector_new(j, &srcip);
 			}
         }
 		/*illegal input*/
 		else
         {
-			vty_out(vty, "input discriminator %s is illegal\n", argv[i]);
+			vty_out(vty, "input discriminator %s is illegal\n", (char *)argv[i]);
         }
 
 	}
@@ -813,7 +815,6 @@ DEFPY(
     "seamless BFD\n"
     "sbfd reflector\n")
 {
-	struct sbfd_reflector *sr;
 	struct ttable *tt;
 	char *out;
     

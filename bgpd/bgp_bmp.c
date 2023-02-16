@@ -259,7 +259,7 @@ static int bmp_active_cmp(const struct bmp_active *a,
 }
 
 DECLARE_SORTLIST_UNIQ(bmp_actives, struct bmp_active, bai, bmp_active_cmp);
-struct hash *bmp_upd_bgp_hash_get(void)
+static struct hash *bmp_upd_bgp_hash_get(void)
 {
 	return bgp_vrf_hash;
 }
@@ -2193,7 +2193,9 @@ static struct bmp_active *bmp_active_get(struct bmp_targets *bt,
 	ba->hostname = XSTRDUP(MTYPE_TMP, hostname);
 	ba->port = port;
     if (vrfname)
+	{
         ba->vrfname = XSTRDUP(MTYPE_TMP, vrfname);
+	}
 	ba->minretry = BMP_DFLT_MINRETRY;
 	ba->maxretry = BMP_DFLT_MAXRETRY;
 	ba->socket = -1;
@@ -3086,8 +3088,8 @@ static void bmp_show_msg_stat_info(struct bmp_targets *bt, struct vty *vty)
 		vty_out(vty, "        ADJOUT-POST :  %Lu\n", bmp->bmp_stat.bmp_stat_rm_adj_out_post_policy);
 		vty_out(vty, "    Total message sent    : %Lu\n",total_msg);
 		vty_out(vty, "    Total bytes sent      : %Lu\n",total);
-		vty_out(vty, "    Total message pending : %Lu\n",q + kq);
-		vty_out(vty, "    Total message droped  : %Lu\n",0L);
+		vty_out(vty, "    Total message pending : %lu\n",q + kq);
+		vty_out(vty, "    Total message droped  : %lu\n",0L);
 	}
 }
 
@@ -3204,12 +3206,6 @@ static void bmp_show_target(struct bmp_targets *bt, struct vty *vty)
 static void bmp_show_extend_info(struct bmp_bgp *bmpbgp, struct vty *vty)
 {
 	struct bmp_targets *bt;
-	struct bmp *bmp;
-	struct ttable *tt;
-	char *out;
-	struct peer *peer;
-	struct bgp *bgp;
-	struct listnode *lnbgp, *lnpeer;
 
 	if (!is_gbmp_en())
 	{

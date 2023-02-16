@@ -398,7 +398,7 @@ static void bfd_oscill_detect(struct bfd_session *bfd)
 	monotime(&tv);
 
 	// calc time diff cmp detect_TO +  100ms
-	if (timeval_diff(tv, bfd->uptime) <= (bfd->detect_TO + tbuff))
+	if ((uint64_t)timeval_diff(tv, bfd->uptime) <= (bfd->detect_TO + tbuff))
 	{
         bfd->hw_det_count++;
 
@@ -862,7 +862,7 @@ int bfdsync_send_message()
 
 }
 
-bool is_over_hw_detect_time(struct bfd_session *bfd)
+static bool is_over_hw_detect_time(struct bfd_session *bfd)
 {
 	return (monotime(NULL) - bfd->hw_det_btime.tv_sec >= BFD_DEFAULT_OSCIL_TIME_IVL);
 }

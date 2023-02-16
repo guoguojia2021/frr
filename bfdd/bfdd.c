@@ -37,6 +37,7 @@
 #include "lib/version.h"
 #include "lib/command.h"
 #include "bfd_fpm.h"
+#include "bfd_db.h"
 
 /*
  * FRR related code.

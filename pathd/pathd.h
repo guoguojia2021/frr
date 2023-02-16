@@ -536,7 +536,7 @@ struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
 				    const char *originator);
 void srte_policy_del(struct srte_policy *policy);
 struct srte_policy *srte_policy_find(uint32_t color, struct ipaddr *endpoint);
-struct srte_policy *srte_policy_find_by_name(char *name);
+struct srte_policy *srte_policy_find_by_name(const char *name);
 int srte_policy_update_ted_sid(void);
 void srte_policy_update_binding_sid(struct srte_policy *policy,
 				    uint32_t binding_sid);
@@ -548,7 +548,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 					  uint32_t preference,
 					  enum srte_protocol_origin origin,
 					  const char *originator,
-					  char *name);
+					  const char *name);
 void srte_candidate_add_group(struct srte_policy *policy,
 					  struct srte_candidate *candidate);
 struct srte_candidate_group *srte_candidate_group_add(struct srte_policy *policy,
@@ -580,7 +580,7 @@ void srte_lsp_set_metric(struct srte_lsp *lsp,
 void srte_lsp_unset_metric(struct srte_lsp *lsp,
 			   enum srte_candidate_metric_type type);
 struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
-					   uint32_t preference, char *name);
+					   uint32_t preference, const char *name);
 struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *policy,
 					   uint32_t preference);
 struct srte_segment_entry *

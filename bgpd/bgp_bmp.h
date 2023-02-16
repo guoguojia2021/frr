@@ -314,7 +314,7 @@ struct bmp_bgp {
 
 	size_t mirror_qsizelimit;
 
-	QOBJ_FIELDS
+	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(bmp_bgp);
  

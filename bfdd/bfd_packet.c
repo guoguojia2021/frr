@@ -39,6 +39,7 @@
 
 #include "bfd.h"
 #include <ifaddrs.h>
+#include "bfd_fpm.h"
 
 #define BUF_SIZ 1024
 /*
@@ -149,7 +150,6 @@ int _ptm_bfd_send(struct bfd_session *bs, uint16_t *port, const void *data,
 int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 {
 	int sd = -1;
-	struct sockaddr_in6 sin6;
 	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
 
 	int seg_num;
@@ -1444,7 +1444,6 @@ int bp_peer_srh_socketv6(struct bfd_session *bs)
 int bp_peer_raw_eth_socket(struct bfd_session *bs)
 {
 	int sd;
-	struct sockaddr_in6 sin6;
 	const char *device_to_bind = NULL;
 
 	frr_with_privs(&bglobal.bfdd_privs) {
@@ -1627,7 +1626,7 @@ int bp_echov6_socket(const struct vrf *vrf)
 	return s;
 }
 
-uint16_t
+static uint16_t
 checksum (uint16_t *addr, int len) {
 
   int count = len;
@@ -1658,7 +1657,7 @@ checksum (uint16_t *addr, int len) {
   return (answer);
 }
 
-uint16_t
+static uint16_t
 udp6_checksum (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int payloadlen) {
 
   char buf[IP_MAXPACKET];
@@ -1749,7 +1748,7 @@ int bp_sbfd_socket(const struct vrf *vrf)
 	return s;
 }
 
-void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h, 
+static void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h, 
     struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen)
 {
     /* SRH IPv6 Header */
@@ -1767,7 +1766,7 @@ void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h,
 	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
 }
 
-void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h, 
+static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h, 
     struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen)
 {
     /* SRH IPv6 Header */
@@ -1796,7 +1795,7 @@ void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
 	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
 }
 
-void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h, 
+static void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h, 
     struct in6_addr* segment_list ,uint8_t seg_num)
 {
     srv6h->nexthdr = IPPROTO_IPV6;
@@ -1814,7 +1813,7 @@ void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h,
 	}
 }
 
-void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struct in6_addr* dip, size_t datalen)
+static void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struct in6_addr* dip, size_t datalen)
 {
     /* IPv6 Header */
     ip6h->ip6_flow = (BFD_TOS_VAL << 20);
@@ -1827,7 +1826,7 @@ void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struc
 	memcpy(&(ip6h->ip6_dst), dip, sizeof(struct in6_addr));
 }
 
-void bp_sbfd_encap_udp(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
+static void bp_sbfd_encap_udp(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
 {
     udph->uh_sport = htons(src_port); // random
     udph->uh_dport = htons(dst_port);
@@ -1928,7 +1927,6 @@ static int get_intf_smac(char *ifname, uint8_t *mac)
 	int ret = 0;
 	int sd;
     struct ifreq ifr;
-	vrf_id_t vrfid;
 	struct interface *ifp = NULL;
 	struct vrf *vrf = NULL;
 
@@ -1981,7 +1979,7 @@ static int get_intf_smac(char *ifname, uint8_t *mac)
 static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
 {
 	struct ifaddrs *ifaddr;
-	int family, s;
+	int family;
 	struct sockaddr_in6 *s6;
 
 	if (getifaddrs(&ifaddr) == -1) {
@@ -2049,7 +2047,7 @@ static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
 	    char ebuf[ETHER_ADDR_STRLEN];
 	    char ibuf[INET6_ADDRSTRLEN];
 		zlog_debug("%s and nexthop %s 's mac is address: %s\n", 
-		    ifname, ipaddr2str(nhp, ibuf, sizeof(ibuf)), prefix_mac2str(dmac, ebuf, sizeof(ebuf)));
+		    ifname, ipaddr2str(&ipaddr, ibuf, sizeof(ibuf)), prefix_mac2str((const struct ethaddr *)dmac, ebuf, sizeof(ebuf)));
 	}
 
 	return 0;

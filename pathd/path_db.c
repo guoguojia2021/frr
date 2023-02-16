@@ -5,7 +5,7 @@
 
 #include "frr_pthread.h"        // for frr_pthread
 #include "hash.h"       // for hash, hash_clean, hash_create_size...
-#include "log.h"        // for zlog_debug
+#include "zlog.h"        // for zlog_debug
 #include "memory.h"     // for MTYPE_TMP, XFREE, XCALLOC, XMALLOC
 #include "monotime.h"       // for monotime, monotime_since
 
@@ -71,7 +71,7 @@ void path_db_init(void)
         dlsym(g_sidlistHandleRedis, "Redis_Db_DelKeyLst");
 
     g_sidlist_appdb_redis.redis_PublishMsg =
-        (int (*)(char *key, char *msg, DB_TYPE_E enDbType))
+        (int (*)(char *key, const char *msg, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_PublishMsgForce");
 
     g_sidlist_appdb_redis.redis_Db_SetSadd =
@@ -234,7 +234,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     }
 
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {
@@ -290,7 +290,7 @@ void sidlist_Db_DelEntry(const char *name)
 
     /*publish*/
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {
@@ -306,12 +306,10 @@ void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_c
     char key[PATH_DB_MAX_KEY_LEN] = {0};
     char field[PATH_DB_MAX_KEY_LEN] = {0};
     char value[PATH_DB_MAX_VALUE_LEN] = {0};
-    char seg_value[PATH_DB_MAX_VALUE_LEN] = {0};
     char set_key[PATH_DB_MAX_KEY_LEN] = {0};
     char set_value[PATH_DB_MAX_VALUE_LEN] = {0};
     char channel[PATH_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
-    char tmpbuf[INET6_ADDRSTRLEN] = {0};
 
     struct srte_candidate *candidate;
     uint32_t count = 0;
@@ -429,7 +427,7 @@ void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_c
     }
 
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_POLICY_TABLE);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {
@@ -485,7 +483,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
 
     /*publish*/
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {

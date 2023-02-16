@@ -31,6 +31,7 @@
 #include "lib/bfd.h"
 #include "pathd/path_nb.h"
 #include "pathd/path_sbfd.h"
+#include "lib/northbound_cli.h"
 
 #ifndef VTYSH_EXTRACT_PL
 #include "pathd/path_sbfd_clippy.c"
@@ -45,7 +46,7 @@ DEFINE_MTYPE_STATIC(PATHD, PATH_SRPOLICY_SBFD_EVENT, "SR-Policy SBFD event msg")
 struct zclient *zclient;
 struct thread_master *master;
 
-void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detection_status status)
+static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detection_status status)
 {
 	struct srte_candidate_group *cpath_group, *safe_cg;
 	struct srte_candidate *candidate, *safe_cpath;
@@ -110,12 +111,10 @@ void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detectio
 	}
 }
 
-int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
+static int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 {   
 	/*sidlist down -> up*/
-	enum srte_policy_status old_status;
 	enum srte_policy_status new_status;
-	old_status = sbfd_event->policy->status;
 	sbfd_refresh_policy_state(sbfd_event, SRTE_DETECT_UP);
     new_status = sbfd_event->policy->status;
 
@@ -131,7 +130,7 @@ int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 	return 0;
 }
 
-int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
+static int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
 {
 	/*sidlist up -> down*/
 	enum srte_policy_status old_status;
@@ -160,7 +159,7 @@ int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
 	return 0;	
 }
 
-int sbfd_status_event_action(struct srte_sbfd_event *sbfd_event, enum bfd_session_state state)
+static int sbfd_status_event_action(struct srte_sbfd_event *sbfd_event, enum bfd_session_state state)
 {
     switch (state)
 	{
@@ -181,7 +180,7 @@ int sbfd_status_event_action(struct srte_sbfd_event *sbfd_event, enum bfd_sessio
 }
 
 
-int sbfd_status_event(struct thread *thread)
+static int sbfd_status_event(struct thread *thread)
 {
 	enum bfd_session_state state;
 	struct srte_sbfd_event *sbfd_event;
@@ -240,7 +239,7 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	}
 }
 
-void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *policy)
+static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *policy)
 {
 	struct srte_segment_entry *s_entry;
 	uint32_t seg_num = 0;
@@ -292,7 +291,7 @@ void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *po
 	return;
 }
 
-void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_policy *policy)
+static void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_policy *policy)
 {
 	/* Create new session and assign callback. */
 	struct srte_sbfd_session * sbs;
@@ -374,7 +373,7 @@ void path_delete_sbfd_config(struct srte_policy *policy)
 	    XFREE(MTYPE_PATH_SRPOLICY_SBFD_CONFIG, policy->bfd_config);
 }
 
-void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
+static void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
 {
 
 	/* Already configured, skip it. */
@@ -393,7 +392,7 @@ void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
 
 }
 
-void sr_config_sbfd_destroy(struct srte_policy *policy)
+static void sr_config_sbfd_destroy(struct srte_policy *policy)
 {
 	if (policy->bfd_config)
 	    SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
@@ -661,10 +660,8 @@ void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
 			  bool show_defaults)
 {
 	enum srte_sbfd_type type;
-	uint32_t discr;
 
 	type = yang_dnode_get_enum(dnode, "./type");
-	discr = yang_dnode_get_uint32(dnode, "./remote-discr");
 
 	if (type == SRTE_SBFD_ECHO) 
 	{

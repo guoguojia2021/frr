@@ -216,28 +216,30 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 	}
 
     if(CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+	{
         vty_out(vty, "\t\tCreated by hardware.\n");
+	}
 
 	vty_out(vty, "\n");
 }
 
 static void _display_peer_ext(struct vty *vty, struct bfd_session *bs)
 {
-	vty_out(vty, "\tOscilation count: %" PRIu32 "\n", bfd_hw_detect_get_count());
-	vty_out(vty, "\tAll session count: %" PRIu32 "\n", bfd_id_get_count());
+	vty_out(vty, "\tOscilation count: %" PRIuPTR "\n", bfd_hw_detect_get_count());
+	vty_out(vty, "\tAll session count: %" PRIuPTR "\n", bfd_id_get_count());
 
     _display_peer(vty, bs);
 
 	vty_out(vty, "\t\tExtend:\n");
 	vty_out(vty, "\t\t\tDetect_TO: %" PRIu32 "ms\n",
 		(uint32_t)bs->detect_TO / 1000);
-	vty_out(vty, "\t\t\tHw_det_count: %" PRIu32 "\n",
+	vty_out(vty, "\t\t\tHw_det_count: %" PRIu16 "\n",
 		bs->hw_det_count);
-	vty_out(vty, "\t\t\tHw_det_repot: %" PRIu32 "\n",
+	vty_out(vty, "\t\t\tHw_det_repot: %" PRIu16 "\n",
 		bs->hw_det_repot);
-	vty_out(vty, "\t\t\tHw_det_btime sec: %" PRIu32 "\n",
+	vty_out(vty, "\t\t\tHw_det_btime sec: %" PRIdPTR "\n",
 		bs->hw_det_btime.tv_sec);
-	vty_out(vty, "\t\t\tHw_det_btime usec: %" PRIu32 "\n",
+	vty_out(vty, "\t\t\tHw_det_btime usec: %" PRIdPTR "\n",
 		bs->hw_det_btime.tv_usec);
 	vty_out(vty, "\n");
 }
@@ -440,12 +442,17 @@ static void _display_peer_counter(struct vty *vty, struct bfd_session *bs)
 	_display_peer_header(vty, bs);
 
     if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+	{
         bfd_Db_GetSessStatus(bs);
+	}
 		
 	/* Ask data plane for updated counters. */
 	if (bfd_dplane_update_session_counters(bs) == -1)
+	{
 		zlog_debug("%s: failed to update BFD session counters (%s)",
 			   __func__, bs_to_string(bs));
+	}
+
 
 	vty_out(vty, "\t\tControl packet input: %" PRIu64 " packets\n",
 		bs->stats.rx_ctrl_pkt + bs->stats.hw_rx_ctrl_pkt);
@@ -469,12 +476,16 @@ static struct json_object *__display_peer_counters_json(struct bfd_session *bs)
 	struct json_object *jo = _peer_json_header(bs);
 
     if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+	{
         bfd_Db_GetSessStatus(bs);
+	}
 		
 	/* Ask data plane for updated counters. */
 	if (bfd_dplane_update_session_counters(bs) == -1)
+	{
 		zlog_debug("%s: failed to update BFD session counters (%s)",
 			   __func__, bs_to_string(bs));
+	}
 
 	json_object_int_add(jo, "control-packet-input", bs->stats.rx_ctrl_pkt + bs->stats.hw_rx_ctrl_pkt);
 	json_object_int_add(jo, "control-packet-output", bs->stats.tx_ctrl_pkt + bs->stats.hw_tx_ctrl_pkt);
@@ -645,7 +656,6 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 
 static void _display_peers_oscial(struct vty *vty, char *vrfname, bool use_json)
 {
-	struct json_object *jo;
 	struct bfd_vrf_tuple bvt;
 
 	memset(&bvt, 0, sizeof(struct bfd_vrf_tuple));

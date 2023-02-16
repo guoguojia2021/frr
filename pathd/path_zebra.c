@@ -36,6 +36,7 @@
 #include "pathd/path_zebra.h"
 #include "lib/command.h"
 #include "lib/link_state.h"
+#include "pathd/path_db.h"
 
 static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS);
 
@@ -224,7 +225,6 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 			      struct srte_candidate_group *candidate_group)
 {
 	struct zapi_sr_policy zp = {};
-	struct srte_segment_entry *segment;
 	struct srte_candidate *candidate;
 	uint32_t count = 0;
 

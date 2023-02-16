@@ -168,10 +168,6 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 	struct srte_candidate_group *cpath_group, *safe_cpg;
 	char endpoint[46];
 	char binding_sid[46] = "-";
-	char *segment_list_info;
-	static char undefined_info[] = "(undefined)";
-	static char created_by_pce_info[] = "(created by PCE)";
-
 
 	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	if (policy->binding_sid != MPLS_LABEL_NONE)
@@ -1387,10 +1383,12 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 		yang_dnode_get_string(dnode, "./preference"),
 		yang_dnode_get_string(dnode, "./name"), type);
 	if (strmatch(type, "explicit"))
+	{
 		vty_out(vty, " segment-list %s",
 			yang_dnode_get_string(dnode, "./segment-list-name"));
 		vty_out(vty, " weight %s",
 			yang_dnode_get_string(dnode, "./weight"));
+	}
 	vty_out(vty, "\n");
 
 	if (strmatch(type, "dynamic")) {

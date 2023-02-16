@@ -30,7 +30,7 @@
 #include "pathd/path_debug.h"
 #include "pathd/path_ted.h"
 #include "pathd/path_sbfd.h"
-#include "pathd/pathd.h"
+#include "pathd/path_db.h"
 
 #define HOOK_DELAY 3
 
@@ -370,7 +370,6 @@ struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
 void srte_policy_del(struct srte_policy *policy)
 {
 	struct srte_candidate *candidate;
-	struct srte_candidate_group *cpath_group;
 
     // del sbfd config
 	path_delete_sbfd_config(policy);
@@ -409,7 +408,7 @@ struct srte_policy *srte_policy_find(uint32_t color, struct ipaddr *endpoint)
 	search.endpoint = *endpoint;
 	return RB_FIND(srte_policy_head, &srte_policies, &search);
 }
-struct srte_policy *srte_policy_find_by_name(char *name)
+struct srte_policy *srte_policy_find_by_name(const char *name)
 {
 	struct srte_policy *policy;
 
@@ -945,7 +944,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 					  uint32_t preference, 
                       enum srte_protocol_origin origin,
 					  const char *originator,
-					  char *name)
+					  const char *name)
 {
 	struct srte_candidate *candidate;
 	struct srte_lsp *lsp;
@@ -1419,7 +1418,7 @@ void srte_candidate_unset_affinity_filter(struct srte_candidate *candidate,
  * @return The candidate path if found, NULL otherwise
  */
 struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
-					   uint32_t preference, char *name)
+					   uint32_t preference, const char *name)
 {
 	struct srte_candidate search;
 

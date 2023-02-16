@@ -1044,7 +1044,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	struct prefix dp;
 	struct prefix sp;
 	char ifstr[128], cbitstr[32];
-	uint32_t srte_color;
+	uint32_t srte_color = 0;
 	char seglist_name[64] = {0};
 
 	if (!zclient->bfd_integration)

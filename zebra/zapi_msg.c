@@ -2753,9 +2753,13 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
     
     old_policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
     if (!old_policy)
+	{
         policy = zebra_sr_policy_add(zp.color, &zp.endpoint, zp.name);
+	}
     else
+	{
         policy = old_policy;
+	}
     
     policy->zvrf = zvrf;
 

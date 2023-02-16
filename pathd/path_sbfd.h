@@ -22,6 +22,7 @@
 #include "lib/memory.h"
 #include "lib/ipaddr.h"
 #include "lib/srte.h"
+#include "lib/bfd.h"
 
 enum srte_sbfd_type {
     SRTE_SBFD_ECHO = 1,
