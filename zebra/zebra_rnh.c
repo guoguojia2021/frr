@@ -169,8 +169,8 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 	if (IS_ZEBRA_DEBUG_NHT) {
 		struct vrf *vrf = vrf_lookup_by_id(vrfid);
 
-		zlog_debug("%s(%u): Add RNH %pFX for safi: %u",
-			   VRF_LOGNAME(vrf), vrfid, p, safi);
+		zlog_debug("%s(%u): Add RNH %pFX color %d", VRF_LOGNAME(vrf),
+			   vrfid, p, srte_color);
 	}
 
 	table = get_rnh_table(vrfid, afi, safi);
@@ -314,9 +314,10 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 	if (IS_ZEBRA_DEBUG_NHT) {
 		struct vrf *vrf = vrf_lookup_by_id(vrf_id);
 
-		zlog_debug("%s(%u): Client %s registers for RNH %pRN",
+		zlog_debug("%s(%u): Client %s registers for RNH %pRN flags %u color %d",
 			   VRF_LOGNAME(vrf), vrf_id,
-			   zebra_route_string(client->proto), rnh->node);
+			   zebra_route_string(client->proto), rnh->node,
+			   rnh->flags, rnh->srte_color);
 	}
 	if (!listnode_lookup(rnh->client_list, client))
 		listnode_add(rnh->client_list, client);

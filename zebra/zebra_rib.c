@@ -3489,7 +3489,9 @@ static void _route_entry_dump_nh(const struct route_entry *re,
 		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_HAS_BACKUP)
 		    ? "BACKUP " : ""),
 		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRTE)
-		    ? "SRTE " : ""));
+		    ? "SRTE " : ""),
+		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)
+		    ? "SRV6TUNNEL " : ""));
 
 }
 

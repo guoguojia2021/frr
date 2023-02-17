@@ -1271,16 +1271,20 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 				p.family);
 			return;
 		}
-		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
-		{
-			STREAM_GETL(s, userdata_type);
-			switch (userdata_type) {
-			case NEXTHOP_REGISTER_TYPE_COLOR:
-				STREAM_GETL(s, srte_color);
-			default:
-				zlog_err("recv error type with userdate:%u", userdata_type);
-			}
-		}
+        if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
+        {
+            STREAM_GETL(s, userdata_type);
+            switch (userdata_type) {
+        	case NEXTHOP_REGISTER_TYPE_COLOR:
+        		STREAM_GETL(s, srte_color);
+                l += 8;
+                break;
+        	default:
+        		zlog_err("recv error type with userdate:%u", userdata_type);
+                l += 4;
+                break;
+            }
+        }
 		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color);
 		if (!rnh)
 			return;
@@ -1369,17 +1373,21 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 				p.family);
 			return;
 		}
-		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
-		{
-			STREAM_GETL(s, userdata_type);
-			switch (userdata_type) {
-			case NEXTHOP_REGISTER_TYPE_COLOR:
-				STREAM_GETL(s, srte_color);
-			default:
-				zlog_err("recv error type with userdate:%u", userdata_type);
-			}
-		}
-		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
+        if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
+        {
+            STREAM_GETL(s, userdata_type);
+            switch (userdata_type) {
+        	case NEXTHOP_REGISTER_TYPE_COLOR:
+        		STREAM_GETL(s, srte_color);
+                l += 8;
+                break;
+        	default:
+        		zlog_err("recv error type with userdate:%u", userdata_type);
+                l += 4;
+                break;
+            }
+        }
+        rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
 		for (rnh; rnh; rnh = rnh->next)
 			if (rnh->srte_color == srte_color)
@@ -1388,7 +1396,7 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 			client->nh_dereg_time = monotime(NULL);
 			zebra_remove_rnh_client(rnh, client);
 		}
-	}
+    }
 stream_failure:
 	return;
 }
@@ -1898,8 +1906,8 @@ static bool zapi_read_nexthops(struct zserv *client, struct prefix *p,
 					       false);
 			}
 
-			zlog_debug("%s: nh=%s, vrf_id=%d %s",
-				   __func__, nhbuf, api_nh->vrf_id, labelbuf);
+			zlog_debug("%s: nh=%s, vrf_id=%d, label=%s, color=%d",
+				   __func__, nhbuf, api_nh->vrf_id, labelbuf, nexthop->srte_color);
 		}
 
 		if (ng) {

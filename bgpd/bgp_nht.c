@@ -181,6 +181,9 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	ifindex_t ifindex = 0;
     bool isServiceRoute = FALSE;
 
+    if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
+        isServiceRoute = TRUE;
+
 	if (pi) {
 		is_bgp_static_route = ((pi->type == ZEBRA_ROUTE_BGP)
 				       && (pi->sub_type == BGP_ROUTE_STATIC))
@@ -270,7 +273,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
     if (srte_color != 0)
     {
         te_bnc = bnc_find(tree, &p, srte_color);
-        if (!te_bnc) {
+        if (!te_bnc && isServiceRoute) {
             te_bnc = bnc_new(tree, &p, srte_color);
             te_bnc->bgp = bgp_nexthop;
             if (BGP_DEBUG(nht, NHT)) {
@@ -285,10 +288,10 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
             if (BGP_DEBUG(nht, NHT)) {
                 char buf[PREFIX2STR_BUFFER];
                 zlog_debug(
-                    "Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p",
+                    "Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
                     bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
                     te_bnc->bgp->name_pretty, te_bnc->flags, te_bnc->ifindex,
-                    te_bnc->path_count, te_bnc->nht_info);
+                    te_bnc->path_count, te_bnc->nht_info, te_bnc->srte_color);
             }
         }
     }
@@ -351,8 +354,9 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
     {
 		register_zebra_rnh(bnc, is_bgp_static_route);
 	}
-    if (te_bnc && !CHECK_FLAG(te_bnc->flags, BGP_NEXTHOP_REGISTERED))
+    if (te_bnc && !CHECK_FLAG(te_bnc->flags, BGP_NEXTHOP_REGISTERED)) {
         register_zebra_rnh(te_bnc, 0);
+    }
 
 	if (pi && pi->nexthop != bnc) {
 		/* Unlink from existing nexthop cache, if any. This will also
@@ -379,10 +383,14 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 			bnc->nht_info = (void *)peer; /* NHT peer reference */
 	}
 
-    if (pi && te_bnc && pi->te_nexthop != te_bnc) {
+    if (pi && pi->te_nexthop != te_bnc) {
         bgp_unlink_te_nexthop(pi);
 		/* updates NHT pi list reference */
-		path_tenh_map(pi, te_bnc, true);
+        if (te_bnc)
+		    path_tenh_map(pi, te_bnc, true);
+
+    } else if (pi && pi->te_nexthop != NULL && !isServiceRoute) {
+        bgp_unlink_te_nexthop(pi);
     }
         
 	/*
@@ -390,8 +398,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	 * ability to detect nexthops.  So when we have a view
 	 * just tell everyone the nexthop is valid
 	 */
-	if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
-        isServiceRoute = TRUE;
+
 	if (bgp_route->inst_type == BGP_INSTANCE_TYPE_VIEW)
 		return 1;
 	else if (safi == SAFI_UNICAST && pi
@@ -462,12 +469,12 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		char bnc_buf[BNC_FLAG_DUMP_SIZE];
 
 		zlog_debug(
-			"%s(%u): Rcvd NH update %pFX(%u) - metric %d/%d #nhops %d/%d flags %s",
+			"%s(%u): Rcvd NH update %pFX(%u) - metric %d/%d #nhops %d/%d flags %s type %d",
 			bnc->bgp->name_pretty, bnc->bgp->vrf_id, &nhr->prefix,
 			bnc->srte_color, nhr->metric, bnc->metric,
 			nhr->nexthop_num, bnc->nexthop_num,
-			bgp_nexthop_dump_bnc_flags(bnc, bnc_buf,
-						   sizeof(bnc_buf)));
+			bgp_nexthop_dump_bnc_flags(bnc, bnc_buf,sizeof(bnc_buf)),
+            nhr->type);
 	}
 
 	if (nhr->metric != bnc->metric)
@@ -1019,9 +1026,9 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 	}
 
     if (BGP_DEBUG(zebra, ZEBRA))
-        zlog_debug("%s: sending cmd %s for %pFX (vrf %s)", __func__,
+        zlog_debug("%s: sending cmd %s for %pFX (vrf %s color %d)", __func__,
                zserv_command_string(command), &bnc->prefix,
-               bnc->bgp->name_pretty);
+               bnc->bgp->name_pretty, bnc->srte_color);
 
     if (bnc->srte_color)
     	ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,

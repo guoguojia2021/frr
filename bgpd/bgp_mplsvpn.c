@@ -590,11 +590,6 @@ void ensure_vrf_tovpn_sid(struct bgp *bgp_vpn, struct bgp *bgp_vrf, afi_t afi)
 	if (debug)
 		zlog_debug("%s: try to allocate new SID for vrf %s: afi %s",
 			   __func__, bgp_vrf->name_pretty, afi2str(afi));
-
-	/* skip when tovpn sid is already allocated on vrf instance */
-	if (bgp_vrf->vpn_policy[afi].tovpn_sid)
-		return;
-
 	/*
 	 * skip when bgp vpn instance ins't allocated
 	 * or srv6 locator chunk isn't allocated

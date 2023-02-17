@@ -17932,10 +17932,6 @@ static void bgp_config_write_bgp_filter(struct vty *vty, struct bgp *bgp,
 
 	if (bgp_filter_check(bgp, afi, safi, PEER_FT_FILTER_LIST, FILTER_OUT))
 		vty_out(vty, "  filter-list %s out\n", filter->aslist[FILTER_OUT].name);
-
-	/* advertise-delay-map */
-	if (bgp_filter_check(bgp, afi, safi, PEER_FT_ADVERTISE_DELAY_MAP, 1))
-		vty_out(vty, "  unsuppress-map %s\n", filter->advdelaymap.name);
 }
 
 /* Address family based peer configuration display.  */

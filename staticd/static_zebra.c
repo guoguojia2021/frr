@@ -408,6 +408,8 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 	switch (nh->type) {
 	case STATIC_IFNAME:
 	case STATIC_BLACKHOLE:
+    case STATIC_IPV4_GATEWAY_EVPN:
+    case STATIC_IPV6_GATEWAY_EVPN:
 		return 0;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:

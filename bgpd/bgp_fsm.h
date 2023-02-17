@@ -142,7 +142,7 @@ extern int bgp_maxmed_onpeerup_configured(struct bgp *);
 extern bool bgp_advertise_delay_active(struct peer *peer);
 extern bool bgp_advertise_delay_configured(struct bgp *bgp);
 extern bool bgp_advertise_delay_applicable(struct peer *peer);
-
+extern void bgp_advertise_delay_end(struct peer *peer);
 /**
  * Start the route advertisement timer (that honors MRAI) for all the
  * peers. Typically called at the end of initial convergence, coming

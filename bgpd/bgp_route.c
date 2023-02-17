@@ -11008,7 +11008,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 				break;
 			}
 			if (json_paths) {
-				json_object_string_add(
+				json_object_string_addf(
 					json_nexthop_global, "ip", "%pI4",
 					&attr->mp_nexthop_global_in);
 

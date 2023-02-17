@@ -160,7 +160,6 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 	const char *ifname;
 	const char *nh_vrf;
 	vni_t nh_vni = 0;
-	char *nh_rmac;
 	struct ethaddr rmac = {{0}};
 
 	switch (args->event) {
@@ -206,6 +205,7 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 		nh_vrf = yang_dnode_get_string(args->dnode, "./vrf");
 		pn = nb_running_get_entry(args->dnode, NULL, true);
 
+        /*
 		if (nh_type == STATIC_IPV4_GATEWAY_EVPN
 			|| nh_type == STATIC_IPV6_GATEWAY_EVPN) {
 			nh_vni = yang_dnode_get_uint32(args->dnode, "./vni");
@@ -215,7 +215,7 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 				"%s: Malformed MAC address\n", nh_rmac);
 				return NB_ERR_VALIDATION;
 			}
-		}
+		}*/
 
         if (!static_add_nexthop_validate(nh_vrf, nh_type, &ipaddr, nh_vni, &rmac))
 			flog_warn(
@@ -1164,7 +1164,7 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_sr
 	struct nb_cb_modify_args *args)
 {
 	struct static_nexthop *nh;
-	char *nh_rmac;
+	const char *nh_rmac;
 	switch (args->event) {
 	case NB_EV_VALIDATE:
 	case NB_EV_PREPARE:
@@ -1211,7 +1211,7 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_pa
 	struct nb_cb_modify_args *args)
 {
 	struct static_nexthop *nh;
-	char *nh_rmac;
+	const char *nh_rmac;
 	switch (args->event) {
 	case NB_EV_VALIDATE:
 	case NB_EV_PREPARE:
