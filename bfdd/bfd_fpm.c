@@ -979,19 +979,19 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
     strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
 
-	data->bpc_type = BPC_TYPE_CLS_BFD;
+	data->bpc_type = BPC_TYPE_CLASSIC_BFD;
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
 		data->bpc_type = BPC_TYPE_SBFD_ECHO;
-        strncpy(data->bpc_seglistname, bfd->key.seglist_name, MAXNAMELEN);
+        strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
 		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
 	}
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
 		data->bpc_type = BPC_TYPE_SBFD_INIT;
-        strncpy(data->bpc_seglistname, bfd->key.seglist_name, MAXNAMELEN);
+        strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
 		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
 	}
 
@@ -1003,9 +1003,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     if (ret < 0) {
         zlog_debug(
             "bfd_peer_sendmsg: zclient_send_message() failed");
-        return;
     }
-    
 
     return;
 }
@@ -1038,14 +1036,7 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
     buf = STREAM_DATA(msg);
     hdr = (bfd_msg_hdr_t *)buf;
     hdr->version = BFDSYNC_PROTO_VERSION;
-    if (create)
-    {
-        hdr->msg_type = SBFD_CREATE_REFLECTOR;
-    }
-    else
-    {
-        hdr->msg_type = SBFD_DELETE_REFLECTOR;
-    }
+	hdr->msg_type = create ? BFD_CREATE_SESSION : BFD_DELETE_SESSION;
 
     data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
     data->discrs.my_discr = htonl(sr->discr);
@@ -1061,7 +1052,6 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
     if (ret < 0) {
         zlog_debug(
             "bfd_fpm_sbfd_reflector_sendmsg: zclient_send_message() failed");
-        return;
     }
 
     return;

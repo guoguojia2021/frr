@@ -35,8 +35,6 @@ typedef enum {
     BFD_NOTIFY_UP = 3,
     BFD_NOTIFY_DOWN = 4,
     BFD_HW_FAULT = 5,
-    SBFD_CREATE_REFLECTOR = 6,
-    SBFD_DELETE_REFLECTOR = 7,
 } bfdsync_message_types_t;
 
 typedef struct bfd_msg_hdr_t_
@@ -47,7 +45,7 @@ typedef struct bfd_msg_hdr_t_
 } bfd_msg_hdr_t;
 
 typedef enum {
-    BPC_TYPE_CLS_BFD = 0,
+    BPC_TYPE_CLASSIC_BFD = 0,
     BPC_TYPE_SBFD_INIT = 1,
     BPC_TYPE_SBFD_RFLT = 2,
     BPC_TYPE_SBFD_ECHO = 3,
@@ -78,7 +76,7 @@ typedef struct bfd_msg_data_t_
     uint16_t dest_port;
     uint8_t ttl;
     uint8_t bpc_type; 
-    char bpc_seglistname[MAXNAMELEN + 1];
+    char bpc_segment[MAXNAMELEN + 1];
     char bpc_endpoint[INET6_ADDRSTRLEN];
 
 } bfd_msg_data_t;

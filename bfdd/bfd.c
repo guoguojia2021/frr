@@ -1447,6 +1447,7 @@ static void sbfd_down_handler(struct bfd_session *bs, int nstate)
 		 * Remote peer doesn't want to talk, so lets keep the
 		 * connection down.
 		 */
+		break;
 	case PTM_BFD_UP:
 		/* down - > up*/
 		ptm_sbfd_sess_up(bs);
