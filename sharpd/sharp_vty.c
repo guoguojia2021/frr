@@ -974,6 +974,7 @@ DEFUN (show_sharp_ted,
 	struct ls_edge *edge;
 	struct ls_subnet *subnet;
 	uint64_t key;
+	struct ls_edge_key ekey;
 	bool verbose = false;
 	bool uj = use_json(argc, argv);
 	json_object *json = NULL;
@@ -1024,8 +1025,9 @@ DEFUN (show_sharp_ted,
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 			/* Get the Edge from the Link State Database */
-			key = ((uint64_t)ip_addr.s_addr) & 0xffffffff;
-			edge = ls_find_edge_by_key(sg.ted, key);
+			ekey.family = AF_INET;
+			IPV4_ADDR_COPY(&ekey.k.addr, &ip_addr);
+			edge = ls_find_edge_by_key(sg.ted, ekey);
 			if (!edge) {
 				vty_out(vty, "No edge found for ID %pI4\n",
 					&ip_addr);
@@ -1072,6 +1074,7 @@ DEFUN (show_sharp_ted,
 
 	return CMD_SUCCESS;
 }
+
 
 DEFPY (sharp_srv6_manager_release_locator_chunk,
        sharp_srv6_manager_release_locator_chunk_cmd,
