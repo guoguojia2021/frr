@@ -180,7 +180,7 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
-		zlog_err(
+		zlog_info(
 			"sbfd initiator send failed , sr policy color is %d , endpoint is %s, sidlist is %s.", 
 			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
         return -1;
@@ -1828,7 +1828,7 @@ static void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip 
 
 static void bp_sbfd_encap_udp(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
 {
-    udph->uh_sport = htons(src_port); // random
+    udph->uh_sport = htons(src_port); 
     udph->uh_dport = htons(dst_port);
     udph->uh_ulen = htons(sizeof(struct udphdr) + payloadlen);
     udph->uh_sum = udp6_checksum (*ip6h, *udph, payload, payloadlen);
@@ -1938,7 +1938,7 @@ static int get_intf_smac(char *ifname, uint8_t *mac)
     } 
 	else 
 	{
-		zlog_err("get_intf_smac: interface name is too long, name is %s. \n", ifname);
+		zlog_info("get_intf_smac: interface name is too long, name is %s. \n", ifname);
 		return -1;
     }
 
@@ -1953,7 +1953,7 @@ static int get_intf_smac(char *ifname, uint8_t *mac)
 	sd = vrf_socket(AF_UNIX, SOCK_DGRAM, AF_UNSPEC, vrf->vrf_id, vrf->name);
 	if (sd < 0)
 	{
-		zlog_err("get_intf_smac: socket: %s", safe_strerror(errno));
+		zlog_info("get_intf_smac: socket: %s", safe_strerror(errno));
 		return -1;
 	}
 	ret = ioctl(sd, SIOCGIFHWADDR, &ifr);
@@ -1961,7 +1961,7 @@ static int get_intf_smac(char *ifname, uint8_t *mac)
 
 	if (ret < 0)
 	{
-		zlog_err("get_intf_smac: ioctl SIOCGIFHWADDR failed");
+		zlog_info("get_intf_smac: ioctl SIOCGIFHWADDR failed");
 		return -1;		
 	}
 	else
@@ -1983,7 +1983,7 @@ static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
 	struct sockaddr_in6 *s6;
 
 	if (getifaddrs(&ifaddr) == -1) {
-		zlog_err("get_iftf_ipv6addr: getifaddrs failed");
+		zlog_info("get_iftf_ipv6addr: getifaddrs failed");
 		return -1;
 	}
 
@@ -2026,7 +2026,7 @@ static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
 	ifindex = if_nametoindex(ifname);
 	if (ifindex == 0)
 	{
-		zlog_err("get_nhp_mac: if_nametoindex() failed");
+		zlog_info("get_nhp_mac: if_nametoindex() failed");
 		return -1;
 	}
 
@@ -2036,7 +2036,7 @@ static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
 	nd = bfdd_neigh_tree_find(ifindex, &ipaddr);
 	if (!nd)
 	{
-		zlog_err("get_nhp_mac: get nd failed");
+		zlog_info("get_nhp_mac: get nd failed");
 		return -1;		
 	}
 
@@ -2106,7 +2106,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 
 	if (!segment_list || seg_num == 0 || seg_num != 1)
 	{
-		zlog_err(
+		zlog_info(
 			"sbfd segment_list is invalid , seg_num = %d .", seg_num);
 		return -1;
 	}
@@ -2173,7 +2173,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     ret = sendmsg(sd, &msg, flags);
     if (ret < 0)
     {
-		zlog_err(
+		zlog_info(
 			"sbfd send failed , ret : %d .", ret);
     }
 

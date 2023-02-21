@@ -1272,8 +1272,10 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 		SET_FLAG(bfd->flags, BFD_SESS_FLAG_IPV6);
 
 	if (bpc->bpc_sbfd && bpc->bpc_echo == false)
+	{
 		SET_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT);
 		bfd->discrs.remote_discr = bpc->sbfd_remote_discr;
+	}
 
 	if (bpc->bpc_sbfd && bpc->bpc_echo)
 		SET_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO);
