@@ -248,6 +248,9 @@ struct srte_segment_list {
 	/* Nexthops. */
 	struct srte_segment_entry_head segments;
 
+	/*Srv6 forwarding-ignore-last-sid*/
+	struct ipaddr last_sid;
+
     /*sbfd session*/
     struct srte_sbfd_session_head sbfd_sessions;
 

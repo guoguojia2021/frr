@@ -220,6 +220,41 @@ int pathd_srte_segment_list_segment_v6_sid_value_destroy(
 	return NB_OK;
 }
 
+/*
+ * XPath: /frr-pathd:pathd/srte/segment-list/segment/srv6-sid-value
+ */
+int pathd_srte_segment_list_last_sid_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct ipaddr lastsid_value;
+	struct srte_segment_list *segment_list;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	segment_list = nb_running_get_entry(args->dnode, NULL, true);
+	yang_dnode_get_ip(&lastsid_value, args->dnode, NULL);
+	segment_list->last_sid = lastsid_value;
+	SET_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+	return NB_OK;
+}
+
+int pathd_srte_segment_list_last_sid_destroy(
+	struct nb_cb_modify_args *args)
+{
+	struct srte_segment_list *segment_list;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	segment_list = nb_running_get_entry(args->dnode, NULL, true);
+	segment_list->last_sid.ipa_type = IPADDR_NONE;
+	SET_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+	return NB_OK;
+}
+
 int pathd_srte_segment_list_segment_nai_destroy(struct nb_cb_destroy_args *args)
 {
 	struct srte_segment_entry *segment;

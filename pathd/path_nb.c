@@ -104,6 +104,15 @@ const struct frr_yang_module_info frr_pathd_info = {
 			.priority = NB_DFLT_PRIORITY - 1
 		},
 		{
+			.xpath = "/frr-pathd:pathd/srte/segment-list/last-sid-value",
+			.cbs = {
+				.modify = pathd_srte_segment_list_last_sid_modify,
+				.destroy = pathd_srte_segment_list_last_sid_destroy,
+				.cli_show = cli_show_srte_segment_list_lastsid,
+			},
+			.priority = NB_DFLT_PRIORITY - 1
+		},
+		{
 			.xpath = "/frr-pathd:pathd/srte/segment-list/segment/nai",
 			.cbs = {
 				.create = dummy_create,

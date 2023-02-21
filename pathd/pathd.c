@@ -141,6 +141,7 @@ struct srte_segment_list *srte_segment_list_add(const char *name)
 	strlcpy(segment_list->name, name, sizeof(segment_list->name));
 	RB_INIT(srte_segment_entry_head, &segment_list->segments);
 	RB_INIT(srte_sbfd_session_head, &segment_list->sbfd_sessions);
+	segment_list->last_sid.ipa_type = IPADDR_NONE;
 	RB_INSERT(srte_segment_list_head, &srte_segment_lists, segment_list);
 
 	return segment_list;

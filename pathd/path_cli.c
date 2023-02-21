@@ -689,6 +689,24 @@ DEFPY(srte_segment_list_no_segment,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFPY(srv6te_segment_list_lastsid, srv6te_segment_list_lastsid_cmd,
+      "forwarding-ignore-last-sid X:X::X:X$ipv6_addr",
+      "forwarding-ignore-last-sid\n"
+      "IPv6 address\n")
+{
+	nb_cli_enqueue_change(vty, "./last-sid-value", NB_OP_MODIFY, ipv6_addr_str);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY(no_srv6te_segment_list_lastsid, no_srv6te_segment_list_lastsid_cmd,
+      "no forwarding-ignore-last-sid",
+	  NO_STR
+      "forwarding-ignore-last-sid\n")
+{
+	nb_cli_enqueue_change(vty, "./last-sid-value", NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 void cli_show_srte_segment_list_segment(struct vty *vty,
 					const struct lyd_node *dnode,
 					bool show_defaults)
@@ -753,6 +771,18 @@ void cli_show_srte_segment_list_segment(struct vty *vty,
 		}
 	}
 	vty_out(vty, "\n");
+}
+
+void cli_show_srte_segment_list_lastsid(struct vty *vty, struct lyd_node *dnode,
+					bool show_defaults)
+{
+	struct ipaddr lastsid_value = {0};
+	yang_dnode_get_ip(&lastsid_value, dnode, NULL);
+	if (!IS_IPADDR_NONE(&lastsid_value))
+	{
+		vty_out(vty, "   forwarding-ignore-last-sid %s\n",
+			yang_dnode_get_string(dnode, NULL));
+	}
 }
 
 /*
@@ -1526,6 +1556,10 @@ void path_cli_init(void)
 			&srv6te_segment_list_segment_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,
 			&srte_segment_list_no_segment_cmd);
+	install_element(SR_SEGMENT_LIST_NODE,
+			&srv6te_segment_list_lastsid_cmd);
+	install_element(SR_SEGMENT_LIST_NODE,
+			&no_srv6te_segment_list_lastsid_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_policy_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_no_policy_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_name_cmd);

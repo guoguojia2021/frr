@@ -184,7 +184,9 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     char tmpbuf[INET6_ADDRSTRLEN] = {0};
     bool first = true;
     struct srte_segment_entry *s_entry;
-    DB_FieldValue_List *pstDataLst = NULL;
+    DB_FieldValue_List *pstDataLst_head = NULL;
+    DB_FieldValue_List *pstDataLst_path = NULL;
+    DB_FieldValue_List *pstDataLst_lastsid = NULL;
 
     if (!g_bPathRedisInUse)
         return;
@@ -222,14 +224,38 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         }
     }
 
-    pstDataLst = new_Sidlist_DB_Data(key, field, value);
-    pstDataLst->next = NULL;
+    pstDataLst_path = new_Sidlist_DB_Data(key, field, value);
+    if (pstDataLst_path == NULL)
+    {
+        zlog_err("create field segment failed.");
+        return;
+    }
+    pstDataLst_path->next = NULL;
+    pstDataLst_head = pstDataLst_path;
 
-    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (!IS_IPADDR_NONE(&segl->last_sid))
+    {
+        /* set last sid field and value*/
+        snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s",SRV6_SID_LIST_TABLE, segl->name);
+        snprintf(field, PATH_DB_MAX_KEY_LEN, "forwarding-ignore-last-sid");
+        snprintf(value, PATH_DB_MAX_KEY_LEN, "%s", 
+            inet_ntop(AF_INET6, &segl->last_sid.ipaddr_v6, tmpbuf, sizeof(tmpbuf)));
+
+        pstDataLst_lastsid = new_Sidlist_DB_Data(key, field, value);
+        if (pstDataLst_lastsid == NULL)
+        {
+            release_Sidlist_DB_Data(pstDataLst_head);
+            zlog_err("create field lastsid failed.");
+            return;
+        }
+        pstDataLst_path->next = pstDataLst_lastsid;
+    }
+
+    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst_head, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_SetKeyAndFValue error code : %d", ret);
-        release_Sidlist_DB_Data(pstDataLst);
+        release_Sidlist_DB_Data(pstDataLst_head);
         return;
     }
 
@@ -241,7 +267,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         zlog_err("redis_PublishMsg error code : %d", ret);
     }
 
-    release_Sidlist_DB_Data(pstDataLst);
+    release_Sidlist_DB_Data(pstDataLst_head);
     return;
 }
 
