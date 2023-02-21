@@ -1130,13 +1130,14 @@ static int vty_show_prefix_list(struct vty *vty, afi_t afi, const char *name,
 
 static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 				       const char *name, const char *prefix,
-				       enum display_type type)
+				       enum display_type type, bool uj)
 {
 	struct prefix_list *plist;
 	struct prefix_list_entry *pentry;
 	struct prefix p;
 	int ret;
 	int match;
+    char buff[128], key[128];
 
 	plist = prefix_list_lookup(afi, name);
 	if (!plist) {
@@ -1149,6 +1150,9 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 		vty_out(vty, "%% prefix is malformed\n");
 		return CMD_WARNING;
 	}
+    json_object *jlists = json_object_new_object();
+    json_object *jlist = json_object_new_object();
+    json_object *jentries = json_object_new_object();
 
 	for (pentry = plist->head; pentry; pentry = pentry->next) {
 		match = 0;
@@ -1164,33 +1168,79 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 		}
 
 		if (match) {
-			vty_out(vty, "   seq %" PRId64 " %s ", pentry->seq,
-				prefix_list_type_str(pentry));
+			json_object *jentry = json_object_new_object();
+			sprintf(key, "%s_seq_%u", plist->name, pentry->seq);
+            if (uj) {
+                json_object_object_add(jentry, "seq", json_object_new_int((int)pentry->seq));
+                json_object_object_add(jentry, "type", json_object_new_string(prefix_list_type_str(pentry)));
+            } else {
+                vty_out(vty, "   seq %" PRId64 " %s ", pentry->seq,
+                    prefix_list_type_str(pentry));
+            }
 
-			if (pentry->any)
-				vty_out(vty, "any");
-			else {
+			if (pentry->any) {
+                if (uj) {
+                    sprintf(buff, "%s", "any");
+                } else {
+                    vty_out(vty, "any");
+                }
+			} else {
 				struct prefix *pf = &pentry->prefix;
+                char buf[BUFSIZ];
+                if (uj) {
+                    sprintf(buff, "%pFX", pf);
+                } else {
+                    vty_out(vty, "%pFX", pf);
+                }
 
-				vty_out(vty, "%pFX", pf);
-
-				if (pentry->ge)
-					vty_out(vty, " ge %d", pentry->ge);
-				if (pentry->le)
-					vty_out(vty, " le %d", pentry->le);
+                if (uj) {
+                    if (pentry->ge)
+                        sprintf(buf, " ge %d", pentry->ge);
+                        strcat(buff, buf);
+                    if (pentry->le)
+                        sprintf(buff, " le %d", pentry->le);
+                        strcat(buff, buf);
+                } else {
+                    if (pentry->ge)
+                        vty_out(vty, " ge %d", pentry->ge);
+                    if (pentry->le)
+                        vty_out(vty, " le %d", pentry->le);
+                }
 			}
+			json_object_object_add(jentry, "rule", json_object_new_string(buff));
 
 			if (type == normal_display
 			    || type == first_match_display)
-				vty_out(vty, " (hit count: %ld, refcount: %ld)",
-					pentry->hitcnt, pentry->refcnt);
+				if (uj) {
+                    sprintf(buff, "%ld", pentry->hitcnt);
+                    json_object_object_add(jentry, "hitcount", json_object_new_string(buff));
+                    sprintf(buff, "%ld", pentry->refcnt);
+                    json_object_object_add(jentry, "refcount", json_object_new_string(buff));
+				} else {
+                    vty_out(vty, " (hit count: %ld, refcount: %ld)",
+                        pentry->hitcnt, pentry->refcnt);
+                }
+            if (!uj)
+			    vty_out(vty, "\n");
 
-			vty_out(vty, "\n");
-
-			if (type == first_match_display)
+			json_object_object_add(jentries, key, jentry);
+			if (type == first_match_display) {
+				sprintf(key, "%s_%s",frr_protoname, plist->name);
+				json_object_object_add(jlist, key, jentries);
+				json_object_object_add(jlists, afi == AFI_IP ? "IP_PREFIX_LIST" : "IPv6_PREFIX_LIST", jlist);
+				if (uj)
+					vty_out(vty, "%s\n", json_object_to_json_string_ext(jlists, JSON_C_TO_STRING_PRETTY));
+				json_object_free(jlists);
 				return CMD_SUCCESS;
+			}
 		}
 	}
+	sprintf(key, "%s_%s",frr_protoname, plist->name);
+	json_object_object_add(jlist, key, jentries);
+	json_object_object_add(jlists, afi == AFI_IP ? "IP_PREFIX_LIST" : "IPv6_PREFIX_LIST", jlist);
+	if (uj)
+		vty_out(vty, "%s\n", json_object_to_json_string_ext(jlists, JSON_C_TO_STRING_PRETTY));
+	json_object_free(jlists);
 	return CMD_SUCCESS;
 }
 
@@ -1264,14 +1314,15 @@ DEFPY (show_ip_prefix_list,
 
 DEFPY (show_ip_prefix_list_prefix,
        show_ip_prefix_list_prefix_cmd,
-       "show ip prefix-list WORD A.B.C.D/M$prefix [longer$dl|first-match$dfm]",
+       "show ip prefix-list WORD A.B.C.D/M$prefix [longer$dl|first-match$dfm] [json$uj]",
        SHOW_STR
        IP_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "IP prefix <network>/<length>, e.g., 35.0.0.0/8\n"
        "Lookup longer prefix\n"
-       "First matched prefix\n")
+       "First matched prefix\n"
+       JSON_STR)
 {
 	enum display_type dtype = normal_display;
 	if (dl)
@@ -1280,7 +1331,7 @@ DEFPY (show_ip_prefix_list_prefix,
 		dtype = first_match_display;
 
 	return vty_show_prefix_list_prefix(vty, AFI_IP, prefix_list, prefix_str,
-					   dtype);
+					   dtype, !!uj);
 }
 
 DEFPY (show_ip_prefix_list_summary,
@@ -1344,14 +1395,15 @@ DEFPY (show_ipv6_prefix_list,
 
 DEFPY (show_ipv6_prefix_list_prefix,
        show_ipv6_prefix_list_prefix_cmd,
-       "show ipv6 prefix-list WORD X:X::X:X/M$prefix [longer$dl|first-match$dfm]",
+       "show ipv6 prefix-list WORD X:X::X:X/M$prefix [longer$dl|first-match$dfm] [json$uj]",
        SHOW_STR
        IPV6_STR
        PREFIX_LIST_STR
        "Name of a prefix list\n"
        "IPv6 prefix <network>/<length>, e.g., 3ffe::/16\n"
        "Lookup longer prefix\n"
-       "First matched prefix\n")
+       "First matched prefix\n"
+       JSON_STR)
 {
 	enum display_type dtype = normal_display;
 	if (dl)
@@ -1360,7 +1412,7 @@ DEFPY (show_ipv6_prefix_list_prefix,
 		dtype = first_match_display;
 
 	return vty_show_prefix_list_prefix(vty, AFI_IP6, prefix_list,
-					   prefix_str, dtype);
+					   prefix_str, dtype, !!uj);
 }
 
 DEFPY (show_ipv6_prefix_list_summary,
