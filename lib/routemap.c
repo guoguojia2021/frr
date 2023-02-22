@@ -951,7 +951,7 @@ static void vty_show_route_map_entry(struct vty *vty, struct route_map *map,
 				char buf[BUFSIZ];
 
 				snprintf(buf, sizeof(buf), "%s %s",
-					 rule->cmd->str, rule->rule_str);
+					 rule->cmd->str, rule->rule_str ? rule->rule_str : "");
 				json_array_string_add(json_matches, buf);
 			}
 
@@ -964,7 +964,7 @@ static void vty_show_route_map_entry(struct vty *vty, struct route_map *map,
 				char buf[BUFSIZ];
 
 				snprintf(buf, sizeof(buf), "%s %s",
-					 rule->cmd->str, rule->rule_str);
+					 rule->cmd->str, rule->rule_str ? rule->rule_str : "");
 				json_array_string_add(json_sets, buf);
 			}
 
@@ -1001,14 +1001,14 @@ static void vty_show_route_map_entry(struct vty *vty, struct route_map *map,
 			for (rule = index->match_list.head; rule;
 			     rule = rule->next)
 				vty_out(vty, "    %s %s\n", rule->cmd->str,
-					rule->rule_str);
+					rule->rule_str ? rule->rule_str : "");
 
 			/* Set clauses */
 			vty_out(vty, "  Set clauses:\n");
 			for (rule = index->set_list.head; rule;
 			     rule = rule->next)
 				vty_out(vty, "    %s %s\n", rule->cmd->str,
-					rule->rule_str);
+					rule->rule_str ? rule->rule_str : "");
 
 			/* Call clause */
 			vty_out(vty, "  Call clause:\n");
