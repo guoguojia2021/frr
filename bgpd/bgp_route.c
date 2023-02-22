@@ -2991,6 +2991,7 @@ static void bgp_process_evpn_route_injection(struct bgp *bgp, afi_t afi,
 		   && is_route_injectable_into_evpn(old_select))
 		bgp_evpn_withdraw_type5_route(bgp, p, afi, safi);
 }
+#ifdef ARP2HOST_BACKUP
 static void
 bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			    afi_t afi, safi_t safi,
@@ -3188,7 +3189,7 @@ end:
 	UNSET_FLAG(rn->flags, BGP_NODE_PROCESS_SCHEDULED);
 	return;
 }
-
+#endif
 /*
  * Utility to determine whether a particular path_info should use
  * the IMPLICIT_NULL label. This is pretty specialized: it's only called

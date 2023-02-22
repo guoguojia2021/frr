@@ -11308,22 +11308,25 @@ DEFUN (show_ipv6_bgp_summary,
        "Summary of BGP neighbor status\n"
        JSON_STR)
 {
-	char *vrf = NULL;
-	afi_t afi = AFI_IP6;
-	safi_t safi = SAFI_MAX;
+    char *vrf = NULL;
+    afi_t afi = AFI_IP6;
+    safi_t safi = SAFI_MAX;
+    char *neighbor = NULL;
+    as_t as = 0; /* 0 means AS filter not set */
+    int as_type = AS_UNSPECIFIED;
 
-	int idx = 0;
+    int idx = 0;
 
-	/* [<view|vrf> VIEWVRFNAME] */
-	if (argv_find(argv, argc, "view", &idx)
-	    || argv_find(argv, argc, "vrf", &idx))
-		vrf = argv[++idx]->arg;
-	/* ["BGP_SAFI_CMD_STR"] */
-	argv_find_and_parse_safi(argv, argc, &idx, &safi);
+    /* [<view|vrf> VIEWVRFNAME] */
+    if (argv_find(argv, argc, "view", &idx)
+        || argv_find(argv, argc, "vrf", &idx))
+        vrf = argv[++idx]->arg;
+    /* ["BGP_SAFI_CMD_STR"] */
+    argv_find_and_parse_safi(argv, argc, &idx, &safi);
 
-	int uj = use_json(argc, argv);
+    int uj = use_json(argc, argv);
 
-	return bgp_show_summary_vty(vty, vrf, afi, safi, uj);
+    return bgp_show_summary_vty(vty, vrf, afi, safi, neighbor, as_type, as, uj);
 }
 
 
