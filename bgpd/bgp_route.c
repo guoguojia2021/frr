@@ -1916,10 +1916,10 @@ void subgroup_announce_reset_nhop(uint8_t family, struct attr *attr)
 		memset(&attr->mp_nexthop_global_in, 0, BGP_ATTR_NHLEN_IPV4);
 }
 
-bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
+announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 			     struct update_subgroup *subgrp,
 			     const struct prefix *p, struct attr *attr,
-			     struct attr *post_attr)
+			     struct attr *post_attr, int check_best_path)
 {
 	struct bgp_filter *filter;
 	struct peer *from;
@@ -1937,6 +1937,7 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 	uint64_t cum_bw;
 	char buf[PREFIX_STRLEN];
 	struct bgp_static * bgp_static;
+	int add_path = 0;
 	struct bgp_node * tmp_rn;
 
 
@@ -2004,9 +2005,11 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 	/* If this is not the bestpath then check to see if there is an enabled
 	 * addpath
 	 * feature that requires us to advertise it */
-	if (!CHECK_FLAG(pi->flags, BGP_PATH_SELECTED)) {
+	if (check_best_path && !CHECK_FLAG(pi->flags, BGP_PATH_SELECTED)) {
 		if (!bgp_addpath_tx_path(peer->addpath_type[afi][safi], pi)) {
 			return false;
+		} else {
+			add_path = 1;
 		}
 	}
 
@@ -2039,7 +2042,21 @@ bool subgroup_announce_check(struct bgp_dest *dest, struct bgp_path_info *pi,
 
 	/* Do not send back route to sender. */
 	if (onlypeer && from == onlypeer) {
-		return false;
+		if (add_path == 1) { /* Simply return error to stop the advertisement */
+			return 0;
+		} else { /*
+				  * Send a different signal to caller, so that it can
+				  * find the next best path to adv
+				  */
+			if (BGP_DEBUG(update, UPDATE_OUT)) {
+				zlog_debug("%s [Update:SEND] %s/%d to sender, stop",
+						   onlypeer->host,
+						   inet_ntop(p->family, &p->u.prefix,
+									 buf, SU_ADDRSTRLEN),
+						   p->prefixlen);
+			}
+			return (ANNOUNCE_CHK_TO_SENDER);
+		}
 	}
 
 	/* Do not send the default route in the BGP table if the neighbor is
@@ -2930,6 +2947,87 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 	return;
 }
 
+void subgroup_announce_action (struct update_subgroup *subgrp,
+			       struct bgp_dest *dest,
+			       struct bgp_path_info *pi,
+			       int adv_2nd,
+			       uint32_t addpath_tx_id,
+			       bool skip_rmap_check, struct attr *post_attr)
+{
+	struct prefix *p;
+	struct attr attr;
+	struct bgp_path_info *second;
+	bool advertise;
+	struct peer *peer;
+	afi_t afi;
+	safi_t safi;
+	struct bgp *bgp;
+ 
+	const struct prefix *dest_p = bgp_dest_get_prefix(dest);
+	memset(&attr, 0, sizeof(struct attr));
+ 
+	peer = SUBGRP_PEER(subgrp);
+	afi = SUBGRP_AFI(subgrp);
+	safi = SUBGRP_SAFI(subgrp);
+	bgp = SUBGRP_INST(subgrp);
+ 
+	switch (subgroup_announce_check(dest, pi, subgrp, dest_p, &attr, post_attr, 1)) {
+	case ANNOUNCE_CHK_SUCCESS:
+		/* Check if the route can be advertised */
+		/* Announcement to the subgroup. If the route is filtered withdraw it.
+		 * If BGP_NODE_FIB_INSTALL_PENDING is set and data plane install status
+		 * is pending (BGP_NODE_FIB_INSTALL_PENDING), do not advertise the
+		 * route
+		 */
+		advertise = bgp_check_advertise(bgp, dest);
+		if (advertise)
+			bgp_adj_out_set_subgroup(dest, subgrp, &attr, pi);
+		break;
+ 
+	case ANNOUNCE_CHK_ERROR:
+		if (CHECK_FLAG(peer->af_flags[afi][safi],
+					    PEER_FLAG_DEFAULT_ORIGINATE)
+					    && is_default_prefix(bgp_dest_get_prefix(dest)))
+			break;
+		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+		break;
+ 
+	case ANNOUNCE_CHK_TO_SENDER:
+		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+		if (!adv_2nd)
+			break;
+		/*
+		 * Get the next path, see it can be announced. Only
+		 * do this when current path is the best one.
+		 */
+		if (!CHECK_FLAG(pi->flags, BGP_PATH_SELECTED))
+			break;
+ 
+		/*
+		 * For eBGP only, where nexthop is overwritten by peer
+		 *
+		 * Open backdoor when the best path is adv back to its
+		 * originator only. It could be extended to other cases, when
+		 * best path adv check fails due to other reasons, where we
+		 * should loop the whole mpath list to look for the one to be
+		 * adv.
+		 */
+		second = bgp_path_info_mpath_next(pi);
+		if (!second) break;
+ 
+		memset(&attr, 0, sizeof(struct attr));
+		if (subgroup_announce_check(dest, second, subgrp, dest_p, &attr, post_attr, 0)) {
+			bgp_adj_out_set_subgroup(dest, subgrp, &attr, second);
+		} else {
+			bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+		}
+		break;
+ 
+	default:
+		break;
+	}
+}
+
 /*
  * A new route/change in bestpath of an existing route. Evaluate the path
  * for advertisement to the subgroup.
@@ -2941,16 +3039,12 @@ void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 {
 	const struct prefix *p;
 	struct peer *onlypeer;
-	struct attr attr;
 	afi_t afi;
 	safi_t safi;
-	struct bgp *bgp;
-	bool advertise;
 
 	p = bgp_dest_get_prefix(dest);
 	afi = SUBGRP_AFI(subgrp);
 	safi = SUBGRP_SAFI(subgrp);
-	bgp = SUBGRP_INST(subgrp);
 	onlypeer = ((SUBGRP_PCOUNT(subgrp) == 1) ? (SUBGRP_PFIRST(subgrp))->peer
 						 : NULL);
 
@@ -2962,33 +3056,8 @@ void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 				   PEER_STATUS_ORF_WAIT_REFRESH))
 		return;
 
-	memset(&attr, 0, sizeof(struct attr));
-	/* It's initialized in bgp_announce_check() */
-
-	/* Announcement to the subgroup. If the route is filtered withdraw it.
-	 * If BGP_NODE_FIB_INSTALL_PENDING is set and data plane install status
-	 * is pending (BGP_NODE_FIB_INSTALL_PENDING), do not advertise the
-	 * route
-	 */
-	advertise = bgp_check_advertise(bgp, dest);
-
 	if (selected) {
-		if (subgroup_announce_check(dest, selected, subgrp, p, &attr,
-					    NULL)) {
-			/* Route is selected, if the route is already installed
-			 * in FIB, then it is advertised
-			 */
-			if (advertise) {
-				if (!bgp_check_withdrawal(bgp, dest))
-					bgp_adj_out_set_subgroup(
-						dest, subgrp, &attr, selected);
-				else
-					bgp_adj_out_unset_subgroup(
-						dest, subgrp, 1, addpath_tx_id);
-			}
-		} else
-			bgp_adj_out_unset_subgroup(dest, subgrp, 1,
-						   addpath_tx_id);
+        subgroup_announce_action(subgrp, dest, selected, 1, addpath_tx_id, false, NULL);
 	}
 
 	/* If selected is NULL we must withdraw the path using addpath_tx_id */

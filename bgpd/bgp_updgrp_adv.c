@@ -653,7 +653,6 @@ void subgroup_announce_table(struct update_subgroup *subgrp,
 {
 	struct bgp_dest *dest;
 	struct bgp_path_info *ri;
-	struct attr attr;
 	struct peer *peer;
 	afi_t afi;
 	safi_t safi;
@@ -682,54 +681,18 @@ void subgroup_announce_table(struct update_subgroup *subgrp,
 	SET_FLAG(subgrp->sflags, SUBGRP_STATUS_TABLE_REPARSING);
 
 	for (dest = bgp_table_top(table); dest; dest = bgp_route_next(dest)) {
-		const struct prefix *dest_p = bgp_dest_get_prefix(dest);
-
-		/* Check if the route can be advertised */
-		advertise = bgp_check_advertise(bgp, dest);
 
 		for (ri = bgp_dest_get_bgp_path_info(dest); ri; ri = ri->next)
-
-			if (bgp_check_selected(ri, peer, addpath_capable, afi,
-					       safi)) {
-				if (subgroup_announce_check(dest, ri, subgrp,
-							    dest_p, &attr,
-							    NULL)) {
-					/* Check if route can be advertised */
-					if (advertise) {
-						if (!bgp_check_withdrawal(bgp,
-									  dest))
-							bgp_adj_out_set_subgroup(
-								dest, subgrp,
-								&attr, ri);
-						else
-							bgp_adj_out_unset_subgroup(
-								dest, subgrp, 1,
-								bgp_addpath_id_for_peer(
-									peer,
-									afi,
-									safi,
-									&ri->tx_addpath));
-					}
-				} else {
-					/* If default originate is enabled for
-					 * the peer, do not send explicit
-					 * withdraw. This will prevent deletion
-					 * of default route advertised through
-					 * default originate
-					 */
-					if (CHECK_FLAG(
-						    peer->af_flags[afi][safi],
-						    PEER_FLAG_DEFAULT_ORIGINATE)
-					    && is_default_prefix(bgp_dest_get_prefix(dest)))
-						break;
-
-					bgp_adj_out_unset_subgroup(
-						dest, subgrp, 1,
-						bgp_addpath_id_for_peer(
-							peer, afi, safi,
-							&ri->tx_addpath));
-				}
-			}
+		{
+			if (addpath_capable	&& bgp_addpath_tx_path(peer->addpath_type[afi][safi], ri))
+				subgroup_announce_action(subgrp, dest, ri, 0,
+							 bgp_addpath_id_for_peer(peer, afi, safi,
+										 &ri->tx_addpath), false, NULL);
+			else if (CHECK_FLAG(ri->flags, BGP_PATH_SELECTED))
+				subgroup_announce_action(subgrp, dest, ri, 1,
+							 bgp_addpath_id_for_peer(peer, afi, safi,
+										 &ri->tx_addpath), false, NULL);
+		}
 	}
 	UNSET_FLAG(subgrp->sflags, SUBGRP_STATUS_TABLE_REPARSING);
 
@@ -912,7 +875,7 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 					if (subgroup_announce_check(
 						    dest, pi, subgrp,
 						    bgp_dest_get_prefix(dest),
-						    &attr, NULL))
+						    &attr, NULL, 1))
 						bgp_adj_out_set_subgroup(
 							dest, subgrp, &attr,
 							pi);

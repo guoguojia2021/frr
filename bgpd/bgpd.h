@@ -1113,6 +1113,7 @@ struct peer {
 	pthread_mutex_t io_mtx;   // guards ibuf, obuf
 	struct stream_fifo *ibuf; // packets waiting to be processed
 	struct stream_fifo *obuf; // packets waiting to be written
+    struct stream_fifo *obuf_hprio; // keepalive packets waiting to be written
 
 	/* used as a block to deposit raw wire data to */
 	uint8_t ibuf_scratch[BGP_EXTENDED_MESSAGE_MAX_PACKET_SIZE

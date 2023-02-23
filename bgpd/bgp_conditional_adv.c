@@ -133,28 +133,34 @@ static void bgp_conditional_adv_routes(struct peer *peer, afi_t afi,
 			 * on same peer, routes in advertise-map may not
 			 * be advertised as expected.
 			 */
-			if (update_type == ADVERTISE &&
-			    subgroup_announce_check(dest, pi, subgrp, dest_p,
-						    &attr, &advmap_attr)) {
-				bgp_adj_out_set_subgroup(dest, subgrp, &attr,
-							 pi);
-			} else {
-				/* If default originate is enabled for
-				 * the peer, do not send explicit
-				 * withdraw. This will prevent deletion
-				 * of default route advertised through
-				 * default originate.
-				 */
-				if (CHECK_FLAG(peer->af_flags[afi][safi],
-					       PEER_FLAG_DEFAULT_ORIGINATE) &&
-				    is_default_prefix(dest_p))
-					break;
+			if (update_type == ADVERTISE)
+			{
+				if (addpath_capable && bgp_addpath_tx_path(peer->addpath_type[afi][safi], pi))
+				{
+					subgroup_announce_action(subgrp, dest, pi, 0,
+								 bgp_addpath_id_for_peer(peer, afi, safi,
+											 &pi->tx_addpath), true, &advmap_attr);
+				}
+				else if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED))
+				{
+					subgroup_announce_action(subgrp, dest, pi, 1,
+								 bgp_addpath_id_for_peer(peer, afi, safi,
+											 &pi->tx_addpath), true, &advmap_attr);
+				}
+			}
+			else
+			{
+				if (CHECK_FLAG(
+						    peer->af_flags[afi][safi],
+						    PEER_FLAG_DEFAULT_ORIGINATE)
+					    && is_default_prefix(dest_p))
+						break;
 
-				bgp_adj_out_unset_subgroup(
-					dest, subgrp, 1,
-					bgp_addpath_id_for_peer(
-						peer, afi, safi,
-						&pi->tx_addpath));
+					bgp_adj_out_unset_subgroup(
+						dest, subgrp, 1,
+						bgp_addpath_id_for_peer(
+							peer, afi, safi,
+							&pi->tx_addpath));
 			}
 			bgp_attr_flush(&advmap_attr);
 		}

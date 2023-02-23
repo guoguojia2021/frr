@@ -1388,6 +1388,7 @@ struct peer *peer_new(struct bgp *bgp)
 	/* Create buffers.  */
 	peer->ibuf = stream_fifo_new();
 	peer->obuf = stream_fifo_new();
+    peer->obuf_hprio = stream_fifo_new();
 	pthread_mutex_init(&peer->io_mtx, NULL);
 
 	/* We use a larger buffer for peer->obuf_work in the event that:
@@ -2466,6 +2467,11 @@ int peer_delete(struct peer *peer)
 	if (peer->obuf) {
 		stream_fifo_free(peer->obuf);
 		peer->obuf = NULL;
+	}
+
+	if (peer->obuf_hprio) {
+		stream_fifo_free(peer->obuf_hprio);
+		peer->obuf_hprio = NULL;
 	}
 
 	if (peer->ibuf_work) {

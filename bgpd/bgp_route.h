@@ -466,6 +466,12 @@ struct bgp_aggregate {
 	struct route_map *suppress_map;
 };
 
+typedef enum {
+		ANNOUNCE_CHK_ERROR = 0,
+		ANNOUNCE_CHK_SUCCESS = 1,
+		ANNOUNCE_CHK_TO_SENDER,
+} announce_chk_status;
+
 #define BGP_NEXTHOP_AFI_FROM_NHLEN(nhlen)                                      \
 	((nhlen) < IPV4_MAX_BYTELEN                                            \
 		 ? 0                                                           \
@@ -791,11 +797,18 @@ extern void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 					       struct bgp_dest *dest,
 					       uint32_t addpath_tx_id);
 
-extern bool subgroup_announce_check(struct bgp_dest *dest,
+extern announce_chk_status subgroup_announce_check(struct bgp_dest *dest,
 				    struct bgp_path_info *pi,
 				    struct update_subgroup *subgrp,
 				    const struct prefix *p, struct attr *attr,
-				    struct attr *post_attr);
+				    struct attr *post_attr, int check_best_path);
+extern void subgroup_announce_action (struct update_subgroup *subgrp,
+			       struct bgp_dest *dest,
+			       struct bgp_path_info *pi,
+			       int adv_2nd,
+			       uint32_t addpath_tx_id,
+			       bool skip_rmap_check,
+                   struct attr *post_attr);
 
 extern void bgp_peer_clear_node_queue_drain_immediate(struct peer *peer);
 extern void bgp_process_queues_drain_immediate(void);

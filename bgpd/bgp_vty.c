@@ -2792,6 +2792,23 @@ DEFUN (no_bgp_deterministic_med,
 	return CMD_SUCCESS;
 }
 
+static void bgp_restart_dyn_capability_update (struct bgp *bgp, int set)
+{
+	struct peer *peer;
+	struct listnode *node, *nnode;
+ 
+	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+		if ((peer->status == Established) &&
+		    (CHECK_FLAG(peer->cap, PEER_CAP_DYNAMIC_RCV))) {
+			bgp_capability_send(peer, AFI_MAX, SAFI_MAX,
+					    CAPABILITY_CODE_RESTART,
+					    set ?
+					    CAPABILITY_ACTION_SET :
+					    CAPABILITY_ACTION_UNSET);
+		}
+	}
+}
+
 /* "bgp graceful-restart mode" configuration. */
 DEFUN (bgp_graceful_restart,
 	bgp_graceful_restart_cmd,
@@ -2806,6 +2823,11 @@ DEFUN (bgp_graceful_restart,
 		zlog_debug("[BGP_GR] bgp_graceful_restart_cmd : START ");
 
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	if (!CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) {
+		SET_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART);
+		bgp_restart_dyn_capability_update(bgp, 1);
+	}
 
 	ret = bgp_gr_update_all(bgp, GLOBAL_GR_CMD);
 
@@ -2833,6 +2855,11 @@ DEFUN (no_bgp_graceful_restart,
 		zlog_debug("[BGP_GR] no_bgp_graceful_restart_cmd : START ");
 
 	int ret = BGP_GR_FAILURE;
+
+	if (CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) {
+		UNSET_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART);
+		bgp_restart_dyn_capability_update(bgp, 0);
+	}
 
 	ret = bgp_gr_update_all(bgp, NO_GLOBAL_GR_CMD);
 
@@ -2878,6 +2905,9 @@ DEFUN (bgp_graceful_restart_restart_time,
 
 	restart = strtoul(argv[idx_number]->arg, NULL, 10);
 	bgp->restart_time = restart;
+	if (CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) {
+		bgp_restart_dyn_capability_update(bgp, 1);
+	}
 	return CMD_SUCCESS;
 }
 
@@ -2946,6 +2976,10 @@ DEFUN (no_bgp_graceful_restart_select_defer_time,
 
 	bgp->select_defer_time = BGP_DEFAULT_SELECT_DEFERRAL_TIME;
 	UNSET_FLAG(bgp->flags, BGP_FLAG_SELECT_DEFER_DISABLE);
+
+	if (CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) {
+		bgp_restart_dyn_capability_update(bgp, 1);
+	}
 
 	return CMD_SUCCESS;
 }
@@ -3296,6 +3330,13 @@ DEFUN (bgp_graceful_restart_rib_stale_time,
 	int idx_number = 3;
 	uint32_t stale_time;
 
+	if (!CHECK_FLAG(bgp->flags, BGP_FLAG_GR_PRESERVE_FWD)) {
+		SET_FLAG(bgp->flags, BGP_FLAG_GR_PRESERVE_FWD);
+		if (CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) {
+			bgp_restart_dyn_capability_update(bgp, 1);
+		}
+	}
+
 	stale_time = strtoul(argv[idx_number]->arg, NULL, 10);
 	bgp->rib_stale_time = stale_time;
 	/* Send the stale timer update message to RIB */
@@ -3315,6 +3356,13 @@ DEFUN (no_bgp_graceful_restart_rib_stale_time,
        "Delay value (seconds)\n")
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	if (CHECK_FLAG(bgp->flags, BGP_FLAG_GR_PRESERVE_FWD)) {
+		UNSET_FLAG(bgp->flags, BGP_FLAG_GR_PRESERVE_FWD);
+		if (CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) {
+			bgp_restart_dyn_capability_update(bgp, 1);
+		}
+	}
 
 	bgp->rib_stale_time = BGP_DEFAULT_RIB_STALE_TIME;
 	/* Send the stale timer update message to RIB */

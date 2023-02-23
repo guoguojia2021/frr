@@ -210,7 +210,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 
 		stream_fifo_clean(peer->ibuf);
 		stream_fifo_clean(peer->obuf);
-
+        stream_fifo_clean(peer->obuf_hprio);
 		/*
 		 * this should never happen, since bgp_process_packet() is the
 		 * only task that sets and unsets the current packet and it
@@ -234,6 +234,10 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 		while (from_peer->obuf->head)
 			stream_fifo_push(peer->obuf,
 					 stream_fifo_pop(from_peer->obuf));
+
+		while (from_peer->obuf_hprio->head)
+			stream_fifo_push(peer->obuf_hprio,
+					 stream_fifo_pop(from_peer->obuf_hprio));
 
 		// copy each packet from old peer's input queue to new peer
 		while (from_peer->ibuf->head)
@@ -1602,6 +1606,8 @@ int bgp_stop(struct peer *peer)
 			stream_fifo_clean(peer->ibuf);
 		if (peer->obuf)
 			stream_fifo_clean(peer->obuf);
+		if (peer->obuf_hprio)
+			stream_fifo_clean(peer->obuf_hprio);
 
 		if (peer->ibuf_work)
 			ringbuf_wipe(peer->ibuf_work);

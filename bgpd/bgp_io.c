@@ -136,7 +136,8 @@ static int bgp_process_writes(struct thread *thread)
 
 	frr_with_mutex(&peer->io_mtx) {
 		status = bgp_write(peer);
-		reschedule = (stream_fifo_head(peer->obuf) != NULL);
+		reschedule = (stream_fifo_head(peer->obuf) != NULL ||
+				stream_fifo_head(peer->obuf_hprio));
 	}
 
 	/* no problem */
@@ -291,6 +292,7 @@ static uint16_t bgp_write(struct peer *peer)
 {
 	uint8_t type;
 	struct stream *s;
+    struct stream *s_hprio;
 	int update_last_write = 0;
 	unsigned int count;
 	uint32_t uo = 0;
@@ -302,6 +304,7 @@ static uint16_t bgp_write(struct peer *peer)
 	unsigned int iovsz;
 	unsigned int strmsz;
 	unsigned int total_written;
+    bool from_obuf_hprio = false;
 
 	wpkt_quanta_old = atomic_load_explicit(&peer->bgp->wpkt_quanta,
 					       memory_order_relaxed);
@@ -309,7 +312,19 @@ static uint16_t bgp_write(struct peer *peer)
 	struct stream **streams = ostreams;
 	struct iovec iov[wpkt_quanta_old];
 
+    s_hprio = stream_fifo_head(peer->obuf_hprio); 
 	s = stream_fifo_head(peer->obuf);
+
+	if (s_hprio) 
+	{
+		if (s && stream_get_getp(s)) {
+			zlog_info("Last pkt hasn't sent out completely, cannot insert keepalive data.");
+		}
+		else {
+			s = s_hprio;
+			from_obuf_hprio = true;
+		}
+	}
 
 	if (!s)
 		goto done;
@@ -378,7 +393,10 @@ static uint16_t bgp_write(struct peer *peer)
 
 	/* Handle statistics */
 	for (unsigned int i = 0; i < total_written; i++) {
-		s = stream_fifo_pop(peer->obuf);
+		if (from_obuf_hprio)
+			s = stream_fifo_pop(peer->obuf_hprio);
+		else
+			s = stream_fifo_pop(peer->obuf);
 
 		assert(s == ostreams[i]);
 
@@ -427,7 +445,7 @@ static uint16_t bgp_write(struct peer *peer)
 						  memory_order_relaxed);
 			break;
 		}
-
+        count++;
 		stream_free(s);
 		ostreams[i] = NULL;
 		update_last_write = 1;
