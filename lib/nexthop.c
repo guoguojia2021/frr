@@ -196,6 +196,10 @@ static int _nexthop_cmp_no_labels(const struct nexthop *next1,
 	if (ret != 0)
 		goto done;
 
+	ret = memcmp(next1->rmac.octet, next2->rmac.octet, ETH_ALEN);
+	if (ret != 0)
+		goto done;
+
 	if (!CHECK_FLAG(next1->flags, NEXTHOP_FLAG_HAS_BACKUP) &&
 	    !CHECK_FLAG(next2->flags, NEXTHOP_FLAG_HAS_BACKUP))
 		return 0;
@@ -812,6 +816,9 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 	memcpy(&copy->gate, &nexthop->gate, sizeof(nexthop->gate));
 	memcpy(&copy->src, &nexthop->src, sizeof(nexthop->src));
 	memcpy(&copy->rmap_src, &nexthop->rmap_src, sizeof(nexthop->rmap_src));
+    memcpy(&copy->rmac, &nexthop->rmac, sizeof(nexthop->rmac));
+	copy->alibgp_flags = nexthop->alibgp_flags;
+    copy->nh_encap.vni = nexthop->nh_encap.vni;
 	copy->rparent = rparent;
 	if (nexthop->nh_label)
 		nexthop_add_labels(copy, nexthop->nh_label_type,

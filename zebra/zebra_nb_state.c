@@ -999,3 +999,34 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_weight_get_elem(
 
 	return NULL;
 }
+
+/*
+ * XPath:
+ * /frr-vrf:lib/vrf/frr-zebra:zebra/ribs/rib/route/route-entry/nexthop-group/nexthop/vni
+ */
+struct yang_data *
+lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_vni_get_elem(
+	struct nb_cb_get_elem_args *args)
+{
+	struct nexthop *nexthop = (struct nexthop *)args->list_entry;
+
+	if (nexthop->nh_encap.vni)
+		return yang_data_new_int32(args->xpath, nexthop->nh_encap.vni);
+	return NULL;
+}
+
+/*
+ * XPath:
+ * /frr-vrf:lib/vrf/frr-zebra:zebra/ribs/rib/route/route-entry/nexthop-group/nexthop/rmac
+ */
+struct yang_data *
+lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_rmac_get_elem(
+	struct nb_cb_get_elem_args *args)
+{
+	struct nexthop *nexthop = (struct nexthop *)args->list_entry;
+
+   /*if (nexthop != NULL)
+		return yang_data_new_mac(args->xpath, &nexthop->rmac);*/
+	return NULL;
+}
+

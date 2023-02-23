@@ -99,6 +99,9 @@ struct nexthop {
 	(CHECK_FLAG(flags, NEXTHOP_FLAG_ACTIVE)                                \
 	 && !CHECK_FLAG(flags, NEXTHOP_FLAG_DUPLICATE))
 
+	uint8_t alibgp_flags;
+	#define NEXTHOP_FLAG_EVPN_RVTEP (1 << 0) /* EVPN remote vtep nexthop */
+
 	/* Nexthop address */
 	union {
 		union g_addr gate;
@@ -106,7 +109,7 @@ struct nexthop {
 	};
 	union g_addr src;
 	union g_addr rmap_src; /* Src is set via routemap */
-
+    struct ethaddr rmac;
 	/* Nexthops obtained by recursive resolution.
 	 *
 	 * If the nexthop struct needs to be resolved recursively,

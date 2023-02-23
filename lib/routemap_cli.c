@@ -1258,6 +1258,16 @@ void route_map_action_show(struct vty *vty, const struct lyd_node *dnode,
 			yang_dnode_get_string(
 				dnode,
 				"./rmap-set-action/frr-bgp-route-map:replace-as-path"));
+	} else if (IS_SET_RMAC(action)) {
+		vty_out(vty, " set rmac %s\n",
+			yang_dnode_get_string(
+				dnode,
+				"./rmap-set-action/frr-bgp-route-map:rmac"));
+	} else if (IS_SET_VNI(action)) {
+		vty_out(vty, " set vni %s\n",
+			yang_dnode_get_string(
+				dnode,
+				"./rmap-set-action/frr-bgp-route-map:vni"));
 	}
 }
 

@@ -1025,8 +1025,8 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 
 		if (safi == SAFI_UNICAST && path->sub_type == BGP_ROUTE_IMPORTED
 		    && path->extra && path->extra->num_labels
-		    && (path->attr->evpn_overlay.type
-			!= OVERLAY_INDEX_GATEWAY_IP)) {
+		    && (path->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP)
+            && (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))) {
 			bnc_is_valid_nexthop =
 				bgp_isvalid_labeled_nexthop(bnc) ? true : false;
 		} else {

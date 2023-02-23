@@ -1318,8 +1318,10 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 
 	/* If the route's source is EVPN, flag as such. */
 	is_evpn = is_route_parent_evpn(info);
-	if (is_evpn)
+	if (is_evpn) {
 		SET_FLAG(api.flags, ZEBRA_FLAG_EVPN_ROUTE);
+        nh_othervrf = 0;
+    }
 
 	if (peer->sort == BGP_PEER_IBGP || peer->sort == BGP_PEER_CONFED
 	    || info->sub_type == BGP_ROUTE_AGGREGATE) {
@@ -1473,11 +1475,12 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			api_nh->labels[0] = label;
 		}
 
-		if (is_evpn
-		    && mpinfo->attr->evpn_overlay.type
-			       != OVERLAY_INDEX_GATEWAY_IP)
-			memcpy(&api_nh->rmac, &(mpinfo->attr->rmac),
-			       sizeof(struct ethaddr));
+        if (is_evpn
+            && mpinfo->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP) {
+                memcpy(&api_nh->rmac, &(mpinfo->attr->rmac),
+                        sizeof(struct ethaddr));
+                api_nh->vni = mpinfo->attr->vni;
+            }
 
 		api_nh->weight = nh_weight;
 
@@ -1609,10 +1612,25 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				snprintf(eth_buf, sizeof(eth_buf), " RMAC %s",
 					 prefix_mac2str(&api_nh->rmac,
 							buf1, sizeof(buf1)));
-			zlog_debug("  nhop [%d]: %s if %u VRF %u wt %u %s %s %s",
+
+			char rmac_buf[PREFIX2STR_BUFFER + 10];
+			rmac_buf[0] = '\0';
+			if (!is_zero_mac(&api_nh->rmac)) {
+				char tmp_buf[PREFIX2STR_BUFFER];
+				sprintf(rmac_buf, "rmac %s",
+						prefix_mac2str(&api_nh->rmac, tmp_buf, sizeof(tmp_buf)));
+			}
+
+			char vni_buf[20];
+			vni_buf[0] = '\0';
+			if (api_nh->vni != 0) {
+				sprintf(vni_buf, "vni %d", api_nh->vni);
+			}
+
+			zlog_debug("  nhop [%d]: %s if %u VRF %u %s %s %s %s %s",
 				   i + 1, nh_buf, api_nh->ifindex,
-				   api_nh->vrf_id, api_nh->weight,
-				   label_buf, segs_buf, eth_buf);
+				   api_nh->vrf_id, label_buf, rmac_buf,
+                   vni_buf,  segs_buf, eth_buf);
 		}
 
 		int recursion_flag = 0;

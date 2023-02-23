@@ -31,6 +31,7 @@
 #include "libfrr.h"
 #include "routing_nb.h"
 #include "northbound_cli.h"
+#include "lib/vxlan.h"
 
 #include "static_vrf.h"
 #include "static_vty.h"
@@ -51,7 +52,8 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 			     const char *flag_str, const char *tag_str,
 			     const char *distance_str, const char *label_str,
 			     const char *table_str, bool onlink,
-			     const char *color_str)
+			     const char *color_str, const char *nh_vni_str,
+                 const char *nh_rmac_str)
 {
 	int ret;
 	struct prefix p, src;
@@ -67,12 +69,16 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	char buf_src_prefix[PREFIX_STRLEN];
 	char buf_nh_type[PREFIX_STRLEN];
 	char buf_tag[PREFIX_STRLEN];
+	char vni_xpath[XPATH_MAXLEN];
+	char rmac_xpath[XPATH_MAXLEN];
 	uint8_t label_stack_id = 0;
 	const char *buf_gate_str;
 	uint8_t distance = ZEBRA_STATIC_DISTANCE_DEFAULT;
 	route_tag_t tag = 0;
 	uint32_t table_id = 0;
 	const struct lyd_node *dnode;
+	vni_t nh_vni = 0;
+	struct ethaddr mac;
 
 	memset(buf_src_prefix, 0, PREFIX_STRLEN);
 	memset(buf_nh_type, 0, PREFIX_STRLEN);
@@ -121,9 +127,23 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	else
 		buf_gate_str = "";
 
+	if (nh_vni_str && nh_rmac_str)
+	{
+		nh_vni = strtoul(nh_vni_str, NULL, 10);
+		if (!prefix_str2mac(nh_rmac_str, &mac) || nh_vni == 0) {
+			vty_out(vty, "%% Malformed MAC address or invalid vni\n");
+			return CMD_WARNING_CONFIG_FAILED;
+		}
+	}
+
 	if (gate_str == NULL && ifname == NULL)
 		type = STATIC_BLACKHOLE;
-	else if (gate_str && ifname) {
+	else if (nh_vni_str && nh_rmac_str) {
+		if (afi == AFI_IP)
+			type = STATIC_IPV4_GATEWAY_EVPN;
+		else
+			type = STATIC_IPV6_GATEWAY_EVPN;
+	} else if (gate_str && ifname) {
 		if (afi == AFI_IP)
 			type = STATIC_IPV4_GATEWAY_IFNAME;
 		else
@@ -304,6 +324,20 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 			nb_cli_enqueue_change(vty, xpath_mpls, NB_OP_DESTROY,
 					      NULL);
 		}
+		if (type == STATIC_IPV4_GATEWAY_EVPN
+			|| type == STATIC_IPV6_GATEWAY_EVPN) {
+			strlcpy(vni_xpath, xpath_nexthop, sizeof(vni_xpath));
+			strlcat(vni_xpath, FRR_STATIC_ROUTE_NH_VNI_XPATH,
+				sizeof(vni_xpath));
+			nb_cli_enqueue_change(vty, vni_xpath,
+						      NB_OP_MODIFY, nh_vni_str);
+			strlcpy(rmac_xpath, xpath_nexthop, sizeof(rmac_xpath));
+			strlcat(rmac_xpath, FRR_STATIC_ROUTE_NH_RMAC_XPATH,
+				sizeof(rmac_xpath));
+			nb_cli_enqueue_change(vty, rmac_xpath,
+						      NB_OP_MODIFY, nh_rmac_str);
+
+		}
 		ret = nb_cli_apply_changes(vty, xpath_prefix);
 	} else {
 		if (src_str)
@@ -354,7 +388,7 @@ static int static_route(struct vty *vty, afi_t afi, safi_t safi,
 	return static_route_leak(vty, vrf_name, vrf_name, afi, safi, negate,
 				 dest_str, mask_str, src_str, gate_str, ifname,
 				 flag_str, tag_str, distance_str, label_str,
-				 table_str, false, NULL);
+				 table_str, false, NULL, NULL, NULL);
 }
 
 /* Static unicast routes for multicast RPF lookup. */
@@ -451,7 +485,7 @@ DEFPY_YANG(ip_route_blackhole_vrf,
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, NULL, NULL, flag,
 				 tag_str, distance_str, label, table_str,
-				 false, NULL);
+				 false, NULL, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route_address_interface,
@@ -508,7 +542,7 @@ DEFPY_YANG(ip_route_address_interface,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, distance_str, label, table_str,
-				 !!onlink, color_str);
+				 !!onlink, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route_address_interface_vrf,
@@ -570,7 +604,7 @@ DEFPY_YANG(ip_route_address_interface_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, distance_str, label, table_str,
-				 !!onlink, color_str);
+				 !!onlink, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route,
@@ -625,7 +659,7 @@ DEFPY_YANG(ip_route,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, distance_str, label, table_str,
-				 false, color_str);
+				 false, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route_vrf,
@@ -685,7 +719,7 @@ DEFPY_YANG(ip_route_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, distance_str, label, table_str,
-				 false, color_str);
+				 false, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ipv6_route_blackhole,
@@ -766,7 +800,7 @@ DEFPY_YANG(ipv6_route_blackhole_vrf,
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, NULL, NULL,
 				 flag, tag_str, distance_str, label, table_str,
-				 false, NULL);
+				 false, NULL, NULL, NULL);
 }
 
 DEFPY_YANG(ipv6_route_address_interface,
@@ -824,7 +858,7 @@ DEFPY_YANG(ipv6_route_address_interface,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP6, SAFI_UNICAST, no,
 				 prefix_str, NULL, from_str, gate_str, ifname,
 				 flag, tag_str, distance_str, label, table_str,
-				 !!onlink, color_str);
+				 !!onlink, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ipv6_route_address_interface_vrf,
@@ -886,7 +920,7 @@ DEFPY_YANG(ipv6_route_address_interface_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, gate_str,
 				 ifname, flag, tag_str, distance_str, label,
-				 table_str, !!onlink, color_str);
+				 table_str, !!onlink, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ipv6_route,
@@ -940,7 +974,7 @@ DEFPY_YANG(ipv6_route,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP6, SAFI_UNICAST, no,
 				 prefix_str, NULL, from_str, gate_str, ifname,
 				 flag, tag_str, distance_str, label, table_str,
-				 false, color_str);
+				 false, color_str, NULL, NULL);
 }
 
 DEFPY_YANG(ipv6_route_vrf,
@@ -999,7 +1033,46 @@ DEFPY_YANG(ipv6_route_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, gate_str,
 				 ifname, flag, tag_str, distance_str, label,
-				 table_str, false, color_str);
+				 table_str, false, color_str, NULL, NULL);
+}
+
+
+DEFPY_YANG(ip_route_evpn_vrf,
+      ip_route_evpn_vrf_cmd,
+      "[no] ip route\
+	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
+	A.B.C.D$gate                                   \
+    nexthop-vni " CMD_VNI_RANGE " nexthop-rmac WORD",
+      NO_STR IP_STR
+      "Establish static routes\n"
+      "IP destination prefix (e.g. 10.0.0.0/8)\n"
+      "IP destination prefix\n"
+      "IP destination prefix mask\n"
+      "IP gateway address\n"
+	  "Remote Vtep VNI\n"
+      "VNID\n"
+      "RMAC\n"
+      "mac-address (e.g. 0a:0a:0a:0a:0a:0a)\n")
+{
+	const struct lyd_node *vrf_dnode;
+	const char *vrfname;
+	char buf[IF_NAMESIZE];
+
+	vrf_dnode =
+		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
+	if (!vrf_dnode) {
+		vty_out(vty, "%% Failed to get vrf dnode in candidate db\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
+	
+	snprintf(buf, IF_NAMESIZE, "Brvxlan%s", nexthop_vni_str);
+
+	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
+				 no, prefix, mask_str, NULL, gate_str,
+				 buf, NULL, NULL, NULL, NULL,
+				 NULL, true, NULL, nexthop_vni_str,
+				 nexthop_rmac);
 }
 
 void static_cli_show(struct vty *vty, const struct lyd_node *dnode,
@@ -1060,6 +1133,8 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 	const char *nexthop_vrf;
 	uint32_t table_id;
 	bool onlink;
+    char *rmac;
+    uint32_t vni;
 
 	vrf = yang_dnode_get_string(route, "../../vrf");
 
@@ -1116,6 +1191,14 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 			break;
 		}
 		break;
+    case STATIC_IPV4_GATEWAY_EVPN:
+        rmac = yang_dnode_get_string(nexthop, "./rmac");
+        vni = yang_dnode_get_uint32(nexthop, "./vni");
+        vty_out(vty, " %s vni %d rmac %s", vni, rmac);
+    case STATIC_IPV6_GATEWAY_EVPN:
+        rmac = yang_dnode_get_string(nexthop, "./rmac");
+        vni = yang_dnode_get_uint32(nexthop, "./vni");
+        vty_out(vty, " %s nexthop-vni %d nexthop-rmac %s", vni, rmac);
 	}
 
 	if (yang_dnode_exists(path, "./tag")) {
@@ -1332,6 +1415,7 @@ void static_vty_init(void)
 	install_element(VRF_NODE, &ipv6_route_address_interface_vrf_cmd);
 	install_element(CONFIG_NODE, &ipv6_route_cmd);
 	install_element(VRF_NODE, &ipv6_route_vrf_cmd);
+	install_element(VRF_NODE, &ip_route_evpn_vrf_cmd);
 
 	install_element(ENABLE_NODE, &show_debugging_static_cmd);
 	install_element(ENABLE_NODE, &debug_staticd_cmd);

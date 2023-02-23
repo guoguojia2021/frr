@@ -150,6 +150,11 @@ int lib_route_map_entry_set_action_rmap_set_action_overwrite_as_path_modify(stru
 int lib_route_map_entry_set_action_rmap_set_action_overwrite_as_path_destroy(struct nb_cb_destroy_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_replace_as_path_modify(struct nb_cb_modify_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_replace_as_path_destroy(struct nb_cb_destroy_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_rmac_modify(struct nb_cb_modify_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_rmac_destroy(struct nb_cb_destroy_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_vni_modify(struct nb_cb_modify_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_vni_destroy(struct nb_cb_destroy_args *args);
+
 #ifdef __cplusplus
 }
 #endif

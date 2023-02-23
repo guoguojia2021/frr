@@ -1679,6 +1679,10 @@ static struct nexthop *nexthop_set_resolved(afi_t afi,
 		if (newhop->ifindex) {
 			resolved_hop->type = NEXTHOP_TYPE_IPV4_IFINDEX;
 			resolved_hop->ifindex = newhop->ifindex;
+        }
+		if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP)) {
+			SET_FLAG(resolved_hop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP);
+			memcpy(&resolved_hop->rmac, &newhop->rmac, ETH_ALEN);
 		}
 		break;
 	case NEXTHOP_TYPE_IPV6:
@@ -1689,6 +1693,10 @@ static struct nexthop *nexthop_set_resolved(afi_t afi,
 		if (newhop->ifindex) {
 			resolved_hop->type = NEXTHOP_TYPE_IPV6_IFINDEX;
 			resolved_hop->ifindex = newhop->ifindex;
+		}
+		if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP)) {
+			SET_FLAG(resolved_hop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP);
+			memcpy(&resolved_hop->rmac, &newhop->rmac, ETH_ALEN);
 		}
 		break;
 	case NEXTHOP_TYPE_IFINDEX:
@@ -1991,6 +1999,9 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	nexthops_free(nexthop->resolved);
 	nexthop->resolved = NULL;
 
+	/* Next hops (remote VTEPs) for EVPN routes are fully resolved. */
+	if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP))
+		return 1;
 	/*
 	 * Set afi based on nexthop type.
 	 * Some nexthop types get special handling, possibly skipping

@@ -422,6 +422,7 @@ struct zapi_nexthop {
 	mpls_label_t labels[MPLS_MAX_LABELS];
 
 	struct ethaddr rmac;
+    uint32_t vni;
 
 	uint32_t weight;
 
@@ -452,7 +453,7 @@ struct zapi_nexthop {
 #define ZAPI_NEXTHOP_FLAG_HAS_BACKUP	0x08 /* Nexthop has a backup */
 #define ZAPI_NEXTHOP_FLAG_SEG6		0x10
 #define ZAPI_NEXTHOP_FLAG_SEG6LOCAL	0x20
-
+#define ZAPI_NEXTHOP_FLAG_VNI       0x30
 /*
  * ZAPI Nexthop Group. For use with protocol creation of nexthop groups.
  */
@@ -573,7 +574,7 @@ struct zapi_route {
 	/* SR-TE color (used for nexthop updates only). */
 	uint32_t srte_color;
 
-#define ZAPI_MESSAGE_OPAQUE_LENGTH 1024
+#define ZAPI_MESSAGE_OPAQUE_LENGTH 4094
 	struct {
 		uint16_t length;
 		uint8_t data[ZAPI_MESSAGE_OPAQUE_LENGTH];

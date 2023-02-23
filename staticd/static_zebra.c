@@ -276,6 +276,8 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 	switch (nh->type) {
 	case STATIC_IFNAME:
 	case STATIC_BLACKHOLE:
+	case STATIC_IPV4_GATEWAY_EVPN:
+	case STATIC_IPV6_GATEWAY_EVPN:
 		return;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
@@ -447,6 +449,17 @@ extern void static_zebra_route_add(struct static_path *pn, bool install)
 			api_nh->type = NEXTHOP_TYPE_IPV4;
 			api_nh->gate = nh->addr;
 			break;
+		case STATIC_IPV4_GATEWAY_EVPN:
+			if (nh->ifindex == IFINDEX_INTERNAL)
+				continue;
+			api_nh->ifindex = nh->ifindex;
+			api_nh->type = NEXTHOP_TYPE_IPV4_IFINDEX;
+			api_nh->gate = nh->addr;
+			memcpy(&api_nh->rmac, &(nh->nh_rmac),
+				sizeof(struct ethaddr));
+			api_nh->vni = nh->nh_vni;
+			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_VNI);
+			break;
 		case STATIC_IPV4_GATEWAY_IFNAME:
 			if (nh->ifindex == IFINDEX_INTERNAL)
 				continue;
@@ -459,6 +472,17 @@ extern void static_zebra_route_add(struct static_path *pn, bool install)
 				continue;
 			api_nh->type = NEXTHOP_TYPE_IPV6;
 			api_nh->gate = nh->addr;
+			break;
+		case STATIC_IPV6_GATEWAY_EVPN:
+			if (nh->ifindex == IFINDEX_INTERNAL)
+				continue;
+			api_nh->ifindex = nh->ifindex;
+			api_nh->type = NEXTHOP_TYPE_IPV6_IFINDEX;
+			api_nh->gate = nh->addr;
+			memcpy(&api_nh->rmac, &(nh->nh_rmac),
+				sizeof(struct ethaddr));
+			api_nh->vni = nh->nh_vni;
+			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_VNI);
 			break;
 		case STATIC_IPV6_GATEWAY_IFNAME:
 			if (nh->ifindex == IFINDEX_INTERNAL)

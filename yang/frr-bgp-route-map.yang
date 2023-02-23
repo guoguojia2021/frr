@@ -335,6 +335,19 @@ module frr-bgp-route-map {
     description
       "Set the BGP AS-path replace";
   }
+
+  identity rmac {
+    base frr-route-map:rmap-set-type;
+    description
+      "Set rmac";
+  }
+ 
+  identity vni {
+    base frr-route-map:rmap-set-type;
+    description
+      "Set VNI for routing table";
+  }
+
   grouping extcommunity-non-transitive-types {
     leaf two-octet-as-specific {
       type boolean;
@@ -902,6 +915,24 @@ module frr-bgp-route-map {
         type string;
         description
           "Exclude the AS-path replace";
+      }
+    }
+    case rmac {
+      when "derived-from-or-self(/frr-route-map:lib/frr-route-map:route-map/frr-route-map:entry/frr-route-map:set-action/frr-route-map:action, 'frr-bgp-route-map:rmac')";
+      leaf rmac {
+        type string {
+          length 1..128;
+        }
+        description
+          "set rmac";
+      }
+    }
+    case vni {
+      when "derived-from-or-self(/frr-route-map:lib/frr-route-map:route-map/frr-route-map:entry/frr-route-map:set-action/frr-route-map:action, 'frr-bgp-route-map:vni')";
+      leaf vni {
+        type uint32 {
+          range "0..4294967295";
+        }
       }
     }
   }

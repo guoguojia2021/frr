@@ -1845,6 +1845,8 @@ static int netlink_route_nexthop_encap(struct nlmsghdr *n, size_t nlen,
 				       struct nexthop *nh)
 {
 	struct rtattr *nest;
+	struct zebra_l3vni *zl3vni = NULL;
+	int vid = 0;
 
 	switch (nh->nh_encap_type) {
 	case NET_VXLAN:
@@ -1857,6 +1859,18 @@ static int netlink_route_nexthop_encap(struct nlmsghdr *n, size_t nlen,
 
 		if (!nl_attr_put32(n, nlen, 0 /* VXLAN_VNI */,
 				   nh->nh_encap.vni))
+			return false;
+
+		if (!nl_attr_put(n, nlen, 1 /* VXLAN_RMAC */,
+				   &nh->rmac, sizeof(nh->rmac)))
+			return false;
+
+		zl3vni = zl3vni_from_vrf(nh->vrf_id);
+		if (zl3vni != NULL)
+			vid = vni_from_zl3vni(zl3vni);
+
+		if (!nl_attr_put32(n, nlen, 2 /* VXLAN_VLAN */,
+				   vid))
 			return false;
 		nl_attr_nest_end(n, nest);
 		break;

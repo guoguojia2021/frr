@@ -6239,6 +6239,36 @@ static int zebra_evpn_cfg_clean_up(struct zserv *client)
 }
 
 /*
+ *  * Get VLAN info from L3VNI
+ *   */
+int vni_from_zl3vni(struct zebra_l3vni *zl3vni)
+{
+	const struct zebra_if *zif = NULL, *br_zif = NULL;
+	const struct zebra_l2info_vxlan *vxl = NULL;
+	const struct interface *br_ifp;
+	vlanid_t vid;
+ 
+	zif = zl3vni->vxlan_if->info;
+	if (!zif)
+		return -1;
+ 
+	br_ifp = zif->brslave_info.br_if;
+	if (br_ifp == NULL)
+		return -1;
+ 
+	vxl = &zif->l2info.vxl;
+ 
+	br_zif = (const struct zebra_if *)br_ifp->info;
+ 
+	if (IS_ZEBRA_IF_BRIDGE_VLAN_AWARE(br_zif))
+		vid = vxl->access_vlan;
+	else
+		vid = 0;
+ 
+	return vid;
+}
+
+/*
  * Handle results for vxlan dataplane operations.
  */
 extern void zebra_vxlan_handle_result(struct zebra_dplane_ctx *ctx)

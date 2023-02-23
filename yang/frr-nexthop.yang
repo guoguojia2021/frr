@@ -200,6 +200,20 @@ module frr-nexthop {
       description
         "Nexthop's MPLS label stack.";
     }
+
+    leaf vni {
+      type uint32;
+      description
+        "Set the nexthop vni.";
+    }
+ 
+    leaf rmac {
+    type string {
+      length 1..128;
+    }
+    description
+        "Set the nexthop mac address.";
+    }
   }
 
   /*

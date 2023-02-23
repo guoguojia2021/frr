@@ -4164,6 +4164,91 @@ struct route_map_rule_cmd route_set_aspath_replace_cmd =
     route_aspath_free,
   };
 
+
+/* `set rmac' */
+struct rmap_rmac_set {
+	struct ethaddr rmac;
+};
+
+static enum route_map_cmd_result_t
+route_set_rmac (void *rule, const struct prefix *prefix, void *object)
+{
+	struct rmap_rmac_set *rins = rule;
+	struct bgp_path_info *path = object;
+	char buf[PREFIX2STR_BUFFER];
+
+	/* Set rmac value. */
+	memcpy(&path->attr->rmac, &rins->rmac, ETH_ALEN);
+	if (BGP_DEBUG(zebra, ZEBRA)) {
+		zlog_debug("%s: set rmac to %s",
+				   __func__,
+				   prefix_mac2str(&path->attr->rmac, buf, sizeof(buf)));
+	}
+	return RMAP_OKAY;
+}
+
+/* Route map `rmac' compile function.  Given string is converted
+   to struct ethaddr structure. */
+static void *route_set_rmac_compile (const char *arg)
+{
+	struct rmap_rmac_set *rins;
+	struct ethaddr mac;
+
+	rins = XCALLOC(MTYPE_ROUTE_MAP_COMPILED,
+				   sizeof(struct rmap_rmac_set));
+	if (!rins)
+		return NULL;
+
+	(void)prefix_str2mac(arg, &mac);
+	memcpy(&rins->rmac, &mac, ETH_ALEN);
+	return rins;
+}
+
+/* Free route map's compiled `mac' value. */
+static void route_set_rmac_free (void *rule)
+{
+	struct rmap_rmac_set *rins = rule;
+
+	XFREE(MTYPE_ROUTE_MAP_COMPILED, rins);
+}
+
+/* Set MAC address rule structure. */
+struct route_map_rule_cmd route_set_rmac_cmd = {
+	"rmac",
+	route_set_rmac,
+	route_set_rmac_compile,
+	route_set_rmac_free,
+};
+
+/* `set vni' */
+static enum route_map_cmd_result_t
+route_set_vni (void *rule, const struct prefix *prefix, void *object)
+{
+	struct rmap_value *rv;
+	struct bgp_path_info *path;
+
+	/* Fetch routemap's rule information. */
+	rv = rule;
+	path = object;
+
+	/* Set vni value. */
+	path->attr->vni = route_value_adjust(rv, 0, path->peer);
+	if (BGP_DEBUG(zebra, ZEBRA)) {
+		zlog_debug("%s: set vni to %u",
+				   __func__, path->attr->vni);
+	}
+
+	return RMAP_OKAY;
+}
+
+/* Set vni rule structure. */
+struct route_map_rule_cmd route_set_vni_cmd = {
+	"vni",
+	route_set_vni,
+	route_value_compile,
+	route_value_free,
+};
+
 DEFUN_YANG (match_mac_address,
 	    match_mac_address_cmd,
 	    "match mac address ACCESSLIST_MAC_NAME",
@@ -6753,266 +6838,343 @@ DEFUN_YANG (no_set_aspath_replace,
 }
 
 
+DEFUN_YANG (set_rmac,
+       set_rmac_cmd,
+       "set rmac WORD",
+       SET_STR
+	   MAC_STR
+	   MAC_STR)
+{
+	int idx_number = 2;
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:rmac']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:rmac", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY,
+			      argv[idx_number]->arg);
+	return nb_cli_apply_changes(vty, NULL);;
+}
+
+DEFUN_YANG (no_set_rmac,
+       no_set_rmac_cmd,
+       "no set rmac [WORD]",
+       NO_STR
+       SET_STR
+	   MAC_STR
+	   MAC_STR)
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:rmac']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);;
+}
+
+DEFUN_YANG (set_vni,
+       set_vni_cmd,
+       "set vni (0-4294967295)",
+       SET_STR
+       "VNI for routing table\n"
+       "vni value\n")
+{
+	int idx_number = 2;
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:vni']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:vni", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY,
+			      argv[idx_number]->arg);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFUN_YANG (no_set_vni,
+       no_set_vni_cmd,
+       "no set vni [(0-4294967295)]",
+       NO_STR
+       SET_STR
+       "VNI for routing table\n"
+       "vni value\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:vni']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 /* Initialization of route map. */
 void bgp_route_map_init(void)
 {
-	route_map_init();
+    route_map_init();
 
-	route_map_add_hook(bgp_route_map_add);
-	route_map_delete_hook(bgp_route_map_delete);
-	route_map_event_hook(bgp_route_map_event);
+    route_map_add_hook(bgp_route_map_add);
+    route_map_delete_hook(bgp_route_map_delete);
+    route_map_event_hook(bgp_route_map_event);
 
-	route_map_match_interface_hook(generic_match_add);
-	route_map_no_match_interface_hook(generic_match_delete);
+    route_map_match_interface_hook(generic_match_add);
+    route_map_no_match_interface_hook(generic_match_delete);
 
-	route_map_match_ip_address_hook(generic_match_add);
-	route_map_no_match_ip_address_hook(generic_match_delete);
+    route_map_match_ip_address_hook(generic_match_add);
+    route_map_no_match_ip_address_hook(generic_match_delete);
 
-	route_map_match_ip_address_prefix_list_hook(generic_match_add);
-	route_map_no_match_ip_address_prefix_list_hook(generic_match_delete);
+    route_map_match_ip_address_prefix_list_hook(generic_match_add);
+    route_map_no_match_ip_address_prefix_list_hook(generic_match_delete);
 
-	route_map_match_ip_next_hop_hook(generic_match_add);
-	route_map_no_match_ip_next_hop_hook(generic_match_delete);
+    route_map_match_ip_next_hop_hook(generic_match_add);
+    route_map_no_match_ip_next_hop_hook(generic_match_delete);
 
-	route_map_match_ipv6_next_hop_hook(generic_match_add);
-	route_map_no_match_ipv6_next_hop_hook(generic_match_delete);
+    route_map_match_ipv6_next_hop_hook(generic_match_add);
+    route_map_no_match_ipv6_next_hop_hook(generic_match_delete);
 
-	route_map_match_ip_next_hop_prefix_list_hook(generic_match_add);
-	route_map_no_match_ip_next_hop_prefix_list_hook(generic_match_delete);
+    route_map_match_ip_next_hop_prefix_list_hook(generic_match_add);
+    route_map_no_match_ip_next_hop_prefix_list_hook(generic_match_delete);
 
-	route_map_match_ip_next_hop_type_hook(generic_match_add);
-	route_map_no_match_ip_next_hop_type_hook(generic_match_delete);
+    route_map_match_ip_next_hop_type_hook(generic_match_add);
+    route_map_no_match_ip_next_hop_type_hook(generic_match_delete);
 
-	route_map_match_ipv6_address_hook(generic_match_add);
-	route_map_no_match_ipv6_address_hook(generic_match_delete);
+    route_map_match_ipv6_address_hook(generic_match_add);
+    route_map_no_match_ipv6_address_hook(generic_match_delete);
 
-	route_map_match_ipv6_address_prefix_list_hook(generic_match_add);
-	route_map_no_match_ipv6_address_prefix_list_hook(generic_match_delete);
+    route_map_match_ipv6_address_prefix_list_hook(generic_match_add);
+    route_map_no_match_ipv6_address_prefix_list_hook(generic_match_delete);
 
-	route_map_match_ipv6_next_hop_type_hook(generic_match_add);
-	route_map_no_match_ipv6_next_hop_type_hook(generic_match_delete);
+    route_map_match_ipv6_next_hop_type_hook(generic_match_add);
+    route_map_no_match_ipv6_next_hop_type_hook(generic_match_delete);
 
-	route_map_match_ipv6_next_hop_prefix_list_hook(generic_match_add);
-	route_map_no_match_ipv6_next_hop_prefix_list_hook(generic_match_delete);
+    route_map_match_ipv6_next_hop_prefix_list_hook(generic_match_add);
+    route_map_no_match_ipv6_next_hop_prefix_list_hook(generic_match_delete);
 
-	route_map_match_metric_hook(generic_match_add);
-	route_map_no_match_metric_hook(generic_match_delete);
+    route_map_match_metric_hook(generic_match_add);
+    route_map_no_match_metric_hook(generic_match_delete);
 
-	route_map_match_tag_hook(generic_match_add);
-	route_map_no_match_tag_hook(generic_match_delete);
+    route_map_match_tag_hook(generic_match_add);
+    route_map_no_match_tag_hook(generic_match_delete);
 
-	route_map_set_srte_color_hook(generic_set_add);
-	route_map_no_set_srte_color_hook(generic_set_delete);
+    route_map_set_srte_color_hook(generic_set_add);
+    route_map_no_set_srte_color_hook(generic_set_delete);
 
-	route_map_set_ip_nexthop_hook(generic_set_add);
-	route_map_no_set_ip_nexthop_hook(generic_set_delete);
+    route_map_set_ip_nexthop_hook(generic_set_add);
+    route_map_no_set_ip_nexthop_hook(generic_set_delete);
 
-	route_map_set_ipv6_nexthop_local_hook(generic_set_add);
-	route_map_no_set_ipv6_nexthop_local_hook(generic_set_delete);
+    route_map_set_ipv6_nexthop_local_hook(generic_set_add);
+    route_map_no_set_ipv6_nexthop_local_hook(generic_set_delete);
 
-	route_map_set_metric_hook(generic_set_add);
-	route_map_no_set_metric_hook(generic_set_delete);
+    route_map_set_metric_hook(generic_set_add);
+    route_map_no_set_metric_hook(generic_set_delete);
 
-	route_map_set_tag_hook(generic_set_add);
-	route_map_no_set_tag_hook(generic_set_delete);
+    route_map_set_tag_hook(generic_set_add);
+    route_map_no_set_tag_hook(generic_set_delete);
 
-	route_map_install_match(&route_match_peer_cmd);
-	route_map_install_match(&route_match_alias_cmd);
-	route_map_install_match(&route_match_local_pref_cmd);
-#ifdef HAVE_SCRIPTING
-	route_map_install_match(&route_match_script_cmd);
-#endif
-	route_map_install_match(&route_match_ip_address_cmd);
-	route_map_install_match(&route_match_ip_next_hop_cmd);
-	route_map_install_match(&route_match_ip_route_source_cmd);
-	route_map_install_match(&route_match_ip_address_prefix_list_cmd);
-	route_map_install_match(&route_match_ip_next_hop_prefix_list_cmd);
-	route_map_install_match(&route_match_ip_next_hop_type_cmd);
-	route_map_install_match(&route_match_ip_route_source_prefix_list_cmd);
-	route_map_install_match(&route_match_aspath_cmd);
-	route_map_install_match(&route_match_community_cmd);
-	route_map_install_match(&route_match_lcommunity_cmd);
-	route_map_install_match(&route_match_ecommunity_cmd);
-	route_map_install_match(&route_match_local_pref_cmd);
-	route_map_install_match(&route_match_metric_cmd);
-	route_map_install_match(&route_match_origin_cmd);
-	route_map_install_match(&route_match_probability_cmd);
-	route_map_install_match(&route_match_interface_cmd);
-	route_map_install_match(&route_match_tag_cmd);
-	route_map_install_match(&route_match_mac_address_cmd);
-	route_map_install_match(&route_match_evpn_vni_cmd);
-	route_map_install_match(&route_match_evpn_route_type_cmd);
-	route_map_install_match(&route_match_evpn_rd_cmd);
-	route_map_install_match(&route_match_evpn_default_route_cmd);
-	route_map_install_match(&route_match_vrl_source_vrf_cmd);
+    route_map_install_match(&route_match_peer_cmd);
+    route_map_install_match(&route_match_alias_cmd);
+    route_map_install_match(&route_match_local_pref_cmd);
+    #ifdef HAVE_SCRIPTING
+    route_map_install_match(&route_match_script_cmd);
+    #endif
+    route_map_install_match(&route_match_ip_address_cmd);
+    route_map_install_match(&route_match_ip_next_hop_cmd);
+    route_map_install_match(&route_match_ip_route_source_cmd);
+    route_map_install_match(&route_match_ip_address_prefix_list_cmd);
+    route_map_install_match(&route_match_ip_next_hop_prefix_list_cmd);
+    route_map_install_match(&route_match_ip_next_hop_type_cmd);
+    route_map_install_match(&route_match_ip_route_source_prefix_list_cmd);
+    route_map_install_match(&route_match_aspath_cmd);
+    route_map_install_match(&route_match_community_cmd);
+    route_map_install_match(&route_match_lcommunity_cmd);
+    route_map_install_match(&route_match_ecommunity_cmd);
+    route_map_install_match(&route_match_local_pref_cmd);
+    route_map_install_match(&route_match_metric_cmd);
+    route_map_install_match(&route_match_origin_cmd);
+    route_map_install_match(&route_match_probability_cmd);
+    route_map_install_match(&route_match_interface_cmd);
+    route_map_install_match(&route_match_tag_cmd);
+    route_map_install_match(&route_match_mac_address_cmd);
+    route_map_install_match(&route_match_evpn_vni_cmd);
+    route_map_install_match(&route_match_evpn_route_type_cmd);
+    route_map_install_match(&route_match_evpn_rd_cmd);
+    route_map_install_match(&route_match_evpn_default_route_cmd);
+    route_map_install_match(&route_match_vrl_source_vrf_cmd);
 
-	route_map_install_set(&route_set_evpn_gateway_ip_ipv4_cmd);
-	route_map_install_set(&route_set_evpn_gateway_ip_ipv6_cmd);
-	route_map_install_set(&route_set_table_id_cmd);
-	route_map_install_set(&route_set_srte_color_cmd);
-	route_map_install_set(&route_set_ip_nexthop_cmd);
-	route_map_install_set(&route_set_local_pref_cmd);
-	route_map_install_set(&route_set_weight_cmd);
-	route_map_install_set(&route_set_label_index_cmd);
-	route_map_install_set(&route_set_metric_cmd);
-	route_map_install_set(&route_set_distance_cmd);
-	route_map_install_set(&route_set_aspath_prepend_cmd);
-	route_map_install_set(&route_set_aspath_exclude_cmd);
-	route_map_install_set(&route_set_origin_cmd);
-	route_map_install_set(&route_set_atomic_aggregate_cmd);
-	route_map_install_set(&route_set_aggregator_as_cmd);
-	route_map_install_set(&route_set_community_cmd);
-	route_map_install_set(&route_set_community_delete_cmd);
-	route_map_install_set(&route_set_lcommunity_cmd);
-	route_map_install_set(&route_set_lcommunity_delete_cmd);
-	route_map_install_set(&route_set_vpnv4_nexthop_cmd);
-	route_map_install_set(&route_set_vpnv6_nexthop_cmd);
-	route_map_install_set(&route_set_originator_id_cmd);
-	route_map_install_set(&route_set_ecommunity_rt_cmd);
-	route_map_install_set(&route_set_ecommunity_soo_cmd);
-	route_map_install_set(&route_set_ecommunity_lb_cmd);
-	route_map_install_set(&route_set_ecommunity_none_cmd);
-	route_map_install_set(&route_set_tag_cmd);
-	route_map_install_set(&route_set_label_index_cmd);
+    route_map_install_set(&route_set_evpn_gateway_ip_ipv4_cmd);
+    route_map_install_set(&route_set_evpn_gateway_ip_ipv6_cmd);
+    route_map_install_set(&route_set_table_id_cmd);
+    route_map_install_set(&route_set_srte_color_cmd);
+    route_map_install_set(&route_set_ip_nexthop_cmd);
+    route_map_install_set(&route_set_local_pref_cmd);
+    route_map_install_set(&route_set_weight_cmd);
+    route_map_install_set(&route_set_label_index_cmd);
+    route_map_install_set(&route_set_metric_cmd);
+    route_map_install_set(&route_set_distance_cmd);
+    route_map_install_set(&route_set_aspath_prepend_cmd);
+    route_map_install_set(&route_set_aspath_exclude_cmd);
+    route_map_install_set(&route_set_origin_cmd);
+    route_map_install_set(&route_set_atomic_aggregate_cmd);
+    route_map_install_set(&route_set_aggregator_as_cmd);
+    route_map_install_set(&route_set_community_cmd);
+    route_map_install_set(&route_set_community_delete_cmd);
+    route_map_install_set(&route_set_lcommunity_cmd);
+    route_map_install_set(&route_set_lcommunity_delete_cmd);
+    route_map_install_set(&route_set_vpnv4_nexthop_cmd);
+    route_map_install_set(&route_set_vpnv6_nexthop_cmd);
+    route_map_install_set(&route_set_originator_id_cmd);
+    route_map_install_set(&route_set_ecommunity_rt_cmd);
+    route_map_install_set(&route_set_ecommunity_soo_cmd);
+    route_map_install_set(&route_set_ecommunity_lb_cmd);
+    route_map_install_set(&route_set_ecommunity_none_cmd);
+    route_map_install_set(&route_set_tag_cmd);
+    route_map_install_set(&route_set_label_index_cmd);
 
-	install_element(RMAP_NODE, &match_peer_cmd);
-	install_element(RMAP_NODE, &match_peer_local_cmd);
-	install_element(RMAP_NODE, &no_match_peer_cmd);
-	install_element(RMAP_NODE, &match_ip_route_source_cmd);
-	install_element(RMAP_NODE, &no_match_ip_route_source_cmd);
-	install_element(RMAP_NODE, &match_ip_route_source_prefix_list_cmd);
-	install_element(RMAP_NODE, &no_match_ip_route_source_prefix_list_cmd);
-	install_element(RMAP_NODE, &match_mac_address_cmd);
-	install_element(RMAP_NODE, &no_match_mac_address_cmd);
-	install_element(RMAP_NODE, &match_evpn_vni_cmd);
-	install_element(RMAP_NODE, &no_match_evpn_vni_cmd);
-	install_element(RMAP_NODE, &match_evpn_route_type_cmd);
-	install_element(RMAP_NODE, &no_match_evpn_route_type_cmd);
-	install_element(RMAP_NODE, &match_evpn_rd_cmd);
-	install_element(RMAP_NODE, &no_match_evpn_rd_cmd);
-	install_element(RMAP_NODE, &match_evpn_default_route_cmd);
-	install_element(RMAP_NODE, &no_match_evpn_default_route_cmd);
-	install_element(RMAP_NODE, &set_evpn_gw_ip_ipv4_cmd);
-	install_element(RMAP_NODE, &no_set_evpn_gw_ip_ipv4_cmd);
-	install_element(RMAP_NODE, &set_evpn_gw_ip_ipv6_cmd);
-	install_element(RMAP_NODE, &no_set_evpn_gw_ip_ipv6_cmd);
-	install_element(RMAP_NODE, &match_vrl_source_vrf_cmd);
-	install_element(RMAP_NODE, &no_match_vrl_source_vrf_cmd);
+    install_element(RMAP_NODE, &match_peer_cmd);
+    install_element(RMAP_NODE, &match_peer_local_cmd);
+    install_element(RMAP_NODE, &no_match_peer_cmd);
+    install_element(RMAP_NODE, &match_ip_route_source_cmd);
+    install_element(RMAP_NODE, &no_match_ip_route_source_cmd);
+    install_element(RMAP_NODE, &match_ip_route_source_prefix_list_cmd);
+    install_element(RMAP_NODE, &no_match_ip_route_source_prefix_list_cmd);
+    install_element(RMAP_NODE, &match_mac_address_cmd);
+    install_element(RMAP_NODE, &no_match_mac_address_cmd);
+    install_element(RMAP_NODE, &match_evpn_vni_cmd);
+    install_element(RMAP_NODE, &no_match_evpn_vni_cmd);
+    install_element(RMAP_NODE, &match_evpn_route_type_cmd);
+    install_element(RMAP_NODE, &no_match_evpn_route_type_cmd);
+    install_element(RMAP_NODE, &match_evpn_rd_cmd);
+    install_element(RMAP_NODE, &no_match_evpn_rd_cmd);
+    install_element(RMAP_NODE, &match_evpn_default_route_cmd);
+    install_element(RMAP_NODE, &no_match_evpn_default_route_cmd);
+    install_element(RMAP_NODE, &set_evpn_gw_ip_ipv4_cmd);
+    install_element(RMAP_NODE, &no_set_evpn_gw_ip_ipv4_cmd);
+    install_element(RMAP_NODE, &set_evpn_gw_ip_ipv6_cmd);
+    install_element(RMAP_NODE, &no_set_evpn_gw_ip_ipv6_cmd);
+    install_element(RMAP_NODE, &match_vrl_source_vrf_cmd);
+    install_element(RMAP_NODE, &no_match_vrl_source_vrf_cmd);
 
-	install_element(RMAP_NODE, &match_aspath_cmd);
-	install_element(RMAP_NODE, &no_match_aspath_cmd);
-	install_element(RMAP_NODE, &match_local_pref_cmd);
-	install_element(RMAP_NODE, &no_match_local_pref_cmd);
-	install_element(RMAP_NODE, &match_alias_cmd);
-	install_element(RMAP_NODE, &no_match_alias_cmd);
-	install_element(RMAP_NODE, &match_community_cmd);
-	install_element(RMAP_NODE, &no_match_community_cmd);
-	install_element(RMAP_NODE, &match_lcommunity_cmd);
-	install_element(RMAP_NODE, &no_match_lcommunity_cmd);
-	install_element(RMAP_NODE, &match_ecommunity_cmd);
-	install_element(RMAP_NODE, &no_match_ecommunity_cmd);
-	install_element(RMAP_NODE, &match_origin_cmd);
-	install_element(RMAP_NODE, &no_match_origin_cmd);
-	install_element(RMAP_NODE, &match_probability_cmd);
-	install_element(RMAP_NODE, &no_match_probability_cmd);
+    install_element(RMAP_NODE, &match_aspath_cmd);
+    install_element(RMAP_NODE, &no_match_aspath_cmd);
+    install_element(RMAP_NODE, &match_local_pref_cmd);
+    install_element(RMAP_NODE, &no_match_local_pref_cmd);
+    install_element(RMAP_NODE, &match_alias_cmd);
+    install_element(RMAP_NODE, &no_match_alias_cmd);
+    install_element(RMAP_NODE, &match_community_cmd);
+    install_element(RMAP_NODE, &no_match_community_cmd);
+    install_element(RMAP_NODE, &match_lcommunity_cmd);
+    install_element(RMAP_NODE, &no_match_lcommunity_cmd);
+    install_element(RMAP_NODE, &match_ecommunity_cmd);
+    install_element(RMAP_NODE, &no_match_ecommunity_cmd);
+    install_element(RMAP_NODE, &match_origin_cmd);
+    install_element(RMAP_NODE, &no_match_origin_cmd);
+    install_element(RMAP_NODE, &match_probability_cmd);
+    install_element(RMAP_NODE, &no_match_probability_cmd);
 
-	install_element(RMAP_NODE, &no_set_table_id_cmd);
-	install_element(RMAP_NODE, &set_table_id_cmd);
-	install_element(RMAP_NODE, &set_ip_nexthop_peer_cmd);
-	install_element(RMAP_NODE, &set_ip_nexthop_unchanged_cmd);
-	install_element(RMAP_NODE, &set_local_pref_cmd);
-	install_element(RMAP_NODE, &set_distance_cmd);
-	install_element(RMAP_NODE, &no_set_distance_cmd);
-	install_element(RMAP_NODE, &no_set_local_pref_cmd);
-	install_element(RMAP_NODE, &set_weight_cmd);
-	install_element(RMAP_NODE, &set_label_index_cmd);
-	install_element(RMAP_NODE, &no_set_weight_cmd);
-	install_element(RMAP_NODE, &no_set_label_index_cmd);
-	install_element(RMAP_NODE, &set_aspath_prepend_asn_cmd);
-	install_element(RMAP_NODE, &set_aspath_prepend_lastas_cmd);
-	install_element(RMAP_NODE, &set_aspath_exclude_cmd);
-	install_element(RMAP_NODE, &no_set_aspath_prepend_cmd);
-	install_element(RMAP_NODE, &no_set_aspath_prepend_lastas_cmd);
-	install_element(RMAP_NODE, &no_set_aspath_exclude_cmd);
-	install_element(RMAP_NODE, &no_set_aspath_exclude_all_cmd);
-	install_element(RMAP_NODE, &set_origin_cmd);
-	install_element(RMAP_NODE, &no_set_origin_cmd);
-	install_element(RMAP_NODE, &set_atomic_aggregate_cmd);
-	install_element(RMAP_NODE, &no_set_atomic_aggregate_cmd);
-	install_element(RMAP_NODE, &set_aggregator_as_cmd);
-	install_element(RMAP_NODE, &no_set_aggregator_as_cmd);
-	install_element(RMAP_NODE, &set_community_cmd);
-	install_element(RMAP_NODE, &set_community_none_cmd);
-	install_element(RMAP_NODE, &no_set_community_cmd);
-	install_element(RMAP_NODE, &no_set_community_short_cmd);
-	install_element(RMAP_NODE, &set_community_delete_cmd);
-	install_element(RMAP_NODE, &no_set_community_delete_cmd);
-	install_element(RMAP_NODE, &set_lcommunity_cmd);
-	install_element(RMAP_NODE, &set_lcommunity_none_cmd);
-	install_element(RMAP_NODE, &no_set_lcommunity_cmd);
-	install_element(RMAP_NODE, &no_set_lcommunity1_cmd);
-	install_element(RMAP_NODE, &no_set_lcommunity1_short_cmd);
-	install_element(RMAP_NODE, &set_lcommunity_delete_cmd);
-	install_element(RMAP_NODE, &no_set_lcommunity_delete_cmd);
-	install_element(RMAP_NODE, &no_set_lcommunity_delete_short_cmd);
-	install_element(RMAP_NODE, &set_ecommunity_rt_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_rt_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_rt_short_cmd);
-	install_element(RMAP_NODE, &set_ecommunity_soo_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_soo_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_soo_short_cmd);
-	install_element(RMAP_NODE, &set_ecommunity_lb_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_lb_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_lb_short_cmd);
-	install_element(RMAP_NODE, &set_ecommunity_none_cmd);
-	install_element(RMAP_NODE, &no_set_ecommunity_none_cmd);
+    install_element(RMAP_NODE, &no_set_table_id_cmd);
+    install_element(RMAP_NODE, &set_table_id_cmd);
+    install_element(RMAP_NODE, &set_ip_nexthop_peer_cmd);
+    install_element(RMAP_NODE, &set_ip_nexthop_unchanged_cmd);
+    install_element(RMAP_NODE, &set_local_pref_cmd);
+    install_element(RMAP_NODE, &set_distance_cmd);
+    install_element(RMAP_NODE, &no_set_distance_cmd);
+    install_element(RMAP_NODE, &no_set_local_pref_cmd);
+    install_element(RMAP_NODE, &set_weight_cmd);
+    install_element(RMAP_NODE, &set_label_index_cmd);
+    install_element(RMAP_NODE, &no_set_weight_cmd);
+    install_element(RMAP_NODE, &no_set_label_index_cmd);
+    install_element(RMAP_NODE, &set_aspath_prepend_asn_cmd);
+    install_element(RMAP_NODE, &set_aspath_prepend_lastas_cmd);
+    install_element(RMAP_NODE, &set_aspath_exclude_cmd);
+    install_element(RMAP_NODE, &no_set_aspath_prepend_cmd);
+    install_element(RMAP_NODE, &no_set_aspath_prepend_lastas_cmd);
+    install_element(RMAP_NODE, &no_set_aspath_exclude_cmd);
+    install_element(RMAP_NODE, &no_set_aspath_exclude_all_cmd);
+    install_element(RMAP_NODE, &set_origin_cmd);
+    install_element(RMAP_NODE, &no_set_origin_cmd);
+    install_element(RMAP_NODE, &set_atomic_aggregate_cmd);
+    install_element(RMAP_NODE, &no_set_atomic_aggregate_cmd);
+    install_element(RMAP_NODE, &set_aggregator_as_cmd);
+    install_element(RMAP_NODE, &no_set_aggregator_as_cmd);
+    install_element(RMAP_NODE, &set_community_cmd);
+    install_element(RMAP_NODE, &set_community_none_cmd);
+    install_element(RMAP_NODE, &no_set_community_cmd);
+    install_element(RMAP_NODE, &no_set_community_short_cmd);
+    install_element(RMAP_NODE, &set_community_delete_cmd);
+    install_element(RMAP_NODE, &no_set_community_delete_cmd);
+    install_element(RMAP_NODE, &set_lcommunity_cmd);
+    install_element(RMAP_NODE, &set_lcommunity_none_cmd);
+    install_element(RMAP_NODE, &no_set_lcommunity_cmd);
+    install_element(RMAP_NODE, &no_set_lcommunity1_cmd);
+    install_element(RMAP_NODE, &no_set_lcommunity1_short_cmd);
+    install_element(RMAP_NODE, &set_lcommunity_delete_cmd);
+    install_element(RMAP_NODE, &no_set_lcommunity_delete_cmd);
+    install_element(RMAP_NODE, &no_set_lcommunity_delete_short_cmd);
+    install_element(RMAP_NODE, &set_ecommunity_rt_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_rt_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_rt_short_cmd);
+    install_element(RMAP_NODE, &set_ecommunity_soo_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_soo_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_soo_short_cmd);
+    install_element(RMAP_NODE, &set_ecommunity_lb_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_lb_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_lb_short_cmd);
+    install_element(RMAP_NODE, &set_ecommunity_none_cmd);
+    install_element(RMAP_NODE, &no_set_ecommunity_none_cmd);
 #ifdef KEEP_OLD_VPN_COMMANDS
-	install_element(RMAP_NODE, &set_vpn_nexthop_cmd);
-	install_element(RMAP_NODE, &no_set_vpn_nexthop_cmd);
+    install_element(RMAP_NODE, &set_vpn_nexthop_cmd);
+    install_element(RMAP_NODE, &no_set_vpn_nexthop_cmd);
 #endif /* KEEP_OLD_VPN_COMMANDS */
-	install_element(RMAP_NODE, &set_ipx_vpn_nexthop_cmd);
-	install_element(RMAP_NODE, &no_set_ipx_vpn_nexthop_cmd);
-	install_element(RMAP_NODE, &set_originator_id_cmd);
-	install_element(RMAP_NODE, &no_set_originator_id_cmd);
+    install_element(RMAP_NODE, &set_ipx_vpn_nexthop_cmd);
+    install_element(RMAP_NODE, &no_set_ipx_vpn_nexthop_cmd);
+    install_element(RMAP_NODE, &set_originator_id_cmd);
+    install_element(RMAP_NODE, &no_set_originator_id_cmd);
 
-	route_map_install_match(&route_match_ipv6_address_cmd);
-	route_map_install_match(&route_match_ipv6_next_hop_cmd);
-	route_map_install_match(&route_match_ipv6_next_hop_address_cmd);
-	route_map_install_match(&route_match_ipv6_next_hop_prefix_list_cmd);
-	route_map_install_match(&route_match_ipv4_next_hop_cmd);
-	route_map_install_match(&route_match_ipv6_address_prefix_list_cmd);
-	route_map_install_match(&route_match_ipv6_next_hop_type_cmd);
-	route_map_install_set(&route_set_ipv6_nexthop_global_cmd);
-	route_map_install_set(&route_set_ipv6_nexthop_prefer_global_cmd);
-	route_map_install_set(&route_set_ipv6_nexthop_local_cmd);
-	route_map_install_set(&route_set_ipv6_nexthop_peer_cmd);
-	route_map_install_set(&route_set_aspath_overwrite_cmd);
-	route_map_install_set(&route_set_aspath_replace_cmd);
+    route_map_install_match(&route_match_ipv6_address_cmd);
+    route_map_install_match(&route_match_ipv6_next_hop_cmd);
+    route_map_install_match(&route_match_ipv6_next_hop_address_cmd);
+    route_map_install_match(&route_match_ipv6_next_hop_prefix_list_cmd);
+    route_map_install_match(&route_match_ipv4_next_hop_cmd);
+    route_map_install_match(&route_match_ipv6_address_prefix_list_cmd);
+    route_map_install_match(&route_match_ipv6_next_hop_type_cmd);
+    route_map_install_set(&route_set_ipv6_nexthop_global_cmd);
+    route_map_install_set(&route_set_ipv6_nexthop_prefer_global_cmd);
+    route_map_install_set(&route_set_ipv6_nexthop_local_cmd);
+    route_map_install_set(&route_set_ipv6_nexthop_peer_cmd);
+    route_map_install_set(&route_set_aspath_overwrite_cmd);
+    route_map_install_set(&route_set_aspath_replace_cmd);
+    route_map_install_set(&route_set_rmac_cmd);
+    route_map_install_set(&route_set_vni_cmd);
 
-	install_element(RMAP_NODE, &match_ipv6_next_hop_cmd);
-	install_element(RMAP_NODE, &match_ipv6_next_hop_address_cmd);
-	install_element(RMAP_NODE, &match_ipv6_next_hop_prefix_list_cmd);
-	install_element(RMAP_NODE, &no_match_ipv6_next_hop_cmd);
-	install_element(RMAP_NODE, &no_match_ipv6_next_hop_address_cmd);
-	install_element(RMAP_NODE, &no_match_ipv6_next_hop_prefix_list_cmd);
-	install_element(RMAP_NODE, &match_ipv6_next_hop_old_cmd);
-	install_element(RMAP_NODE, &no_match_ipv6_next_hop_old_cmd);
-	install_element(RMAP_NODE, &match_ipv4_next_hop_cmd);
-	install_element(RMAP_NODE, &no_match_ipv4_next_hop_cmd);
-	install_element(RMAP_NODE, &set_ipv6_nexthop_global_cmd);
-	install_element(RMAP_NODE, &no_set_ipv6_nexthop_global_cmd);
-	install_element(RMAP_NODE, &set_ipv6_nexthop_prefer_global_cmd);
-	install_element(RMAP_NODE, &no_set_ipv6_nexthop_prefer_global_cmd);
-	install_element(RMAP_NODE, &set_ipv6_nexthop_peer_cmd);
-	install_element(RMAP_NODE, &no_set_ipv6_nexthop_peer_cmd);
-	install_element(RMAP_NODE, &set_aspath_overwrite_cmd);
-	install_element(RMAP_NODE, &no_set_aspath_overwrite_cmd);
-	install_element(RMAP_NODE, &set_aspath_replace_cmd);
-	install_element(RMAP_NODE, &no_set_aspath_replace_cmd);
+    install_element(RMAP_NODE, &match_ipv6_next_hop_cmd);
+    install_element(RMAP_NODE, &match_ipv6_next_hop_address_cmd);
+    install_element(RMAP_NODE, &match_ipv6_next_hop_prefix_list_cmd);
+    install_element(RMAP_NODE, &no_match_ipv6_next_hop_cmd);
+    install_element(RMAP_NODE, &no_match_ipv6_next_hop_address_cmd);
+    install_element(RMAP_NODE, &no_match_ipv6_next_hop_prefix_list_cmd);
+    install_element(RMAP_NODE, &match_ipv6_next_hop_old_cmd);
+    install_element(RMAP_NODE, &no_match_ipv6_next_hop_old_cmd);
+    install_element(RMAP_NODE, &match_ipv4_next_hop_cmd);
+    install_element(RMAP_NODE, &no_match_ipv4_next_hop_cmd);
+    install_element(RMAP_NODE, &set_ipv6_nexthop_global_cmd);
+    install_element(RMAP_NODE, &no_set_ipv6_nexthop_global_cmd);
+    install_element(RMAP_NODE, &set_ipv6_nexthop_prefer_global_cmd);
+    install_element(RMAP_NODE, &no_set_ipv6_nexthop_prefer_global_cmd);
+    install_element(RMAP_NODE, &set_ipv6_nexthop_peer_cmd);
+    install_element(RMAP_NODE, &no_set_ipv6_nexthop_peer_cmd);
+    install_element(RMAP_NODE, &set_aspath_overwrite_cmd);
+    install_element(RMAP_NODE, &no_set_aspath_overwrite_cmd);
+    install_element(RMAP_NODE, &set_aspath_replace_cmd);
+    install_element(RMAP_NODE, &no_set_aspath_replace_cmd);
+	install_element(RMAP_NODE, &set_rmac_cmd);
+	install_element(RMAP_NODE, &no_set_rmac_cmd);
+	install_element(RMAP_NODE, &set_vni_cmd);
+	install_element(RMAP_NODE, &no_set_vni_cmd);
+
 #ifdef HAVE_SCRIPTING
-	install_element(RMAP_NODE, &match_script_cmd);
+    install_element(RMAP_NODE, &match_script_cmd);
 #endif
-}
+    }
 
 void bgp_route_map_terminate(void)
 {

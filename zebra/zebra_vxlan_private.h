@@ -261,4 +261,5 @@ extern void zebra_vxlan_sync_mac_dp_install(struct zebra_mac *mac,
 					    const char *caller);
 extern bool zebra_evpn_do_dup_addr_detect(struct zebra_vrf *zvrf);
 
+extern int vni_from_zl3vni(struct zebra_l3vni *zl3vni);
 #endif /* _ZEBRA_VXLAN_PRIVATE_H */

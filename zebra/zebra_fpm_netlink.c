@@ -95,10 +95,14 @@ static const char *fpm_nh_encap_type_to_str(enum fpm_nh_encap_type_t encap_type)
 
 struct vxlan_encap_info_t {
 	vni_t vni;
+	struct ethaddr rmac;
+	int vlan;
 };
 
 enum vxlan_encap_info_type_t {
 	VXLAN_VNI = 0,
+	VXLAN_RMAC = 1,
+	VXLAN_VLAN = 2,
 };
 
 struct fpm_nh_encap_info_t {
@@ -107,6 +111,53 @@ struct fpm_nh_encap_info_t {
 		struct vxlan_encap_info_t vxlan_encap;
 	};
 };
+
+/* Utility function for making IPv6 address string. */
+const char *inet6_ntoa(struct in6_addr addr)
+{
+	static char buf[INET6_ADDRSTRLEN];
+ 
+	inet_ntop(AF_INET6, &addr, buf, INET6_ADDRSTRLEN);
+	return buf;
+}
+ 
+/*
+ * addr_to_a
+ *
+ * Returns string representation of an address of the given AF.
+ */
+static inline const char *addr_to_a(uint8_t af, void *addr)
+{
+	if (!addr)
+		return "<No address>";
+ 
+	switch (af) {
+ 
+	case AF_INET:
+		return inet_ntoa(*((struct in_addr *)addr));
+		break;
+	case AF_INET6:
+		return inet6_ntoa(*((struct in6_addr *)addr));
+		break;
+	default:
+		return "<Addr in unknown AF>";
+		break;
+	}
+}
+ 
+/*
+ * prefix_addr_to_a
+ *
+ * Convience wrapper that returns a human-readable string for the
+ * address in a prefix.
+ */
+static const char *prefix_addr_to_a(struct prefix *prefix)
+{
+	if (!prefix)
+		return "<No address>";
+ 
+	return addr_to_a(prefix->family, &prefix->u.prefix);
+}
 
 /*
  * netlink_nh_info
@@ -171,6 +222,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 	struct interface *ifp = NULL, *link_if = NULL;
 	struct zebra_if *zif = NULL;
 	vni_t vni = 0;
+    struct zebra_l3vni *zl3vni = NULL;
 
 	memset(&nhi, 0, sizeof(nhi));
 	src = NULL;
@@ -208,9 +260,10 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 	if (!nhi.gateway && nhi.if_index == 0)
 		return 0;
 
-	if (re && CHECK_FLAG(re->flags, ZEBRA_FLAG_EVPN_ROUTE)) {
+	if ((re && CHECK_FLAG(re->flags, ZEBRA_FLAG_EVPN_ROUTE))
+		|| (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP))){
 		nhi.encap_info.encap_type = FPM_NH_ENCAP_VXLAN;
-
+        zl3vni = zl3vni_from_vrf(nexthop->vrf_id);
 		/* Extract VNI id for the nexthop SVI interface */
 		zvrf = zebra_vrf_lookup_by_id(nexthop->vrf_id);
 		if (zvrf) {
@@ -233,7 +286,22 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 			}
 		}
 
-		nhi.encap_info.vxlan_encap.vni = vni;
+		if (nexthop->nh_encap.vni != 0) {
+			nhi.encap_info.vxlan_encap.vni = nexthop->nh_encap.vni;
+		} else {
+			nhi.encap_info.vxlan_encap.vni = vni;
+		}
+		if (zl3vni) {
+			char buf[ETHER_ADDR_STRLEN];
+			memcpy(&nhi.encap_info.vxlan_encap.rmac, &nexthop->rmac, ETH_ALEN);
+			int vid = vni_from_zl3vni(zl3vni);
+			nhi.encap_info.vxlan_encap.vlan = vid;
+			zfpm_debug("%s: NEWROUTE:%s/%d, Gateway:%s RMAC:%s VLAN:%d VNI:%d", __FUNCTION__,
+				prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
+				addr_to_a(ri->af, &nhi.gateway),
+				prefix_mac2str(&nhi.encap_info.vxlan_encap.rmac, buf, sizeof(buf)),
+                vid, nhi.encap_info.vxlan_encap.vni);		
+		}
 	}
 
 	/*
@@ -463,9 +531,25 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
 				      encap);
 			vxlan = &nhi->encap_info.vxlan_encap;
+			char buf[ETHER_ADDR_STRLEN];
+			zfpm_debug("%s: VNI:%d RMAC:%s VLAN:%d", __FUNCTION__,
+					vxlan->vni, prefix_mac2str(&vxlan->rmac, buf, sizeof(buf)),
+					vxlan->vlan);
+ 
 			nest = nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
+			/* nl_attr_nest add NLA_F_NESTED flag by default.
+			 * To avoid fpmsyncd cannot parse this flag, remove
+			 * this flag for vxlan ecnap.
+			 */
+			nest->rta_type &= ~(NLA_F_NESTED);
+
 			nl_attr_put32(&req->n, in_buf_len, VXLAN_VNI,
 				      vxlan->vni);
+			nl_attr_put(&req->n, in_buf_len, VXLAN_RMAC,
+						&vxlan->rmac, sizeof(vxlan->rmac));
+ 
+			nl_attr_put32(&req->n, in_buf_len, VXLAN_VLAN,
+						vxlan->vlan);
 			nl_attr_nest_end(&req->n, nest);
 			break;
 		}
@@ -477,8 +561,18 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	 * Multipath case.
 	 */
 	nest = nl_attr_nest(&req->n, in_buf_len, RTA_MULTIPATH);
-
+	size_t maxnhlen = NLMSG_ALIGN(req->n.nlmsg_len) + RTA_LENGTH(af_addr_size(AF_INET6)) /* Gateway */
+		+ RTA_LENGTH(sizeof(uint16_t)) /* Encapsulation type */
+		+ RTA_LENGTH(sizeof(uint32_t)) /* VxLAN VNI */
+		+ RTA_LENGTH(sizeof(struct ethaddr)) /* VxLAN VNI */
+		+ RTA_LENGTH(sizeof(uint32_t)); /* VxLAN VNI */
 	for (nexthop_num = 0; nexthop_num < ri->num_nhs; nexthop_num++) {
+		if(in_buf_len < maxnhlen){
+			//Cannot accomodate more NHs -> Log Error and break
+			zlog_err("netlink_route_info_encode: Ignore Nexthops that exceed the netlink buffer !!");
+			break;
+		}
+ 
 		rtnh = nl_attr_rtnh(&req->n, in_buf_len);
 		nhi = &ri->nhs[nexthop_num];
 
@@ -501,10 +595,25 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
 				      encap);
 			vxlan = &nhi->encap_info.vxlan_encap;
+			char rmac_buf[ETHER_ADDR_STRLEN];
+			zfpm_debug("%s: Multi VNI:%d RMAC:%s VLAN:%d", __FUNCTION__,
+					vxlan->vni, prefix_mac2str(&vxlan->rmac, rmac_buf, sizeof(rmac_buf)),
+					vxlan->vlan);
 			inner_nest =
 				nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
+			/* nl_attr_nest add NLA_F_NESTED flag by default.
+			 * To avoid fpmsyncd cannot parse this flag, remove
+			 * this flag for vxlan ecnap.
+			 */
+			inner_nest->rta_type &= ~(NLA_F_NESTED);
+
 			nl_attr_put32(&req->n, in_buf_len, VXLAN_VNI,
 				      vxlan->vni);
+			nl_attr_put(&req->n, in_buf_len, VXLAN_RMAC,
+						&vxlan->rmac, sizeof(vxlan->rmac));
+ 
+			nl_attr_put32(&req->n, in_buf_len, VXLAN_VLAN,
+						vxlan->vlan);
 			nl_attr_nest_end(&req->n, inner_nest);
 			break;
 		}

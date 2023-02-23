@@ -584,9 +584,9 @@ static void zebra_evpn_dup_addr_detect_for_mac(struct zebra_vrf *zvrf,
 		/* Start auto recovery timer for this MAC */
 		THREAD_OFF(mac->dad_mac_auto_recovery_timer);
 		if (zvrf->dad_freeze && zvrf->dad_freeze_time) {
+            char buf[MAC_BUF_SIZE];
 			if (IS_ZEBRA_DEBUG_VXLAN) {
 				char mac_buf[MAC_BUF_SIZE];
-
 				zlog_debug(
 					"%s: duplicate addr MAC %pEA flags %sauto recovery time %u start",
 					__func__, &mac->macaddr,
@@ -595,6 +595,11 @@ static void zebra_evpn_dup_addr_detect_for_mac(struct zebra_vrf *zvrf,
 					zvrf->dad_freeze_time);
 			}
 
+			zlog_notice(
+					"MAC %s reaches max duplicate times(%u) and freeze, auto recovery time %u seconds start",
+					prefix_mac2str(&mac->macaddr, buf, sizeof(buf)),
+					mac->dad_count,
+					zvrf->dad_freeze_time);
 			thread_add_timer(zrouter.master,
 					 zebra_evpn_dad_mac_auto_recovery_exp,
 					 mac, zvrf->dad_freeze_time,

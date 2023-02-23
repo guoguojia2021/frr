@@ -3272,15 +3272,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	}
 
 end:
-	if(!goto_fib){
-		/* advertise/withdraw type-5 routes */
-		if ((afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST)) {
-			if (new_select)
-				bgp_evpn_advertise_type5_route(bgp, &rn->p, new_select->attr, afi, safi);
-			else if (old_select)
-				bgp_evpn_withdraw_type5_route(bgp, &rn->p, afi, safi);
-		}
-	}
+
 	/* Clear any route change flags. */
 	bgp_zebra_clear_route_change_flags(rn);
 	if (unset_later && old_select) {

@@ -337,6 +337,7 @@ struct attr {
 
 	/* If NEXTHOP_TYPE_BLACKHOLE, then blackhole type */
 	enum blackhole_type bh_type;
+    vni_t vni;
 };
 
 /* rmap_change_flags definition */

@@ -21,6 +21,7 @@
 #define __STATIC_ROUTES_H__
 
 #include "lib/mpls.h"
+#include "lib/vxlan.h"
 #include "table.h"
 #include "memory.h"
 
@@ -54,6 +55,8 @@ enum static_nh_type {
 	STATIC_IPV6_GATEWAY,
 	STATIC_IPV6_GATEWAY_IFNAME,
 	STATIC_BLACKHOLE,
+	STATIC_IPV4_GATEWAY_EVPN,
+	STATIC_IPV6_GATEWAY_EVPN,
 };
 
 /*
@@ -148,6 +151,8 @@ struct static_nexthop {
 
 	/* SR-TE color */
 	uint32_t color;
+	vni_t nh_vni;
+	struct ethaddr nh_rmac;
 };
 
 DECLARE_DLIST(static_nexthop_list, struct static_nexthop, list);
@@ -172,7 +177,7 @@ void static_fixup_vrf_ids(struct static_vrf *svrf);
 extern struct static_nexthop *
 static_add_nexthop(struct static_path *pn, enum static_nh_type type,
 		   struct ipaddr *ipaddr, const char *ifname,
-		   const char *nh_vrf, uint32_t color);
+		   const char *nh_vrf, uint32_t color, vni_t vni, struct ethaddr *rmac);
 extern void static_install_nexthop(struct static_nexthop *nh);
 
 extern void static_delete_nexthop(struct static_nexthop *nh);
@@ -199,7 +204,7 @@ extern void static_get_nh_type(enum static_nh_type stype, char *type,
 			       size_t size);
 extern bool static_add_nexthop_validate(const char *nh_vrf_name,
 					enum static_nh_type type,
-					struct ipaddr *ipaddr);
+					struct ipaddr *ipaddr, vni_t nh_vni, struct ethaddr *rmac);
 extern struct stable_info *static_get_stable_info(struct route_node *rn);
 
 extern void zebra_stable_node_cleanup(struct route_table *table,

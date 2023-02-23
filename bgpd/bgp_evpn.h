@@ -23,6 +23,7 @@
 
 #include "vxlan.h"
 #include "bgpd.h"
+#include "bgpd/bgp_debug.h"
 
 #define EVPN_ROUTE_STRLEN 200 /* Must be >> MAC + IPv6 strings. */
 #define EVPN_AUTORT_VXLAN 0x10000000
@@ -103,26 +104,38 @@ get_route_parent_evpn(struct bgp_path_info *ri)
 
 /* Flag if the route's parent is a EVPN route. */
 static inline int is_route_parent_evpn(struct bgp_path_info *ri)
-{
-	struct bgp_path_info *parent_ri;
-	struct bgp_table *table;
-	struct bgp_dest *dest;
+    {
+    struct bgp_path_info *parent_ri;
+    struct bgp_table *table;
+    struct bgp_dest *dest;
+    char buf[PREFIX2STR_BUFFER];
 
-	parent_ri = get_route_parent_evpn(ri);
-	if (!parent_ri)
-		return 0;
+    parent_ri = get_route_parent_evpn(ri);
+    if (!parent_ri)
+        return 0;
 
-	/* See if of family L2VPN/EVPN */
-	dest = parent_ri->net;
-	if (!dest)
-		return 0;
-	table = bgp_dest_table(dest);
-	if (table &&
-	    table->afi == AFI_L2VPN &&
-	    table->safi == SAFI_EVPN)
-		return 1;
-	return 0;
-}
+    /* See if of family L2VPN/EVPN */
+    dest = parent_ri->net;
+    if (!dest)
+        return 0;
+    table = bgp_dest_table(dest);
+    if (table) {
+        if (table->afi == AFI_L2VPN &&
+            table->safi == SAFI_EVPN)
+            return 1;
+
+        if (table->safi == SAFI_MPLS_VPN &&
+            ri->attr && ri->attr->vni &&
+            !is_zero_mac(&ri->attr->rmac)) {
+            if (bgp_debug_zebra(NULL)) { /* MPLSVPN to EVPN conversion */
+                zlog_debug("%s(): classify MPLS_VPN with VNI(%d) RMAC(%s) as EVPN ",
+                            __func__, ri->attr->vni,
+                            prefix_mac2str(&ri->attr->rmac, buf, sizeof(buf)));
+            }
+            return 1;
+        }
+    }
+    }
 
 /* Flag if the route path's family is EVPN. */
 static inline bool is_pi_family_evpn(struct bgp_path_info *pi)

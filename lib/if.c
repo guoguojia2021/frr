@@ -425,7 +425,7 @@ static struct interface *if_lookup_by_index_all_vrf(ifindex_t ifindex)
 
 /* Lookup interface by IP address.
  *
- * supersedes if_lookup_exact_address(), which didn't care about up/down
+ * supersedes if_address_is_local(), which didn't care about up/down
  * state.  but all users we have either only care if the address is local
  * (=> use if_address_is_local() please), or care about UP interfaces before
  * anything else

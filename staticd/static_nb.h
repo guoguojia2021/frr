@@ -101,7 +101,22 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_sr
 	struct nb_cb_modify_args *args);
 int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_mpls_label_stack_entry_traffic_class_destroy(
 	struct nb_cb_destroy_args *args);
-
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_vni_modify(
+	struct nb_cb_modify_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_vni_destroy(
+	struct nb_cb_destroy_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_vni_modify(
+	struct nb_cb_modify_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_vni_destroy(
+	struct nb_cb_destroy_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_rmac_modify(
+	struct nb_cb_modify_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_rmac_destroy(
+	struct nb_cb_destroy_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_rmac_modify(
+	struct nb_cb_modify_args *args);
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_rmac_destroy(
+	struct nb_cb_destroy_args *args);
 /* Optional 'apply_finish' callbacks. */
 
 void routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_apply_finish(
@@ -152,6 +167,9 @@ int routing_control_plane_protocols_name_validate(
 
 #define FRR_STATIC_ROUTE_NHLB_KEY_XPATH "/entry[id='%u']/label"
 
+#define FRR_STATIC_ROUTE_NH_VNI_XPATH "/vni"
+ 
+#define FRR_STATIC_ROUTE_NH_RMAC_XPATH "/rmac"
 /* route-list/srclist */
 #define FRR_S_ROUTE_SRC_INFO_KEY_XPATH                                         \
 	"/frr-routing:routing/control-plane-protocols/"                        \

@@ -278,6 +278,12 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_fib_get_elem(
 struct yang_data *
 lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_weight_get_elem(
 	struct nb_cb_get_elem_args *args);
+struct yang_data *
+lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_vni_get_elem(
+	struct nb_cb_get_elem_args *args);
+struct yang_data *
+lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_rmac_get_elem(
+	struct nb_cb_get_elem_args *args);
 int lib_vrf_zebra_l3vni_id_modify(struct nb_cb_modify_args *args);
 int lib_vrf_zebra_l3vni_id_destroy(struct nb_cb_destroy_args *args);
 int lib_vrf_zebra_prefix_only_modify(struct nb_cb_modify_args *args);

@@ -638,7 +638,9 @@ bgp_adv_lprio_timer (struct thread *thread)
 		zlog_debug("%s advertise-low-priority timer expired, "
 			   "advertise routes with unmodified attribute value",
 			   peer->host);
-
+	if (peer->bgp)
+		SET_FLAG(peer->bgp->alibgp_flags,
+			BGP_FLAG_ADV_FORCE_UPDATES);
 	bgp_announce_route_all(peer);
 
 	return 0;

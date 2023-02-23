@@ -631,6 +631,18 @@ const struct frr_yang_module_info frr_zebra_info = {
 			}
 		},
 		{
+			.xpath = "/frr-vrf:lib/vrf/frr-zebra:zebra/ribs/rib/route/route-entry/nexthop-group/nexthop/vni",
+			.cbs = {
+				.get_elem = lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_vni_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-vrf:lib/vrf/frr-zebra:zebra/ribs/rib/route/route-entry/nexthop-group/nexthop/rmac",
+			.cbs = {
+				.get_elem = lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_rmac_get_elem,
+			}
+		},
+		{
 			.xpath = "/frr-vrf:lib/vrf/frr-zebra:zebra/l3vni-id",
 			.cbs = {
 				.modify = lib_vrf_zebra_l3vni_id_modify,

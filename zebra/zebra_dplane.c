@@ -2414,7 +2414,8 @@ int dplane_ctx_route_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 		}
 
 		/* Check for available evpn encapsulations. */
-		if (!CHECK_FLAG(re->flags, ZEBRA_FLAG_EVPN_ROUTE))
+		if (!CHECK_FLAG(re->flags, ZEBRA_FLAG_EVPN_ROUTE)
+			&& !CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP))
 			continue;
 
 		zl3vni = zl3vni_from_vrf(nexthop->vrf_id);

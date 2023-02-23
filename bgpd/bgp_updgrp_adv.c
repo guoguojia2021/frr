@@ -504,15 +504,17 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 	if (CHECK_FLAG(bgp->flags, BGP_FLAG_SUPPRESS_DUPLICATES)
 	    && !CHECK_FLAG(subgrp->sflags, SUBGRP_STATUS_FORCE_UPDATES)
 	    && adj->attr_hash == attr_hash) {
-		if (BGP_DEBUG(update, UPDATE_OUT)) {
-			char attr_str[BUFSIZ] = {0};
+		if (!CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_FORCE_UPDATES)) {
+			if (BGP_DEBUG(update, UPDATE_OUT)) {
+				char attr_str[BUFSIZ] = {0};
 
-			bgp_dump_attr(attr, attr_str, sizeof(attr_str));
+				bgp_dump_attr(attr, attr_str, sizeof(attr_str));
 
-			zlog_debug("%s suppress UPDATE w/ attr: %s", peer->host,
-				   attr_str);
+				zlog_debug("%s suppress UPDATE w/ attr: %s-%u", peer->host,
+					attr_str, bgp->alibgp_flags);
+			}
+			return;
 		}
-		return;
 	}
 
 	if (adj->adv)

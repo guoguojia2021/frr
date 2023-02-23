@@ -117,7 +117,7 @@ FRR_CFG_DEFAULT_ULONG(BGP_KEEPALIVE,
 FRR_CFG_DEFAULT_BOOL(BGP_EBGP_REQUIRES_POLICY,
 	{ .val_bool = false, .match_profile = "datacenter", },
 	{ .val_bool = false, .match_version = "< 7.4", },
-	{ .val_bool = true },
+	{ .val_bool = false },
 );
 FRR_CFG_DEFAULT_BOOL(BGP_SUPPRESS_DUPLICATES,
 	{ .val_bool = false, .match_version = "< 7.6", },

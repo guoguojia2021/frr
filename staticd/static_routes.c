@@ -28,6 +28,7 @@
 #include <lib/memory.h>
 
 #include "printfrr.h"
+#include "lib/vxlan.h"
 
 #include "static_vrf.h"
 #include "static_routes.h"
@@ -187,10 +188,11 @@ void static_del_route(struct route_node *rn)
 }
 
 bool static_add_nexthop_validate(const char *nh_vrf_name,
-				 enum static_nh_type type,
-				 struct ipaddr *ipaddr)
+				 enum static_nh_type type, struct ipaddr *ipaddr,
+                 vni_t nh_vni, struct ethaddr *rmac)
 {
 	struct vrf *vrf;
+    static uint8_t tmp [ETHER_ADDR_STRLEN] = {0};
 
 	vrf = vrf_lookup_by_name(nh_vrf_name);
 	if (!vrf)
@@ -209,6 +211,30 @@ bool static_add_nexthop_validate(const char *nh_vrf_name,
 					vrf->vrf_id))
 			return false;
 		break;
+	case STATIC_IPV4_GATEWAY_EVPN:
+		if (if_address_is_local(&ipaddr->ipaddr_v4, AF_INET,
+					    vrf->vrf_id))
+			return false;
+ 
+		if (nh_vni == 0)
+			return false;
+ 
+		if (memcmp(rmac, &tmp, ETH_ALEN) == 0)
+			return false;
+ 
+		break;
+	case STATIC_IPV6_GATEWAY_EVPN:
+		if (if_address_is_local(&ipaddr->ipaddr_v6, AF_INET6,
+					    vrf->vrf_id))
+			return false;
+ 
+		if (nh_vni == 0)
+			return false;
+ 
+		if (memcmp(rmac, &tmp, ETH_ALEN) == 0)
+			return false;
+ 
+		break; 
 	default:
 		break;
 	}
@@ -261,7 +287,8 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 					  enum static_nh_type type,
 					  struct ipaddr *ipaddr,
 					  const char *ifname,
-					  const char *nh_vrf, uint32_t color)
+					  const char *nh_vrf, uint32_t color,
+                      vni_t vni, struct ethaddr *rmac)
 {
 	struct route_node *rn = pn->rn;
 	struct static_nexthop *nh;
@@ -286,6 +313,8 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 
 	nh->nh_vrf_id = nh_svrf ? nh_svrf->vrf->vrf_id : VRF_UNKNOWN;
 	strlcpy(nh->nh_vrfname, nh_vrf, sizeof(nh->nh_vrfname));
+	nh->nh_vni = vni;
+	memcpy(&nh->nh_rmac, rmac, sizeof(struct ethaddr));
 
 	if (ifname)
 		strlcpy(nh->ifname, ifname, sizeof(nh->ifname));
@@ -293,10 +322,12 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 
 	switch (type) {
 	case STATIC_IPV4_GATEWAY:
+	case STATIC_IPV4_GATEWAY_EVPN:
 	case STATIC_IPV4_GATEWAY_IFNAME:
 		nh->addr.ipv4 = ipaddr->ipaddr_v4;
 		break;
 	case STATIC_IPV6_GATEWAY:
+	case STATIC_IPV6_GATEWAY_EVPN:
 	case STATIC_IPV6_GATEWAY_IFNAME:
 		nh->addr.ipv6 = ipaddr->ipaddr_v6;
 		break;
@@ -333,6 +364,8 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 	case STATIC_IPV6_GATEWAY:
 	case STATIC_BLACKHOLE:
 		break;
+	case STATIC_IPV4_GATEWAY_EVPN:
+	case STATIC_IPV6_GATEWAY_EVPN:
 	case STATIC_IPV4_GATEWAY_IFNAME:
 	case STATIC_IPV6_GATEWAY_IFNAME:
 		ifp = if_lookup_by_name(ifname, nh->nh_vrf_id);
@@ -353,6 +386,8 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 				"Static Route using %s interface not installed because the interface does not exist in specified vrf",
 				ifname);
 		break;
+	default:
+		zlog_err("%s: static Route using error type %u", __func__, nh->type);
 	}
 
 	return nh;
@@ -390,6 +425,8 @@ void static_install_nexthop(struct static_nexthop *nh)
 		static_install_path(pn);
 		break;
 	case STATIC_IFNAME:
+	case STATIC_IPV4_GATEWAY_EVPN:
+	case STATIC_IPV6_GATEWAY_EVPN:
 		ifp = if_lookup_by_name(nh->ifname, nh->nh_vrf_id);
 		if (ifp && ifp->ifindex != IFINDEX_INTERNAL)
 			static_install_path(pn);
@@ -783,6 +820,7 @@ void static_get_nh_type(enum static_nh_type stype, char *type, size_t size)
 		strlcpy(type, "ip4", size);
 		break;
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_GATEWAY_EVPN:
 		strlcpy(type, "ip4-ifindex", size);
 		break;
 	case STATIC_BLACKHOLE:
@@ -792,6 +830,7 @@ void static_get_nh_type(enum static_nh_type stype, char *type, size_t size)
 		strlcpy(type, "ip6", size);
 		break;
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_GATEWAY_EVPN:
 		strlcpy(type, "ip6-ifindex", size);
 		break;
 	};
@@ -815,6 +854,7 @@ void static_get_nh_str(struct static_nexthop *nh, char *nexthop, size_t size)
 		snprintfrr(nexthop, size, "ip4 : %pI4", &nh->addr.ipv4);
 		break;
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_GATEWAY_EVPN:
 		snprintfrr(nexthop, size, "ip4-ifindex : %pI4 : %s",
 			   &nh->addr.ipv4, nh->ifname);
 		break;
@@ -825,6 +865,7 @@ void static_get_nh_str(struct static_nexthop *nh, char *nexthop, size_t size)
 		snprintfrr(nexthop, size, "ip6 : %pI6", &nh->addr.ipv6);
 		break;
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_GATEWAY_EVPN:
 		snprintfrr(nexthop, size, "ip6-ifindex : %pI6 : %s",
 			   &nh->addr.ipv6, nh->ifname);
 		break;

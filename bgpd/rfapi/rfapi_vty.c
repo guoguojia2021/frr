@@ -455,6 +455,18 @@ void rfapi_vty_out_vncinfo(struct vty *vty, const struct prefix *p,
 	vty_out(vty, " type=%s, subtype=%d", zebra_route_string(bpi->type),
 		bpi->sub_type);
 
+	if (bpi->attr) {
+			if (bpi->attr->vni) {
+				vty_out(vty, ", VNI=%d", bpi->attr->vni);
+			}
+
+			if (!is_zero_mac(&bpi->attr->rmac)) {
+				char tmp_buf[PREFIX2STR_BUFFER];
+				vty_out(vty, ", RMAC=%s",
+						prefix_mac2str(&bpi->attr->rmac, tmp_buf, sizeof(tmp_buf)));
+			}
+	}
+
 	vty_out(vty, "%s", HVTYNL);
 }
 

@@ -27,6 +27,7 @@
 #include "vrf.h"
 #include "nexthop.h"
 #include "srcdest_table.h"
+#include "lib/vxlan.h"
 
 #include "static_vrf.h"
 #include "static_routes.h"
@@ -144,6 +145,9 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 	enum static_nh_type nh_type;
 	const char *ifname;
 	const char *nh_vrf;
+	vni_t nh_vni = 0;
+	char *nh_rmac;
+	struct ethaddr rmac = {{0}};
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
@@ -188,14 +192,25 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 		nh_vrf = yang_dnode_get_string(args->dnode, "./vrf");
 		pn = nb_running_get_entry(args->dnode, NULL, true);
 
-		if (!static_add_nexthop_validate(nh_vrf, nh_type, &ipaddr))
+		if (nh_type == STATIC_IPV4_GATEWAY_EVPN
+			|| nh_type == STATIC_IPV6_GATEWAY_EVPN) {
+			nh_vni = yang_dnode_get_uint32(args->dnode, "./vni");
+			nh_rmac = yang_dnode_get_string(args->dnode, "./rmac");
+			if (!prefix_str2mac(nh_rmac, &rmac)) {
+				snprintf(args->errmsg, args->errmsg_len,
+				"%s: Malformed MAC address\n", nh_rmac);
+				return NB_ERR_VALIDATION;
+			}
+		}
+
+        if (!static_add_nexthop_validate(nh_vrf, nh_type, &ipaddr, nh_vni, &rmac))
 			flog_warn(
 				EC_LIB_NB_CB_CONFIG_VALIDATE,
 				"Warning!! Local connected address is configured as Gateway IP((%s))",
 				yang_dnode_get_string(args->dnode,
 						      "./gateway"));
 		nh = static_add_nexthop(pn, nh_type, &ipaddr, ifname, nh_vrf,
-					0);
+					0, nh_vni, &rmac);
 		nb_running_set_entry(args->dnode, nh);
 		break;
 	}
@@ -990,5 +1005,178 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_sr
 		break;
 	}
 
+	return NB_OK;
+}
+
+/*
+ * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/src-list/path-list/frr-nexthops/nexthop/vni
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_vni_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct static_nexthop *nh;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+ 
+		nh = nb_running_get_entry(args->dnode, NULL, true);
+		nh->nh_vni = yang_dnode_get_uint32(args->dnode, NULL);
+ 
+		break;
+	}
+	return NB_OK;
+}
+ 
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_vni_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	struct static_nexthop *nh;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		nh = nb_running_unset_entry(args->dnode);
+		nh->nh_vni = 0;
+		break;
+	}
+	return NB_OK;
+}
+ 
+/*
+ * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/path-list/frr-nexthops/nexthop/vni
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_vni_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct static_nexthop *nh;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		nh = nb_running_get_entry(args->dnode, NULL, true);
+		nh->nh_vni = yang_dnode_get_uint32(args->dnode, NULL);;
+ 
+		break;
+	}
+	return NB_OK;
+}
+ 
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_vni_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	struct static_nexthop *nh;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		nh = nb_running_unset_entry(args->dnode);
+		nh->nh_vni = 0;
+		break;
+	}
+	return NB_OK;
+}
+ 
+/*
+ * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/src-list/path-list/frr-nexthops/nexthop/rmac
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_rmac_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct static_nexthop *nh;
+	char *nh_rmac;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+ 
+		nh = nb_running_get_entry(args->dnode, NULL, true);
+		nh_rmac = yang_dnode_get_string(args->dnode, NULL);
+ 
+		if (!prefix_str2mac(nh_rmac, &nh->nh_rmac)) {
+			snprintf(args->errmsg, args->errmsg_len,
+			"%s: Malformed MAC address\n", nh_rmac);
+			return NB_ERR_VALIDATION;
+		}
+ 
+		break;
+	}
+	return NB_OK;
+}
+ 
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_rmac_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	struct static_nexthop *nh;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		nh = nb_running_unset_entry(args->dnode);
+		memset(&nh->nh_rmac, 0, sizeof(struct ethaddr));
+		break;
+	}
+	return NB_OK;
+}
+ 
+/*
+ * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/path-list/frr-nexthops/nexthop/rmac
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_rmac_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct static_nexthop *nh;
+	char *nh_rmac;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+ 
+		nh = nb_running_get_entry(args->dnode, NULL, true);
+		nh_rmac = yang_dnode_get_string(args->dnode, NULL);
+ 
+		if (!prefix_str2mac(nh_rmac, &nh->nh_rmac)) {
+			snprintf(args->errmsg, args->errmsg_len,
+			"%s: Malformed MAC address\n", nh_rmac);
+			return NB_ERR_VALIDATION;
+		}
+ 
+		break;
+	}
+	return NB_OK;
+}
+ 
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_rmac_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	struct static_nexthop *nh;
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		nh = nb_running_unset_entry(args->dnode);
+		memset(&nh->nh_rmac, 0, sizeof(struct ethaddr));
+		break;
+	}
 	return NB_OK;
 }
