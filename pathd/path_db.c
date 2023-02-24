@@ -238,7 +238,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         /* set last sid field and value*/
         snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s",SRV6_SID_LIST_TABLE, segl->name);
         snprintf(field, PATH_DB_MAX_KEY_LEN, "forwarding-ignore-last-sid");
-        snprintf(value, PATH_DB_MAX_KEY_LEN, "%s", 
+        snprintf(value, PATH_DB_MAX_KEY_LEN, "%s",
             inet_ntop(AF_INET6, &segl->last_sid.ipaddr_v6, tmpbuf, sizeof(tmpbuf)));
 
         pstDataLst_lastsid = new_Sidlist_DB_Data(key, field, value);
@@ -508,7 +508,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
     }
 
     /*publish*/
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
+    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_POLICY_TABLE);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
