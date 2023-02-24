@@ -142,6 +142,8 @@ struct srte_segment_list *srte_segment_list_add(const char *name)
 	RB_INIT(srte_segment_entry_head, &segment_list->segments);
 	RB_INIT(srte_sbfd_session_head, &segment_list->sbfd_sessions);
 	segment_list->last_sid.ipa_type = IPADDR_NONE;
+	refcounter_init(segment_list);
+
 	RB_INSERT(srte_segment_list_head, &srte_segment_lists, segment_list);
 
 	return segment_list;
@@ -640,6 +642,7 @@ void srte_apply_changes(void)
 			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW) 
 				|| CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED))
 			{
+                policy_sbfd_enabled(policy);
 				srte_policy_sbfd_each_seglist_apply(policy);
 				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
 				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
@@ -663,7 +666,15 @@ void srte_apply_changes(void)
 			/* operate APPDB */
 			if (!RB_EMPTY(srte_segment_entry_head, &segment_list->segments))
 			{
-			    sidlist_Db_SetEntry(segment_list);
+				/*when sidlist be used by policy and sidlist status is not down ,then set APPDB*/
+				if (is_refcounter_retain(segment_list) && segment_list->upcount > 0)
+				{
+                    sidlist_Db_SetEntry(segment_list);
+				}
+				else
+				{
+					sidlist_Db_DelEntry(segment_list->name);
+				}
 			}
 		}
 		UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW);
@@ -965,6 +976,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 		lsp->protocol_origin = origin;
 	}
 	candidate->segment_list = NULL;
+	cpath_status_init(candidate->policy, candidate);
 
 	if (candidate->protocol_origin == SRTE_ORIGIN_PCEP
 	    || candidate->protocol_origin == SRTE_ORIGIN_BGP) {
@@ -1787,4 +1799,126 @@ int32_t srte_ted_do_query_type_f(struct srte_segment_entry *entry,
 		srte_segment_set_local_modification(entry->segment_list, entry,
 						    ted_sid);
 	return status;
+}
+
+
+void refcounter_init(struct srte_segment_list *segment_list)
+{
+    if(segment_list)
+	{
+        segment_list->refcount = 0;
+	}
+}
+
+void refcounter_increase(struct srte_segment_list *segment_list)
+{
+    if(segment_list)
+	{
+        segment_list->refcount++;
+	}
+}
+
+void refcounter_decrease(struct srte_segment_list *segment_list)
+{
+    if(segment_list && segment_list->refcount > 0)
+	{
+        segment_list->refcount--;
+	}
+}
+
+bool is_refcounter_retain(struct srte_segment_list *segment_list)
+{
+    if(segment_list)
+	{
+		return (segment_list->refcount > 0);
+	}
+	return false;
+}
+
+void upcounter_increase(struct srte_segment_list *segment_list)
+{
+    if(segment_list)
+	{
+        segment_list->upcount++;
+	}
+}
+
+void upcounter_decrease(struct srte_segment_list *segment_list)
+{
+    if(segment_list && segment_list->upcount > 0)
+	{
+        segment_list->upcount--;
+	}
+}
+
+void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate)
+{
+	if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD))
+	{
+        candidate->status = SRTE_DETECT_DOWN;
+	}
+	else
+	{
+        candidate->status = SRTE_DETECT_NONE;
+	}
+}
+
+static cpath_status_up_handle(struct srte_candidate *candidate)
+{
+	switch (candidate->status)
+	{
+	case SRTE_DETECT_DOWN:
+		// down -> up
+		candidate->status=SRTE_DETECT_UP;
+		upcounter_increase(candidate->segment_list);
+		sidlist_Db_SetEntry(candidate->segment_list);	
+		break;
+	case SRTE_DETECT_NONE:
+		// none -> up
+		candidate->status=SRTE_DETECT_UP;
+		break;
+	case SRTE_DETECT_UP:
+		// up->up, do nothing
+		break;
+	default:
+		break;
+	}
+}
+
+static cpath_status_down_handle(struct srte_candidate *candidate)
+{
+	switch (candidate->status)
+	{
+	case SRTE_DETECT_DOWN:
+		// down -> down, do nothing		
+		break;
+	case SRTE_DETECT_NONE:
+		// none -> down
+	case SRTE_DETECT_UP:
+		// up->down, do nothing
+		candidate->status=SRTE_DETECT_DOWN;
+		upcounter_decrease(candidate->segment_list);
+		if (candidate->segment_list->upcount == 0)
+		{
+			sidlist_Db_DelEntry(candidate->segment_list->name);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta)
+{
+	switch (sta)
+	{
+	case SRTE_DETECT_DOWN:
+		cpath_status_down_handle(candidate);
+		break;
+	case SRTE_DETECT_UP:
+		cpath_status_up_handle(candidate);
+		break;
+	default:
+		break;
+	}
 }

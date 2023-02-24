@@ -173,6 +173,7 @@ enum srte_segment_sid_type {
 enum detection_status {
     SRTE_DETECT_DOWN,
 	SRTE_DETECT_UP,
+	SRTE_DETECT_NONE,
 };
 
 struct srte_segment_list;
@@ -256,6 +257,12 @@ struct srte_segment_list {
 
     /* segment list status  */
     enum detection_status status;
+
+    /* reference count */
+    uint16_t refcount;
+
+    /* path up count */
+    uint16_t upcount;
 
 	/* Status flags. */
 	uint16_t flags;
@@ -490,7 +497,9 @@ struct srte_policy {
 #define F_POLICY_CONF_BFD 0x0010
 #define F_POLICY_TUNNEL_ATTR_UPDATE 0x0020
    
-   struct sbfd_session_config *bfd_config;
+    struct sbfd_session_config *bfd_config;
+
+   	struct thread *wait_sbfd_timer;
 	/* SRP id for PcInitiated support */
 	int srp_id;
 };
@@ -636,4 +645,11 @@ void path_delete_sbfd_config(struct srte_policy *policy);
 
 void srv6_refresh_policy_state(struct srte_policy *policy);
 void srv6_choose_best_cpath_group(struct srte_policy *policy);
+
+void refcounter_init(struct srte_segment_list *segment_list);
+void refcounter_increase(struct srte_segment_list *segment_list);
+void refcounter_decrease(struct srte_segment_list *segment_list);
+bool is_refcounter_retain(struct srte_segment_list *segment_list);
+void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate);
+void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta);
 #endif /* _FRR_PATHD_H_ */

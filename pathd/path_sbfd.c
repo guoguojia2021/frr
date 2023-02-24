@@ -38,6 +38,7 @@
 #endif
 
 #define XPATH_POLICY_BASELEN 100
+#define SBFD_FIRST_TIMEOUT 60
 
 DEFINE_MTYPE_STATIC(PATHD, PATH_SEGMENT_LIST_SBFD_CONFIG, "Segment List SBFD configuration data");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SRPOLICY_SBFD_CONFIG, "SR-Policy SBFD configuration data");
@@ -73,7 +74,7 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 			}
 			if (candidate->segment_list == sbfd_event->segl)
 			{
-				candidate->status = status;
+				cpath_status_refresh(candidate, status);
 			}
 
 			zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.",
@@ -1002,7 +1003,35 @@ static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)
 	return 0;
 }
 
+static int policy_sbfd_first_timeout(struct thread *t)
+{
+    struct srte_policy *policy = THREAD_ARG(t);
+    THREAD_OFF(policy->wait_sbfd_timer);
 
+	struct srte_sbfd_event sbfd_event = {0};
+	sbfd_event.policy = policy;
+
+	struct srte_candidate *candidate, *safe;
+
+	RB_FOREACH_SAFE (candidate, srte_candidate_head,
+			 &policy->candidate_paths, safe) {
+        if (candidate->segment_list == NULL)
+		    continue;
+
+        sbfd_event.segl = candidate->segment_list;
+	    sbfd_status_event_action(&sbfd_event, BSS_DOWN);
+	}
+    return 0;
+}
+
+void policy_sbfd_enabled(struct srte_policy *policy)
+{
+    if (policy->wait_sbfd_timer != NULL)
+        return;
+
+    thread_add_timer(master, policy_sbfd_first_timeout,
+             (void *)policy, SBFD_FIRST_TIMEOUT, &policy->wait_sbfd_timer);
+}
 
 void sr_sbfd_init()
 {

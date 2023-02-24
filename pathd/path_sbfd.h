@@ -52,4 +52,6 @@ bool is_exist_seglist_in_policy_exclude_cpath(struct srte_policy *policy, struct
     struct srte_candidate *ex_cpath);
 bool is_exist_seglist_in_policy(struct srte_policy *policy, struct srte_segment_list *seglist);
 void sbfd_candidate_seglist_disable(struct srte_candidate *candidate);
+
+void policy_sbfd_enabled(struct srte_policy *policy);
 #endif /* _FRR_PATHD_SBFD_H_ */
