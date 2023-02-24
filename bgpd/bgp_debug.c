@@ -2264,8 +2264,8 @@ DEFUN_NOSH (show_debugging_bgp,
 				     "  BGP updates debugging is on (outbound)",
 				     bgp_debug_update_out_peers);
 
-    if (term_bgp_debug_update_strict)
-        vty_out(vty, "  BGP updates debugging is strict");
+	if (term_bgp_debug_update_strict)
+		vty_out(vty, "  BGP updates debugging is strict");
 
 	if (BGP_DEBUG(zebra, ZEBRA))
 		bgp_debug_list_print(vty, "  BGP zebra debugging is on",

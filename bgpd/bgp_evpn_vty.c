@@ -3426,7 +3426,7 @@ static void show_l3vni_routes(struct bgp *bgp, struct ipaddr *ip, vni_t vni, int
         char rd_str[RD_ADDRSTRLEN];
 		const struct prefix *rd_destp = bgp_dest_get_prefix(rd);
 		if (ip != NULL) {
-			struct in_addr router_id;
+			struct in_addr router_id = {0};
 			bgp_evpn_get_route_id_by_RD((struct prefix_rd *)rd_destp, &router_id);
 			if (ip->ip._v4_addr.s_addr != router_id.s_addr)
 				continue;

@@ -837,7 +837,7 @@ static int bfdsync_flush_data(struct thread *thread)
     return 0;
 }
 
-int bfdsync_send_message()
+static int bfdsync_send_message()
 {
     if (bfpm_g->sock < 0)
         return -1;

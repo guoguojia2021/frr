@@ -59,6 +59,7 @@
 #include "zebra/zebra_srte.h"
 #include "zebra/zebra_srv6.h"
 #include "zebra/zebra_srv6_vty.h"
+#include "zebra/zebra_db.h"
 
 #define ZEBRA_PTM_SUPPORT
 

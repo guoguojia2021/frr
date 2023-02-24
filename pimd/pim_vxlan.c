@@ -1178,7 +1178,7 @@ void pim_vxlan_del_term_dev(struct pim_instance *pim)
 
 void pim_vxlan_init(struct pim_instance *pim)
 {
-	char hash_name[64];
+	char hash_name[300];
 
 	snprintf(hash_name, sizeof(hash_name),
 		"PIM %s vxlan SG hash", pim->vrf->name);

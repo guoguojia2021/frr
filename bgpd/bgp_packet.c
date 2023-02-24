@@ -313,7 +313,7 @@ int bgp_nlri_parse(struct peer *peer, struct attr *attr,
 		if (strlen(attr->aspath->str) + 1 > ZAPI_MESSAGE_OPAQUE_LENGTH) {
 			flog_err(
 					EC_BGP_UPDATE_RCV,
-					"[Error] Update packet error (AS path overflow for opaque data %d)",
+					"[Error] Update packet error (AS path overflow for opaque data %zu)",
 					strlen(attr->aspath->str) + 1);
 			return BGP_NLRI_PARSE_ERROR_AS_PATH_OVERFLOW;
 		}
@@ -452,6 +452,8 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			 * 2.If no confi advertis delay route map, don't permit any
 			 * route advertise to peer
 			 */
+			afi = paf->afi;
+			safi = paf->safi;
 			filter = &peer->filter[afi][safi];
 			if (!ADVERTISE_DELAY_MAP(filter) && peer->advertise_update_hold)
 				continue;

@@ -74,6 +74,7 @@
 #include "zebra/zebra_vxlan.h"
 #include "zebra/zebra_evpn_mh.h"
 #include "zebra/zebra_l2.h"
+#include "zebra/zebra_db.h"
 
 extern struct zebra_privs_t zserv_privs;
 

@@ -908,7 +908,7 @@ static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
         break;
     default:
         vty_out(vty, "error nexthop type\n");
-        return CMD_WARNING;
+        return;
     }
 
 	for (afi = AFI_IP; afi < AFI_MAX; afi++) {

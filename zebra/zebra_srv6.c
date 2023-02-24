@@ -171,26 +171,25 @@ void zebra_srv6_locator_add(struct srv6_locator *locator)
 void zebra_srv6_locator_delete(struct srv6_locator *locator)
 {
 	struct listnode *n, *nnode;
-	struct srv6_locator_chunk *c;
 	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
 	struct zserv *client;
-    struct seg6_sid *sid = NULL;
-    struct listnode *client_node;
+	struct seg6_sid *sid = NULL;
+	struct listnode *client_node;
 
 	for (ALL_LIST_ELEMENTS(locator->sids, n, nnode, sid))
 	{
-        for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-            client_node, client)) {
+		for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
+			client_node, client)) {
 
-            zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
-        }
+			zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+		}
 		zebra_srv6_local_sid_del(locator, sid);
-        listnode_delete(locator->sids, sid);
-        srv6_locator_sid_free(sid);
+		listnode_delete(locator->sids, sid);
+		srv6_locator_sid_free(sid);
 	}
 
-    for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client))
-        zsend_zebra_srv6_locator_delete(client, locator);
+	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client))
+		zsend_zebra_srv6_locator_delete(client, locator);
 
 	listnode_delete(srv6->locators, locator);
 }

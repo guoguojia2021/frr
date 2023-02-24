@@ -1312,7 +1312,6 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	uint64_t cum_bw = 0;
 	uint32_t nhg_id = 0;
 	bool is_add;
-    uint32_t srte_color = 0;
 
 	/* Don't try to install if we're not connected to Zebra or Zebra doesn't
 	 * know of this instance.
@@ -3331,10 +3330,6 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
     uint16_t len = 0;
     char loc_name[SRV6_LOCNAME_SIZE] = {0};
     struct srv6_locator *loc = NULL;
-    struct prefix_ipv6 tmp_prefi;
-    struct listnode *node;
-	struct bgp *bgp_vrf;
-	struct in6_addr *tovpn_sid;
 
 	s = zclient->ibuf;
     STREAM_GETW(s, len);
@@ -3403,38 +3398,36 @@ stream_failure:
 static int bgp_zebra_process_srv6_locator_add(ZAPI_CALLBACK_ARGS)
 {
 	struct srv6_locator *loc = NULL;
-    struct srv6_locator *loctmp = NULL;
-    const char *loc_name = NULL;
+	struct srv6_locator *loctmp = NULL;
 	struct bgp *bgp = bgp_get_default();
 
-    if (!bgp)
+	if (!bgp)
 		return 0;
-	loc_name = bgp->srv6_locator_name;
 
-    loc = srv6_locator_new();
+	loc = srv6_locator_new();
 	if (zapi_srv6_locator_decode(zclient->ibuf, loc) < 0)
 		return -1;
 
-    loctmp = locator_lookup_by_name(bgp->srv6_locators_hash, loc->name);
-    if (loctmp == NULL)
-    {
-        loc->chunks = list_new();
-        loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
-        loc->sids = list_new();
-        listnode_add(bgp->srv6_locators, loc);
-        hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
-    }
-    else
-    {
-        loctmp->prefix = loc->prefix;
-        loctmp->block_bits_length = loc->block_bits_length;
-        loctmp->node_bits_length = loc->node_bits_length;
-        loctmp->function_bits_length = loc->function_bits_length;
-        loctmp->argument_bits_length = loc->argument_bits_length;
-        srv6_locator_del(loc);
-    }
+	loctmp = locator_lookup_by_name(bgp->srv6_locators_hash, loc->name);
+	if (loctmp == NULL)
+	{
+		loc->chunks = list_new();
+		loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
+		loc->sids = list_new();
+		listnode_add(bgp->srv6_locators, loc);
+		hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
+	}
+	else
+	{
+		loctmp->prefix = loc->prefix;
+		loctmp->block_bits_length = loc->block_bits_length;
+		loctmp->node_bits_length = loc->node_bits_length;
+		loctmp->function_bits_length = loc->function_bits_length;
+		loctmp->argument_bits_length = loc->argument_bits_length;
+		srv6_locator_del(loc);
+	}
 
-    vpn_leak_postchange_all();
+	vpn_leak_postchange_all();
 
 	return 0;
 }
@@ -3447,8 +3440,6 @@ static int bgp_zebra_process_srv6_locator_delete(ZAPI_CALLBACK_ARGS)
     struct listnode *node;
     struct listnode *nnode;
     struct bgp_srv6_function *func;
-    struct bgp *bgp_vrf;
-    struct in6_addr *tovpn_sid;
     struct prefix_ipv6 tmp_prefi;
 
     if (!bgp)

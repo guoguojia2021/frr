@@ -101,7 +101,6 @@ static inline void *bfdsync_msg_data(bfd_msg_hdr_t *hdr)
 
 extern void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create);
 void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create);
-int bfdsync_send_message();
 
 extern int bfpm_init(struct thread_master *master);
 

@@ -174,15 +174,15 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 {
 	struct bgp_nexthop_cache_head *tree = NULL;
 	struct bgp_nexthop_cache *bnc;
-    struct bgp_nexthop_cache *te_bnc = NULL;
+	struct bgp_nexthop_cache *te_bnc = NULL;
 	struct prefix p;
 	uint32_t srte_color = 0;
 	int is_bgp_static_route = 0;
 	ifindex_t ifindex = 0;
-    bool isServiceRoute = FALSE;
+	bool isServiceRoute = FALSE;
 
-    if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
-        isServiceRoute = TRUE;
+	if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
+		isServiceRoute = TRUE;
 
 	if (pi) {
 		is_bgp_static_route = ((pi->type == ZEBRA_ROUTE_BGP)
@@ -206,8 +206,8 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		 * addr */
 		if (make_prefix(afi, pi, &p) < 0)
 			return 1;
-        ecommunity_color_present(
-            pi->attr->ecommunity, &srte_color);
+		ecommunity_color_present(
+			pi->attr->ecommunity, &srte_color);
 
 		if (!is_bgp_static_route && orig_prefix
 		    && prefix_same(&p, orig_prefix)) {
@@ -501,70 +501,70 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		bnc->flags &= ~BGP_NEXTHOP_LABELED_VALID; /* check below */
 
-        if (nhr->type != ZEBRA_ROUTE_SRTE)
-    		for (i = 0; i < nhr->nexthop_num; i++) {
-    			int num_labels = 0;
+		if (nhr->type != ZEBRA_ROUTE_SRTE)
+			for (i = 0; i < nhr->nexthop_num; i++) {
+				int num_labels = 0;
 
-    			nexthop = nexthop_from_zapi_nexthop(&nhr->nexthops[i]);
+				nexthop = nexthop_from_zapi_nexthop(&nhr->nexthops[i]);
 
-    			/*
-    			 * Turn on RA for the v6 nexthops
-    			 * we receive from bgp.  This is to allow us
-    			 * to work with v4 routing over v6 nexthops
-    			 */
-    			if (peer && !peer->ifp
-    			    && CHECK_FLAG(peer->flags,
-    					  PEER_FLAG_CAPABILITY_ENHE)
-    			    && nhr->prefix.family == AF_INET6
-    			    && nexthop->type != NEXTHOP_TYPE_BLACKHOLE) {
-    				struct interface *ifp;
+				/*
+				 * Turn on RA for the v6 nexthops
+				 * we receive from bgp.  This is to allow us
+				 * to work with v4 routing over v6 nexthops
+				 */
+				if (peer && !peer->ifp
+				    && CHECK_FLAG(peer->flags,
+						  PEER_FLAG_CAPABILITY_ENHE)
+				    && nhr->prefix.family == AF_INET6
+				    && nexthop->type != NEXTHOP_TYPE_BLACKHOLE) {
+					struct interface *ifp;
 
-    				ifp = if_lookup_by_index(nexthop->ifindex,
-    							 nexthop->vrf_id);
-    				if (ifp)
-    					zclient_send_interface_radv_req(
-    						zclient, nexthop->vrf_id, ifp,
-    						true,
-    						BGP_UNNUM_DEFAULT_RA_INTERVAL);
-    			}
-    			/* There is at least one label-switched path */
-    			if (nexthop->nh_label &&
-    				nexthop->nh_label->num_labels) {
+					ifp = if_lookup_by_index(nexthop->ifindex,
+								 nexthop->vrf_id);
+					if (ifp)
+						zclient_send_interface_radv_req(
+							zclient, nexthop->vrf_id, ifp,
+							true,
+							BGP_UNNUM_DEFAULT_RA_INTERVAL);
+				}
+				/* There is at least one label-switched path */
+				if (nexthop->nh_label &&
+					nexthop->nh_label->num_labels) {
 
-    				bnc->flags |= BGP_NEXTHOP_LABELED_VALID;
-    				num_labels = nexthop->nh_label->num_labels;
-    			}
+					bnc->flags |= BGP_NEXTHOP_LABELED_VALID;
+					num_labels = nexthop->nh_label->num_labels;
+				}
 
-    			if (BGP_DEBUG(nht, NHT)) {
-    				char buf[NEXTHOP_STRLEN];
-    				zlog_debug(
-    					"    nhop via %s (%d labels)",
-    					nexthop2str(nexthop, buf, sizeof(buf)),
-    					num_labels);
-    			}
+				if (BGP_DEBUG(nht, NHT)) {
+					char buf[NEXTHOP_STRLEN];
+					zlog_debug(
+						"    nhop via %s (%d labels)",
+						nexthop2str(nexthop, buf, sizeof(buf)),
+						num_labels);
+				}
 
-    			if (nhlist_tail) {
-    				nhlist_tail->next = nexthop;
-    				nhlist_tail = nexthop;
-    			} else {
-    				nhlist_tail = nexthop;
-    				nhlist_head = nexthop;
-    			}
+				if (nhlist_tail) {
+					nhlist_tail->next = nexthop;
+					nhlist_tail = nexthop;
+				} else {
+					nhlist_tail = nexthop;
+					nhlist_head = nexthop;
+				}
 
-    			/* No need to evaluate the nexthop if we have already
-    			 * determined
-    			 * that there has been a change.
-    			 */
-    			if (bnc->change_flags & BGP_NEXTHOP_CHANGED)
-    				continue;
+				/* No need to evaluate the nexthop if we have already
+				 * determined
+				 * that there has been a change.
+				 */
+				if (bnc->change_flags & BGP_NEXTHOP_CHANGED)
+					continue;
 
-    			for (oldnh = bnc->nexthop; oldnh; oldnh = oldnh->next)
-    				if (nexthop_same(oldnh, nexthop))
-    					break;
+				for (oldnh = bnc->nexthop; oldnh; oldnh = oldnh->next)
+					if (nexthop_same(oldnh, nexthop))
+						break;
 
-    			if (!oldnh)
-    				bnc->change_flags |= BGP_NEXTHOP_CHANGED;
-    		}
+				if (!oldnh)
+					bnc->change_flags |= BGP_NEXTHOP_CHANGED;
+			}
 		bnc_nexthop_free(bnc);
 		bnc->nexthop = nhlist_head;
 
@@ -1166,7 +1166,6 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 		 */
 
 		bool bnc_is_valid_nexthop = false;
-        bool ipbnc_is_valid_nexthop = true;
 		bool path_valid = false;
         if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
             isServiceRoute = TRUE;
@@ -1180,8 +1179,6 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			&& !isServiceRoute) {
 			bnc_is_valid_nexthop =
 				bgp_isvalid_labeled_nexthop(bnc) ? true : false;
-            if (isSrv6TeBnc && path->nexthop)
-                ipbnc_is_valid_nexthop = bgp_isvalid_labeled_nexthop(path->te_nexthop) ? true : false;
 		} else {
 			if (bgp_update_martian_nexthop(
 				    bnc->bgp, afi, safi, path->type,
@@ -1193,10 +1190,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			} else {
 				bnc_is_valid_nexthop =
 					bgp_isvalid_nexthop(bnc) ? true : false;
-                if (isSrv6TeBnc && path->nexthop)
-                    ipbnc_is_valid_nexthop = bgp_isvalid_labeled_nexthop(path->te_nexthop) ? true : false;
 			}
-            
 		}
 
 		if (BGP_DEBUG(nht, NHT)) {

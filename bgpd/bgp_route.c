@@ -1543,7 +1543,7 @@ done:
 #undef FILTER_EXIST_WARN
 }
 
-static enum filter_type bgp_input_filter(struct peer *peer, struct prefix *p,
+static enum filter_type bgp_input_filter(struct peer *peer, const struct prefix *p,
 					 struct attr *attr, afi_t afi,
 					 safi_t safi)
 {
@@ -1564,7 +1564,7 @@ static enum filter_type bgp_input_filter(struct peer *peer, struct prefix *p,
 	return FILTER_DENY;
 }
 
-static enum filter_type bgp_out_filter_run(struct peer *peer, struct prefix *p,
+static enum filter_type bgp_out_filter_run(struct peer *peer, const struct prefix *p,
 					 struct attr *attr, struct bgp_filter *filter)
 {
 	enum filter_type ret = FILTER_PERMIT;
@@ -1616,7 +1616,7 @@ done:
 #undef FILTER_EXIST_WARN
 }
 
-static enum filter_type bgp_output_filter(struct peer *peer, struct prefix *p,
+static enum filter_type bgp_output_filter(struct peer *peer, const struct prefix *p,
 					  struct attr *attr, afi_t afi,
 					  safi_t safi)
 {
@@ -3362,7 +3362,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	    && !CHECK_FLAG(old_select->flags, BGP_PATH_ATTR_CHANGED)
 	    && !bgp_addpath_is_addpath_used(&bgp->tx_addpath, afi, safi)) {
 		if (bgp_zebra_has_route_changed(old_select)) {
-#if ENABLE_BGP_VNC
+#ifdef ENABLE_BGP_VNC
 			vnc_import_bgp_add_route(bgp, p, old_select);
 			vnc_import_bgp_exterior_add_route(bgp, p, old_select);
 #endif
@@ -3445,7 +3445,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			UNSET_FLAG(new_select->flags, BGP_PATH_MULTIPATH_CHG);
 		}
 
-#if ENABLE_BGP_VNC
+#ifdef ENABLE_BGP_VNC
 		if ((afi == AFI_IP || afi == AFI_IP6) && (safi == SAFI_UNICAST)) {
 			if (old_select != new_select) {
 				if (old_select) {
@@ -5278,10 +5278,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			if (BGP_DEBUG(nht, NHT)) {
 				char buf1[INET6_ADDRSTRLEN];
 				inet_ntop(AF_INET,
-					  (const void *)&attr_new->nexthop,
-					  buf1, INET6_ADDRSTRLEN);
+						(const void *)&attr_new->nexthop,
+						buf1, INET6_ADDRSTRLEN);
 				zlog_debug("%s(%s): NH unresolved", __func__,
-					   buf1);
+						buf1);
 			}
 			bgp_path_info_unset_flag(dest, new, BGP_PATH_VALID);
 		}

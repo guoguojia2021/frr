@@ -81,7 +81,7 @@ extern int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
                             struct zserv *client);
 extern void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy);
 extern int zebra_sr_policy_notify_unknown(struct rnh *rnh,            struct zserv *client);
-extern int zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
+extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
                      struct zapi_srv6te_tunnel *new_tunnel);
 
 #ifdef __cplusplus

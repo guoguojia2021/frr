@@ -229,7 +229,7 @@ void zebra_db_init(void)
     return;
 }
 
-int zebra_Db_GetVrfAlias(char *vrfname, char *aliasName, int aliasNameLen)
+int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
 {
     char keyType[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char aliasKey[10] = {0};

@@ -19,7 +19,7 @@
 
 #include "zebra.h"
 
-#include "srv6.h"
+#include "lib/srv6.h"
 #include "log.h"
 DEFINE_QOBJ_TYPE(srv6_locator);
 DEFINE_MTYPE_STATIC(LIB, SRV6_LOCATOR, "SRV6 locator");
@@ -177,22 +177,22 @@ struct srv6_locator *srv6_locator_alloc(const char *name)
 }
 void combine_sid(struct srv6_locator *locator, struct in6_addr *sid_addr, struct in6_addr *result_addr)
 {
-    uint8_t idx = 0;
-    uint8_t funcid = 0;
-    uint8_t locatorbit = 0;
-    uint8_t sidbit = 0;
-    uint8_t totalbit = 0;
-    uint8_t funbit = 0;
-    locatorbit = (locator->block_bits_length + locator->node_bits_length) / 8;
-    sidbit = 16 - locatorbit;
-    totalbit = (locator->block_bits_length + locator->node_bits_length + locator->function_bits_length + locator->argument_bits_length) / 8;
-    funbit = (locator->function_bits_length + locator->argument_bits_length) / 8;
+	uint8_t idx = 0;
+	uint8_t funcid = 0;
+	uint8_t locatorbit = 0;
+	/* uint8_t sidbit = 0;*/
+	uint8_t totalbit = 0;
+	uint8_t funbit = 0;
+	locatorbit = (locator->block_bits_length + locator->node_bits_length) / 8;
+	/* sidbit = 16 - locatorbit; */
+	totalbit = (locator->block_bits_length + locator->node_bits_length + locator->function_bits_length + locator->argument_bits_length) / 8;
+	funbit = (locator->function_bits_length + locator->argument_bits_length) / 8;
 	for (idx = 0; idx < locatorbit; idx++) {
 		result_addr->s6_addr[idx] = locator->prefix.prefix.s6_addr[idx];
 	}
-    for (idx; idx < totalbit; idx++) {
+	for (; idx < totalbit; idx++) {
 		result_addr->s6_addr[idx] = sid_addr->s6_addr[16 - funbit + funcid];
-        funcid++;
+		funcid++;
 	}
 }
 

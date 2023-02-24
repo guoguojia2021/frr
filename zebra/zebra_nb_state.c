@@ -1023,7 +1023,7 @@ struct yang_data *
 lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_rmac_get_elem(
 	struct nb_cb_get_elem_args *args)
 {
-	struct nexthop *nexthop = (struct nexthop *)args->list_entry;
+	/*struct nexthop *nexthop = (struct nexthop *)args->list_entry;*/
 
    /*if (nexthop != NULL)
 		return yang_data_new_mac(args->xpath, &nexthop->rmac);*/

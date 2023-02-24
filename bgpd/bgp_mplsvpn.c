@@ -516,6 +516,7 @@ static bool sid_exist(struct bgp *bgp, const struct in6_addr *sid)
 	return false;
 }
 
+#if 0
 /*
  * if index != 0: try to allocate as index-mode
  * else: try to allocate as auto-mode
@@ -560,6 +561,7 @@ static uint32_t alloc_new_sid(struct bgp *bgp, uint32_t index,
 	*sid = sid_buf;
 	return label;
 }
+#endif
 
 static uint32_t alloc_new_sid_ex(struct bgp *bgp, struct seg6_sid *sid,
 			      struct srv6_locator *sid_locator)
@@ -779,7 +781,6 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	struct bgp_path_info *bpi;
 	struct bgp_path_info *bpi_ultimate;
 	struct bgp_path_info *new;
-	struct bgp_path_info_extra *extra;
 	char buf[PREFIX2STR_BUFFER];
 
 #if 0
@@ -2174,7 +2175,7 @@ void vpn_leak_to_vrf_withdraw(struct bgp *bgp_vpn,	    /* from */
     struct ecommunity_val *eval;
     struct ecommunity *ecom;
     struct bgp_irt_node *irt;
-    int i = 0;
+    uint32_t i = 0;
     unsigned long *bitmap = bm->bitmap_leakvrf;
     
     memset(bitmap, 0, ROUND_UP(BGP_VRF_RANGE, BITMAP_ULONG_BITS));

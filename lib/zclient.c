@@ -2113,7 +2113,7 @@ bool zapi_nexthop_update_decode(struct stream *s, struct prefix *match,
 	STREAM_GETC(s, nhr->distance);
 	STREAM_GETL(s, nhr->metric);
 	STREAM_GETC(s, nhr->nexthop_num);
-    if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE))
+	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE))
         return true;
 
 	for (i = 0; i < nhr->nexthop_num; i++) {

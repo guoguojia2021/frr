@@ -189,10 +189,10 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 
 	/* Lookup (or add) route node.*/
 	rn = route_node_get(table, p);
-    /* Check previously received route. */
-    for (rnh = rn->info; rnh; rnh = rnh->next)
-        if (rnh->srte_color == srte_color)
-            break;
+	/* Check previously received route. */
+	for (rnh = rn->info; rnh; rnh = rnh->next)
+		if (rnh->srte_color == srte_color)
+			break;
 
 	if (!rnh) {
 		rnh = XCALLOC(MTYPE_RNH, sizeof(struct rnh));

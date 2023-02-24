@@ -79,7 +79,7 @@ static void pim_instance_terminate(struct pim_instance *pim)
 static struct pim_instance *pim_instance_init(struct vrf *vrf)
 {
 	struct pim_instance *pim;
-	char hash_name[64];
+	char hash_name[300];
 
 	pim = XCALLOC(MTYPE_PIM_PIM_INSTANCE, sizeof(struct pim_instance));
 

@@ -1364,7 +1364,7 @@ static void pim_msdp_enable(struct pim_instance *pim)
 void pim_msdp_init(struct pim_instance *pim, struct thread_master *master)
 {
 	pim->msdp.master = master;
-	char hash_name[64];
+	char hash_name[300];
 
 	snprintf(hash_name, sizeof(hash_name), "PIM %s MSDP Peer Hash",
 		 pim->vrf->name);

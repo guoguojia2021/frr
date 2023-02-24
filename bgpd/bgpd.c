@@ -8511,10 +8511,10 @@ void bgp_master_init(struct thread_master *master, const int buffer_size,
 
 	/* mpls label dynamic allocation pool */
 	bgp_lp_init(bm->master, &bm->labelpool);
-    bm->vrf_import_rt_hash =
-        hash_create(bgp_import_rt_hash_key_make, bgp_import_rt_hash_cmp,
-                "BGP VRF Import RT Hash");
-    bm->bitmap_leakvrf = bitmap_allocate(BGP_VRF_RANGE);
+	bm->vrf_import_rt_hash =
+		hash_create(bgp_import_rt_hash_key_make, bgp_import_rt_hash_cmp,
+			"BGP VRF Import RT Hash");
+	bm->bitmap_leakvrf = bitmap_allocate(BGP_VRF_RANGE);
 
 	bgp_l3nhg_init();
 	bgp_evpn_mh_init();

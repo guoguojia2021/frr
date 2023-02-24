@@ -7,7 +7,7 @@
  */
 unsigned int bgp_import_rt_hash_key_make(const void *p)
 {
-	struct bgp_irt_node *irt = p;
+	struct bgp_irt_node *irt = (struct bgp_irt_node *)p;
 	char *pnt = irt->rt.val;
 
 	return jhash(pnt, 8, 0xdeadbeef);
@@ -80,7 +80,7 @@ int bgp_is_vrf_present_in_irt(struct list *vrfs, struct bgp *bgp)
 
 void bgp_map_vrf_to_its_rts(struct ecommunity *ecom, struct bgp *bgp)
 {
-	int i;
+	uint32_t i;
 	struct ecommunity_val eval;
 	struct bgp_irt_node *irt;
 	for (i = 0; i < ecom->size; ++i) {
@@ -126,7 +126,7 @@ void bgp_hash_irt_free(void *irt)
  */
 void bgp_unmap_vrf_to_its_rts(struct ecommunity *ecom, struct bgp *bgp)
 {
-	int i;
+	uint32_t i;
 	struct ecommunity_val eval;
 	struct bgp_irt_node *irt;
 

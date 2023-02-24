@@ -639,7 +639,7 @@ void pim_upstream_register_reevaluate(struct pim_instance *pim)
 	}
 }
 
-/* RFC7761, Section 4.2 “Data Packet Forwarding Rules” says we should
+/* RFC7761, Section 4.2 “Data Packet Forwarding Rules�?says we should
  * forward a S -
  * 1. along the SPT if SPTbit is set
  * 2. and along the RPT if SPTbit is not set
@@ -2203,7 +2203,7 @@ void pim_upstream_remove_lhr_star_pimreg(struct pim_instance *pim,
 
 void pim_upstream_init(struct pim_instance *pim)
 {
-	char name[64];
+	char name[300];
 
 	snprintf(name, sizeof(name), "PIM %s Timer Wheel", pim->vrf->name);
 	pim->upstream_sg_wheel =

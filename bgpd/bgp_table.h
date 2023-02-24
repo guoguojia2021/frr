@@ -260,7 +260,7 @@ static inline struct bgp_dest *bgp_node_match(const struct bgp_table *table,
  * bgp_node_match_ipv4
  */
 static inline struct bgp_dest *
-bgp_node_match_ipv4(const struct bgp_table *table, struct in_addr *addr)
+bgp_node_match_ipv4(struct bgp_table *table, struct in_addr *addr)
 {
 	struct route_node *rn = route_node_match_ipv4(table->route_table, addr);
 
@@ -271,7 +271,7 @@ bgp_node_match_ipv4(const struct bgp_table *table, struct in_addr *addr)
  * bgp_node_match_ipv6
  */
 static inline struct bgp_dest *
-bgp_node_match_ipv6(const struct bgp_table *table, struct in6_addr *addr)
+bgp_node_match_ipv6(struct bgp_table *table, struct in6_addr *addr)
 {
 	struct route_node *rn = route_node_match_ipv6(table->route_table, addr);
 

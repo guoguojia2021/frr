@@ -209,51 +209,50 @@ failure:
 
 void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy)
 {
-    struct rnh *rnh;
-    struct prefix p = {};
-    struct zebra_vrf *zvrf;
-    struct listnode *node;
-    struct zserv *client;
+	struct rnh *rnh;
+	struct prefix p = {};
+	struct zebra_vrf *zvrf;
+	struct listnode *node;
+	struct zserv *client;
 
-    zvrf = policy->zvrf;
-    switch (policy->endpoint.ipa_type) {
-    case IPADDR_V4:
-        p.family = AF_INET;
-        p.prefixlen = IPV4_MAX_BITLEN;
-        p.u.prefix4 = policy->endpoint.ipaddr_v4;
-        break;
-    case IPADDR_V6:
-        p.family = AF_INET6;
-        p.prefixlen = IPV6_MAX_BITLEN;
-        p.u.prefix6 = policy->endpoint.ipaddr_v6;
-        break;
-    default:
-        flog_warn(EC_LIB_DEVELOPMENT,
-              "%s: unknown policy endpoint address family: %u",
-              __func__, policy->endpoint.ipa_type);
-        exit(1);
-    }
+	zvrf = policy->zvrf;
+	switch (policy->endpoint.ipa_type) {
+	case IPADDR_V4:
+		p.family = AF_INET;
+		p.prefixlen = IPV4_MAX_BITLEN;
+		p.u.prefix4 = policy->endpoint.ipaddr_v4;
+		break;
+	case IPADDR_V6:
+		p.family = AF_INET6;
+		p.prefixlen = IPV6_MAX_BITLEN;
+		p.u.prefix6 = policy->endpoint.ipaddr_v6;
+		break;
+	default:
+		flog_warn(EC_LIB_DEVELOPMENT,
+			"%s: unknown policy endpoint address family: %u",
+			__func__, policy->endpoint.ipa_type);
+		exit(1);
+	}
 
     rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), SAFI_UNICAST);
     if (!rnh)
         return;
 
     /* check color */
-    for (rnh; rnh; rnh = rnh->next)
-        if (rnh->srte_color == policy->color)
-            break;
-    if (!rnh)
-        return;
+	for (; rnh; rnh = rnh->next)
+		if (rnh->srte_color == policy->color)
+			break;
+	if (!rnh)
+		return;
     
-    if (policy->status == rnh->srp_status) {
-        return;
-    }
-    rnh->srp_status = policy->status;
+	if (policy->status == rnh->srp_status) {
+		return;
+	}
+	rnh->srp_status = policy->status;
 
-    for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
-        zebra_sr_policy_notify_update_client(policy, client);
-        /*todo: Fallback to the IGP shortest path. */
-    }
+	for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
+		zebra_sr_policy_notify_update_client(policy, client);
+	}
 }
 
 int zebra_sr_policy_notify_unknown(struct rnh *rnh,
@@ -352,7 +351,7 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 		zebra_sr_policy_notify_update(policy);
 }
 
-int zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
+void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 			     struct zapi_srv6te_tunnel *new_tunnel)
 {
 	bool segment_list_changed = FALSE;
