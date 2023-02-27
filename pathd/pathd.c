@@ -598,6 +598,15 @@ void srte_clean_zebra(void)
 	path_zebra_stop();
 }
 
+static srte_clear_bfdflag(struct sbfd_session_config *bfd_config)
+{
+	UNSET_FLAG(bfd_config->bfd_flags, SBFD_NEW);
+	UNSET_FLAG(bfd_config->bfd_flags, SBFD_MODIFIED);
+	UNSET_FLAG(bfd_config->bfd_flags, SBFD_DELADD);
+	UNSET_FLAG(bfd_config->bfd_flags, SBFD_DELETED);
+	UNSET_FLAG(bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);    
+	UNSET_FLAG(bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
+}
 /**
  * Apply changes defined by setting the policies, candidate paths
  * and segment lists modification flags NEW, MODIFIED and DELETED.
@@ -626,17 +635,13 @@ void srte_apply_changes(void)
 			if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED))
 			{
 				srte_policy_sbfd_each_seglist_remove(policy);
-				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
-				UNSET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);
+				srte_clear_bfdflag(policy->bfd_config);
 				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
 			}
 			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD))
 			{
 				srte_policy_sbfd_each_seglist_del_then_apply(policy);
-				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
-				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
-				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
-				UNSET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
+				srte_clear_bfdflag(policy->bfd_config);
 				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);
 			}
 			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW) 
@@ -644,9 +649,7 @@ void srte_apply_changes(void)
 			{
                 policy_sbfd_enabled(policy);
 				srte_policy_sbfd_each_seglist_apply(policy);
-				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
-				UNSET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
-				UNSET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
+				srte_clear_bfdflag(policy->bfd_config);
 				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);
 			}
 		}
@@ -880,13 +883,15 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 
 			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) 
 			    && policy->bfd_config
-			    && CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
+			    && CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE)
+				&& !CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED))
 			{
 				if (candidate->status == SRTE_DETECT_UP)
 					cpath_up_count++;
 			}
 			else
 			{
+				candidate->status = SRTE_DETECT_NONE;
                 cpath_up_count++;
 			}
 

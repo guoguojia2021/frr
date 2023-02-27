@@ -122,6 +122,7 @@ static int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
     if (new_status == SRTE_POLICY_STATUS_UP)
 	{
 		/*policy update*/
+		SET_FLAG(sbfd_event->policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 		srv6_choose_best_cpath_group(sbfd_event->policy);
 		return 0;
 	}
@@ -405,7 +406,10 @@ static void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
 static void sr_config_sbfd_destroy(struct srte_policy *policy)
 {
 	if (policy->bfd_config)
-	    SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
+	{
+        SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
+		SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
+	}
 }
 
 /*
