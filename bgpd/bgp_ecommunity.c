@@ -264,6 +264,9 @@ struct ecommunity *ecommunity_dup(struct ecommunity *ecom)
 {
 	struct ecommunity *new;
 
+	if (NULL == ecom)
+		return NULL;
+
 	new = XCALLOC(MTYPE_ECOMMUNITY, sizeof(struct ecommunity));
 	new->size = ecom->size;
 	new->unit_size = ecom->unit_size;
