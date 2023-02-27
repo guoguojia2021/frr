@@ -764,10 +764,11 @@ DEFPY(
 			vty_out(vty, "input refector discriminator does not exist.\n");
 			return CMD_WARNING_CONFIG_FAILED;
 		}
-
-		sbfd_reflector_free(start_discr);
+        
 		// notify bfdsyncd
 		bfd_fpm_sbfd_reflector_sendmsg(sr, false);
+		sbfd_reflector_free(start_discr);
+
 	}
 	else
 	{
@@ -782,9 +783,9 @@ DEFPY(
 			sr = sbfd_discr_lookup(i);
 			if (sr)
 			{
-				sbfd_reflector_free(i);
 				// notify bfdsyncd
-                bfd_fpm_sbfd_reflector_sendmsg(sr, false);
+				bfd_fpm_sbfd_reflector_sendmsg(sr, false);
+				sbfd_reflector_free(i);
 			}
 		}
 	}

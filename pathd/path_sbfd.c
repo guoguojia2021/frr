@@ -227,6 +227,12 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
     sbfd_event->segl = segl;
 	sbfd_event->policy = policy;
 
+	if (bss->state == BSS_UP)
+	{
+		// up event stop first sbfd timer
+		THREAD_OFF(policy->wait_sbfd_timer);
+	}
+
 	if (bss->state == BSS_DOWN && bss->previous_state == BSS_UP) {
 		zlog_debug( "%s:  sidlist %s SBFD DOWN", __func__, segl->name);
 		// seglist sbfd down event

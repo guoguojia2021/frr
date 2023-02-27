@@ -164,6 +164,8 @@ static int bfpm_write_cb(struct thread *thread);
 static void bfpm_set_state(bfpm_state_t state, const char *reason);
 static void bfpm_start_connect_timer(const char *reason);
 
+static void _bfd_send_bfpm_srmsg(struct hash_bucket *hb, void *arg);
+
 /*
  * zfpm_thread_should_yield
  */
@@ -269,6 +271,9 @@ static void bfpm_connection_up(const char *detail)
 	bfpm_set_state(BFPM_STATE_ESTABLISHED, detail);
 
 	bfpm_debug("Starting conn_up thread");
+
+    /* send pending msg*/
+	sbfd_discr_iterate(_bfd_send_bfpm_srmsg, NULL);
 }
 
 /*
@@ -990,6 +995,8 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
+		data->src_port = htons(BFD_DEFDESTPORT);
+		data->dest_port = htons(BFD_DEF_SBFD_DEST_PORT);
 		data->bpc_type = BPC_TYPE_SBFD_INIT;
         strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
 		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
@@ -1093,3 +1100,8 @@ int bfpm_init(struct thread_master *master)
 	return 0;
 }
 
+static void _bfd_send_bfpm_srmsg(struct hash_bucket *hb, void *arg)
+{
+	struct sbfd_reflector *sr = hb->data;
+	bfd_fpm_sbfd_reflector_sendmsg(sr, true);
+}

@@ -622,7 +622,8 @@ void ptm_bfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	int old_state = bfd->ses_state;
 
 	bfd->local_diag = diag;
-	bfd->discrs.remote_discr = 0;
+	if (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
+	    bfd->discrs.remote_discr = 0;
 	bfd->ses_state = PTM_BFD_DOWN;
 	bfd->polling = 0;
 	bfd->demand_mode = 0;
@@ -2454,9 +2455,9 @@ static void _sbfd_reflector_free(struct hash_bucket *hb,
 		      void *arg __attribute__((__unused__)))
 {
 	struct sbfd_reflector *sr = hb->data;
-
-	sbfd_reflector_free(sr->discr);
+    
 	bfd_fpm_sbfd_reflector_sendmsg(sr, false);
+	sbfd_reflector_free(sr->discr);
 }
 
 void bfd_shutdown(void)
