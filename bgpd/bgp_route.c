@@ -1220,6 +1220,28 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 		}
 	}
 
+    if (new->te_nexthop != NULL || exist->te_nexthop != NULL) {
+        if (debug)
+            zlog_debug(
+                "%s: %s and %s cannot be multipath, nexthop one is te while the other does not",
+                pfx_buf, new_buf, exist_buf);
+
+        if (new->te_nexthop == NULL) {
+            if (CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+                return 0;
+        } else if (exist->te_nexthop == NULL) {
+            if (CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+                return 1;
+        } else {
+            if (CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)
+            && !CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+                return 0;
+            if (!CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)
+            && CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+                return 1;
+        }
+    }
+
 	/* 11. Maximum path check. */
 	if (newm == existm) {
 		/* If one path has a label but the other does not, do not treat
