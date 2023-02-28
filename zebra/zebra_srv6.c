@@ -819,3 +819,22 @@ int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf)
     return 0;
 }
 
+int zebra_srv6_push_endx()
+{
+    struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+    struct listnode *node, *opcodenode;
+    struct srv6_locator *locator;
+    struct seg6_sid *sid;
+	struct in6_addr result_sid = {0};
+
+    for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
+        for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
+            if (sid->sidaction != ZEBRA_SEG6_LOCAL_ACTION_END_X)
+                continue;
+
+            combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+			zsend_srv6_endx_sid(ZEBRA_SRV6_ENDX_SID_ADD, &result_sid, sid->ifname, &sid->nexthop);
+        }
+    }
+    return 0;
+}
