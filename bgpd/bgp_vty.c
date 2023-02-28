@@ -2174,7 +2174,7 @@ static int bgp_global_update_delay_deconfig_vty(struct vty *vty)
 
 DEFUN (bgp_peer_adv_lprio,
        bgp_peer_adv_lprio_cmd,
-       "bgp advertise-low-priority peer-up (1-600)",
+       "bgp advertise-low-priority peer-up (1-1800)",
        BGP_STR
        "Advertise routes with low priority\n"
        "After a new peer is up\n"
@@ -2183,7 +2183,7 @@ DEFUN (bgp_peer_adv_lprio,
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
 	int idx = 0;
 
-	argv_find(argv, argc, "(1-600)", &idx);
+	argv_find(argv, argc, "(1-1800)", &idx);
     bgp->peer_adv_lprio = strtoul(argv[idx]->arg, NULL, 10);
 
     return CMD_SUCCESS;
