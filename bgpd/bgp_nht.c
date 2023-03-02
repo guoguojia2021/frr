@@ -270,10 +270,10 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		}
 	}
 
-    if (srte_color != 0)
+    if (srte_color != 0 && isServiceRoute)
     {
         te_bnc = bnc_find(tree, &p, srte_color);
-        if (!te_bnc && isServiceRoute) {
+        if (!te_bnc) {
             te_bnc = bnc_new(tree, &p, srte_color);
             te_bnc->bgp = bgp_nexthop;
             if (BGP_DEBUG(nht, NHT)) {
@@ -389,10 +389,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
         if (te_bnc)
 		    path_tenh_map(pi, te_bnc, true);
 
-    } else if (pi && pi->te_nexthop != NULL && !isServiceRoute) {
-        bgp_unlink_te_nexthop(pi);
-    }
-        
+    }  
 	/*
 	 * We are cheating here.  Views have no associated underlying
 	 * ability to detect nexthops.  So when we have a view
