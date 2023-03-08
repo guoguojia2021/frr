@@ -9474,7 +9474,8 @@ DEFPY(bgp_redistribute_vrf, bgp_redistribute_vrf_cmd,
 		"The name of the route-map\n")
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
-	struct listnode *node;
+	struct listnode *node, *nnode;
+	struct listnode *exnode, *nexnode;
 	struct bgp *vrf_bgp;
 	int32_t ret = 0;
 	as_t as = bgp->as;
@@ -9535,8 +9536,8 @@ DEFPY(bgp_redistribute_vrf, bgp_redistribute_vrf_cmd,
 	}
 
 	if (remove) {
-		for (ALL_LIST_ELEMENTS_RO(bgp->vpn_policy[afi].redistribute_import_vrf, node,
-					tmpVrfRed)) {
+		for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_import_vrf, 
+			node, nnode, tmpVrfRed)) {
 			if (strcmp(tmpVrfRed->vrfname, import_name) == 0)
 			{
 				vrf_leak_from_vrf_withdraw_all(bgp, vrf_bgp, afi);
@@ -9547,8 +9548,8 @@ DEFPY(bgp_redistribute_vrf, bgp_redistribute_vrf_cmd,
 					route_map_counter_decrement(tmpVrfRed->rmap.map);
 				}
 				XFREE(MTYPE_TMP, tmpVrfRed);
-				for (ALL_LIST_ELEMENTS_RO(vrf_bgp->vpn_policy[afi].redistribute_export_vrf, node,
-					vname)) {
+				for (ALL_LIST_ELEMENTS(vrf_bgp->vpn_policy[afi].redistribute_export_vrf, 
+					exnode, nexnode, vname)) {
 					if (strcmp(vname, bgp->name) == 0)
 					{
 						listnode_delete(vrf_bgp->vpn_policy[afi].redistribute_export_vrf, vname);
