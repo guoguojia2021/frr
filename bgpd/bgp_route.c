@@ -4758,6 +4758,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		if (strlen(new_attr.aspath->str) + 1 > ZAPI_MESSAGE_OPAQUE_LENGTH) {
 			zlog_err("AS path overflow for opaque data %d",
 				strlen(new_attr.aspath->str) + 1);
+			reason = "as path overflow;";
 			bgp_attr_flush(&new_attr);
 			goto filtered;
 		}
