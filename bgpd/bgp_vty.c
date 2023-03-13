@@ -9504,6 +9504,11 @@ DEFPY(bgp_redistribute_vrf, bgp_redistribute_vrf_cmd,
 	if (rmap_str)
 		hasRouteMap = true;
 
+	if (bgp->name == NULL) {
+		vty_out(vty, "%% This BGP instance not support redistribute vrf\n");
+		return CMD_WARNING;
+	}
+
 	afi = vpn_policy_getafi(vty, bgp, true);
 	if (afi == AFI_MAX)
 		return CMD_WARNING_CONFIG_FAILED;
