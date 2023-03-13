@@ -525,13 +525,13 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
         return;
     }
 
-    char my_local_sid[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char my_local_sid[ZEBRA_DB_MAX_SID_LEN] = {0};
     struct prefix p = {};
 
     p.family = AF_INET6;
     p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
     p.u.prefix6 = *result_sid;
-    prefix2str(&p, my_local_sid, ZEBRA_DB_MAX_KEY_LEN);
+    prefix2str(&p, my_local_sid, ZEBRA_DB_MAX_SID_LEN);
 
     /*sadd KEY_SET*/
     snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);

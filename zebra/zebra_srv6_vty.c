@@ -41,6 +41,7 @@
 #include "zebra/redistribute.h"
 #include "zebra/zebra_routemap.h"
 #include "zebra/zebra_dplane.h"
+#include "zebra/zapi_msg.h"
 
 #ifndef VTYSH_EXTRACT_PL
 #include "zebra/zebra_srv6_vty_clippy.c"
@@ -102,10 +103,10 @@ DEFUN (show_srv6_tunnel,
 
 	/* Prepare table. */
 	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-    if (detail)
-    	ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|Path");
-    else
-        ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status");
+	if (detail)
+		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|Path");
+	else
+		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status");
 	tt->style.cell.rpad = 2;
 	tt->style.corner = '+';
 	ttable_restyle(tt);
@@ -572,21 +573,21 @@ DEFPY (no_locator_prefix,
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
-    for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
-        if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
-            for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
+	for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
+		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
+			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
 							  client_node,
-            			  client)) {
+						  client)) {
 
-             	zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
-            }
-            zebra_srv6_local_sid_del(locator, sid);
+				zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+			}
+			zebra_srv6_local_sid_del(locator, sid);
 
-            listnode_delete(locator->sids, sid);
-            srv6_locator_sid_free(sid);
-            return CMD_SUCCESS;
-        }
-    }
+			listnode_delete(locator->sids, sid);
+			srv6_locator_sid_free(sid);
+			return CMD_SUCCESS;
+		}
+	}
 	return CMD_SUCCESS;
 }
 

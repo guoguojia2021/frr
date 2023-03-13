@@ -4357,23 +4357,23 @@ struct route_map_rule_cmd route_set_aspath_overwrite_cmd =
 static route_map_result_t
 route_set_aspath_replace (void *rule, struct prefix *prefix, void *object)
 {
- 	struct aspath *new, *old;
+	struct aspath *new, *old;
 	struct bgp_path_info *path;
 	struct assegment *seg;
-    new = rule;
-    if (new) {
+	new = rule;
+	if (new) {
 		path = object;
 		old = path->attr->aspath;
-    	seg = new->segments;
+		seg = new->segments;
 		if (aspath_size(old) == 0) {
 			path->attr->aspath = aspath_dup(new);
 		} else {
 			path->attr->aspath = aspath_replace_all_asn(old, seg->as[0]);
 		}
-    	path->attr->aspath_overwrite = 1;
-    	if (!old->refcnt)
+		path->attr->aspath_overwrite = 1;
+		if (!old->refcnt)
 		aspath_free(old);
-    }
+	}
 
   return RMAP_OKAY;
 }

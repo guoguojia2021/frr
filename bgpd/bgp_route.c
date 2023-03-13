@@ -1513,7 +1513,7 @@ int bgp_path_info_cmp_compatible(struct bgp *bgp, struct bgp_path_info *new,
 	return ret;
 }
 
-static enum filter_type bgp_in_filter_run(struct peer *peer, struct prefix *p,
+static enum filter_type bgp_in_filter_run(struct peer *peer, const struct prefix *p,
 					 struct attr *attr, struct bgp_filter *filter)
 {
 	enum filter_type ret = FILTER_PERMIT;
@@ -2279,9 +2279,9 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
     * For BGP "network" statement,  check if the network is reachable as
     * a connected interface addr before advertising it to a neighbor
     */
-    if ((pi->peer == bgp->peer_self) &&
-            (pi->type == ZEBRA_ROUTE_BGP) &&
-            (pi->sub_type == BGP_ROUTE_STATIC)) {
+	if ((pi->peer == bgp->peer_self) &&
+			(pi->type == ZEBRA_ROUTE_BGP) &&
+			(pi->sub_type == BGP_ROUTE_STATIC)) {
 		tmp_rn = bgp_node_get(bgp->route[afi][safi], p);
 		bgp_static = tmp_rn->info;
 		if (bgp_static && !bgp_static->nonconnected) {
@@ -2289,32 +2289,32 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
 				zlog_debug("network route connected,should check connectivity");
 
-	        if (p->family == AF_INET) {
-	            dest = bgp_node_match_ipv4(bgp->connected_table[AFI_IP], &p->u.prefix4);
-	            if (dest) {
-	                bgp_dest_unlock_node (dest);
-	            } else {
-	                if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
-	                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
-	                            peer->host,
-	                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	                            p->prefixlen);
-	                return 0;
-	            }
-	        } else if (p->family == AF_INET6) {
-	            dest = bgp_node_match_ipv6(bgp->connected_table[AFI_IP6], &p->u.prefix6);
-	            if (dest) {
-	                bgp_dest_unlock_node (dest);
-	            } else {
-	                if (bgp_debug_update(NULL, p, subgrp->update_group, 0)) {
-	                    zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
-	                            peer->host,
-	                            inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
-	                            p->prefixlen);
-	                }
-	                return 0;
-	            }
-	        }
+			if (p->family == AF_INET) {
+				dest = bgp_node_match_ipv4(bgp->connected_table[AFI_IP], &p->u.prefix4);
+				if (dest) {
+					bgp_dest_unlock_node (dest);
+				} else {
+					if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+						zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
+								peer->host,
+								inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+								p->prefixlen);
+					return 0;
+				}
+			} else if (p->family == AF_INET6) {
+				dest = bgp_node_match_ipv6(bgp->connected_table[AFI_IP6], &p->u.prefix6);
+				if (dest) {
+					bgp_dest_unlock_node (dest);
+				} else {
+					if (bgp_debug_update(NULL, p, subgrp->update_group, 0)) {
+						zlog_debug ("%s [Update:SEND] %s/%d is not in connected table",
+								peer->host,
+								inet_ntop(p->family, &p->u.prefix, buf, SU_ADDRSTRLEN),
+								p->prefixlen);
+					}
+					return 0;
+				}
+			}
 		} else {
 			bgp_dest_unlock_node(tmp_rn);
 			if (bgp_debug_update(NULL, p, subgrp->update_group, 0))

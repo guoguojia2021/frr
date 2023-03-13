@@ -3471,7 +3471,7 @@ static void show_l3vni_routes(struct bgp *bgp, struct ipaddr *ip, vni_t vni, int
 				if (vni != 0 && vni != l3vni)
 					continue;
 				prefix_cnt_flag = 1;
-				route_vty_out(vty, evp, pi, 0, SAFI_EVPN, NULL,
+				route_vty_out(vty, (const struct prefix *)evp, pi, 0, SAFI_EVPN, NULL,
 						false);
 				path_cnt++;
 			}

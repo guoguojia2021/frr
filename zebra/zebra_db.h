@@ -13,6 +13,7 @@
 
 #define ZEBRA_DB_MAX_KEY_LEN      256
 #define ZEBRA_DB_MAX_VALUE_LEN    50
+#define ZEBRA_DB_MAX_SID_LEN      128
 
 extern void zebra_db_init(void);
 extern int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen);

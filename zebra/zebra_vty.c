@@ -2393,7 +2393,6 @@ static void vty_show_ip_route_summary(struct vty *vty,
 {
 	struct route_node *rn;
 	struct route_entry *re;
-	struct nexthop *nexthop;
 #define ZEBRA_ROUTE_IBGP  ZEBRA_ROUTE_MAX
 #define ZEBRA_ROUTE_DATAPLANE ZEBRA_ROUTE_IBGP + 1
 #define ZEBRA_ROUTE_TOTAL (ZEBRA_ROUTE_DATAPLANE + 1)
@@ -2422,26 +2421,24 @@ static void vty_show_ip_route_summary(struct vty *vty,
 	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
 		RNODE_FOREACH_RE (rn, re) {
 			dest = rib_dest_from_rnode(rn);
-			for (nexthop = re->nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
-				is_ibgp = (re->type == ZEBRA_ROUTE_BGP
-					   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
+			is_ibgp = (re->type == ZEBRA_ROUTE_BGP
+				   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
 
-				rib_cnt[ZEBRA_ROUTE_TOTAL]++;
+			rib_cnt[ZEBRA_ROUTE_TOTAL]++;
+			if (is_ibgp)
+				rib_cnt[ZEBRA_ROUTE_IBGP]++;
+			else
+				rib_cnt[re->type]++;
+
+			if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED)) {
+				if (!CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
+					fib_cnt[ZEBRA_ROUTE_DATAPLANE]++;
+				fib_cnt[ZEBRA_ROUTE_TOTAL]++;
+
 				if (is_ibgp)
-					rib_cnt[ZEBRA_ROUTE_IBGP]++;
+					fib_cnt[ZEBRA_ROUTE_IBGP]++;
 				else
-					rib_cnt[re->type]++;
-
-				if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED)) {
-					if (!CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
-						fib_cnt[ZEBRA_ROUTE_DATAPLANE]++;
-					fib_cnt[ZEBRA_ROUTE_TOTAL]++;
-
-					if (is_ibgp)
-						fib_cnt[ZEBRA_ROUTE_IBGP]++;
-					else
-						fib_cnt[re->type]++;
-				}
+					fib_cnt[re->type]++;
 			}
 
 			if (CHECK_FLAG(re->flags, ZEBRA_FLAG_TRAPPED)) {
