@@ -222,7 +222,7 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		*exists = true;
 
 	route_unlock_node(rn);
-	return (rn->info);
+	return rnh;
 }
 
 struct rnh *zebra_lookup_rnh(struct prefix *p, vrf_id_t vrfid, safi_t safi)
@@ -775,6 +775,12 @@ static void zebra_rnh_evaluate_entry(struct zebra_vrf *zvrf, afi_t afi,
 	}
 
 	rnh = nrn->info;
+	/* check color */
+	for (; rnh; rnh = rnh->next)
+		if (rnh->srte_color == 0)
+			break;
+	if (!rnh)
+		return;
 
 	/* Identify route entry (RE) resolving this tracked entry. */
 	re = zebra_rnh_resolve_nexthop_entry(zvrf, afi, nrn, rnh, &prn);
@@ -1358,30 +1364,32 @@ static void print_rnh(struct route_node *rn, struct vty *vty)
 	char buf[BUFSIZ];
 
 	rnh = rn->info;
-	vty_out(vty, "%s%s - color %u\n",
-		inet_ntop(rn->p.family, &rn->p.u.prefix, buf, BUFSIZ),
-		CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED) ? "(Connected)"
-							    : "", rnh->srte_color);
-	if (rnh->state) {
-		vty_out(vty, " resolved via %s\n",
-			zebra_route_string(rnh->state->type));
-		for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
-		     nexthop = nexthop->next)
-			print_nh(nexthop, vty);
-	} else
-		vty_out(vty, " unresolved%s\n",
-			CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED)
-				? "(Connected)"
-				: "");
+	for (; rnh; rnh = rnh->next) {
+		vty_out(vty, "%s%s - color %u\n",
+			inet_ntop(rn->p.family, &rn->p.u.prefix, buf, BUFSIZ),
+			CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED) ? "(Connected)"
+								    : "", rnh->srte_color);
+		if (rnh->state) {
+			vty_out(vty, " resolved via %s\n",
+				zebra_route_string(rnh->state->type));
+			for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
+			     nexthop = nexthop->next)
+				print_nh(nexthop, vty);
+		} else
+			vty_out(vty, " unresolved%s\n",
+				CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED)
+					? "(Connected)"
+					: "");
 
-	vty_out(vty, " Client list:");
-	for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client))
-		vty_out(vty, " %s(fd %d)%s", zebra_route_string(client->proto),
-			client->sock,
-			rnh->filtered[client->proto] ? "(filtered)" : "");
-	if (!list_isempty(rnh->zebra_pseudowire_list))
-		vty_out(vty, " zebra[pseudowires]");
-	vty_out(vty, "\n");
+		vty_out(vty, " Client list:");
+		for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client))
+			vty_out(vty, " %s(fd %d)%s", zebra_route_string(client->proto),
+				client->sock,
+				rnh->filtered[client->proto] ? "(filtered)" : "");
+		if (!list_isempty(rnh->zebra_pseudowire_list))
+			vty_out(vty, " zebra[pseudowires]");
+		vty_out(vty, "\n");
+	}
 }
 
 static int zebra_cleanup_rnh_client(vrf_id_t vrf_id, afi_t afi,

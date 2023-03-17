@@ -1238,6 +1238,7 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 		client->nh_reg_time = monotime(NULL);
 
 	while (l < hdr->length) {
+		srte_color = 0;
 		STREAM_GETC(s, flags);
 		STREAM_GETC(s, resolve_via_default);
 		STREAM_GETW(s, safi);

@@ -2292,14 +2292,14 @@ void vpn_leak_to_vrf_update_all(struct bgp *bgp_vrf, /* to */
 				if (bpi->extra
 				    && bpi->extra->bgp_orig == bgp_vrf)
 					continue;
-                if (!ecom_intersect(
-                        bgp_vrf->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN],
-                        bpi->attr->ecommunity)) {
-                    vpn_try_leak_to_withdraw_onevrf(bgp_vrf, bgp_vpn, bpi);
-                }
-                else
-    				vpn_leak_to_vrf_update_onevrf(bgp_vrf, bgp_vpn,
-    							      bpi);
+				if (!ecom_intersect(
+					bgp_vrf->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN],
+						bpi->attr->ecommunity)) {
+					continue;
+				}
+				else
+					vpn_leak_to_vrf_update_onevrf(bgp_vrf, bgp_vpn,
+								      bpi);
 			}
 		}
 	}
