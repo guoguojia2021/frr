@@ -128,7 +128,7 @@ _lt = None
 
 def setup_module(mod):
     global _lt
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root = os.path.dirname(os.path.dirname(mod.__file__))
     test = mod.__name__[: mod.__name__.rfind(".")]
     testdir = os.path.join(root, test)
 
