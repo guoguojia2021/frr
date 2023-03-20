@@ -3316,7 +3316,7 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
     }
 /* todo: ����sid export�仯 */
     /* post-change: re-export vpn routes */
-    vpn_leak_postchange_all();
+    vpn_leak_postchange_checksid();
 
 stream_failure:
     return;
@@ -3388,7 +3388,7 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 
 #endif
 /* todo: ����sid export�仯 */
-	vpn_leak_postchange_all();
+	vpn_leak_postchange_checksid();
 
 stream_failure:
 	return;
@@ -3427,7 +3427,7 @@ static int bgp_zebra_process_srv6_locator_add(ZAPI_CALLBACK_ARGS)
 		srv6_locator_del(loc);
 	}
 
-	vpn_leak_postchange_all();
+	vpn_leak_postchange_checksid();
 
 	return 0;
 }

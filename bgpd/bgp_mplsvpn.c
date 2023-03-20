@@ -643,6 +643,8 @@ void ensure_vrf_tovpn_sid(struct bgp *bgp_vpn, struct bgp *bgp_vrf, afi_t afi)
 			   __func__, buf, bgp_vrf->name_pretty,
 			   afi2str(afi));
 	}
+	if (bgp_vrf->vpn_policy[afi].tovpn_sid)
+		XFREE(MTYPE_BGP_SRV6_SID, bgp_vrf->vpn_policy[afi].tovpn_sid);
 
 	bgp_vrf->vpn_policy[afi].tovpn_sid = tovpn_sid;
 	bgp_vrf->vpn_policy[afi].tovpn_sid_locator = locator;
@@ -3492,6 +3494,65 @@ void vpn_leak_postchange_all(void)
 			AFI_IP6,
 			bgp_default,
 			bgp);
+	}
+}
+
+void vpn_leak_postchange_checksid(void)
+{
+	struct listnode *next;
+	struct bgp *bgp;
+	struct bgp *bgp_default = bgp_get_default();
+	struct srv6_locator *locator = NULL;
+	struct seg6_sid *sid = NULL;
+	struct in6_addr sid_buf;
+
+	assert(bgp_default);
+
+	/* First, do any exporting from VRFs to the single VPN RIB */
+	for (ALL_LIST_ELEMENTS_RO(bm->bgp, next, bgp)) {
+		if (bgp->inst_type != BGP_INSTANCE_TYPE_VRF)
+			continue;
+		if (bgp->srv6_locator_name[0] == '\0')
+			continue;
+		locator = locator_lookup_by_name(bgp_default->srv6_locators_hash, bgp->srv6_locator_name);
+		if (!locator)
+			continue;
+        
+		sid = sid_lookup_by_vrf(locator, bgp->name);
+		if (!sid) 
+		{
+			if (bgp->vpn_policy[AFI_IP].tovpn_sid) {
+				vpn_leak_postchange(
+					BGP_VPN_POLICY_DIR_TOVPN,
+					AFI_IP,
+					bgp_default,
+					bgp);
+			}
+			if (bgp->vpn_policy[AFI_IP6].tovpn_sid) {
+				vpn_leak_postchange(
+					BGP_VPN_POLICY_DIR_TOVPN,
+					AFI_IP6,
+					bgp_default,
+					bgp);
+			}
+		}
+		else {
+			combine_sid(locator, &sid->ipv6Addr.prefix, &sid_buf);
+			if (sid_diff(bgp->vpn_policy[AFI_IP].tovpn_sid, &sid_buf)) {
+				vpn_leak_postchange(
+					BGP_VPN_POLICY_DIR_TOVPN,
+					AFI_IP,
+					bgp_default,
+					bgp);
+			}
+			if (sid_diff(bgp->vpn_policy[AFI_IP6].tovpn_sid, &sid_buf)) {
+				vpn_leak_postchange(
+					BGP_VPN_POLICY_DIR_TOVPN,
+					AFI_IP6,
+					bgp_default,
+					bgp);
+			}
+		}
 	}
 }
 

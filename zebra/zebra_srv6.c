@@ -116,13 +116,6 @@ void srv6_manager_get_locator_sid_call(struct srv6_locator **loc,
 	hook_call(srv6_manager_get_sid, loc, client, locator_name, vrf_id);
 }
 
-void srv6_manager_release_locator_sid_call(struct zserv *client,
-					     const char *locator_name,
-					     vrf_id_t vrf_id)
-{
-	hook_call(srv6_manager_release_sid, client, locator_name, vrf_id);
-}
-
 void srv6_manager_get_locator_all_call(struct zserv *client,
 					 vrf_id_t vrf_id)
 {
@@ -400,10 +393,10 @@ static int zebra_srv6_manager_get_locator_all(struct zserv *client,
 	for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator))
 	{
         if (locator->status_up)
-		ret = zsend_srv6_manager_get_locator_sid_response(client,
-								    vrf_id,
-								    locator,
-								    NULL);
+    		ret = zsend_srv6_manager_get_locator_sid_response(client,
+    								    vrf_id,
+    								    locator,
+    								    NULL);
 	}
 
 	return ret;
@@ -782,8 +775,6 @@ void zebra_srv6_init(void)
 		      zebra_srv6_manager_release_locator_chunk);
     hook_register(srv6_manager_get_sid,
 		      zebra_srv6_manager_get_locator_sid);
-	hook_register(srv6_manager_release_sid,
-		      zebra_srv6_manager_release_locator_sid);
     hook_register(srv6_manager_get_locator_sid_all,
 		      zebra_srv6_manager_get_locator_all);
 }
