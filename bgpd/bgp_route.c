@@ -5429,17 +5429,17 @@ filtered:
 
 			vpn_leak_to_vrf_withdraw(bgp, pi);
 		}
-	    if (SAFI_UNICAST == safi
-            && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
-            struct listnode *mnode, *mnnode;
-            struct bgp *tovrf;
-            char *bgpname;
-            for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
-                tovrf = bgp_lookup_by_name(bgpname);
-                if (tovrf)
-                    vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
-            }
-        }
+		if (SAFI_UNICAST == safi
+			&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+			struct listnode *mnode, *mnnode;
+			struct bgp *tovrf;
+			char *bgpname;
+			for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+				tovrf = bgp_lookup_by_name(bgpname);
+				if (tovrf)
+					vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+			}
+		}
 		bgp_rib_remove(dest, pi, peer, afi, safi);
 	}
 
@@ -5540,17 +5540,17 @@ int bgp_withdraw(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 
 			vpn_leak_to_vrf_withdraw(bgp, pi);
 		}
-        if (SAFI_UNICAST == safi
-            && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
-            struct listnode *mnode, *mnnode;
-            struct bgp *tovrf;
-            char *bgpname;
-            for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
-                tovrf = bgp_lookup_by_name(bgpname);
-                if (tovrf)
-                    vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
-            }
-        }
+		if (SAFI_UNICAST == safi
+			&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+			struct listnode *mnode, *mnnode;
+			struct bgp *tovrf;
+			char *bgpname;
+			for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+				tovrf = bgp_lookup_by_name(bgpname);
+				if (tovrf)
+					vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+			}
+		}
 	} else if (bgp_debug_update(peer, p, NULL, 1)) {
 		bgp_debug_rdpfxpath2str(afi, safi, prd, p, label, num_labels,
 					addpath_id ? 1 : 0, addpath_id, NULL,
@@ -6015,17 +6015,17 @@ static wq_item_status bgp_clear_route_node(struct work_queue *wq, void *data)
 			    bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
 				vpn_leak_to_vrf_withdraw(bgp, pi);
 			}
-            if (SAFI_UNICAST == safi
-                && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
-                struct listnode *mnode, *mnnode;
-                struct bgp *tovrf;
-                char *bgpname;
-                for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
-                    tovrf = bgp_lookup_by_name(bgpname);
-                    if (tovrf)
-                        vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
-                }
-            }
+			if (SAFI_UNICAST == safi
+				&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+				struct listnode *mnode, *mnnode;
+				struct bgp *tovrf;
+				char *bgpname;
+				for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+					tovrf = bgp_lookup_by_name(bgpname);
+					if (tovrf)
+						vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+				}
+			}
 
 			bgp_rib_remove(dest, pi, peer, afi, safi);
 		}
@@ -6320,7 +6320,17 @@ void bgp_clear_stale_route(struct peer *peer, afi_t afi, safi_t safi)
 					vpn_leak_from_vrf_withdraw(
 						bgp_get_default(), peer->bgp,
 						pi);
-
+				if (SAFI_UNICAST == safi
+					&& (peer->bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+					struct listnode *mnode, *mnnode;
+					struct bgp *tovrf;
+					char *bgpname;
+					for (ALL_LIST_ELEMENTS(peer->bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+						tovrf = bgp_lookup_by_name(bgpname);
+						if (tovrf)
+							vrf_leak_from_vrf_withdraw(tovrf, peer->bgp, pi);
+					}
+				}
 				bgp_rib_remove(dest, pi, peer, afi, safi);
 				break;
 			}
@@ -6878,7 +6888,18 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 				vpn_leak_from_vrf_update(bgp_get_default(), bgp,
 							 pi, old_ecommunity);
 			}
-            if (old_ecommunity)
+			if (SAFI_UNICAST == safi
+				&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+				struct listnode *mnode, *mnnode;
+				struct bgp *tovrf;
+				char *bgpname;
+				for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+					tovrf = bgp_lookup_by_name(bgpname);
+					if (tovrf)
+						vrf_leak_from_vrf_update(tovrf, bgp, pi);
+				}
+			}
+			if (old_ecommunity)
 				ecommunity_free(&old_ecommunity);
 
 			bgp_dest_unlock_node(dest);
@@ -6934,7 +6955,17 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 		|| bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
 		vpn_leak_from_vrf_update(bgp_get_default(), bgp, new, NULL);
 	}
-
+	if (SAFI_UNICAST == safi
+		&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+		struct listnode *mnode, *mnnode;
+		struct bgp *tovrf;
+		char *bgpname;
+		for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+			tovrf = bgp_lookup_by_name(bgpname);
+			if (tovrf)
+				vrf_leak_from_vrf_update(tovrf, bgp, new);
+		}
+	}
 	/* Unintern original. */
 	aspath_unintern(&attr.aspath);
 }
@@ -6959,6 +6990,17 @@ void bgp_static_withdraw(struct bgp *bgp, const struct prefix *p, afi_t afi,
 		    && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF
 			|| bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)) {
 			vpn_leak_from_vrf_withdraw(bgp_get_default(), bgp, pi);
+		}
+		if (SAFI_UNICAST == safi
+			&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+			struct listnode *mnode, *mnnode;
+			struct bgp *tovrf;
+			char *bgpname;
+			for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+				tovrf = bgp_lookup_by_name(bgpname);
+				if (tovrf)
+					vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+			}
 		}
 		bgp_aggregate_decrement(bgp, p, pi, afi, safi);
 		bgp_unlink_nexthop(pi);
@@ -6999,17 +7041,6 @@ static void bgp_static_withdraw_safi(struct bgp *bgp, const struct prefix *p,
 		    && bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
 			vpn_leak_to_vrf_withdraw(bgp, pi);
 		}
-        if (SAFI_UNICAST == safi
-            && (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
-            struct listnode *mnode, *mnnode;
-            struct bgp *tovrf;
-            char *bgpname;
-            for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
-                tovrf = bgp_lookup_by_name(bgpname);
-                if (tovrf)
-                    vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
-            }
-        }
 		bgp_aggregate_decrement(bgp, p, pi, afi, safi);
 		bgp_path_info_delete(dest, pi);
 		bgp_process(bgp, dest, afi, safi);
@@ -9398,7 +9429,17 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 					vpn_leak_from_vrf_update(
 						bgp_get_default(), bgp, bpi, old_ecommunity);
 				}
-                if (old_ecommunity)
+				if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF) {
+					struct listnode *mnode, *mnnode;
+					struct bgp *tovrf;
+					char *bgpname;
+					for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+						tovrf = bgp_lookup_by_name(bgpname);
+						if (tovrf)
+							vrf_leak_from_vrf_update(tovrf, bgp, bpi);
+					}
+				}
+				if (old_ecommunity)
 					ecommunity_free(&old_ecommunity);
 				return;
 			}
@@ -9420,7 +9461,16 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 			vpn_leak_from_vrf_update(bgp_get_default(), bgp, new, NULL);
 		}
 	}
-
+	if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF) {
+		struct listnode *mnode, *mnnode;
+		struct bgp *tovrf;
+		char *bgpname;
+		for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+			tovrf = bgp_lookup_by_name(bgpname);
+			if (tovrf)
+				vrf_leak_from_vrf_update(tovrf, bgp, new);
+		}
+	}
 	/* Unintern original. */
 	aspath_unintern(&attr.aspath);
 }
@@ -9450,6 +9500,16 @@ void bgp_redistribute_delete(struct bgp *bgp, struct prefix *p, uint8_t type,
 
 				vpn_leak_from_vrf_withdraw(bgp_get_default(),
 							   bgp, pi);
+			}
+			if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF) {
+				struct listnode *mnode, *mnnode;
+				struct bgp *tovrf;
+				char *bgpname;
+				for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+					tovrf = bgp_lookup_by_name(bgpname);
+					if (tovrf)
+						vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+				}
 			}
 			bgp_aggregate_decrement(bgp, p, pi, afi, SAFI_UNICAST);
 			bgp_path_info_delete(dest, pi);
@@ -9481,6 +9541,16 @@ void bgp_redistribute_withdraw(struct bgp *bgp, afi_t afi, int type,
 
 				vpn_leak_from_vrf_withdraw(bgp_get_default(),
 							   bgp, pi);
+			}
+			if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF) {
+				struct listnode *mnode, *mnnode;
+				struct bgp *tovrf;
+				char *bgpname;
+				for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+					tovrf = bgp_lookup_by_name(bgpname);
+					if (tovrf)
+						vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+				}
 			}
 			bgp_aggregate_decrement(bgp, bgp_dest_get_prefix(dest),
 						pi, afi, SAFI_UNICAST);
