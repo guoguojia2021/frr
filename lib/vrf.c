@@ -380,7 +380,7 @@ const char *vrf_id_to_name(vrf_id_t vrf_id)
 		return VRF_DEFAULT_NAME;
 
 	vrf = vrf_lookup_by_id(vrf_id);
-	return VRF_LOGNAME(vrf);
+	return VRF_LOGALIASNAME(vrf);
 }
 
 /* Look up the data pointer of the specified VRF. */
