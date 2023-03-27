@@ -768,7 +768,6 @@ bool bgp_zebra_nexthop_set(union sockunion *local, union sockunion *remote,
 {
 	int ret = 0;
 	struct interface *ifp = NULL;
-	bool v6_ll_avail = true;
 
 	memset(nexthop, 0, sizeof(struct bgp_nexthop));
 
@@ -793,9 +792,6 @@ bool bgp_zebra_nexthop_set(union sockunion *local, union sockunion *remote,
 				ifp = if_lookup_by_name(peer->conf_if
 								? peer->conf_if
 								: peer->ifname,
-							peer->bgp->vrf_id);
-			else if (peer->update_if)
-				ifp = if_lookup_by_name(peer->update_if,
 							peer->bgp->vrf_id);
 		} else if (peer->update_if)
 			ifp = if_lookup_by_name(peer->update_if,
@@ -841,20 +837,12 @@ bool bgp_zebra_nexthop_set(union sockunion *local, union sockunion *remote,
 			 * route-map to
 			 * specify the global IPv6 nexthop.
 			 */
-			v6_ll_avail =
-				if_get_ipv6_local(ifp, &nexthop->v6_global);
+			if_get_ipv6_local(ifp, &nexthop->v6_global);
 			memcpy(&nexthop->v6_local, &nexthop->v6_global,
 			       IPV6_MAX_BYTELEN);
 		} else
-			v6_ll_avail =
-				if_get_ipv6_local(ifp, &nexthop->v6_local);
+			if_get_ipv6_local(ifp, &nexthop->v6_local);
 
-		/*
-		 * If we are a v4 connection and we are not doing unnumbered
-		 * not having a v6 LL address is ok
-		 */
-		if (!v6_ll_avail && !peer->conf_if)
-			v6_ll_avail = true;
 		if (if_lookup_by_ipv4(&remote->sin.sin_addr, peer->bgp->vrf_id))
 			peer->shared_network = 1;
 		else
@@ -880,14 +868,7 @@ bool bgp_zebra_nexthop_set(union sockunion *local, union sockunion *remote,
 						   remote->sin6.sin6_scope_id,
 						   peer->bgp->vrf_id);
 			if (direct)
-				v6_ll_avail = if_get_ipv6_local(
-					ifp, &nexthop->v6_local);
-			/*
-			 * It's fine to not have a v6 LL when using
-			 * update-source loopback/vrf
-			 */
-			if (!v6_ll_avail && if_is_loopback(ifp))
-				v6_ll_avail = true;
+				if_get_ipv6_local(ifp, &nexthop->v6_local);
 		} else
 		/* Link-local address. */
 		{
@@ -934,7 +915,7 @@ bool bgp_zebra_nexthop_set(union sockunion *local, union sockunion *remote,
 
 	/* If we have identified the local interface, there is no error for now.
 	 */
-	return v6_ll_avail;
+	return true;
 }
 
 static struct in6_addr *
