@@ -409,7 +409,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
             router bgp 1
               address-family ipv4 unicast
-               no network 0.0.0.0/0 route-map DEF
+               no network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
 
@@ -447,7 +447,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
             router bgp 1
               address-family ipv4 unicast
-               network 0.0.0.0/0 route-map DEF
+               network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
 
@@ -583,7 +583,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
             router bgp 1
               address-family ipv4 unicast
-               no network 0.0.0.0/0 route-map DEF
+               no network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
     router2.vtysh_cmd(
@@ -673,7 +673,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 1
             address-family ipv4 unicast
-             network 0.0.0.0/0 route-map DEF
+             network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
     router2.vtysh_cmd(
@@ -761,7 +761,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 1
             address-family ipv4 unicast
-             no network 0.0.0.0/0 route-map DEF
+             no network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
     router2.vtysh_cmd(
@@ -853,7 +853,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 1
             address-family ipv4 unicast
-             network 0.0.0.0/0 route-map DEF
+             network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
     router2.vtysh_cmd(
@@ -881,7 +881,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 2
             address-family ipv4 unicast
-             no network 203.0.113.1/32
+             no network 203.0.113.1/32 nonconnected
         """
     )
 
@@ -900,7 +900,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 1
             address-family ipv4 unicast
-             no network 0.0.0.0/0 route-map DEF
+             no network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
     router2.vtysh_cmd(
@@ -908,7 +908,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 2
             address-family ipv4 unicast
-             network 203.0.113.1/32
+             network 203.0.113.1/32 nonconnected
              neighbor 10.10.20.3 advertise-map ADV-MAP-2 non-exist-map EXIST-MAP
         """
     )
@@ -930,7 +930,7 @@ def test_bgp_conditional_advertisement():
           configure terminal
            router bgp 2
             address-family ipv4 unicast
-             no network 203.0.113.1/32
+             no network 203.0.113.1/32 nonconnected
         """
     )
 

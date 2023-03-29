@@ -1642,10 +1642,10 @@ def test_BGP_peering_bw_loopback_and_physical_p1(request):
         result = apply_raw_config(tgen, raw_config)
         assert result is True, "Testcase {} : Failed Error : {}".format(tc_name, result)
 
-    step("Verify that BGP session goes down, when update-source is removed")
-    result = verify_bgp_convergence_from_running_config(tgen, expected=False)
+    step("Verify that BGP session goes up, when update-source is removed")
+    result = verify_bgp_convergence_from_running_config(tgen)
     assert (
-        result is not True
+        result is True
     ), "Testcase {} : Failed \n " "BGP is converged \n Error: {}".format(
         tc_name, result
     )

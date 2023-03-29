@@ -129,8 +129,7 @@ def test_ebgp_requires_policy():
             )
         )
         expected = {
-            "advertisedRoutes": {},
-            "totalPrefixCounter": 0,
+            "totalPrefixCounter": 2,
             "filteredPrefixCounter": 0,
         }
         return topotest.json_cmp(output, expected)

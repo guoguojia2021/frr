@@ -1,5 +1,5 @@
 {
- "vrfName": "default",
+ "vrfName": "Default",
  "routerId": "192.168.0.2",
  "defaultLocPrf": 100,
  "localAS": 65000,

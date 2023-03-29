@@ -125,7 +125,7 @@ LOOPBACK_2 = {
 MAX_PATHS = 2
 KEEPALIVETIMER = 1
 HOLDDOWNTIMER = 3
-PREFERRED_NEXT_HOP = "link_local"
+PREFERRED_NEXT_HOP = ""
 
 
 def setup_module(mod):

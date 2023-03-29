@@ -768,7 +768,7 @@ def test_BGP_attributes_with_vrf_default_keyword_p0(request):
                 "static_routes": [
                     {
                         "network": NETWORK[addr_type][0],
-                        "vrf": "default",
+                        "vrf": "Default",
                         "largeCommunity": "500:500:500",
                     }
                 ]
@@ -791,7 +791,7 @@ def test_BGP_attributes_with_vrf_default_keyword_p0(request):
                 "static_routes": [
                     {
                         "network": NETWORK[addr_type][0],
-                        "vrf": "default",
+                        "vrf": "Default",
                         "community": "500:500",
                     }
                 ]

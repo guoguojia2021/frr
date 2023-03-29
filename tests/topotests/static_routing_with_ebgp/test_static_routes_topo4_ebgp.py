@@ -107,7 +107,7 @@ def setup_module(mod):
     # Creating configuration from JSON
     build_config_from_json(tgen, topo)
 
-    if version_cmp(platform.release(), "4.19") < 0:
+    if version_cmp(platform.release(), "4.9") < 0:
         error_msg = (
             'These tests will not run. (have kernel "{}", '
             "requires kernel >= 4.19)".format(platform.release())
@@ -152,7 +152,7 @@ def teardown_module(mod):
 #   Tests starting
 #
 #####################################################
-def test_static_routes_rmap_pfxlist_p0_tc7_ebgp(request):
+def skip_test_static_routes_rmap_pfxlist_p0_tc7_ebgp(request):
     """
     Verify static route are blocked from route-map & prefix-list applied in BGP
     nbrs

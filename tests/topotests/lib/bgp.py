@@ -409,7 +409,7 @@ def __create_bgp_unicast_neighbor(
             for ip in network_list:
                 ip = str(ipaddress.ip_network(frr_unicode(ip)))
 
-                cmd = "network {}".format(ip)
+                cmd = "network {} nonconnected".format(ip)
                 if del_action:
                     cmd = "no {}".format(cmd)
 
@@ -1258,9 +1258,9 @@ def verify_bgp_convergence(tgen, topo=None, dut=None, expected=True):
             if "vrf" in bgp_data:
                 vrf = bgp_data["vrf"]
                 if vrf is None:
-                    vrf = "default"
+                    vrf = "Default"
             else:
-                vrf = "default"
+                vrf = "Default"
 
             # To find neighbor ip type
             bgp_addr_type = bgp_data["address_family"]
@@ -2466,7 +2466,7 @@ def verify_best_path_as_per_bgp_attribute(
                         next_hops = route_attribute["nexthops"]
                         for next_hop in next_hops:
                             next_hop_ip = next_hop["ip"]
-                        attribute_dict[next_hop_ip] = route_attribute[attribute]
+                            attribute_dict[next_hop_ip] = route_attribute[attribute]
 
                     # AS_PATH attribute
                     if attribute == "path":

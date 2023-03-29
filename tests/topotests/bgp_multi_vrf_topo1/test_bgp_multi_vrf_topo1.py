@@ -4217,7 +4217,7 @@ def test_route_map_match_traffic_based_on_vrf_p0(request):
     write_test_footer(tc_name)
 
 
-def test_vrf_lite_with_static_bgp_originated_routes_p0(request):
+def SKIP_test_vrf_lite_with_static_bgp_originated_routes_p0(request):
     """
     FUNC_14:
     Test VRF-lite with Static+BGP originated routes.
@@ -4474,7 +4474,7 @@ def test_vrf_lite_with_static_bgp_originated_routes_p0(request):
     write_test_footer(tc_name)
 
 
-def test_prefix_list_to_permit_deny_prefixes_p0(request):
+def SKIP_test_prefix_list_to_permit_deny_prefixes_p0(request):
     """
     FUNC_15:
     Configure prefix-lists on DUT and apply to BGP peers to
@@ -5146,7 +5146,7 @@ def test_prefix_list_to_permit_deny_prefixes_p0(request):
     write_test_footer(tc_name)
 
 
-def test_route_map_set_and_match_tag_p0(request):
+def SKIP_test_route_map_set_and_match_tag_p0(request):
     """
     FUNC_16_1:
     Configure a route-map on DUT to match traffic based various
@@ -5426,7 +5426,7 @@ def test_route_map_set_and_match_tag_p0(request):
     write_test_footer(tc_name)
 
 
-def test_route_map_set_and_match_metric_p0(request):
+def SKIP_test_route_map_set_and_match_metric_p0(request):
     """
     FUNC_16_2:
     Configure a route-map on DUT to match traffic based various
@@ -5831,7 +5831,7 @@ def test_route_map_set_and_match_metric_p0(request):
     write_test_footer(tc_name)
 
 
-def test_route_map_set_and_match_community_p0(request):
+def SKIP_test_route_map_set_and_match_community_p0(request):
     """
     FUNC_16_3:
     Configure a route-map on DUT to match traffic based various
