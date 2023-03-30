@@ -1796,7 +1796,7 @@ static void ospf_te_update_link(struct ls_ted *ted, struct ls_vertex *vertex,
  * @param metric	Standard metric attached to this Edge
  */
 static void ospf_te_update_subnet(struct ls_ted *ted, struct ls_vertex *vertex,
-				  struct prefix p, uint8_t metric)
+				  struct prefix *p, uint8_t metric)
 {
 	struct ls_subnet *subnet;
 	struct ls_prefix *ls_pref;
@@ -1855,7 +1855,7 @@ static void ospf_te_delete_subnet(struct ls_ted *ted, struct in_addr addr)
 	p.family = AF_INET;
 	p.prefixlen = IPV4_MAX_BITLEN;
 	p.u.prefix4 = addr;
-	subnet = ls_find_subnet(ted, p);
+	subnet = ls_find_subnet(ted, &p);
 
 	/* Remove subnet if found */
 	if (subnet) {
@@ -1948,7 +1948,7 @@ static int ospf_te_parse_router_lsa(struct ls_ted *ted, struct ospf_lsa *lsa)
 			p.prefixlen = IPV4_MAX_BITLEN;
 			p.u.prefix4 = rl->link[i].link_data;
 			metric = ntohs(rl->link[i].metric);
-			ospf_te_update_subnet(ted, vertex, p, metric);
+			ospf_te_update_subnet(ted, vertex, &p, metric);
 			break;
 		case LSA_LINK_TYPE_STUB:
 			/* Keep only /32 prefix */
@@ -1957,7 +1957,7 @@ static int ospf_te_parse_router_lsa(struct ls_ted *ted, struct ospf_lsa *lsa)
 				p.family = AF_INET;
 				p.u.prefix4 = rl->link[i].link_id;
 				metric = ntohs(rl->link[i].metric);
-				ospf_te_update_subnet(ted, vertex, p, metric);
+				ospf_te_update_subnet(ted, vertex, &p, metric);
 			}
 			break;
 		default:
@@ -2089,12 +2089,12 @@ static void ospf_te_update_remote_asbr(struct ls_ted *ted, struct ls_edge *edge)
 	p.family = AF_INET;
 	p.prefixlen = IPV4_MAX_BITLEN;
 	p.u.prefix4 = attr->standard.local;
-	ospf_te_update_subnet(ted, edge->source, p, attr->standard.te_metric);
+	ospf_te_update_subnet(ted, edge->source, &p, attr->standard.te_metric);
 
 	p.family = AF_INET;
 	p.prefixlen = IPV4_MAX_BITLEN;
 	p.u.prefix4 = attr->standard.remote_addr;
-	ospf_te_update_subnet(ted, vertex, p, attr->standard.te_metric);
+	ospf_te_update_subnet(ted, vertex, &p, attr->standard.te_metric);
 
 	/* Connect Edge to the remote Vertex */
 	if (edge->destination == NULL) {
@@ -2640,14 +2640,14 @@ static int ospf_te_parse_ext_pref(struct ls_ted *ted, struct ospf_lsa *lsa)
 	pref.family = AF_INET;
 	pref.prefixlen = ext->pref_length;
 	pref.u.prefix4 = ext->address;
-	subnet = ls_find_subnet(ted, pref);
+	subnet = ls_find_subnet(ted, &pref);
 
 	/* Create new Link State Prefix if not found */
 	if (!subnet) {
 		lnid.origin = OSPFv2;
 		lnid.id.ip.addr = lsa->data->adv_router;
 		lnid.id.ip.area_id = lsa->area->area_id;
-		ls_pref = ls_prefix_new(lnid, pref);
+		ls_pref = ls_prefix_new(lnid, &pref);
 		/* and add it to the TED */
 		subnet = ls_subnet_add(ted, ls_pref);
 	}
@@ -2713,7 +2713,7 @@ static int ospf_te_delete_ext_pref(struct ls_ted *ted, struct ospf_lsa *lsa)
 	pref.family = AF_INET;
 	pref.prefixlen = ext->pref_length;
 	pref.u.prefix4 = ext->address;
-	subnet = ls_find_subnet(ted, pref);
+	subnet = ls_find_subnet(ted, &pref);
 
 	/* Check if there is a corresponding subnet */
 	if (!subnet)
@@ -4413,7 +4413,7 @@ DEFUN (show_ip_ospf_mpls_te_db,
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 			/* Get the Subnet from the Link State Database */
-			subnet = ls_find_subnet(OspfMplsTE.ted, pref);
+			subnet = ls_find_subnet(OspfMplsTE.ted, &pref);
 			if (!subnet) {
 				vty_out(vty, "No subnet found for ID %pFX\n",
 					&pref);
