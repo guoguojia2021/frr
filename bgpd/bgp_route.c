@@ -2519,7 +2519,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					      &rmap_path);
 		}
 
-		if (bgp_advertise_delay_applicable(peer)) {
+		if (bgp_advertise_delay_applicable(peer) && ADVERTISE_DELAY_MAP(filter)) {
 			zlog_debug("advertise delay route-map start");
 			adv_ret = route_map_apply(ADVERTISE_DELAY_MAP(filter), p,
 					      &rmap_path);
