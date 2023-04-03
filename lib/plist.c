@@ -1136,7 +1136,7 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 	struct prefix p;
 	int ret;
 	int match;
-    char buff[128], key[128];
+	char buff[4096], key[4096];
 
 	plist = prefix_list_lookup(afi, name);
 	if (!plist) {
@@ -1224,7 +1224,7 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 
 			json_object_object_add(jentries, key, jentry);
 			if (type == first_match_display) {
-				sprintf(key, "%s_%s",frr_protoname, plist->name);
+				snprintf(key, sizeof(key), "%s_%s",frr_protoname, plist->name);
 				json_object_object_add(jlist, key, jentries);
 				json_object_object_add(jlists, afi == AFI_IP ? "IP_PREFIX_LIST" : "IPv6_PREFIX_LIST", jlist);
 				if (uj)
@@ -1234,7 +1234,7 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 			}
 		}
 	}
-	sprintf(key, "%s_%s",frr_protoname, plist->name);
+	snprintf(key, sizeof(key), "%s_%s",frr_protoname, plist->name);
 	json_object_object_add(jlist, key, jentries);
 	json_object_object_add(jlists, afi == AFI_IP ? "IP_PREFIX_LIST" : "IPv6_PREFIX_LIST", jlist);
 	if (uj)

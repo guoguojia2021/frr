@@ -20419,7 +20419,7 @@ static const char *community_list_config_str(struct community_entry *entry)
 static void community_list_show(struct vty *vty, struct community_list *list, u_char use_json, json_object *cl_json)
 {
 	struct community_entry *entry;
-	char buf[128];
+	char buf[4096];
 	json_object *action_arr = json_object_new_array();
 	json_object *rule = json_object_new_object();
 
@@ -20449,7 +20449,7 @@ static void community_list_show(struct vty *vty, struct community_list *list, u_
 			}
 		} else {
 			if (use_json) {
-				sprintf(buf, "%s %s", community_direct_str(entry->direct),
+				snprintf(buf, sizeof(buf), "%s %s", community_direct_str(entry->direct),
 					                                        entry->style == COMMUNITY_LIST_STANDARD
 					? community_str(entry->u.com, false)
 					: entry->config);
