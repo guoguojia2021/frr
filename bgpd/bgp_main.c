@@ -262,6 +262,13 @@ static __attribute__((__noreturn__)) void bgp_exit(int status)
 	list_delete(&bm->addresses);
 
 	bgp_lp_finish();
+	if (bm->vrf_import_rt_hash)
+	{
+		hash_clean(bm->vrf_import_rt_hash, bgp_hash_irt_free);
+		hash_free(bm->vrf_import_rt_hash);
+	}
+
+	bitmap_free(bm->bitmap_leakvrf);
 
 	memset(bm, 0, sizeof(*bm));
 

@@ -8715,13 +8715,6 @@ void bgp_terminate(void)
                             BGP_NOTIFY_CEASE_PEER_UNCONFIG);
 
 	BGP_TIMER_OFF(bm->t_rmap_update);
-    if (bm->vrf_import_rt_hash)
-    {
-        hash_clean(bm->vrf_import_rt_hash, bgp_hash_irt_free);
-        hash_free(bm->vrf_import_rt_hash);
-    }
-    bitmap_free(bm->bitmap_leakvrf);
-
 	bgp_mac_finish();
 }
 
