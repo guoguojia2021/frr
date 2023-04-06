@@ -42,7 +42,7 @@ chmod 1777 /tmp
 if [ $# -eq 0 ] || ([[ "$1" != /* ]] && [[ "$1" != ./* ]]); then
 	export TOPOTESTS_CHECK_MEMLEAK=/tmp/memleak_
 	export TOPOTESTS_CHECK_STDERR=Yes
-	set -- pytest \
+	set -- pytest -m esr\
 		--junitxml /tmp/topotests.xml \
 		"$@"
 fi

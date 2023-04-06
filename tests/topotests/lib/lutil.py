@@ -225,7 +225,7 @@ Total %-4d                                                           %-4d %d\n\
                     self.log(
                         "WARNING: JSON load failed -- confirm command output is in JSON format."
                     )
-        self.log("COMMAND OUTPUT:%s:" % report)
+        self.log("COMMAND OUTPUT:\n%s:" % report)
 
         # JSON comparison
         if op == "jsoncmp_pass" or op == "jsoncmp_fail":
