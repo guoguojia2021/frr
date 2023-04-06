@@ -114,6 +114,7 @@ STANDARD_COMM = {
     "agg_2": "0:2 0:20 0:200 2:1 2:2 2:3 2:4 2:5",
 }
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """

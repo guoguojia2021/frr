@@ -103,6 +103,7 @@ bgp_convergence = False
 
 NETWORKS = {"ipv4": ["200.50.2.0/32"], "ipv6": ["1::1/128"]}
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """

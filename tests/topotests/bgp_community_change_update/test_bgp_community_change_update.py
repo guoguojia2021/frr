@@ -57,7 +57,7 @@ from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.common_config import step
 from time import sleep
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.bgpd, pytest.mark.esr]
 
 
 def build_topo(tgen):

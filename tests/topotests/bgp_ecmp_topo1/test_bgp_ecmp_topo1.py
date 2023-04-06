@@ -45,7 +45,7 @@ from lib.topolog import logger
 # Required to instantiate the topology builder class.
 
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 
 total_ebgp_peers = 20

@@ -61,6 +61,7 @@ test_sbfd_topo2.py:
  +----+----+        +----+----+        +----+----+     
    
 """
+pytestmark = [pytest.mark.esr]
 
 def show_policy_check(router, policy, sta_policy, pref, sta_pref, cpath, sta_cpath):
     output = router.cmd("vtysh -c 'show sr-te policy name {} detail'".format(policy))

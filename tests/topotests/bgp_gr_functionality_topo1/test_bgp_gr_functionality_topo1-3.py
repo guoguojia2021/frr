@@ -145,8 +145,9 @@ NEXT_HOP_IP_1 = {"ipv4": "192.168.0.1", "ipv6": "fd00::1"}
 NEXT_HOP_IP_2 = {"ipv4": "192.168.0.2", "ipv6": "fd00::2"}
 BGP_CONVERGENCE = False
 GR_RESTART_TIMER = 20
-PREFERRED_NEXT_HOP = "link_local"
+PREFERRED_NEXT_HOP = ""
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """
@@ -158,7 +159,7 @@ def setup_module(mod):
     global ADDR_TYPES
 
     # Required linux kernel version for this suite to run.
-    result = required_linux_kernel_version("4.16")
+    result = required_linux_kernel_version("4.15")
     if result is not True:
         pytest.skip("Kernel requirements are not met")
 

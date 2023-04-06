@@ -174,6 +174,7 @@ LOOPBACK_2 = {
     "ipv6": "20::20:20/128",
 }
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """

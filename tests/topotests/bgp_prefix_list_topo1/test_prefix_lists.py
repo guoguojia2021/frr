@@ -78,6 +78,7 @@ pytestmark = [pytest.mark.bgpd]
 # Global variables
 bgp_convergence = False
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """

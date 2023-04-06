@@ -155,6 +155,7 @@ bgp_convergence = False
 BGP_CONVERGENCE = False
 ADDR_TYPES = check_address_types()
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """setup_module.

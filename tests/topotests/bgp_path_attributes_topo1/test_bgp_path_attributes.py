@@ -91,6 +91,8 @@ pytestmark = [pytest.mark.bgpd, pytest.mark.staticd]
 # Address read from env variables
 ADDR_TYPES = check_address_types()
 
+pytestmark = [pytest.mark.esr]
+
 ####
 def setup_module(mod):
     """

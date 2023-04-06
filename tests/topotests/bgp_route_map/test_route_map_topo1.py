@@ -109,6 +109,7 @@ MASK = {"ipv4": "32", "ipv6": "128"}
 NEXT_HOP = {"ipv4": "10.0.0.2", "ipv6": "fd00::2"}
 ADDR_TYPES = check_address_types()
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """

@@ -39,7 +39,7 @@ import pytest
 import functools
 
 # add after imports, before defining classes or functions:
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, "../"))

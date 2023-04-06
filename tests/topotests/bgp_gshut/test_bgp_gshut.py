@@ -60,7 +60,9 @@ import os
 import re
 import sys
 import json
+import time
 import pytest
+import functools
 import platform
 from functools import partial
 
@@ -71,29 +73,32 @@ sys.path.append(os.path.join(CWD, "../"))
 from lib import topotest
 from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
+from mininet.topo import Topo
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.esr]
 
+class TemplateTopo(Topo):
+    def build(self, *_args, **_opts):
+        tgen = get_topogen(self)
 
-def build_topo(tgen):
-    for routern in range(1, 6):
-        tgen.add_router("r{}".format(routern))
+        for routern in range(1, 6):
+            tgen.add_router("r{}".format(routern))
 
-    switch = tgen.add_switch("s1")
-    switch.add_link(tgen.gears["r1"])
-    switch.add_link(tgen.gears["r2"])
+        switch = tgen.add_switch("s1")
+        switch.add_link(tgen.gears["r1"])
+        switch.add_link(tgen.gears["r2"])
 
-    switch = tgen.add_switch("s2")
-    switch.add_link(tgen.gears["r2"])
-    switch.add_link(tgen.gears["r3"])
+        switch = tgen.add_switch("s2")
+        switch.add_link(tgen.gears["r2"])
+        switch.add_link(tgen.gears["r3"])
 
-    switch = tgen.add_switch("s3")
-    switch.add_link(tgen.gears["r2"])
-    switch.add_link(tgen.gears["r4"])
+        switch = tgen.add_switch("s3")
+        switch.add_link(tgen.gears["r2"])
+        switch.add_link(tgen.gears["r4"])
 
-    switch = tgen.add_switch("s4")
-    switch.add_link(tgen.gears["r2"])
-    switch.add_link(tgen.gears["r5"])
+        switch = tgen.add_switch("s4")
+        switch.add_link(tgen.gears["r2"])
+        switch.add_link(tgen.gears["r5"])
 
 
 def _run_cmd_and_check(router, cmd, results_file, retries=100, intvl=0.5):
@@ -104,7 +109,7 @@ def _run_cmd_and_check(router, cmd, results_file, retries=100, intvl=0.5):
 
 
 def setup_module(mod):
-    tgen = Topogen(build_topo, mod.__name__)
+    tgen = Topogen(TemplateTopo, mod.__name__)
     tgen.start_topology()
 
     router_list = tgen.routers()

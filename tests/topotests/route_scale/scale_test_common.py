@@ -45,6 +45,8 @@ from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
 
 
+pytestmark = [pytest.mark.esr]
+
 #####################################################
 ##
 ##   Network Topology Definition

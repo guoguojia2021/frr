@@ -89,6 +89,7 @@ test_sbfd_multi_path_topo3.py:
                   eth-rt4|         |eth-rt5
                          +---------+
 """
+pytestmark = [pytest.mark.esr]
 
 def show_policy_selected_check(router, policy, sta_policy, pref):
     output = router.cmd("vtysh -c 'show sr-te policy name {} detail'".format(policy))

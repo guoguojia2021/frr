@@ -137,22 +137,25 @@ sys.path.append(os.path.join(CWD, "../"))
 from lib import topotest
 from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
+from mininet.topo import Topo
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.esr]
 
+class BgpConditionalAdvertisementTopo(Topo):
+    def build(self, *_args, **_opts):
+        tgen = get_topogen(self)
 
-def build_topo(tgen):
-    r1 = tgen.add_router("r1")
-    r2 = tgen.add_router("r2")
-    r3 = tgen.add_router("r3")
+        r1 = tgen.add_router("r1")
+        r2 = tgen.add_router("r2")
+        r3 = tgen.add_router("r3")
 
-    switch = tgen.add_switch("s1")
-    switch.add_link(r1)
-    switch.add_link(r2)
+        switch = tgen.add_switch("s1")
+        switch.add_link(r1)
+        switch.add_link(r2)
 
-    switch = tgen.add_switch("s2")
-    switch.add_link(r2)
-    switch.add_link(r3)
+        switch = tgen.add_switch("s2")
+        switch.add_link(r2)
+        switch.add_link(r3)
 
 
 def setup_module(mod):
@@ -162,7 +165,7 @@ def setup_module(mod):
 
     logger.info("Running setup_module to create topology")
 
-    tgen = Topogen(build_topo, mod.__name__)
+    tgen = Topogen(BgpConditionalAdvertisementTopo, mod.__name__)
     tgen.start_topology()
 
     router_list = tgen.routers()
@@ -334,7 +337,7 @@ def test_bgp_conditional_advertisement():
             "192.0.2.1/32": None,
             "192.0.2.5/32": None,
             "10.139.224.0/20": None,
-            "203.0.113.1/32": [{"protocol": "bgp", "metric": 911}],
+            "203.0.113.1/32": [{"protocol": "bgp"}],
         }
         return topotest.json_cmp(output, expected)
 

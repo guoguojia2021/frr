@@ -97,6 +97,7 @@ COMMUNITY = [
     "0:3 0:4 0:5 0:6 0:30 0:40 0:50 0:60 0:300 0:400 0:500 0:600",
 ]
 
+pytestmark = [pytest.mark.esr]
 
 def setup_module(mod):
     """

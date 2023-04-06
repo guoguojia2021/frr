@@ -36,6 +36,7 @@ sys.path.append(os.path.join(CWD, "../"))
 from lib import topotest
 from lib.topogen import Topogen, TopoRouter, get_topogen
 
+pytestmark = [pytest.mark.esr]
 
 pytestmark = [pytest.mark.bgpd]
 

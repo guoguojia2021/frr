@@ -100,7 +100,7 @@ from lib.bgp import clear_bgp, verify_bgp_rib, create_router_bgp, verify_bgp_con
 from lib.topojson import build_config_from_json
 
 
-pytestmark = [pytest.mark.bgpd, pytest.mark.staticd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.staticd, pytest.mark.esr]
 
 
 # Global variables

@@ -59,7 +59,7 @@ from lib.common_config import (
 )
 from lib.topogen import Topogen, TopoRouter, get_topogen
 
-pytestmark = [pytest.mark.bgpd, pytest.mark.ospfd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.ospfd, pytest.mark.esr]
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 

@@ -64,6 +64,7 @@ this scenario, the servers are also routers as they have to announce
 anycast IP (VIP) addresses via BGP.
 """
 
+pytestmark = [pytest.mark.esr]
 
 def build_topo(tgen):
     "Build function"
