@@ -43,7 +43,7 @@ if [ $# -eq 0 ] || ([[ "$1" != /* ]] && [[ "$1" != ./* ]]); then
 	export TOPOTESTS_CHECK_MEMLEAK=/tmp/memleak_
 	export TOPOTESTS_CHECK_STDERR=Yes
 	set -- pytest -m esr\
-		--junitxml /tmp/topotests.xml \
+	    --html=/tmp/frrpytest.html \
 		"$@"
 fi
 

@@ -47,6 +47,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
         "scapy>=2.4.2" \
         ipaddr \
         pytest \
+        pytest-html \
     && rm -rf /var/lib/apt/lists/*
 
 RUN export DEBIAN_FRONTEND=noninteractive \
