@@ -7,8 +7,8 @@
       "prefix": "2001:db8:1::/64",
       "nexthops": [
         {
-          "interfaceName": "r1-eth0",
-          "active": true,
+          "ip": "2001:db8:1::2",
+          "flags": 0,
           "afi": "ipv6"
         }
       ]
