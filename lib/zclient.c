@@ -798,18 +798,18 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 	default:
 		break;
 	}
-    if (userdata)
-    {
-        switch (type) {
-    	case NEXTHOP_REGISTER_TYPE_COLOR:
-            stream_putl(s, type);
-    		stream_putl(s, *(uint32_t *)userdata);
-            break;
-    	default:
-    		zlog_err("error type with userdate:%u", type);
-            break;
-    	}
-    }
+	if (userdata)
+	{
+		switch (type) {
+		case NEXTHOP_REGISTER_TYPE_COLOR:
+			stream_putl(s, type);
+			stream_putl(s, *(uint32_t *)userdata);
+			break;
+		default:
+			zlog_err("error type with userdate:%u", type);
+			break;
+		}
+	}
 	stream_putw_at(s, 0, stream_get_endp(s));
 
 	return zclient_send_message(zclient);

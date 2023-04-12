@@ -85,9 +85,11 @@ typedef uint16_t zebra_size_t;
 
 #define NEXTHOP_REGISTER_TYPE_DEFAULT 0
 #define NEXTHOP_REGISTER_TYPE_COLOR   1
+#define NEXTHOP_REGISTER_TYPE_TRACK   2
 
 #define NEXTHOP_REGISTER_FLAG_EXTRAMATCH     0x01
-#define NEXTHOP_REGISTER_FLAG_USERDATA       0x10
+#define NEXTHOP_REGISTER_FLAG_USERDATA       0x02
+#define NEXTHOP_REGISTER_FLAG_TRACKROUTE     0x04
 
 /* Client capabilities */
 enum zserv_client_capabilities {
