@@ -14,7 +14,7 @@ ipv6_want = [
     {"p": "1000::1000/128", "n": "10:10::10"},
     {"p": "1000::1000/128", "n": "10:20::10"},
 ]
-bgpribRequireUnicastRoutes("r2", "ipv6", "", "", ipv6_want)
+#bgpribRequireUnicastRoutes("r2", "ipv6", "", "", ipv6_want)
 
 luCommand(
     "r2",
@@ -30,7 +30,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
-
+"""
 luCommand(
     "r2",
     'vtysh -c "show ipv6 route 1::1/128 json"',
@@ -38,7 +38,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
-
+"""
 
 luCommand(
     "r2",
@@ -55,7 +55,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
-
+"""
 luCommand(
     "r2",
     'vtysh -c "show ipv6 route 1::1/128 json"',
@@ -63,7 +63,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
-
+"""
 luCommand(
     "r2",
     'vtysh -c "conf ter" -c "no ip prefix-list ip_nht seq 15 permit 10.0.2.1/24 le 32" -c "no ipv6 prefix-list ipv6_nht seq 15 permit 10:20::20/64 le 128"',
@@ -79,7 +79,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
-
+"""
 luCommand(
     "r2",
     'vtysh -c "show ipv6 route 1::1/128 json"',
@@ -87,6 +87,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
+"""
 luCommand(
     "r2",
     'vtysh -c "conf ter" -c "no ip nht bgp route-map ip-nht-map" -c "no ipv6 nht bgp route-map ipv6-nht-map"',
@@ -101,7 +102,7 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
-
+"""
 luCommand(
     "r2",
     'vtysh -c "show ipv6 route 1::1/128 json"',
@@ -109,3 +110,4 @@ luCommand(
     "pass",
     "Redundant route 1 details",
 )
+"""

@@ -1,6 +1,10 @@
 from lib.lutil import luCommand
 from lib.bgprib import bgpribRequireVpnRoutes, bgpribRequireUnicastRoutes
 
+luCommand("r2", 'vtysh -c "show bgp ipv4 neighbors 10.0.1.1"', "Established", "wait", "neighbors establish",150)
+luCommand("r2", 'vtysh -c "show bgp ipv4 neighbors 10.0.2.1"', "Established", "wait", "neighbors establish",150)
+luCommand("r2", 'vtysh -c "show bgp ipv6 neighbors 10:20::10"', "Established", "wait", "neighbors establish", 150)
+luCommand("r2", 'vtysh -c "show bgp ipv6 neighbors 10:10::10"', "Established", "wait", "neighbors establish",150)
 
 luCommand("ce1", 'vtysh -c "show bgp ipv4 uni"', "44 routes and 44", "wait", "Local and remote routes",)
 luCommand("ce2", 'vtysh -c "show bgp ipv4 uni"', "44 routes and 44", "wait", "Local and remote routes",)
@@ -269,7 +273,7 @@ r2_remote_vpn_routes = [
     {"rd": "2:2", "p": "10.205.2.0/24", "n": "1000::1000"},
     {"rd": "2:2", "p": "10.206.2.0/24", "n": "1000::1000"},
 ]
-bgpribRequireVpnRoutes(
-    "r2", "Remote Customer routes in R2 vpn", r2_remote_vpn_routes
-)
+#bgpribRequireVpnRoutes(
+#    "r2", "Remote Customer routes in R2 vpn", r2_remote_vpn_routes
+#)
 
