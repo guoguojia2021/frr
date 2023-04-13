@@ -869,7 +869,7 @@ void zebra_evpn_print_mac_hash(struct hash_bucket *bucket, void *ctxt)
 
 	prefix_mac2str(&mac->macaddr, buf1, sizeof(buf1));
 
-	if (json_mac_hdr)
+	if (json_mac_hdr && (CHECK_FLAG(mac->flags, ZEBRA_MAC_LOCAL) || CHECK_FLAG(mac->flags, ZEBRA_MAC_REMOTE)))
 		json_mac = json_object_new_object();
 
 	if (CHECK_FLAG(mac->flags, ZEBRA_MAC_LOCAL)) {
