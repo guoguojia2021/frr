@@ -43,7 +43,7 @@ find \
 		| egrep -q -v '^((user|group|other)::|$)'; then
 		:
 	else
-		chown frr: "$filename"
+		chown root: "$filename"
 		chmod o-rwx "$filename"
 	fi
 done
@@ -51,7 +51,7 @@ done
 # fix misconfigured vtysh.conf & frr.conf ownership caused by config save
 # mishandling in earlier FRR (and Quagga) versions
 find /etc/frr -maxdepth 1 \( -name vtysh.conf -o -name frr.conf \) \
-	-group frrvty -exec chgrp frr {} \;
+	-group frrvty -exec chgrp root {} \;
 
 # more Quagga -> FRR upgrade smoothing.  Not technically needed, but let's
 # at least do the straightforward pieces.
