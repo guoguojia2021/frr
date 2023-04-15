@@ -141,6 +141,7 @@ struct bmp_statistics{
 	uint64_t bmp_stat_rm_eor;
 	uint64_t bmp_stat_rm_adj_in_pre_policy;
 	uint64_t bmp_stat_rm_adj_out_post_policy;
+	uint64_t bmp_stat_rm_adj_in_post_policy;
 };
 
 /* an established BMP session to a peer */

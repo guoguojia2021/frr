@@ -1480,6 +1480,8 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 		bmp_monitor(bmp, peer, BMP_PEER_FLAG_L, &bqe->p, prd,
 			    bpi ? bpi->attr : NULL, afi, safi,
 			    bpi ? bpi->uptime : monotime(NULL));
+		
+		bmp->bmp_stat.bmp_stat_rm_adj_in_post_policy++;
 		written = true;
 	}
 
@@ -3085,6 +3087,7 @@ static void bmp_show_msg_stat_info(struct bmp_targets *bt, struct vty *vty)
 		vty_out(vty, "        UPDATE      :  %Lu\n", bmp->bmp_stat.bmp_stat_rm_update);
 		vty_out(vty, "        WITHDRAW    :  %Lu\n", bmp->bmp_stat.bmp_stat_rm_withdraw);
 		vty_out(vty, "        ADJIN-PRE   :  %Lu\n", bmp->bmp_stat.bmp_stat_rm_adj_in_pre_policy);
+		vty_out(vty, "        ADJIN-POST  :  %Lu\n", bmp->bmp_stat.bmp_stat_rm_adj_in_post_policy);
 		vty_out(vty, "        ADJOUT-POST :  %Lu\n", bmp->bmp_stat.bmp_stat_rm_adj_out_post_policy);
 		vty_out(vty, "    Total message sent    : %Lu\n",total_msg);
 		vty_out(vty, "    Total bytes sent      : %Lu\n",total);
