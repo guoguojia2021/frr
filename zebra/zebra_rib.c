@@ -547,6 +547,24 @@ int zebra_rib_labeled_unicast(struct route_entry *re)
 
 	return 1;
 }
+static bool check_update_fib(struct route_entry *old,
+				   struct route_entry *new)
+{
+	if (old->nhe && !new->nhe)
+		return FALSE;
+	if (!old->nhe && new->nhe)
+		return FALSE;
+	if (!old->nhe && !new->nhe)
+		return FALSE;
+    
+	if (old->nhe->nhg.nexthop && new->nhe->nhg.nexthop) {
+		if (nexthop_group_equal_no_recurse(&old->nhe->nhg, &new->nhe->nhg))
+			return FALSE;
+	}
+	else if (!old->nhe->nhg.nexthop && !new->nhe->nhg.nexthop)
+		return FALSE;
+	return TRUE;
+}
 
 /* Update flag indicates whether this is a "replace" or not. Currently, this
  * is only used for IPv4.
@@ -591,7 +609,8 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 	 * Make sure we update the FPM any time we send new information to
 	 * the kernel.
 	 */
-	hook_call(rib_update, rn, "installing in kernel");
+	if (old && check_update_fib(old, re))
+		hook_call(rib_update, rn, "installing in kernel");
 
 	/* Send add or update */
 	if (old)
@@ -1030,7 +1049,8 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 #endif
 	}
 	if (new != old || CHECK_FLAG(new->status, ROUTE_ENTRY_CHANGED)) {
-		hook_call(rib_update, rn, "updating existing route");
+		if (check_update_fib(new, old))
+			hook_call(rib_update, rn, "updating existing route");
 		/* Update the nexthop; we could determine here that nexthop is
 		 * inactive. */
 		if (nexthop_group_active_nexthop_num(&(new->nhe->nhg)))

@@ -212,12 +212,13 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		rnh->zebra_pseudowire_list = list_new();
 		route_lock_node(rn);
 		rnh->node = rn;
-        rnh->srte_color = srte_color;
-        rnh->srp_status = ZEBRA_SR_POLICY_DOWN;
+		rnh->srte_color = srte_color;
+		rnh->srp_status = ZEBRA_SR_POLICY_DOWN;
 		*exists = false;
         
-        zebra_rnh_info_add(rn, rnh);
-		zebra_rnh_store_in_routing_table(rnh);
+		zebra_rnh_info_add(rn, rnh);
+		if (!srte_color)
+			zebra_rnh_store_in_routing_table(rnh);
 	} else
 		*exists = true;
 
