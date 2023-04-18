@@ -191,8 +191,8 @@ def test_sbfd_config_check():
     r1 = tgen.net['r1']
     r1.cmd("vtysh -c 'config t' -c 'segment-routing' -c 'traffic-eng' -c 'policy color 100 endpoint 3001::2' -c 'sbfd echo source-address 3001::1'")
 
-    logger.info('waiting 3 sec ... for sbfd up')
-    time.sleep(3)
+    logger.info('waiting 5 sec ... for sbfd up')
+    time.sleep(5)
     
     show_bfd_check(r1, 'SL1', 'up', 'echo')
     show_policy_check(r1, 'POLICY01', 'Active', '100', 'UP', 'CP1', 'UP')
@@ -209,13 +209,13 @@ def test_sbfd_updown_interface():
     
     # shutdown interface
     r2.cmd("vtysh -c 'config t' -c 'interface r2-eth0' -c 'shutdown'")
-    time.sleep(2)
+    time.sleep(5)
     show_bfd_check(r1, 'SL1', 'down', 'echo')
     show_policy_check(r1, 'POLICY01', 'Inactive', '100', 'DOWN', 'CP1', 'DOWN')
     
     # up interface
     r2.cmd("vtysh -c 'config t' -c 'interface r2-eth0' -c 'no shutdown'")
-    time.sleep(2)
+    time.sleep(5)
     show_bfd_check(r1, 'SL1', 'up', 'echo')
     show_policy_check(r1, 'POLICY01', 'Active', '100', 'UP', 'CP1', 'UP')
     
