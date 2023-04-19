@@ -371,6 +371,7 @@ extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);
+extern void zebra_interface_nhg_reinstall(struct interface *ifp);
 /* Forward ref of dplane update context type */
 struct zebra_dplane_ctx;
 extern void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx);
