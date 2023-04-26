@@ -611,6 +611,9 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 	 */
 	if (old && check_update_fib(old, re))
 		hook_call(rib_update, rn, "installing in kernel");
+	nexthop = re->nhe->nhg.nexthop;
+	if (nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+		return;
 
 	/* Send add or update */
 	if (old)

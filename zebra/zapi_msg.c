@@ -1783,11 +1783,15 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 			}
 		}
 	}
-    if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
-    {
-        SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
-        nexthop->srte_color = api_nh->srte_color;
-    }
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
+	{
+		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+		nexthop->srte_color = api_nh->srte_color;
+	}
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6))
+	{
+		SET_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP);
+	}
 
 done:
 	return nexthop;

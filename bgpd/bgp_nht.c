@@ -481,7 +481,9 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		bnc->change_flags |= BGP_NEXTHOP_METRIC_CHANGED;
 
 	if (nhr->nexthop_num != bnc->nexthop_num) {
-		bnc->change_flags |= BGP_NEXTHOP_CHANGED;
+		if (nhr->nexthop_num == 0 || bnc->nexthop_num == 0)
+			bnc->change_flags |= BGP_NEXTHOP_COUNT_UNCHANGED;
+        bnc->change_flags |= BGP_NEXTHOP_CHANGED;
 	}
 
 	if (nhr->nexthop_num) {
@@ -1225,9 +1227,10 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			path->extra->igpmetric = 0;
 
 		if (CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_METRIC_CHANGED)
-		    || CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED)
-		    || path->attr->srte_color != 0
 		    || isSrv6TeBnc)
+			SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
+		if (CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED) 
+            && (!isServiceRoute || !CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_COUNT_UNCHANGED)))
 			SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
 
 		path_valid = CHECK_FLAG(path->flags, BGP_PATH_VALID);

@@ -98,7 +98,8 @@ struct bgp_nexthop_cache {
 #define BGP_NEXTHOP_CHANGED           (1 << 0)
 #define BGP_NEXTHOP_METRIC_CHANGED    (1 << 1)
 #define BGP_NEXTHOP_CONNECTED_CHANGED (1 << 2)
-#define BGP_NEXTHOP_MACIP_CHANGED (1 << 3)
+#define BGP_NEXTHOP_MACIP_CHANGED     (1 << 3)
+#define BGP_NEXTHOP_COUNT_UNCHANGED   (1 << 4)
 
 	/* Back pointer to the cache tree this entry belongs to. */
 	struct bgp_nexthop_cache_head *tree;
