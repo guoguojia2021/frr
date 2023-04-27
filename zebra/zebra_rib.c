@@ -3965,6 +3965,11 @@ void rib_delete(afi_t afi, safi_t safi, vrf_id_t vrf_id, int type,
 			same = re;
 			break;
 		}
+		if (type == ZEBRA_ROUTE_STATIC)
+		{
+			if (CHECK_FLAG(re->flags^flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
+				continue;
+		}
 
 		/* Make sure that the route found has the same gateway. */
 		if (nhe_id && re->nhe_id == nhe_id) {
