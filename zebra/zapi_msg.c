@@ -1010,7 +1010,6 @@ void zsend_bfdd_neighbor_notify(int cmd, struct interface *ifp,
     
 	if (AF_INET6 != ipaddr_family(ipaddr))
 	{
-		zlog_debug("%s: Non-IPv6 does not need to be handled.", __func__);
 		return;
 	}
 
