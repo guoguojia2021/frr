@@ -89,6 +89,13 @@ static void show_nexthop_detail_helper(struct vty *vty,
 				       const struct route_entry *re,
 				       const struct nexthop *nexthop,
 				       bool is_backup);
+extern unsigned long fib_total_count();
+extern unsigned long zebra_config_fib_max;
+extern unsigned long ZEBRA_TABLE_FIB_MAX;
+extern unsigned long ip4_sent_fib_count;
+extern unsigned long ip4_pending_fib_count;
+extern unsigned long ip6_sent_fib_count;
+extern unsigned long ip6_pending_fib_count;
 
 static void show_ip_route_dump_vty(struct vty *vty, struct route_table *table);
 static void show_ip_route_nht_dump(struct vty *vty, struct nexthop *nexthop,
@@ -3958,6 +3965,9 @@ DEFUN (no_ip_zebra_import_table,
 
 static int config_write_protocol(struct vty *vty)
 {
+	if (zebra_config_fib_max != ZEBRA_TABLE_FIB_MAX)
+		vty_out(vty, "fib route limit %lu\n", zebra_config_fib_max);
+
 	if (allow_delete)
 		vty_out(vty, "allow-external-route-update\n");
 
@@ -4398,6 +4408,41 @@ DEFUN_HIDDEN(no_zebra_kernel_netlink_batch_tx_buf,
 
 #endif /* HAVE_NETLINK */
 
+DEFPY (set_fib_count,
+       set_fib_count_cmd,
+       "fib route limit (0-4194304)$count",
+       "Forwarding information base\n"
+       "Routing table\n"
+       "The limit count of fib\n"
+       "Set fib size\n")
+{
+	if (count <= 0 || count > 4194304) {
+		vty_out(vty, "%% The limit count  %s is invalid \n", count);
+		return CMD_SUCCESS;
+	}
+	zebra_config_fib_max = count;
+	return CMD_SUCCESS;
+}
+
+DEFUN (show_fib_route_statistics,
+       show_fib_route_statistics_cmd,
+       "show fib route statistics",
+       SHOW_STR
+       "IP FIB table\n"
+       "The Zebra Router Information\n"
+       "Statistcs\n")
+{
+	vty_out(vty, "-------- fib statistics --------\n");
+	vty_out(vty, "\n%-40s %10s\n\n", "Type", "Total");
+	vty_out(vty, "%-40s %10lu\n", "ZEBRA_TABLE_FIB_MAX", ZEBRA_TABLE_FIB_MAX);
+	vty_out(vty, "%-40s %10lu\n", "zebra_config_fib_max", zebra_config_fib_max);
+	vty_out(vty, "%-40s %10lu\n", "ip4_sent_fib_count", ip4_sent_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "ip4_pending_fib_count", ip4_pending_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "ip6_sent_fib_count", ip6_sent_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "ip6_pending_fib_count", ip6_pending_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "fib_total_count", fib_total_count());
+	return CMD_SUCCESS;
+}
 DEFUN(ip_table_range, ip_table_range_cmd,
       "[no] ip table range (1-4294967295) (1-4294967295)",
       NO_STR IP_STR
@@ -4609,4 +4654,7 @@ void zebra_vty_init(void)
 
 	install_element(VIEW_NODE, &zebra_show_routing_tables_summary_cmd);
     install_element(VIEW_NODE, &zebra_vrfdevname_cmd);
+	install_element(CONFIG_NODE, &set_fib_count_cmd);
+
+	install_element(VIEW_NODE, &show_fib_route_statistics_cmd);
 }

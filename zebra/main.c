@@ -81,6 +81,7 @@ int allow_delete = 0;
 int graceful_restart;
 
 int ZEBRA_TABLE_FIB_MAX = 51200;
+unsigned long zebra_config_fib_max = 0;
 
 bool v6_rr_semantics = false;
 
@@ -401,7 +402,7 @@ int main(int argc, char **argv)
 			frr_help_exit(1);
 		}
 	}
-
+	zebra_config_fib_max = ZEBRA_TABLE_FIB_MAX;
 	zrouter.master = frr_init();
 
     zebra_db_init();
