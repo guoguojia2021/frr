@@ -2558,6 +2558,22 @@ static int bgp_fsm_exeption(struct peer *peer)
 		bgp_event_str[peer->last_major_event], peer->fd);
 	return (bgp_stop(peer));
 }
+static int bgp_tracking_delay_timer(struct thread *thread)
+{
+	struct peer *peer;
+
+	peer = THREAD_ARG(thread);
+
+	if (bgp_debug_neighbor_events(peer))
+		zlog_debug("%s [FSM] Timer (tracking timer expire)",
+			   peer->host);
+
+	if (peer->status == OpenSent || peer->status == OpenConfirm || peer->status == Established)
+	{
+		BGP_EVENT_ADD(peer, TCP_fatal_error);
+	}
+	return 0;
+}
 
 void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 {
@@ -2566,8 +2582,9 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 
 	switch (peer->status) {
 	case Idle:
-		if (has_valid_nexthops)
+		if (has_valid_nexthops) {
 			BGP_EVENT_ADD(peer, BGP_Start);
+		}
 		break;
 	case Connect:
 		if (!has_valid_nexthops) {
@@ -2584,10 +2601,17 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	case OpenSent:
 	case OpenConfirm:
 	case Established:
-		if (!has_valid_nexthops
-		    && (peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED
-			|| peer->bgp->fast_convergence))
-			BGP_EVENT_ADD(peer, TCP_fatal_error);
+		if (!has_valid_nexthops) {
+			if (peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED || peer->bgp->fast_convergence))
+				BGP_EVENT_ADD(peer, TCP_fatal_error);
+			else if (peer->tracking_delay && !peer->t_advertise_delay) {
+				/* Start the update-delay timer */
+				thread_add_timer(bm->master, bgp_tracking_delay_timer, peer,
+						peer->tracking_delay, &peer->t_tracking_delay);
+			}
+			else if (CHECK_FLAG(peer->flags, PEER_FLAG_TRACKING))
+				BGP_EVENT_ADD(peer, TCP_fatal_error);
+		}
 	case Clearing:
 	case Deleted:
 	default:

@@ -1562,7 +1562,7 @@ void peer_xfer_config(struct peer *peer_dst, struct peer *peer_src)
 		peer_dst->ifname =
 			XSTRDUP(MTYPE_BGP_PEER_IFNAME, peer_src->ifname);
 	}
-	peer_dst->ttl = peer_src->ttl;
+    peer_dst->ttl = peer_src->ttl;
 }
 
 static int bgp_peer_conf_if_to_su_update_v4(struct peer *peer,
@@ -2934,6 +2934,10 @@ static void peer_group2peer_config_copy(struct peer_group *group,
 	if (conf->bfd_config) {
 		bgp_peer_configure_bfd(peer, false);
 		bgp_peer_config_apply(peer, group);
+	}
+	/* peer tracking */
+	if (!CHECK_FLAG(peer->flags_override, PEER_FLAG_TRACKING)) {
+		PEER_ATTR_INHERIT(peer, group, tracking_delay);
 	}
 }
 
@@ -4553,6 +4557,7 @@ static const struct peer_flag_action peer_flag_action_list[] = {
 	{PEER_FLAG_UPDATE_SOURCE, 0, peer_change_none},
 	{PEER_FLAG_DISABLE_LINK_BW_ENCODING_IEEE, 0, peer_change_none},
 	{PEER_FLAG_EXTENDED_OPT_PARAMS, 0, peer_change_reset},
+	{PEER_FLAG_TRACKING, 0, peer_change_none},
 	{0, 0, 0}};
 
 static const struct peer_flag_action peer_af_flag_action_list[] = {

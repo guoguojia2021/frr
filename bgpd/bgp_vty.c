@@ -16763,6 +16763,100 @@ DEFUN(no_neighbor_tcp_mss, no_neighbor_tcp_mss_cmd,
 	return peer_tcp_mss_vty(vty, argv[peer_index]->arg, NULL);
 }
 
+/* Neighbor update tcp-mss. */
+static int peer_tracking_vty(struct vty *vty, const char *peer_str,
+			    const char *delay_str, bool set)
+{
+	struct peer *peer;
+	uint32_t delay_val = 0;
+	struct peer *member;
+	struct listnode *node, *nnode;
+
+	peer = peer_and_group_lookup_vty(vty, peer_str);
+	if (!peer)
+		return CMD_WARNING_CONFIG_FAILED;
+	if (delay_str) {
+		delay_val = strtoul(delay_str, NULL, 10);
+	}
+
+	if (set) {
+		peer_flag_set(peer, PEER_FLAG_TRACKING);
+		peer->tracking_delay = delay_val;
+		
+		if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP))
+			return 0;
+        
+		for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
+			/* Skip peers with overridden configuration. */
+			if (CHECK_FLAG(member->flags_override, PEER_FLAG_TRACKING))
+				continue;
+    
+			/* Set flag and configuration on peer-group member. */
+			SET_FLAG(member->flags, PEER_FLAG_TRACKING);
+			PEER_ATTR_INHERIT(member, peer->group, tracking_delay);
+		}
+	}
+	else {
+		/* Inherit configuration from peer-group if peer is member. */
+		if (peer_group_active(peer)) {
+			peer_flag_inherit(peer, PEER_FLAG_TRACKING);
+			PEER_ATTR_INHERIT(peer, peer->group, tracking_delay);
+		} else {
+			/* Otherwise remove flag and configuration from peer. */
+			peer_flag_unset(peer, PEER_FLAG_TRACKING);
+			peer->tracking_delay = 0;
+		}
+
+		/* Skip peer-group mechanics for regular peers. */
+		if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
+			BGP_TIMER_OFF(peer->t_tracking_delay);
+			return 0;
+		}
+
+		/*
+		 * Remove flag and configuration from all peer-group members, unless
+		 * they are explicitely overriding peer-group configuration.
+		 */
+		for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
+			/* Skip peers with overridden configuration. */
+			if (CHECK_FLAG(member->flags_override, PEER_FLAG_TRACKING))
+				continue;
+
+			/* Remove flag and configuration on peer-group member. */
+			UNSET_FLAG(member->flags, PEER_FLAG_TRACKING);
+			member->tracking_delay = 0;
+			BGP_TIMER_OFF(member->t_tracking_delay);
+		}
+	}
+
+	return CMD_SUCCESS;
+}
+
+DEFUN(neighbor_tracking_nht, neighbor_tracking_nht_cmd,
+      "neighbor <A.B.C.D|X:X::X:X|WORD> tracking [delay (1-65535)]",
+      NEIGHBOR_STR NEIGHBOR_ADDR_STR2
+      "Reset session when peer nht is loss.\n"
+      "Reset session after the delay time.\n"
+      "delay time.\n")
+{
+	int peer_index = 1;
+	int mss_index = 4;
+
+	return peer_tracking_vty(vty, argv[peer_index]->arg,
+				argv[mss_index]->arg, true);
+}
+
+DEFUN(no_neighbor_tracking_nht, no_neighbor_tracking_nht_cmd,
+      "no neighbor <A.B.C.D|X:X::X:X|WORD> tracking [delay (1-65535)]",
+      NO_STR NEIGHBOR_STR NEIGHBOR_ADDR_STR2
+      "Reset session when peer nht is loss.\n"
+      "Reset session after the delay time.\n"
+      "delay time.\n")
+{
+	int peer_index = 2;
+
+	return peer_tracking_vty(vty, argv[peer_index]->arg, NULL, false);
+}
 
 static int bgp_global_advertise_delay_config_vty(struct vty *vty,
 					      uint16_t advertise_delay)
@@ -17544,6 +17638,12 @@ static void bgp_config_write_peer_global(struct vty *vty, struct bgp *bgp,
 				addr);
 		}
 	}
+	/* peer-tracking-check */
+	if (peergroup_flag_check(peer, PEER_FLAG_TRACKING))
+		if (peer->tracking_delay)
+			vty_out(vty, " neighbor %s tracking delay %u\n", addr);
+		else
+			vty_out(vty, " neighbor %s tracking\n", addr);
 }
 
 /* BGP peer configuration display function. */
@@ -20050,6 +20150,10 @@ void bgp_vty_init(void)
 	/* ttl_security commands */
 	install_element(BGP_NODE, &neighbor_ttl_security_cmd);
 	install_element(BGP_NODE, &no_neighbor_ttl_security_cmd);
+
+	/* neighbor tracking commands */
+	install_element(BGP_NODE, &neighbor_tracking_nht_cmd);
+	install_element(BGP_NODE, &no_neighbor_tracking_nht_cmd);
 
 	/* "show [ip] bgp memory" commands. */
 	install_element(VIEW_NODE, &show_bgp_memory_cmd);

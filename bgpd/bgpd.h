@@ -1402,6 +1402,7 @@ struct peer {
 #define PEER_FLAG_DISABLE_LINK_BW_ENCODING_IEEE (1U << 29)
 /* force the extended format for Optional Parameters in OPEN message */
 #define PEER_FLAG_EXTENDED_OPT_PARAMS (1U << 30)
+#define PEER_FLAG_TRACKING (1U << 31)	 /* neighbor tracking */
 
 	/*
 	 *GR-Disabled mode means unset PEER_FLAG_GRACEFUL_RESTART
@@ -1783,6 +1784,9 @@ struct peer {
 
 	/* Long-lived Graceful Restart */
 	struct llgr_info llgr[AFI_MAX][SAFI_MAX];
+
+	uint32_t tracking_delay;
+	struct thread *t_tracking_delay;
 
 	QOBJ_FIELDS;
 };

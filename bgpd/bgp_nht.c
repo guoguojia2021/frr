@@ -460,6 +460,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 	struct nexthop *nhlist_tail = NULL;
 	int i;
 	bool evpn_resolved = false;
+    struct peer *peer = bnc->nht_info;
 
 	bnc->last_update = bgp_clock();
 	bnc->change_flags = 0;
@@ -487,8 +488,6 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 	}
 
 	if (nhr->nexthop_num) {
-		struct peer *peer = bnc->nht_info;
-
 		/* notify bgp fsm if nbr ip goes from invalid->valid */
 		if (!bnc->nexthop_num)
 			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_PEER_NOTIFIED);
@@ -529,6 +528,9 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 							zclient, nexthop->vrf_id, ifp,
 							true,
 							BGP_UNNUM_DEFAULT_RA_INTERVAL);
+				}
+				if (peer && CHECK_FLAG(peer->flags, PEER_FLAG_TRACKING)) {
+					bgp_session_reset(peer);
 				}
 				/* There is at least one label-switched path */
 				if (nexthop->nh_label &&
@@ -614,6 +616,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		bnc_nexthop_free(bnc);
 		bnc->nexthop = NULL;
+        
 	}
 
 	evaluate_paths(bnc);
@@ -1281,6 +1284,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 				valid_nexthops = 0;
 			} else
 				peer->last_reset = PEER_DOWN_WAITING_OPEN;
+			BGP_TIMER_OFF(peer->t_tracking_delay);
 		} else
 			peer->last_reset = PEER_DOWN_WAITING_NHT;
 
