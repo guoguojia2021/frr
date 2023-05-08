@@ -89,7 +89,6 @@ static void show_nexthop_detail_helper(struct vty *vty,
 				       const struct route_entry *re,
 				       const struct nexthop *nexthop,
 				       bool is_backup);
-extern unsigned long fib_total_count();
 extern unsigned long zebra_config_fib_max;
 extern unsigned long ZEBRA_TABLE_FIB_MAX;
 extern unsigned long ip4_sent_fib_count;
@@ -4434,13 +4433,13 @@ DEFUN (show_fib_route_statistics,
 {
 	vty_out(vty, "-------- fib statistics --------\n");
 	vty_out(vty, "\n%-40s %10s\n\n", "Type", "Total");
-	vty_out(vty, "%-40s %10lu\n", "ZEBRA_TABLE_FIB_MAX", ZEBRA_TABLE_FIB_MAX);
-	vty_out(vty, "%-40s %10lu\n", "zebra_config_fib_max", zebra_config_fib_max);
-	vty_out(vty, "%-40s %10lu\n", "ip4_sent_fib_count", ip4_sent_fib_count);
-	vty_out(vty, "%-40s %10lu\n", "ip4_pending_fib_count", ip4_pending_fib_count);
-	vty_out(vty, "%-40s %10lu\n", "ip6_sent_fib_count", ip6_sent_fib_count);
-	vty_out(vty, "%-40s %10lu\n", "ip6_pending_fib_count", ip6_pending_fib_count);
-	vty_out(vty, "%-40s %10lu\n", "fib_total_count", fib_total_count());
+	vty_out(vty, "%-40s %10lu\n", "The max fib route", ZEBRA_TABLE_FIB_MAX);
+	vty_out(vty, "%-40s %10lu\n", "User config fib number", zebra_config_fib_max);
+	vty_out(vty, "%-40s %10lu\n", "IP4 sent fib count", ip4_sent_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "IP4 pending fib count", ip4_pending_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "IP6 sent fib count", ip6_sent_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "IP6 pending fib count", ip6_pending_fib_count);
+	vty_out(vty, "%-40s %10lu\n", "The total fib count", ip4_sent_fib_count + ip6_sent_fib_count * 2);
 	return CMD_SUCCESS;
 }
 DEFUN(ip_table_range, ip_table_range_cmd,

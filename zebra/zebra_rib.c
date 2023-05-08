@@ -876,9 +876,10 @@ int rib_if_arp2host_route(struct route_entry *i_rib)
 }
 #endif
 
-unsigned long fib_total_count()
+static inline unsigned long fib_total_count()
 {
-	return ip4_sent_fib_count + ip6_sent_fib_count * 2;
+	unsigned long ip6_sent_count = ip6_sent_fib_count << 1;
+	return ip4_sent_fib_count + ip6_sent_count;
 }
 
 static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
@@ -1454,9 +1455,12 @@ static void rib_process(struct route_node *rn)
 	//handle the pending rn, trigger them to fpm if not exceeds threshold
 	struct route_node * it_rn;
 	rib_dest_t * it_dest;
+	unsigned long totalCount = fib_total_count();
+	unsigned long ip6_pending_count = ip6_pending_fib_count << 1;
+
 	//only release pending fib to fpm when there is pending fib and sent_fib_count not exceed threshold
 	if((info->afi == AFI_IP && info->safi == SAFI_UNICAST) &&
-	(ip4_pending_fib_count > 0) && ((fib_total_count() + ip4_sent_fib_count) <= zebra_config_fib_max))
+	(ip4_pending_fib_count > 0) && ((totalCount + ip4_pending_fib_count) <= zebra_config_fib_max))
 	{
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("release all ip4 pending routes");
@@ -1483,7 +1487,7 @@ static void rib_process(struct route_node *rn)
 			zlog_debug("after handle all pending routes, ip4_sent_fib_count: %lu, ip4_pending_fib_count: %lu",ip4_sent_fib_count,ip4_pending_fib_count);
 	}
 	else if((info->afi == AFI_IP6 && info->safi == SAFI_UNICAST) &&
-	(ip6_pending_fib_count > 0) && ((fib_total_count() + ip6_sent_fib_count * 2) <= zebra_config_fib_max))
+	(ip6_pending_fib_count > 0) && ((totalCount + ip6_pending_count) <= zebra_config_fib_max))
 	{
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("release all ip6 pending routes");
