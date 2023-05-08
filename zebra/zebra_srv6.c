@@ -594,7 +594,8 @@ int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 	afi = family2afi(AF_INET6);
 
 	table_id = zvrf->table_id;
-    SET_FLAG(flags, ZEBRA_FLAG_ALLOW_RECURSION);
+	SET_FLAG(flags, ZEBRA_FLAG_ALLOW_RECURSION);
+	SET_FLAG(flags, ZEBRA_FLAG_LOCAL_SID_ROUTE);
 
 	rib_delete(afi, SAFI_UNICAST, zvrf_id(zvrf), ZEBRA_ROUTE_STATIC, 0,
 		   flags, &p, src_p, NULL, 0, table_id, 0,
