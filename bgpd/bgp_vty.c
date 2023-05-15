@@ -11440,8 +11440,11 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 								      ->count,
 							     memory_order_relaxed);
 
-				json_object_int_add(json_peer, "tableVersion",
-						    peer->version[afi][safi]);
+				json_object_int_add(
+					json_peer, "tableVersion",
+					(paf && PAF_SUBGRP(paf))
+						? paf->subgroup->version
+						: 0);
 				json_object_int_add(json_peer, "outq",
 						    outq_count);
 				json_object_int_add(json_peer, "inq",
@@ -11625,7 +11628,9 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 							: peer->local_as,
 						PEER_TOTAL_RX(peer),
 						PEER_TOTAL_TX(peer),
-						peer->version[afi][safi],
+						((paf && PAF_SUBGRP(paf))
+						? paf->subgroup->version
+						: 0),
 						inq_count, outq_count,
 						peer_uptime(peer->uptime,
 							    timebuf,
@@ -11636,7 +11641,9 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 						     " %4zu %4zu %8s",
 						peer->as, PEER_TOTAL_RX(peer),
 						PEER_TOTAL_TX(peer),
-						peer->version[afi][safi],
+						((paf && PAF_SUBGRP(paf))
+						? paf->subgroup->version
+						: 0),
 						inq_count, outq_count,
 						peer_uptime(peer->uptime,
 							    timebuf,

@@ -293,7 +293,6 @@ struct bgp_path_info {
 	/* Extra information */
 	struct bgp_path_info_extra *extra;
 
-
 	/* Multipath information */
 	struct bgp_path_info_mpath *mpath;
 
