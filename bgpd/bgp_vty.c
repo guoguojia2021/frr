@@ -16833,7 +16833,7 @@ static int peer_tracking_vty(struct vty *vty, const char *peer_str,
 }
 
 DEFUN(neighbor_tracking_nht, neighbor_tracking_nht_cmd,
-      "neighbor <A.B.C.D|X:X::X:X|WORD> tracking [delay (1-65535)]",
+      "neighbor <A.B.C.D|X:X::X:X|WORD> tracking [delay (0-65535)]",
       NEIGHBOR_STR NEIGHBOR_ADDR_STR2
       "Reset session when peer nht is loss.\n"
       "Reset session after the delay time.\n"
@@ -16847,7 +16847,7 @@ DEFUN(neighbor_tracking_nht, neighbor_tracking_nht_cmd,
 }
 
 DEFUN(no_neighbor_tracking_nht, no_neighbor_tracking_nht_cmd,
-      "no neighbor <A.B.C.D|X:X::X:X|WORD> tracking [delay (1-65535)]",
+      "no neighbor <A.B.C.D|X:X::X:X|WORD> tracking [delay (0-65535)]",
       NO_STR NEIGHBOR_STR NEIGHBOR_ADDR_STR2
       "Reset session when peer nht is loss.\n"
       "Reset session after the delay time.\n"

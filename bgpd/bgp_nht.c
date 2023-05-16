@@ -529,9 +529,6 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 							true,
 							BGP_UNNUM_DEFAULT_RA_INTERVAL);
 				}
-				if (peer && CHECK_FLAG(peer->flags, PEER_FLAG_TRACKING)) {
-					bgp_session_reset(peer);
-				}
 				/* There is at least one label-switched path */
 				if (nexthop->nh_label &&
 					nexthop->nh_label->num_labels) {
