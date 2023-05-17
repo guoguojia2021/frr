@@ -211,6 +211,11 @@ struct zebra_router {
 	bool notify_on_ack;
 };
 
+struct pend_list{
+	void *ip4_pending;
+	void *ip6_pending;
+};
+extern struct pend_list pending_list;
 #define GRACEFUL_RESTART_TIME 60
 
 extern struct zebra_router zrouter;

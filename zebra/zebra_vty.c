@@ -4491,6 +4491,29 @@ DEFUN(zebra_on_rib_process_script, zebra_on_rib_process_script_cmd,
 
 #endif /* HAVE_SCRIPTING */
 
+DEFUN (show_pending_list,
+       show_pending_list_cmd,
+       "show pending list",
+       SHOW_STR
+       "Pending route\n"
+       "List\n")
+{
+	rib_dest_t *top;
+	vty_out(vty, "-------- IPv4 pending list --------\n");
+		top = pending_list.ip4_pending;
+	while(top) {
+		vty_out(vty, "%pRN:\n", top->rnode);
+		top = top->next;
+	}
+
+	vty_out(vty, "-------- IPv6 pending list --------\n");
+		top = pending_list.ip6_pending;
+	while(top) {
+		vty_out(vty, "%pRN:\n", top->rnode);
+		top = top->next;
+	}
+	return CMD_SUCCESS;
+}
 /* IP node for static routes. */
 static int zebra_ip_config(struct vty *vty);
 static struct cmd_node ip_node = {
@@ -4656,4 +4679,5 @@ void zebra_vty_init(void)
 	install_element(CONFIG_NODE, &set_fib_count_cmd);
 
 	install_element(VIEW_NODE, &show_fib_route_statistics_cmd);
+	install_element(VIEW_NODE, &show_pending_list_cmd);
 }

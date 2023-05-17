@@ -204,7 +204,9 @@ struct meta_queue {
  * Structure that represents a single destination (prefix).
  */
 typedef struct rib_dest_t_ {
-
+	/* For linked list. */
+	struct rib_dest_t_ *next;
+	struct rib_dest_t_ *prev;
 	/*
 	 * Back pointer to the route node for this destination. This helps
 	 * us get to the prefix that this structure is for.
