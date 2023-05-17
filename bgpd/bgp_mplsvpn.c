@@ -1453,7 +1453,6 @@ void vrf_leak_from_vrf_update(struct bgp *to_vrf,       /* to */
     struct attr static_attr = {0};
     struct attr *new_attr = NULL;
     safi_t safi = SAFI_UNICAST;
-    mpls_label_t label;
     struct bgp_dest *bn;
     int nexthop_self_flag = 0;
     struct listnode *node;
@@ -1587,7 +1586,7 @@ void vrf_leak_from_vrf_update(struct bgp *to_vrf,       /* to */
     struct bgp_path_info *new_info;
 
     new_info = leak_update(to_vrf, bn, new_attr, afi, safi, path_vrf,
-                   &label, 1, path_vrf, from_vrf, NULL,
+                   NULL, 0, path_vrf, from_vrf, NULL,
                    nexthop_self_flag, debug);
     /*
      * Routes actually installed in the vpn RIB must also be
