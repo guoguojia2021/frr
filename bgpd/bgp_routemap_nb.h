@@ -80,8 +80,6 @@ int lib_route_map_entry_set_action_rmap_set_action_distance_modify(struct nb_cb_
 int lib_route_map_entry_set_action_rmap_set_action_distance_destroy(struct nb_cb_destroy_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_extcommunity_rt_modify(struct nb_cb_modify_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_extcommunity_rt_destroy(struct nb_cb_destroy_args *args);
-int lib_route_map_entry_set_action_rmap_set_action_extcommunity_color_modify(struct nb_cb_modify_args *args);
-int lib_route_map_entry_set_action_rmap_set_action_extcommunity_color_destroy(struct nb_cb_destroy_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_extcommunity_nt_modify(
 	struct nb_cb_modify_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_extcommunity_nt_destroy(
@@ -162,6 +160,14 @@ int lib_route_map_entry_set_action_rmap_set_action_rmac_modify(struct nb_cb_modi
 int lib_route_map_entry_set_action_rmap_set_action_rmac_destroy(struct nb_cb_destroy_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_vni_modify(struct nb_cb_modify_args *args);
 int lib_route_map_entry_set_action_rmap_set_action_vni_destroy(struct nb_cb_destroy_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_extcommunity_color_modify(
+	struct nb_cb_modify_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_extcommunity_color_destroy(
+	struct nb_cb_destroy_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_l3vpn_nexthop_encapsulation_modify(
+	struct nb_cb_modify_args *args);
+int lib_route_map_entry_set_action_rmap_set_action_l3vpn_nexthop_encapsulation_destroy(
+	struct nb_cb_destroy_args *args);
 
 #ifdef __cplusplus
 }
