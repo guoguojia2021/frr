@@ -3535,7 +3535,8 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 
 		if (new_select_backup && new_select_backup->type == ZEBRA_ROUTE_BGP
 			&& (new_select_backup->sub_type == BGP_ROUTE_NORMAL
-			|| new_select_backup->sub_type == BGP_ROUTE_AGGREGATE)){
+			|| new_select_backup->sub_type == BGP_ROUTE_AGGREGATE
+			|| new_select_backup->sub_type == BGP_ROUTE_IMPORTED)){
 
 			/* if this is an evpn imported type-5 prefix,
 			* we need to withdraw the route first to clear
@@ -3550,7 +3551,8 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			/* Withdraw the route from the kernel. */
 			if (old_select_backup && old_select_backup->type == ZEBRA_ROUTE_BGP
 			    && (old_select_backup->sub_type == BGP_ROUTE_NORMAL
-				|| old_select_backup->sub_type == BGP_ROUTE_AGGREGATE))
+				|| old_select_backup->sub_type == BGP_ROUTE_AGGREGATE
+				|| old_select_backup->sub_type == BGP_ROUTE_IMPORTED))
 				bgp_zebra_withdraw(p, old_select_backup, bgp, safi);
 		}
 	}
