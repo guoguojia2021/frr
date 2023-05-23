@@ -77,6 +77,11 @@ unsigned long ip4_sent_fib_count = 0;
 unsigned long ip4_pending_fib_count = 0;
 unsigned long ip6_sent_fib_count = 0;
 unsigned long ip6_pending_fib_count = 0;
+bool fib_max_alarm_switch = true;
+bool fib_threshold_alarm_switch = true;
+
+#define ZEBRA_TABLE_FIB_THRESHOLD           0.8
+#define ZEBRA_TABLE_FIB_MAX_ALARM_RESUME    0.6
 
 struct pend_list pending_list = {0};
 
@@ -995,6 +1000,16 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		{
 
 			(ip4_sent_fib_count)++;
+			if (ip4_sent_fib_count == ZEBRA_TABLE_FIB_THRESHOLD * zebra_config_fib_max && fib_threshold_alarm_switch)
+			{
+				zlog_warn(
+					"%%MAXPFXEXCEEDTHRESHOLD: The number of prefixes exceeded the threshold. "
+					"(PrefixCount=[%lu], MaxValue=[%lu], Threshold=[%.2f%%])",
+					totalCount, 
+					zebra_config_fib_max,
+					ZEBRA_TABLE_FIB_THRESHOLD * 100);
+				fib_threshold_alarm_switch = false;
+			}
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("ip4_sent_fib_count, add: %lu total count: %lu", ip4_sent_fib_count, totalCount);
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
@@ -1002,8 +1017,13 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		}
 		else
 		{
-			if (ip4_pending_fib_count == 0 && ip6_pending_fib_count == 0)
-				zlog_warn("current fib count more than max fib count %lu", zebra_config_fib_max);
+			if (ip4_pending_fib_count == 0 && ip6_pending_fib_count == 0) {
+				zlog_crit(
+					"%%MAXPFXEXCEED:The number of prefixes exceeded the maximum value. (PrefixCount=[%lu], MaxValue=[%lu])",
+					totalCount, 
+					zebra_config_fib_max);
+				fib_max_alarm_switch = false;
+			}
 			if (!CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
 				rib_pending_list_add(AFI_IP, dest);
 				(ip4_pending_fib_count)++;
@@ -1015,8 +1035,17 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 	{
 		if (totalCount < zebra_config_fib_max)
 		{
-
 			(ip6_sent_fib_count)++;
+			if (ip6_sent_fib_count == ZEBRA_TABLE_FIB_THRESHOLD * zebra_config_fib_max && fib_threshold_alarm_switch)
+			{
+				zlog_warn(
+					"%%MAXPFXEXCEEDTHRESHOLD: The number of prefixes exceeded the threshold. "
+					"(PrefixCount=[%lu], MaxValue=[%lu], Threshold=[%.2f%%])",
+					totalCount, 
+					zebra_config_fib_max,
+					ZEBRA_TABLE_FIB_THRESHOLD * 100);
+				fib_threshold_alarm_switch = false;
+			}
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("ip6_sent_fib_count, add: %lu total count: %lu", ip6_sent_fib_count, totalCount);
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
@@ -1024,8 +1053,14 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		}
 		else
 		{
-			if (ip4_pending_fib_count == 0 && ip6_pending_fib_count == 0)
-				zlog_warn("current fib count more than max fib count %lu", zebra_config_fib_max);
+			if (ip4_pending_fib_count == 0 && ip6_pending_fib_count == 0 && fib_max_alarm_switch)
+			{
+				zlog_crit(
+					"%%MAXPFXEXCEED:The number of prefixes exceeded the maximum value. (PrefixCount=[%lu], MaxValue=[%lu])",
+					totalCount, 
+					zebra_config_fib_max);
+				fib_max_alarm_switch = false;
+			}
 			if (!CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
 				rib_pending_list_add(AFI_IP6, dest);
 				(ip6_pending_fib_count)++;
@@ -1571,6 +1606,10 @@ static void rib_process(struct route_node *rn)
 		totalCount = fib_total_count();
 		zlog_debug("install pending route to fib total:%lu, ipv4:%lu, ipv6:%lu",
 			totalCount, ip4_pending_fib_count, ip6_pending_fib_count);
+	}
+	if (totalCount < zebra_config_fib_max * ZEBRA_TABLE_FIB_MAX_ALARM_RESUME) {
+		fib_max_alarm_switch = true;
+		fib_threshold_alarm_switch = true;
 	}
 	/* Update SELECTED entry */
 	if (old_selected != new_selected || selected_changed) {
