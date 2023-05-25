@@ -9460,15 +9460,15 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 
 			vpn_leak_from_vrf_update(bgp_get_default(), bgp, new, NULL);
 		}
-	}
-	if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF) {
-		struct listnode *mnode, *mnnode;
-		struct bgp *tovrf;
-		char *bgpname;
-		for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
-			tovrf = bgp_lookup_by_name(bgpname);
-			if (tovrf)
-				vrf_leak_from_vrf_update(tovrf, bgp, new);
+		if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF) {
+			struct listnode *mnode, *mnnode;
+			struct bgp *tovrf;
+			char *bgpname;
+			for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+				tovrf = bgp_lookup_by_name(bgpname);
+				if (tovrf)
+					vrf_leak_from_vrf_update(tovrf, bgp, new);
+			}
 		}
 	}
 	/* Unintern original. */

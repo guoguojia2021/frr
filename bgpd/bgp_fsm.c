@@ -2602,7 +2602,7 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	case OpenConfirm:
 	case Established:
 		if (!has_valid_nexthops) {
-			if (peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED || peer->bgp->fast_convergence))
+			if (peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED || peer->bgp->fast_convergence)
 				BGP_EVENT_ADD(peer, TCP_fatal_error);
 			else if (peer->tracking_delay && !peer->t_advertise_delay) {
 				/* Start the update-delay timer */
