@@ -4689,7 +4689,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			pNht.family = AF_INET;
 			pNht.u.prefix4 = attr->nexthop;
 			pNht.prefixlen = IPV4_MAX_BITLEN;
-			if (prefix_match(&pNht, &rn->p))
+			if (prefix_match(&pNht, &dest->p))
 				SET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
 			else
 				UNSET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
