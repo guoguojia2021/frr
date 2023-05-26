@@ -4789,8 +4789,8 @@ struct connected *zebra_interface_address_read_when_up(int type, struct stream *
 	}
 
     if (type == ZEBRA_INTERFACE_ADDRESS_ADD && !if_is_operative(ifp)) {
-        zlog_debug("INTERFACE_ADDRESS_ADD: IF %u in VRF %d is not operative, ignore",
-                ifindex, vrf_id);
+        zlog_warn("INTERFACE_ADDRESS_ADD: IF %s(%u) in VRF %d is not operative, ignore",
+                ifp->name, ifindex, vrf_id);
         return NULL;
     }
 
