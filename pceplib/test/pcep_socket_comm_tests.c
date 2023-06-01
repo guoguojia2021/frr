@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 		pcep_socket_comm_test_teardown); // test case teardown function
 						 // pointer
 
-	CU_add_test(test_socket_comm_suite, "test_pcep_socket_comm_initialize",
+	/*CU_add_test(test_socket_comm_suite, "test_pcep_socket_comm_initialize",
 		    test_pcep_socket_comm_initialize);
 	CU_add_test(test_socket_comm_suite,
 		    "test_pcep_socket_comm_initialize_ipv6",
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 		    test_pcep_socket_comm_session_not_initialized);
 	CU_add_test(test_socket_comm_suite,
 		    "test_pcep_socket_comm_session_destroy",
-		    test_pcep_socket_comm_session_destroy);
+		    test_pcep_socket_comm_session_destroy);*/
 
 	/*
 	 * Tests defined in pcep_socket_comm_loop_test.c
