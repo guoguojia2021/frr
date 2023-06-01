@@ -354,7 +354,7 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 			     struct zapi_srv6te_tunnel *new_tunnel)
 {
-	bool segment_list_changed = FALSE;
+	bool segment_list_changed = false;
 
 	/* bsid_changed =
 		policy->srv6_segment_list.path_num != new_tunnel->local_label;

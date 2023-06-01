@@ -91,10 +91,10 @@ DEFUN (show_srv6_tunnel,
 	//struct srte_policy *policy;
 	char *table;
     struct zebra_sr_policy *policy;
-    bool detail = FALSE;
+    bool detail = false;
 
     if (argc == 1 && argv[0]->arg && strmatch(argv[0]->text, "detail"))
-		detail = TRUE;
+		detail = true;
 
 	if (RB_EMPTY(zebra_sr_policy_instance_head, &zebra_sr_policy_instances)) {
 		vty_out(vty, "No SR Tunnel to display.\n\n");

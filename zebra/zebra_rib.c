@@ -558,19 +558,19 @@ static bool check_update_fib(struct route_entry *old,
 				   struct route_entry *new)
 {
 	if (old->nhe && !new->nhe)
-		return FALSE;
+		return false;
 	if (!old->nhe && new->nhe)
-		return FALSE;
+		return false;
 	if (!old->nhe && !new->nhe)
-		return FALSE;
+		return false;
     
 	if (old->nhe->nhg.nexthop && new->nhe->nhg.nexthop) {
 		if (nexthop_group_equal_no_recurse(&old->nhe->nhg, &new->nhe->nhg))
-			return FALSE;
+			return false;
 	}
 	else if (!old->nhe->nhg.nexthop && !new->nhe->nhg.nexthop)
-		return FALSE;
-	return TRUE;
+		return false;
+	return true;
 }
 
 /* Update flag indicates whether this is a "replace" or not. Currently, this

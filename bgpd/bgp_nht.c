@@ -179,10 +179,10 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	uint32_t srte_color = 0;
 	int is_bgp_static_route = 0;
 	ifindex_t ifindex = 0;
-	bool isServiceRoute = FALSE;
+	bool isServiceRoute = false;
 
 	if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
-		isServiceRoute = TRUE;
+		isServiceRoute = true;
 
 	if (pi) {
 		is_bgp_static_route = ((pi->type == ZEBRA_ROUTE_BGP)
@@ -1115,8 +1115,8 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 	safi_t safi;
 	struct bgp *bgp_path;
 	const struct prefix *p;
-    bool isServiceRoute = FALSE;
-    bool isSrv6TeBnc = FALSE;
+    bool isServiceRoute = false;
+    bool isSrv6TeBnc = false;
 
 	if (BGP_DEBUG(nht, NHT)) {
 		char buf[PREFIX2STR_BUFFER];
@@ -1133,7 +1133,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 							  sizeof(bnc_buf)));
 	}
     if (bnc->srte_color != 0)
-        isSrv6TeBnc = TRUE;
+        isSrv6TeBnc = true;
 
 	LIST_FOREACH (path, &(bnc->paths), nh_thread) {
 		if (!(path->type == ZEBRA_ROUTE_BGP
@@ -1171,9 +1171,9 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 		bool bnc_is_valid_nexthop = false;
 		bool path_valid = false;
         if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
-            isServiceRoute = TRUE;
+            isServiceRoute = true;
         else
-            isServiceRoute = FALSE;
+            isServiceRoute = false;
 
 		if (safi == SAFI_UNICAST && path->sub_type == BGP_ROUTE_IMPORTED
 		    && path->extra && path->extra->num_labels

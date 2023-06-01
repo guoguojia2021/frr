@@ -3395,11 +3395,11 @@ static bool bmp_has_target(void)
 
 	frr_each(bmp_bgph, &bmp_bgph, bmpbgp) {
 		frr_each(bmp_targets, &bmpbgp->targets, bt) {
-	        return TRUE;
+	        return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static bool bmp_global_has_target(void)
@@ -3408,15 +3408,15 @@ static bool bmp_global_has_target(void)
 	struct bmp_targets *bt;
 
 	if (!global_bmpbgp)
-	    return FALSE;
+	    return false;
 
 	bmpbgp = global_bmp_get();
 
 	frr_each(bmp_targets, &bmpbgp->targets, bt) {
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int bgp_bmp_init(struct thread_master *tm)
