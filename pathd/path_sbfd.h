@@ -54,4 +54,7 @@ bool is_exist_seglist_in_policy(struct srte_policy *policy, struct srte_segment_
 void sbfd_candidate_seglist_disable(struct srte_candidate *candidate);
 
 void policy_sbfd_enabled(struct srte_policy *policy);
+extern struct zclient *zclient;
+extern struct thread_master *master;
+
 #endif /* _FRR_PATHD_SBFD_H_ */

@@ -44,9 +44,6 @@ DEFINE_MTYPE_STATIC(PATHD, PATH_SEGMENT_LIST_SBFD_CONFIG, "Segment List SBFD con
 DEFINE_MTYPE_STATIC(PATHD, PATH_SRPOLICY_SBFD_CONFIG, "SR-Policy SBFD configuration data");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SRPOLICY_SBFD_EVENT, "SR-Policy SBFD event msg");
 
-struct zclient *zclient;
-struct thread_master *master;
-
 static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum detection_status status)
 {
 	struct srte_candidate_group *cpath_group, *safe_cg;
@@ -736,7 +733,7 @@ void sbfd_update_flag_one_policy(struct srte_policy *policy, uint32_t flag)
 	}
 }
 
-/*traverse policyï¼Œ change bfd flag to update , callback when encap source-address modify or del */
+/*traverse policyï¼?change bfd flag to update , callback when encap source-address modify or del */
 void sbfd_update_flag_all_policy(uint32_t flag)
 {
 	struct srte_policy *policy;

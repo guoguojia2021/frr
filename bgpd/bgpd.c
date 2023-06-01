@@ -115,6 +115,8 @@ unsigned int multipath_num = MULTIPATH_NUM;
 /* Number of bgp instances configured for suppress fib config */
 unsigned int bgp_suppress_fib_count;
 
+struct hash * bgp_vrf_hash;
+
 static void bgp_if_finish(struct bgp *bgp);
 static void peer_drop_dynamic_neighbor(struct peer *peer);
 

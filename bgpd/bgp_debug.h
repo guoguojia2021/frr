@@ -108,8 +108,8 @@ extern struct list *bgp_debug_bestpath_prefixes;
 extern struct list *bgp_debug_zebra_prefixes;
 
 /* alibaba begin */
-unsigned int conf_bgp_debug_update_strict;
-unsigned int term_bgp_debug_update_strict;
+extern unsigned int conf_bgp_debug_update_strict;
+extern unsigned int term_bgp_debug_update_strict;
 /* alibaba end */
 
 struct bgp_debug_filter {
