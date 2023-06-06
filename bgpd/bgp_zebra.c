@@ -230,19 +230,15 @@ static int bgp_ifp_up(struct interface *ifp)
 	struct nbr_connected *nc;
 	struct listnode *node, *nnode;
 	struct bgp *bgp;
-    int was_up = 0;
 
 	bgp = ifp->vrf->info;
-
-    was_up = if_is_operative(ifp);
 
 	bgp_mac_add_mac_entry(ifp);
 
 	if (BGP_DEBUG(zebra, ZEBRA))
-
-		zlog_debug("Rx Intf up VRF %u IF %s %s", ifp->vrf->vrf_id, ifp->name,
-			   was_up ? "already set as up" : "");
-	if (was_up)
+		zlog_debug("Rx Intf up VRF %u IF %s", ifp->vrf->vrf_id, ifp->name);
+	
+	if (if_is_operative(ifp))
 		return 0;
 
 	if (!bgp)
