@@ -651,10 +651,10 @@ DEFUN_YANG_NOSH (vrf,
 	struct vrf *vrf;
 	int ret;
 
-	if (strlen(vrfname) > VRF_NAMSIZ) {
+	if (strlen(vrfname) > VRF_ALIASNAMESIZ) {
 		vty_out(vty,
 			"%% VRF name %s invalid: length exceeds %d bytes\n",
-			vrfname, VRF_NAMSIZ);
+			vrfname, VRF_ALIASNAMESIZ);
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
