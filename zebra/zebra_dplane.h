@@ -183,6 +183,7 @@ enum dplane_op_e {
 	DPLANE_OP_INTF_ADDR_ADD,
 	DPLANE_OP_INTF_ADDR_DEL,
 };
+#define DPLANE_RINFO_FLAG_NO_KERNEL  0x01
 
 /*
  * The vxlan/evpn neighbor management code needs some values to use

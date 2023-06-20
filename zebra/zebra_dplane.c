@@ -118,6 +118,9 @@ struct dplane_route_info {
 	int zd_type;
 	int zd_old_type;
 
+	int zd_flag;
+	int zd_old_flag;
+
 	route_tag_t zd_tag;
 	route_tag_t zd_old_tag;
 	uint32_t zd_metric;
@@ -1239,6 +1242,20 @@ int dplane_ctx_get_old_type(const struct zebra_dplane_ctx *ctx)
 	DPLANE_CTX_VALID(ctx);
 
 	return ctx->u.rinfo.zd_old_type;
+}
+
+int dplane_ctx_get_flag(const struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	return ctx->u.rinfo.zd_flag;
+}
+
+int dplane_ctx_get_old_flag(const struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	return ctx->u.rinfo.zd_old_flag;
 }
 
 void dplane_ctx_set_afi(struct zebra_dplane_ctx *ctx, afi_t afi)
@@ -3020,6 +3037,7 @@ dplane_route_update_internal(struct route_node *rn,
 	enum zebra_dplane_result result = ZEBRA_DPLANE_REQUEST_FAILURE;
 	int ret = EINVAL;
 	struct zebra_dplane_ctx *ctx = NULL;
+	struct nexthop *nexthop, *old_nexthop;
 
 	/* Obtain context block */
 	ctx = dplane_ctx_alloc();
@@ -3027,11 +3045,18 @@ dplane_route_update_internal(struct route_node *rn,
 	/* Init context with info from zebra data structs */
 	ret = dplane_ctx_route_init(ctx, op, rn, re);
 	if (ret == AOK) {
+		nexthop = re->nhe->nhg.nexthop;
+		if (nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+			SET_FLAG(ctx->u.rinfo.zd_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.
 		 */
 		if ((op == DPLANE_OP_ROUTE_UPDATE) &&
 		    old_re && (old_re != re)) {
+			old_nexthop = old_re->nhe->nhg.nexthop;
+			if (old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+				SET_FLAG(ctx->u.rinfo.zd_old_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
+			ctx->zd_is_update = true;
 
 			old_re->dplane_sequence =
 				zebra_router_get_next_sequence();
@@ -3075,7 +3100,6 @@ dplane_route_update_internal(struct route_node *rn,
 		    && (dplane_ctx_get_nhe_id(ctx)
 			== dplane_ctx_get_old_nhe_id(ctx))
 		    && (dplane_ctx_get_nhe_id(ctx) >= ZEBRA_NHG_PROTO_LOWER)) {
-			struct nexthop *nexthop;
 
 			if (IS_ZEBRA_DEBUG_DPLANE)
 				zlog_debug(
