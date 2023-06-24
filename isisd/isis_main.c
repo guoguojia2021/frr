@@ -177,6 +177,8 @@ static const struct frr_yang_module_info *const isisd_yang_modules[] = {
 	&frr_vrf_info,
 };
 
+/* Max wait time for config to load before generating LSPs */
+#define ISIS_PRE_CONFIG_MAX_WAIT_SECONDS 600
 
 static void isis_config_finish(struct thread *t)
 {
@@ -190,13 +192,18 @@ static void isis_config_finish(struct thread *t)
 	}
 }
 
+static void isis_config_end_timeout(struct thread *t)
+{
+	zlog_err("IS-IS configuration end timer expired after %d seconds.",
+		 ISIS_PRE_CONFIG_MAX_WAIT_SECONDS);
+	isis_config_finish(t);
+}
+
 static void isis_config_start(void)
 {
-	/* Max wait time for config to load before generating lsp */
-#define ISIS_PRE_CONFIG_MAX_WAIT_SECONDS 600
 	THREAD_OFF(t_isis_cfg);
-	thread_add_timer(im->master, isis_config_finish, NULL,
-			 ISIS_PRE_CONFIG_MAX_WAIT_SECONDS, &t_isis_cfg);
+	thread_add_timer(im->master, isis_config_end_timeout, NULL,
+			ISIS_PRE_CONFIG_MAX_WAIT_SECONDS, &t_isis_cfg);
 }
 
 static void isis_config_end(void)
