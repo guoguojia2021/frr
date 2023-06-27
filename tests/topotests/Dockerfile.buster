@@ -1,53 +1,98 @@
-FROM debian:buster
+FROM ubuntu:18.04
 
-ENV DEBIAN_FRONTEND noninteractive
-ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-get install -y \
+        autoconf \
+        binutils \
+        bison \
+        ca-certificates \
+        flex \
+        gdb \
+        git \
+        gpg \
+        install-info \
+        iputils-ping \
+        iproute2 \
+        less \
+        libtool \
+        libjson-c-dev \
+        libpcre3-dev \
+        libpython-dev \
+        libpython3-dev \
+        libreadline-dev \
+        libc-ares-dev \
+        libcap-dev \
+        libelf-dev \
+        man \
+        mininet \
+        pkg-config \
+        python-pip \
+        python3 \
+        python3-dev \
+        python3-sphinx \
+        python3-pytest \
+        rsync \
+        strace \
+        tcpdump \
+        texinfo \
+        tmux \
+        valgrind \
+        vim \
+        wget \
+        x11-xserver-utils \
+        xterm \
+    && pip install \
+        exabgp==3.4.17 \
+        "scapy>=2.4.2" \
+        ipaddr \
+        pytest \
+        pytest-html \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && \
-    apt-get install -y apt-transport-https ca-certificates curl wget logrotate \
-    libc-ares2 libjson-c3 vim procps libreadline7 gnupg2 lsb-release apt-utils rsync git \
-    make autoconf binutils bison flex gpg install-info iputils-ping less libtool libjson-c-dev libreadline-dev libpcre2-8-0 lsof\
-    libpython-dev libpython3-dev libcap-dev libelf-dev man pkg-config python-pip python3 python3-dev python3-sphinx python3-pytest \
-    tcpdump tmux texinfo valgrind vim wget tini  net-tools libc-ares-dev \
-    libsnmp-dev snmpd snmp sudo \
-    libpcre2-dev cmake \
-    mininet python-pip iproute2 iperf gdb && \
-    pip install ipaddr && \
-    pip install "pytest<5" && \
-    pip install pytest-report && \
-    pip install pytest-html && \
-    pip install exabgp==3.4.17
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && wget -qO- https://deb.frrouting.org/frr/keys.asc | apt-key add - \
+    && echo "deb https://deb.frrouting.org/frr bionic frr-stable" > /etc/apt/sources.list.d/frr.list \
+    && apt-get update \
+    && apt-get install -y libyang-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/CESNET/libyang.git && \
-    cd libyang && \
-    git checkout v2.0.0 && \
-    mkdir build; cd build && \
-    cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr -D CMAKE_BUILD_TYPE:String="Release" .. && \
-    make && make install
-    
+RUN apt-get update \
+    && apt install -y software-properties-common
+
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test \
+    && apt update \
+    && apt install -y gcc-9 g++-9 
+
+RUN wget https://ci1.netdef.org/browse/LIBYANG-LIBYANG2-150/artifact/shared/Ubuntu-18.04-x86_64-Packages/libyang2_2.0.0-0_amd64.deb \
+    && wget https://ci1.netdef.org/browse/LIBYANG-LIBYANG2-150/artifact/shared/Ubuntu-18.04-x86_64-Packages/libyang-dev_2.0.0-0_amd64.deb \
+    && apt-get update \
+    && apt-get install -y libpcre2-8-0 \
+    && dpkg -i libyang2_2.0.0-0_amd64.deb \
+    && apt-cache policy libpcre32-3 \
+    && apt-cache policy libpcrecpp0v5 \
+    && apt-get install -y libpcre2-dev libpcre3-dev \
+    && dpkg -i libyang-dev_2.0.0-0_amd64.deb \
+    && apt-get install -y protobuf-c-compiler libprotobuf-c-dev \
+    && apt-get install -y libzmq5 libzmq3-dev \
+    && apt-get install -y libelf-dev
+
 COPY docker/buster_dep /home
 RUN cd /home && \
-    dpkg -i libhiredis0.14_0.14.0-3~bpo9+1_amd64.deb && \
-    dpkg -i libhiredis-dev_0.14.0-3~bpo9+1_amd64.deb && \
-    dpkg -i libredisplusplus_1.0_amd64.deb && \
-    dpkg -i libredisplusplus-dev_1.0_amd64.deb
+    dpkg -i *.deb
 
-RUN curl -s https://deb.frrouting.org/frr/keys.asc | apt-key add -
-RUN echo deb https://deb.frrouting.org/frr $(lsb_release -s -c) frr-stable | tee -a /etc/apt/sources.list.d/frr.list
-
-RUN apt-get update && \
-    apt-get install -y frr frr-pythontools && \
-    rm -rf /var/lib/apt/lists/*
-
-
-RUN addgroup --system --gid 92 frr \
-    && addgroup --system --gid 85 frrvty \
-    && adduser --system --ingroup frr --home /var/run/frr/  --gecos "FRRouting suite" --shell /bin/false frr \
-    && usermod -G frrvty frr \
-&& useradd -d /var/run/exabgp/ -s /bin/false exabgp
-
-RUN mkdir -p /var/run/frr
-RUN chown -R frr:frr /etc/frr /var/run/frr
+RUN groupadd -r -g 92 frr \
+    && groupadd -r -g 85 frrvty \
+    && useradd -c "FRRouting suite" \
+               -d /var/run/frr \
+               -g frr \
+               -G frrvty \
+               -r \
+               -s /sbin/nologin \
+               frr \
+    && useradd -d /var/run/exabgp/ \
+               -s /bin/false \
+               exabgp
 
 # Configure coredumps
 RUN echo "" >> /etc/security/limits.conf; \

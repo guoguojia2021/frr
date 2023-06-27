@@ -175,21 +175,18 @@ def pytest_runtest_logfinish(nodeid, location):
     topolog.logfinish(nodeid, location)
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_call(item: pytest.Item) -> None:
-    "Hook the function that is called to execute the test."
-
-    # For topology only run the CLI then exit
+def pytest_runtest_call():
+    """
+    This function must be run after setup_module(), it does standarized post
+    setup routines. It is only being used for the 'topology-only' option.
+    """
     if topotest_extra_config["topology_only"]:
-        get_topogen().cli()
-        pytest.exit("exiting after --topology-only")
+        tgen = get_topogen()
+        if tgen is not None:
+            # Allow user to play with the setup.
+            tgen.mininet_cli()
 
-    # Let the default pytest_runtest_call execute the test function
-    yield
-
-    # Check for leaks if requested
-    if topotest_extra_config["valgrind_memleaks"]:
-        check_for_memleaks()
+        pytest.exit("the topology executed successfully")
 
 
 def pytest_assertrepr_compare(op, left, right):

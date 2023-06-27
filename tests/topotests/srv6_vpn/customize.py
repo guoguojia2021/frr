@@ -89,38 +89,31 @@ CWD = os.path.dirname(os.path.realpath(__file__))
 TEST = os.path.basename(CWD)
 
 
-class ThisTestTopo(Topo):
-    "Test topology builder"
+def build_topo(tgen):
+    # This function only purpose is to define allocation and relationship
+    # between routers, switches and hosts.
+    #
+    # Create P/PE routers
+    # check for mpls
+    tgen.add_router("r1")
 
-    def build(self, *_args, **_opts):
-        "Build function"
-        tgen = get_topogen(self)
-
-        # This function only purpose is to define allocation and relationship
-        # between routers, switches and hosts.
-        #
-        # Create P/PE routers
-        # check for mpls
-        tgen.add_router("r1")
-        
-        for routern in range(1, 5):
-            tgen.add_router("pe{}".format(routern))
-        # Create CE routers
-        for routern in range(1, 5):
-            tgen.add_router("ce{}".format(routern))
-
+    for routern in range(1, 5):
+        tgen.add_router("pe{}".format(routern))
+    # Create CE routers
+    for routern in range(1, 5):
+        tgen.add_router("ce{}".format(routern))
         # CE/PE links
-        tgen.add_link(tgen.gears["ce1"], tgen.gears["pe1"], "ce1-eth0", "pe1-eth4")
-        tgen.add_link(tgen.gears["ce2"], tgen.gears["pe2"], "ce2-eth0", "pe2-eth4")
-        tgen.add_link(tgen.gears["ce3"], tgen.gears["pe3"], "ce3-eth0", "pe3-eth4")
-        tgen.add_link(tgen.gears["ce4"], tgen.gears["pe4"], "ce4-eth0", "pe4-eth4")
+    tgen.add_link(tgen.gears["ce1"], tgen.gears["pe1"], "ce1-eth0", "pe1-eth4")
+    tgen.add_link(tgen.gears["ce2"], tgen.gears["pe2"], "ce2-eth0", "pe2-eth4")
+    tgen.add_link(tgen.gears["ce3"], tgen.gears["pe3"], "ce3-eth0", "pe3-eth4")
+    tgen.add_link(tgen.gears["ce4"], tgen.gears["pe4"], "ce4-eth0", "pe4-eth4")
 
-        # PE/RR links
-        # empty network.
-        tgen.add_link(tgen.gears["pe1"], tgen.gears["r1"], "pe1-eth0", "r1-eth0")
-        tgen.add_link(tgen.gears["pe2"], tgen.gears["r1"], "pe2-eth0", "r1-eth1")
-        tgen.add_link(tgen.gears["pe3"], tgen.gears["r1"], "pe3-eth0", "r1-eth2")
-        tgen.add_link(tgen.gears["pe4"], tgen.gears["r1"], "pe4-eth0", "r1-eth3")
+    # PE/RR links
+    # empty network.
+    tgen.add_link(tgen.gears["pe1"], tgen.gears["r1"], "pe1-eth0", "r1-eth0")
+    tgen.add_link(tgen.gears["pe2"], tgen.gears["r1"], "pe2-eth0", "r1-eth1")
+    tgen.add_link(tgen.gears["pe3"], tgen.gears["r1"], "pe3-eth0", "r1-eth2")
+    tgen.add_link(tgen.gears["pe4"], tgen.gears["r1"], "pe4-eth0", "r1-eth3")
 
 
 def ltemplatePreRouterStartHook():
@@ -129,10 +122,6 @@ def ltemplatePreRouterStartHook():
     tgen = get_topogen()
     logger.info("pre router-start hook, kernel=" + krel)
 
-    # check for normal init
-    if len(tgen.net) == 1:
-        logger.info("Topology not configured, skipping setup")
-        return False
     # trace errors/unexpected output
     cc.resetCounts()
     # configure r2 mpls interfaces
