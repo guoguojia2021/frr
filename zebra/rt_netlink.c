@@ -542,7 +542,7 @@ parse_nexthop_unicast(ns_id_t ns_id, struct rtmsg *rtm, struct rtattr **tb,
 	return nh;
 }
 
-static uint8_t parse_multipath_nexthops_unicast(ns_id_t ns_id,
+static uint32_t parse_multipath_nexthops_unicast(ns_id_t ns_id,
 						struct nexthop_group *ng,
 						struct rtmsg *rtm,
 						struct rtnexthop *rtnh,
@@ -661,7 +661,7 @@ static uint8_t parse_multipath_nexthops_unicast(ns_id_t ns_id,
 		rtnh = RTNH_NEXT(rtnh);
 	}
 
-	uint8_t nhop_num = nexthop_group_nexthop_num(ng);
+	uint32_t nhop_num = nexthop_group_nexthop_num(ng);
 
 	return nhop_num;
 }
@@ -941,7 +941,7 @@ static int netlink_route_change_read_unicast(struct nlmsghdr *h, ns_id_t ns_id,
 			re->nhe_id = nhe_id;
 
 			if (!nhe_id) {
-				uint8_t nhop_num;
+				uint32_t nhop_num;
 
 				/* Use temporary list of nexthops; parse
 				 * message payload's nexthops.

@@ -1203,7 +1203,11 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 			hook_call(rib_update, rn, "updating existing route");
 		/* Update the nexthop; we could determine here that nexthop is
 		 * inactive. */
-		if (nexthop_group_active_nexthop_num(&(new->nhe->nhg)))
+		uint32_t active_nh_num = nexthop_group_active_nexthop_num(&(new->nhe->nhg));
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED){
+			zlog_debug("nexthop group active nexthop num: %u", active_nh_num);
+		}
+		if (active_nh_num)
 			nh_active = 1;
 
 		/* If nexthop is active, install the selected route, if

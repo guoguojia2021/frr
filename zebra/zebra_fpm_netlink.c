@@ -486,7 +486,16 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
 				continue;
         }
         else if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+		{
+			zfpm_debug("%s: ignore recursive nexthop", __func__);
 			continue;
+		}
+
+		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_DUPLICATE))
+		{
+			zfpm_debug("%s: ignore duplicate nexthop", __func__);
+			continue;
+		}
 
 		if (nexthop->type == NEXTHOP_TYPE_BLACKHOLE) {
 			switch (nexthop->bh_type) {
