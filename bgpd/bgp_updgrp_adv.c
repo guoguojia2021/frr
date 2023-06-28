@@ -705,11 +705,11 @@ void subgroup_announce_table(struct update_subgroup *subgrp,
 			if (addpath_capable	&& bgp_addpath_tx_path(peer->addpath_type[afi][safi], ri))
 				subgroup_announce_action(subgrp, dest, ri, 0,
 							 bgp_addpath_id_for_peer(peer, afi, safi,
-										 &ri->tx_addpath), false, NULL);
+										 &ri->tx_addpath), NULL);
 			else if (CHECK_FLAG(ri->flags, BGP_PATH_SELECTED))
 				subgroup_announce_action(subgrp, dest, ri, 1,
 							 bgp_addpath_id_for_peer(peer, afi, safi,
-										 &ri->tx_addpath), false, NULL);
+										 &ri->tx_addpath), NULL);
 		}
 	}
 	UNSET_FLAG(subgrp->sflags, SUBGRP_STATUS_TABLE_REPARSING);

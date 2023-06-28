@@ -140,13 +140,13 @@ static void bgp_conditional_adv_routes(struct peer *peer, afi_t afi,
 				{
 					subgroup_announce_action(subgrp, dest, pi, 0,
 								 bgp_addpath_id_for_peer(peer, afi, safi,
-											 &pi->tx_addpath), true, &advmap_attr);
+											 &pi->tx_addpath), &advmap_attr);
 				}
 				else if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED))
 				{
 					subgroup_announce_action(subgrp, dest, pi, 1,
 								 bgp_addpath_id_for_peer(peer, afi, safi,
-											 &pi->tx_addpath), true, &advmap_attr);
+											 &pi->tx_addpath), &advmap_attr);
 				}
 			}
 			else

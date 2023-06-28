@@ -815,12 +815,11 @@ extern announce_chk_status subgroup_announce_check(struct bgp_dest *dest,
 				    const struct prefix *p, struct attr *attr,
 				    struct attr *post_attr, int check_best_path);
 extern void subgroup_announce_action (struct update_subgroup *subgrp,
-			       struct bgp_dest *dest,
-			       struct bgp_path_info *pi,
-			       int adv_2nd,
-			       uint32_t addpath_tx_id,
-			       bool skip_rmap_check,
-                   struct attr *post_attr);
+				struct bgp_dest *dest,
+				struct bgp_path_info *pi,
+				int adv_2nd,
+				uint32_t addpath_tx_id,
+				struct attr *post_attr);
 
 extern void bgp_peer_clear_node_queue_drain_immediate(struct peer *peer);
 extern void bgp_process_queues_drain_immediate(void);

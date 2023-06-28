@@ -2275,6 +2275,10 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 		*attr = *post_attr;
 	else
 		*attr = *piattr;
+
+	/* don't confuse inbound and outbound setting */
+	RESET_FLAG(attr->rmap_change_flags);
+
     /*
     * For BGP "network" statement,  check if the network is reachable as
     * a connected interface addr before advertising it to a neighbor
@@ -2469,9 +2473,6 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 		/* Fill temp path_info */
 		prep_for_rmap_apply(&rmap_path, &dummy_rmap_path_extra, dest,
 				    pi, peer, attr);
-
-		/* don't confuse inbound and outbound setting */
-		RESET_FLAG(attr->rmap_change_flags);
 
 		/*
 		 * The route reflector is not allowed to modify the attributes
@@ -3139,11 +3140,11 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 }
 
 void subgroup_announce_action (struct update_subgroup *subgrp,
-			       struct bgp_dest *dest,
-			       struct bgp_path_info *pi,
-			       int adv_2nd,
-			       uint32_t addpath_tx_id,
-			       bool skip_rmap_check, struct attr *post_attr)
+				struct bgp_dest *dest,
+				struct bgp_path_info *pi,
+				int adv_2nd,
+				uint32_t addpath_tx_id,
+				struct attr *post_attr)
 {
 	struct prefix *p;
 	struct attr attr;
@@ -3252,7 +3253,7 @@ void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 		return;
 
 	if (selected) {
-        subgroup_announce_action(subgrp, dest, selected, 1, addpath_tx_id, false, NULL);
+        subgroup_announce_action(subgrp, dest, selected, 1, addpath_tx_id, NULL);
 	}
 
 	/* If selected is NULL we must withdraw the path using addpath_tx_id */
