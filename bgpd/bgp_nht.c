@@ -89,8 +89,7 @@ static void bgp_unlink_nexthop_check(struct bgp_nexthop_cache *bnc)
 		}
 		/* only unregister if this is the last nh for this prefix*/
 		if (!bnc_existing_for_prefix(bnc))
-			unregister_zebra_rnh(
-				bnc, CHECK_FLAG(bnc->flags, BGP_STATIC_ROUTE));
+			unregister_zebra_rnh(bnc);
 		bnc_free(bnc);
 	}
 }
@@ -352,11 +351,11 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
     else if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED)
 		   && !is_default_host_route(&bnc->prefix))
     {
-		register_zebra_rnh(bnc, is_bgp_static_route);
+		register_zebra_rnh(bnc);
 	}
 #if 0
     if (te_bnc && !CHECK_FLAG(te_bnc->flags, BGP_NEXTHOP_REGISTERED)) {
-        register_zebra_rnh(te_bnc, 0);
+        register_zebra_rnh(te_bnc);
     }
 #endif
 	if (pi && pi->nexthop != bnc) {
@@ -446,7 +445,7 @@ void bgp_delete_connected_nexthop(afi_t afi, struct peer *peer)
 			zlog_debug(
 				"Freeing connected NHT node %p for peer %s(%s)",
 				bnc, peer->host, bnc->bgp->name_pretty);
-		unregister_zebra_rnh(bnc, 0);
+		unregister_zebra_rnh(bnc);
 		bnc_free(bnc);
 	}
 }
@@ -1061,8 +1060,7 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
  * RETURNS:
  *   void.
  */
-void register_zebra_rnh(struct bgp_nexthop_cache *bnc,
-			       int is_bgp_import_route)
+void register_zebra_rnh(struct bgp_nexthop_cache *bnc)
 {
 	/* Check if we have already registered */
 	if (bnc->flags & BGP_NEXTHOP_REGISTERED)
@@ -1083,8 +1081,7 @@ void register_zebra_rnh(struct bgp_nexthop_cache *bnc,
  * RETURNS:
  *   void.
  */
-void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc,
-				 int is_bgp_import_route)
+void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc)
 {
 	/* Check if we have already registered */
 	if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED))
@@ -1373,7 +1370,7 @@ void bgp_nht_register_nexthops(struct bgp *bgp)
 
 		frr_each (bgp_nexthop_cache, &bgp->import_check_table[afi],
 			  bic) {
-			register_zebra_rnh(bic, 1);
+			register_zebra_rnh(bic);
 		}
 	}
 
@@ -1382,7 +1379,7 @@ void bgp_nht_register_nexthops(struct bgp *bgp)
 
 		frr_each (bgp_nexthop_cache, &bgp->nexthop_cache_table[afi],
 			  bnc) {
-			register_zebra_rnh(bnc, 0);
+			register_zebra_rnh(bnc);
 		}
 	}
 }

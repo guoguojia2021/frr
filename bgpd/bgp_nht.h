@@ -89,10 +89,8 @@ extern void peer_nh_map(struct peer *peer, struct bgp_nexthop_cache *bnc, afi_t 
  * any nexthops we may have sitting around
  */
 extern void bgp_nht_register_nexthops(struct bgp *bgp);
-extern void register_zebra_rnh(struct bgp_nexthop_cache *bnc,
-			       int is_bgp_static_route);
-extern void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc,
-				 int is_bgp_import_route);
+extern void register_zebra_rnh(struct bgp_nexthop_cache *bnc);
+extern void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc);
 
 extern int bgp_isvalid_nexthop(struct bgp_nexthop_cache *bnc);
 

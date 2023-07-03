@@ -403,7 +403,7 @@ void bgp_trackroute_adv_enable(struct peer *peer, afi_t afi, safi_t safi, struct
     SET_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH);
 
     if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED))
-        register_zebra_rnh(bnc, 1);
+        register_zebra_rnh(bnc);
 
     if (filter->advmap.condition_nexthop != bnc) {
         peer_nh_map(peer, bnc, afi, safi, true);
@@ -440,7 +440,7 @@ void bgp_trackroute_adv_disable(struct peer *peer, afi_t afi, safi_t safi, struc
     if (LIST_EMPTY(&(bnc->peer_filters))) {
         /* only unregister if this is the last nh for this prefix*/
         if (!bnc_existing_for_prefix(bnc))
-            unregister_zebra_rnh(bnc, 1);
+            unregister_zebra_rnh(bnc);
         bnc_free(bnc);
     }
     
