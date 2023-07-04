@@ -584,7 +584,7 @@ static void configvec_dump(vector vec, bool nested, u_char use_json, struct json
 	struct configuration *configuration;
 	char *line;
 	unsigned int i;
-	char key[128];
+	char key[4096];
 
 	for (i = 0; i < vector_active(vec); i++) {
 		if ((configuration = vector_slot(vec, i)) != NULL) {
