@@ -1593,29 +1593,7 @@ static void rib_process(struct route_node *rn)
 		else
 			zlog_debug("no fib count restriction on table:%p, afi: %d, safi: %d",table,(int)(info->afi),(int)(info->safi));
 	}
-	if (new_fib && old_fib)
-		rib_process_update_fib(zvrf, rn, old_fib, new_fib);
-	else if (new_fib)
-		rib_process_add_fib(zvrf, rn, new_fib);
-	else if (old_fib)
-		rib_process_del_fib(zvrf, rn, old_fib);
 
-	unsigned long totalCount = fib_total_count();
-
-	while(zebra_config_fib_max > totalCount) {
-		if ((zebra_config_fib_max - totalCount == 1) && ip4_pending_fib_count == 0)
-			break;
-		if (ip4_pending_fib_count == 0 && ip6_pending_fib_count == 0)
-			break;
-		rib_install_pending_to_fib();
-		totalCount = fib_total_count();
-		zlog_debug("install pending route to fib total:%lu, ipv4:%lu, ipv6:%lu",
-			totalCount, ip4_pending_fib_count, ip6_pending_fib_count);
-	}
-	if (totalCount < zebra_config_fib_max * ZEBRA_TABLE_FIB_MAX_ALARM_RESUME) {
-		fib_max_alarm_switch = true;
-		fib_threshold_alarm_switch = true;
-	}
 	/* Update SELECTED entry */
 	if (old_selected != new_selected || selected_changed) {
 
@@ -1650,6 +1628,22 @@ static void rib_process(struct route_node *rn)
 	else if (old_fib)
 		rib_process_del_fib(zvrf, rn, old_fib);
 
+	unsigned long totalCount = fib_total_count();
+
+	while(zebra_config_fib_max > totalCount) {
+		if ((zebra_config_fib_max - totalCount == 1) && ip4_pending_fib_count == 0)
+			break;
+		if (ip4_pending_fib_count == 0 && ip6_pending_fib_count == 0)
+			break;
+		rib_install_pending_to_fib();
+		totalCount = fib_total_count();
+		zlog_debug("install pending route to fib total:%lu, ipv4:%lu, ipv6:%lu",
+			totalCount, ip4_pending_fib_count, ip6_pending_fib_count);
+	}
+	if (totalCount < zebra_config_fib_max * ZEBRA_TABLE_FIB_MAX_ALARM_RESUME) {
+		fib_max_alarm_switch = true;
+		fib_threshold_alarm_switch = true;
+	}
 	/* Remove all RE entries queued for removal */
 	RNODE_FOREACH_RE_SAFE (rn, re, next) {
 		if (CHECK_FLAG(re->status, ROUTE_ENTRY_REMOVED)) {
