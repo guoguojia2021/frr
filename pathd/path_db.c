@@ -13,6 +13,7 @@
 
 #define SRV6_SID_LIST_TABLE "SRV6_SID_LIST_TABLE"
 #define SRV6_POLICY_TABLE   "SRV6_POLICY_TABLE"
+#define TAG   "0"
 
 /* clang-format on */
 
@@ -259,7 +260,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         return;
     }
 
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
+    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
@@ -315,7 +316,7 @@ void sidlist_Db_DelEntry(const char *name)
     }
 
     /*publish*/
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL",SRV6_SID_LIST_TABLE);
+    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
@@ -452,7 +453,7 @@ void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_c
         return;
     }
 
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_POLICY_TABLE);
+    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_POLICY_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
@@ -508,7 +509,7 @@ extern void sr_policy_Db_DelEntry(const char *name)
     }
 
     /*publish*/
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_POLICY_TABLE);
+    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_POLICY_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)

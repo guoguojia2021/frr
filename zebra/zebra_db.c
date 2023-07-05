@@ -15,7 +15,6 @@
 
 #define LINE_MAX_BUF_LEN 1024
 
-/* redis���ݿ�����*/
 REDIS_INFO_S g_stZebraRedisDbInfo = {0};
 void *g_zebrahandleRedis = NULL; /* libredis++.so */
 struct redis_user_ext g_zebra_redis = {0};/* libredis++.so */
@@ -27,6 +26,7 @@ bool g_bZebraRedisInUse_appdb = false;
 
 
 #define SRV6_MY_SID_TABLE "SRV6_MY_SID_TABLE"
+#define TAG "0"
 
 static DB_FieldValue_List *create_DB_Data(char *key, char *field, char *value)
 {
@@ -496,7 +496,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
         return;
     }
 
-    snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_MY_SID_TABLE);
+    snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %d", channel);
     ret = g_zebra_redis_appdb.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
@@ -565,7 +565,7 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
     }
 
     /*publish*/
-    snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL", SRV6_MY_SID_TABLE);
+    snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %d", channel);
     ret = g_zebra_redis_appdb.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
