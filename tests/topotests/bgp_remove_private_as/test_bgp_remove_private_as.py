@@ -83,7 +83,7 @@ def build_topo(tgen):
      - r5: 5555
     """
     for routern in range(1, 6):
-        tgen.add_router(f"r{routern}")
+        tgen.add_router("r{}".format(routern))
 
     #######################
     # Connections to r2
