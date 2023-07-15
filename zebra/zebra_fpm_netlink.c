@@ -383,6 +383,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
     */
     else if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
     {
+		nhi.gateway = &nexthop->gate;
 		zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s, gate:%s, color:%d", __FUNCTION__,
 			prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 			addr_to_a(AF_INET6, &nexthop->nh_srv6->seg6_segs),
