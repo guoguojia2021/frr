@@ -2121,7 +2121,7 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 		irt = bgp_lookup_import_rt(eval);
 		if (irt && irt->vrfs) {
 			for (ALL_LIST_ELEMENTS(irt->vrfs, mnode, mnnode, bgp)) {
-				if (!bitmap_is_set(bitmap, bgp->vrf_id) && 
+				if (bgp->vrf_id <= BGP_VRF_RANGE && !bitmap_is_set(bitmap, bgp->vrf_id) &&
 					(!info_vpn->extra || info_vpn->extra->bgp_orig != bgp)) {
 					vpn_leak_to_vrf_update_onevrf(bgp, bgp_vpn, info_vpn);
 					bitmap_set1(bitmap, bgp->vrf_id);
@@ -2136,7 +2136,7 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 			irt = bgp_lookup_import_rt(eval);
 			if (irt && irt->vrfs) {
 				for (ALL_LIST_ELEMENTS(irt->vrfs, mnode, mnnode, bgp)) {
-					if (!bitmap_is_set(bitmap, bgp->vrf_id)) {
+					if (bgp->vrf_id <= BGP_VRF_RANGE && !bitmap_is_set(bitmap, bgp->vrf_id)) {
 						vpn_try_leak_to_withdraw_onevrf(bgp, bgp_vpn, info_vpn);
 						bitmap_set1(bitmap, bgp->vrf_id);
 					}
@@ -2218,7 +2218,7 @@ void vpn_leak_to_vrf_withdraw(struct bgp *bgp_vpn,	    /* from */
         irt = bgp_lookup_import_rt(eval);
         if (irt && irt->vrfs) {
             for (ALL_LIST_ELEMENTS(irt->vrfs, mnode, mnnode, bgp)) {
-                if (!bitmap_is_set(bitmap, bgp->vrf_id)) {
+                if (bgp->vrf_id <= BGP_VRF_RANGE && !bitmap_is_set(bitmap, bgp->vrf_id)) {
                     vpn_try_leak_to_withdraw_onevrf(bgp, bgp_vpn, path_vpn);
                     bitmap_set1(bitmap, bgp->vrf_id);
                 }
