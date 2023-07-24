@@ -608,8 +608,8 @@ static int zebra_sr_config(struct vty *vty)
 		for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
 			inet_ntop(AF_INET6, &locator->prefix.prefix,
 				  str, sizeof(str));
-			vty_out(vty, "   locator %s\n", locator->name);
-			vty_out(vty, "    prefix %s/%u\n", str,
+			vty_out(vty, "   locator %s", locator->name);
+			vty_out(vty, " prefix %s/%u", str,
 				locator->prefix.prefixlen);
 			if (locator->node_bits_length)
 				vty_out(vty, " block-len %u", locator->block_bits_length);
@@ -653,9 +653,7 @@ static int zebra_sr_config(struct vty *vty)
 		}
         vty_out(vty, "  exit\n");
 		vty_out(vty, "  !\n");
-		vty_out(vty, " exit\n");
 		vty_out(vty, " !\n");
-		vty_out(vty, "exit\n");
 		vty_out(vty, "!\n");
 	}
 	return 0;
