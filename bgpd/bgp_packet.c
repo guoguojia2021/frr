@@ -604,7 +604,7 @@ void bgp_keepalive_send(struct peer *peer)
 		zlog_debug("%s sending KEEPALIVE", peer->host);
 
 	/* Add packet to the peer. */
-	bgp_packet_add(peer, s);
+	bgp_packet_add_hprio(peer, s);
 
 	bgp_writes_on(peer);
 }
