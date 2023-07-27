@@ -4966,10 +4966,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 				}
 			}
 		}
-        /*restore ext-community for withdraw check*/
-        if (pi->attr->ecommunity != attr_new->ecommunity) {
-            old_ecommunity = ecommunity_dup(pi->attr->ecommunity);
-        }
+		/*restore ext-community for withdraw check*/
+		if (pi->attr->ecommunity && (pi->attr->ecommunity != attr_new->ecommunity)) {
+			old_ecommunity = ecommunity_dup(pi->attr->ecommunity);
+		}
 
 		/* Update to new attribute.  */
 		bgp_attr_unintern(&pi->attr);
