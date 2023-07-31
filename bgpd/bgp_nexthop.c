@@ -420,7 +420,7 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 		}
 
 		/* We may need to announce this prefix to our neighbors */
-		bgp_process_update(bgp, &dest->p, AFI_IP, SAFI_UNICAST, 1);
+		bgp_process_update(bgp, &dest->rn->p, AFI_IP, SAFI_UNICAST, 1);
 
 		for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
 			if (peer->conf_if
@@ -459,7 +459,7 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 			bgp_dest_set_bgp_connected_ref_info(dest, bc);
 		}
 
-		bgp_process_update(bgp, &dest->p, AFI_IP6, SAFI_UNICAST, 1);
+		bgp_process_update(bgp, &dest->rn->p, AFI_IP6, SAFI_UNICAST, 1);
 	}
 }
 
@@ -499,7 +499,7 @@ void bgp_connected_delete(struct bgp *bgp, struct connected *ifc)
 		return;
 
 	/* We may have to withdraw this prefix from our neighbors */
-	bgp_process_update(bgp, &dest->p, family2afi(addr->family), SAFI_UNICAST, 0);
+	bgp_process_update(bgp, &dest->rn->p, family2afi(addr->family), SAFI_UNICAST, 0);
 	bc = bgp_dest_get_bgp_connected_ref_info(dest);
 
 	bc->refcnt--;
@@ -1105,7 +1105,7 @@ DEFUN (show_ip_bgp_instance_all_nexthop,
 
 static void bgp_show_connected (struct vty *vty, struct bgp *bgp, afi_t input_afi)
 {
-	struct bgp_node *rn;
+	struct bgp_dest *bd;
 	char buf[PREFIX2STR_BUFFER];
 	afi_t afi;
 	struct bgp_connected_ref *bc;
@@ -1118,17 +1118,17 @@ static void bgp_show_connected (struct vty *vty, struct bgp *bgp, afi_t input_af
 		if (!bgp->connected_table[afi])
 			continue;
 
-		for (rn = bgp_table_top(bgp->connected_table[afi]);
-		     rn;
-		     rn = bgp_route_next(rn)) {
+		for (bd = bgp_table_top(bgp->connected_table[afi]);
+		     bd;
+		     bd = bgp_route_next(bd)) {
 
-			if (rn->info == NULL) continue;
+			if (bd->info == NULL) continue;
 
-			bc = rn->info;
+			bc = bd->info;
 			vty_out (vty, " %s/%d, counter %d\n",
-				 inet_ntop(rn->p.family, &rn->p.u.prefix,
+				 inet_ntop(bd->rn->p.family, &bd->rn->p.u.prefix,
 					   buf, sizeof(buf)),
-				 rn->p.prefixlen,
+				 bd->rn->p.prefixlen,
 				 bc ? bc->refcnt : 9999);
 		}
 	}

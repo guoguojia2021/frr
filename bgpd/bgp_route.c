@@ -94,7 +94,7 @@
 #endif
 
 DEFINE_HOOK(bgp_snmp_update_stats,
-	    (struct bgp_node *rn, struct bgp_path_info *pi, bool added),
+	    (struct bgp_dest *rn, struct bgp_path_info *pi, bool added),
 	    (rn, pi, added));
 
 DEFINE_HOOK(bgp_rpki_prefix_status,
@@ -283,7 +283,7 @@ struct bgp_path_info_extra *bgp_path_info_extra_get(struct bgp_path_info *pi)
 {
 	if (!pi->extra)
 		pi->extra = bgp_path_info_extra_new();
-	if (!pi->extra->evpn && pi->net && pi->net->p.family == AF_EVPN)
+	if (!pi->extra->evpn && pi->net && pi->net->rn->p.family == AF_EVPN)
 		pi->extra->evpn =
 			XCALLOC(MTYPE_BGP_ROUTE_EXTRA_EVPN,
 				sizeof(struct bgp_path_info_extra_evpn));
@@ -579,7 +579,7 @@ bgp_static_check (struct bgp *bgp, struct bgp_path_info *pi,
 {
 	char buf[SU_ADDRSTRLEN];
 	struct bgp_static * bgp_static;
-	struct bgp_node * tmp_rn;
+	struct bgp_dest * tmp_bd;
 	int nonconnected;
 
 
@@ -595,11 +595,11 @@ bgp_static_check (struct bgp *bgp, struct bgp_path_info *pi,
 		return 1;
 	}
 
-	tmp_rn = bgp_node_get(bgp->route[afi][safi], p);
-	bgp_static = tmp_rn->info;
+	tmp_bd = bgp_node_get(bgp->route[afi][safi], p);
+	bgp_static = tmp_bd->info;
 	if (bgp_static) {
 		nonconnected = bgp_static->nonconnected;
-		bgp_dest_unlock_node(tmp_rn);
+		bgp_dest_unlock_node(tmp_bd);
 		if(debug)
 		{
 			zlog_debug("%s(): %s/%d:nexthop %s, %s",
@@ -2841,7 +2841,7 @@ static int bgp_route_select_timer_expire(struct thread *thread)
 void
 bgp_process_update (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi, int add)
 {
-  struct bgp_node *network_rn, *rn;
+  struct bgp_dest *network_bd, *bd;
   struct bgp_path_info *pi;
   struct prefix *network_p;
   char buf[SU_ADDRSTRLEN];
@@ -2859,24 +2859,24 @@ bgp_process_update (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi, i
    * Go through "network" table to see if the interface prefix
    * covers any of the networks configured under BGP
    */
-  for (network_rn = bgp_table_top(bgp->route[afi][safi]);
-       network_rn;
-       network_rn = bgp_route_next(network_rn)) {
-    if (!network_rn->info)
+  for (network_bd = bgp_table_top(bgp->route[afi][safi]);
+       network_bd;
+       network_bd = bgp_route_next(network_bd)) {
+    if (!network_bd->info)
       continue;
 
-    network_p = &network_rn->p;  /* prefix under network statement */
+    network_p = &network_bd->rn->p;  /* prefix under network statement */
     if (!prefix_match (p, network_p)) /* whether p includes network */
       continue;
 
     /* For covered network prefix */
-    rn = bgp_node_lookup(bgp->rib[afi][safi], network_p);
-    if (!rn)
+    bd = bgp_node_lookup(bgp->rib[afi][safi], network_p);
+    if (!bd)
       continue;
 
-    struct bgp_static * bgp_static = network_rn->info;
+    struct bgp_static * bgp_static = network_bd->info;
 
-    for (pi = bgp_dest_get_bgp_path_info(rn); pi;
+    for (pi = bgp_dest_get_bgp_path_info(bd); pi;
 	 pi = pi->next) {
 	if (pi->peer == bgp->peer_self &&
 	    pi->type == ZEBRA_ROUTE_BGP &&
@@ -2887,8 +2887,8 @@ bgp_process_update (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi, i
 		      inet_ntop (network_p->family, &network_p->u.prefix, buf, SU_ADDRSTRLEN),
 		      network_p->prefixlen, add ? "add" : "delete");
 	}
-	bgp_path_info_set_flag (rn, pi, BGP_PATH_ATTR_CHANGED);
-        bgp_process (bgp, rn, afi, safi);
+	bgp_path_info_set_flag (bd, pi, BGP_PATH_ATTR_CHANGED);
+        bgp_process (bgp, bd, afi, safi);
 	break;
       }
     }
@@ -2948,7 +2948,7 @@ int (*is_primary_route)(struct bgp_path_info *binfo) = &is_arp2host_route;
 #endif
 
 
-void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
+void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 			struct bgp_maxpaths_cfg *mpath_cfg,
 			struct bgp_path_info_pair *result, afi_t afi,
 			safi_t safi, int select_backup)
@@ -3019,7 +3019,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 						continue;
 
 					if (bgp_path_info_cmp(
-						    bgp, pi2, new_select, &dest->p,
+						    bgp, pi2, new_select, &dest->rn->p,
 						    &paths_eq, mpath_cfg, debug,
 						    pfx_buf, afi, safi,
 						    &dest->reason)) {
@@ -3124,7 +3124,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 		bgp_path_info_unset_flag(dest, pi, BGP_PATH_DMED_CHECK);
 
 		reason = dest->reason;
-		if (bgp_path_info_cmp(bgp, pi, new_select, &dest->p, &paths_eq, mpath_cfg,
+		if (bgp_path_info_cmp(bgp, pi, new_select, &dest->rn->p, &paths_eq, mpath_cfg,
 				      debug, pfx_buf, afi, safi,
 				      &dest->reason)) {
 			if (new_select == NULL &&
@@ -3185,7 +3185,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_node *dest,
 				continue;
 			}
 
-			bgp_path_info_cmp(bgp, pi, new_select, &dest->p, &paths_eq,
+			bgp_path_info_cmp(bgp, pi, new_select, &dest->rn->p, &paths_eq,
 					  mpath_cfg, debug, pfx_buf, afi, safi,
 					  &dest->reason);
 
@@ -3447,11 +3447,11 @@ static void bgp_process_evpn_route_injection(struct bgp *bgp, afi_t afi,
 }
 #ifdef ARP2HOST_BACKUP
 static void
-bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
+bgp_process_primary_backup (struct bgp *bgp, struct bgp_dest *bd,
 			    afi_t afi, safi_t safi,
 			    struct bgp_path_info *new_select, struct bgp_path_info *old_select)
 {
-	struct prefix *p = &rn->p;
+	struct prefix *p = &bd->p;
 	struct bgp_path_info *new_select_backup = NULL;
 	struct bgp_path_info *old_select_backup = NULL;
 	struct bgp_path_info_pair old_and_new_arp;
@@ -3459,7 +3459,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	int unset_later = 0;
 
 	if (old_select && old_select == new_select
-	    && !CHECK_FLAG(rn->flags, BGP_NODE_USER_CLEAR)
+	    && !CHECK_FLAG(bd->flags, BGP_NODE_USER_CLEAR)
 	    && !CHECK_FLAG(old_select->flags, BGP_PATH_ATTR_CHANGED)
 	    && !bgp_addpath_is_addpath_used(&bgp->tx_addpath, afi, safi)) {
 		if (bgp_zebra_has_route_changed(old_select)) {
@@ -3471,7 +3471,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			    && !bgp_option_check(BGP_OPT_NO_FIB)
 			    && new_select->type == ZEBRA_ROUTE_BGP
 			    && new_select->sub_type == BGP_ROUTE_NORMAL)
-				bgp_zebra_announce(rn, p, old_select, bgp, afi,
+				bgp_zebra_announce(bd, p, old_select, bgp, afi,
 						   safi);
 		}
 
@@ -3479,32 +3479,32 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 		if (CHECK_FLAG(old_select->flags, BGP_PATH_LINK_BW_CHG) ||
 		    CHECK_FLAG(old_select->flags, BGP_PATH_MULTIPATH_CHG)){
 		    zlog_debug("evpn route injection based on BW/MULTIPATH change.");
-		    bgp_process_evpn_route_injection(bgp, afi, safi, rn, old_select, old_select);
+		    bgp_process_evpn_route_injection(bgp, afi, safi, bd, old_select, old_select);
 		}
 
 		UNSET_FLAG(old_select->flags, BGP_PATH_MULTIPATH_CHG);
-		bgp_zebra_clear_route_change_flags(rn);
+		bgp_zebra_clear_route_change_flags(bd);
 
 		/* If there is a change of interest to peers, reannounce the
 		 * route. */
 		if (CHECK_FLAG(old_select->flags, BGP_PATH_ATTR_CHANGED)
 		    || CHECK_FLAG(old_select->flags, BGP_PATH_LINK_BW_CHG)
-		    || CHECK_FLAG(rn->flags, BGP_NODE_LABEL_CHANGED)) {
-			group_announce_route(bgp, afi, safi, rn, new_select);
+		    || CHECK_FLAG(bd->flags, BGP_NODE_LABEL_CHANGED)) {
+			group_announce_route(bgp, afi, safi, bd, new_select);
 
 			/* unicast routes must also be annouced to
 			 * labeled-unicast update-groups */
 			if (safi == SAFI_UNICAST)
 				group_announce_route(bgp, afi,
-						     SAFI_LABELED_UNICAST, rn,
+						     SAFI_LABELED_UNICAST, bd,
 						     new_select);
 
 			UNSET_FLAG(old_select->flags, BGP_PATH_LINK_BW_CHG);
 			UNSET_FLAG(old_select->flags, BGP_PATH_ATTR_CHANGED);
-			UNSET_FLAG(rn->flags, BGP_NODE_LABEL_CHANGED);
+			UNSET_FLAG(bd->flags, BGP_NODE_LABEL_CHANGED);
 		}
 
-		UNSET_FLAG(rn->flags, BGP_NODE_PROCESS_SCHEDULED);
+		UNSET_FLAG(bd->flags, BGP_NODE_PROCESS_SCHEDULED);
 		/*If best route is active route and nothing changed, contine to check backup route for FIB.*/
 		zlog_debug("Old equal to new, it's arp2host, continue to fib.");
 		/*As no change on best route, do not announce peers.*/
@@ -3514,11 +3514,11 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	/* If the user did "clear ip bgp prefix x.x.x.x" this flag will be set
 	 */
 	if (!goto_fib) {
-		UNSET_FLAG(rn->flags, BGP_NODE_USER_CLEAR);
+		UNSET_FLAG(bd->flags, BGP_NODE_USER_CLEAR);
 
 		/* bestpath has changed; bump version */
 		if (old_select || new_select) {
-			bgp_bump_version(rn);
+			bgp_bump_version(bd);
 
 			if (!bgp->t_rmap_def_originate_eval) {
 				bgp_lock(bgp);
@@ -3537,12 +3537,12 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 				zlog_debug("Avoid best_selection to del this rib, unset SELECTED later.");
 				unset_later = 1;
 			} else {
-				bgp_path_info_unset_flag (rn, old_select, BGP_PATH_SELECTED);
+				bgp_path_info_unset_flag (bd, old_select, BGP_PATH_SELECTED);
 			}
 		}
 		if (new_select) {
-			bgp_path_info_set_flag(rn, new_select, BGP_PATH_SELECTED);
-			bgp_path_info_unset_flag(rn, new_select, BGP_PATH_ATTR_CHANGED);
+			bgp_path_info_set_flag(bd, new_select, BGP_PATH_SELECTED);
+			bgp_path_info_unset_flag(bd, new_select, BGP_PATH_ATTR_CHANGED);
 			UNSET_FLAG(new_select->flags, BGP_PATH_MULTIPATH_CHG);
 		}
 
@@ -3563,12 +3563,12 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 		}
 #endif
 
-		group_announce_route(bgp, afi, safi, rn, new_select);
+		group_announce_route(bgp, afi, safi, bd, new_select);
 
 		/* unicast routes must also be annouced to labeled-unicast update-groups
 		 */
 		if (safi == SAFI_UNICAST)
-			group_announce_route(bgp, afi, SAFI_LABELED_UNICAST, rn,
+			group_announce_route(bgp, afi, SAFI_LABELED_UNICAST, bd,
 					     new_select);
 	}
 	/* FIB update. */
@@ -3578,7 +3578,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 		/*In order to set bgp route as backup route for arp2host route in FIB,
 		 * ASIC sdk will generate arp2host route, so just select bgp route as the best route to FIB.*/
 		zlog_debug("FIB processing, best is ARP2Host, try to select backup route.");
-		bgp_best_selection (bgp, rn, &bgp->maxpaths[afi][safi], &old_and_new_arp, afi, safi, 1);
+		bgp_best_selection (bgp, bd, &bgp->maxpaths[afi][safi], &old_and_new_arp, afi, safi, 1);
 		old_select_backup = old_and_new_arp.old;
 		new_select_backup = old_and_new_arp.new;
 		if (BGP_DEBUG (zebra, ZEBRA)) {
@@ -3591,7 +3591,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			if (CHECK_FLAG (old_select_backup->flags, BGP_PATH_IGP_CHANGED) ||
 			    CHECK_FLAG (old_select_backup->flags, BGP_PATH_MULTIPATH_CHG)) {
 				zlog_debug("old_select_backup has MULTIPATH_CHG, update to zebra.");
-				bgp_zebra_announce (rn, p, old_select_backup, bgp, afi, safi);
+				bgp_zebra_announce (bd, p, old_select_backup, bgp, afi, safi);
 			} else {
 				zlog_debug("nothing to do");
 			}
@@ -3604,10 +3604,10 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 		}
 
 		if (old_select_backup)
-			bgp_path_info_unset_flag (rn, old_select_backup, BGP_PATH_BACKUP_SELECTED);
+			bgp_path_info_unset_flag (bd, old_select_backup, BGP_PATH_BACKUP_SELECTED);
 		if (new_select_backup) {
-			bgp_path_info_set_flag (rn, new_select_backup, BGP_PATH_BACKUP_SELECTED);
-			bgp_path_info_unset_flag (rn, new_select_backup, BGP_PATH_ATTR_CHANGED);
+			bgp_path_info_set_flag (bd, new_select_backup, BGP_PATH_BACKUP_SELECTED);
+			bgp_path_info_unset_flag (bd, new_select_backup, BGP_PATH_ATTR_CHANGED);
 			UNSET_FLAG (new_select_backup->flags, BGP_PATH_MULTIPATH_CHG);
 		}
 
@@ -3623,7 +3623,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 			if (old_select_backup && is_route_parent_evpn(old_select_backup))
 			    bgp_zebra_withdraw(p, old_select_backup, bgp, safi);
 
-			bgp_zebra_announce(rn, p, new_select_backup, bgp, afi, safi);
+			bgp_zebra_announce(bd, p, new_select_backup, bgp, afi, safi);
 		}
 		else {
 			/* Withdraw the route from the kernel. */
@@ -3636,24 +3636,24 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_node *rn,
 	}
 
 end:
-	bgp_process_evpn_route_injection(bgp, afi, safi, rn, new_select, old_select);
+	bgp_process_evpn_route_injection(bgp, afi, safi, bd, new_select, old_select);
 	/* Clear any route change flags. */
-	bgp_zebra_clear_route_change_flags(rn);
+	bgp_zebra_clear_route_change_flags(bd);
 	if (unset_later && old_select) {
-		bgp_path_info_unset_flag (rn, old_select, BGP_PATH_SELECTED);
+		bgp_path_info_unset_flag (bd, old_select, BGP_PATH_SELECTED);
 	}
 
 	/* Reap old select bgp_info, if it has been removed */
 	if (old_select && CHECK_FLAG(old_select->flags, BGP_PATH_REMOVED)&& old_select->lock > 0)
-		bgp_path_info_reap(rn, old_select);
+		bgp_path_info_reap(bd, old_select);
 
 	if (old_select_backup
             && old_select_backup != old_select
             && CHECK_FLAG (old_select_backup->flags, BGP_PATH_REMOVED)
             && old_select_backup->lock > 0)
-		bgp_path_info_reap (rn, old_select_backup);
+		bgp_path_info_reap (bd, old_select_backup);
 
-	UNSET_FLAG(rn->flags, BGP_NODE_PROCESS_SCHEDULED);
+	UNSET_FLAG(bd->flags, BGP_NODE_PROCESS_SCHEDULED);
 	return;
 }
 #endif
@@ -4889,7 +4889,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			pNht.family = AF_INET;
 			pNht.u.prefix4 = attr->nexthop;
 			pNht.prefixlen = IPV4_MAX_BITLEN;
-			if (prefix_match(&pNht, &dest->p))
+			if (prefix_match(&pNht, &dest->rn->p))
 				SET_FLAG(pi->flags, BGP_PATH_SUPERNET);
 			else
 				UNSET_FLAG(pi->flags, BGP_PATH_SUPERNET);
@@ -4899,7 +4899,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			pNht.family = AF_INET;
 			pNht.u.prefix4 = attr->nexthop;
 			pNht.prefixlen = IPV4_MAX_BITLEN;
-			if (prefix_match(&pNht, &dest->p))
+			if (prefix_match(&pNht, &dest->rn->p))
 				SET_FLAG(pi->flags, BGP_PATH_SUPERNET);
 			else
 				UNSET_FLAG(pi->flags, BGP_PATH_SUPERNET);
@@ -4909,7 +4909,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			pNht.family = AF_INET6;
 			pNht.u.prefix6 = attr->mp_nexthop_global;
 			pNht.prefixlen = IPV6_MAX_BITLEN;
-			if (prefix_match(&pNht, &dest->p))
+			if (prefix_match(&pNht, &dest->rn->p))
 				SET_FLAG(pi->flags, BGP_PATH_SUPERNET);
 			else
 				UNSET_FLAG(pi->flags, BGP_PATH_SUPERNET);
@@ -5366,7 +5366,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		pNht.family = AF_INET;
 		pNht.u.prefix4 = attr->nexthop;
 		pNht.prefixlen = IPV4_MAX_BITLEN;
-		if (prefix_match(&pNht, &dest->p))
+		if (prefix_match(&pNht, &dest->rn->p))
 			SET_FLAG(new->flags, BGP_PATH_SUPERNET);
 		else
 			UNSET_FLAG(new->flags, BGP_PATH_SUPERNET);
@@ -5377,7 +5377,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		pNht.family = AF_INET;
 		pNht.u.prefix4 = attr->nexthop;
 		pNht.prefixlen = IPV4_MAX_BITLEN;
-		if (prefix_match(&pNht, &dest->p))
+		if (prefix_match(&pNht, &dest->rn->p))
 			SET_FLAG(new->flags, BGP_PATH_SUPERNET);
 		else
 			UNSET_FLAG(new->flags, BGP_PATH_SUPERNET);
@@ -5387,7 +5387,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		pNht.family = AF_INET6;
 		pNht.u.prefix6 = attr->mp_nexthop_global;
 		pNht.prefixlen = IPV6_MAX_BITLEN;
-		if (prefix_match(&pNht, &dest->p))
+		if (prefix_match(&pNht, &dest->rn->p))
 			SET_FLAG(new->flags, BGP_PATH_SUPERNET);
 		else
 			UNSET_FLAG(new->flags, BGP_PATH_SUPERNET);

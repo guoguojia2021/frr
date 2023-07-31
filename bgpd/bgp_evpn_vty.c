@@ -695,7 +695,7 @@ static void bgp_evpn_show_routes_mac_ip_es(struct vty *vty, esi_t *esi,
 					   json_object *json, int detail,
 					   bool global_table)
 {
-	struct bgp_node *rn;
+	struct bgp_dest *bd;
 	struct bgp_path_info *pi;
 	int header = detail ? 0 : 1;
 	uint32_t path_cnt;
@@ -728,7 +728,7 @@ static void bgp_evpn_show_routes_mac_ip_es(struct vty *vty, esi_t *esi,
 			json_object *json_path = NULL;
 
 			pi = es_info->pi;
-			rn = pi->net;
+			bd = pi->net;
 
 			if (!CHECK_FLAG(pi->flags, BGP_PATH_VALID))
 				continue;
@@ -746,10 +746,10 @@ static void bgp_evpn_show_routes_mac_ip_es(struct vty *vty, esi_t *esi,
 
 			if (detail)
 				route_vty_out_detail(
-					vty, bgp, rn, pi, AFI_L2VPN, SAFI_EVPN,
+					vty, bgp, bd, pi, AFI_L2VPN, SAFI_EVPN,
 					RPKI_NOT_BEING_USED, json_path);
 			else
-				route_vty_out(vty, &rn->p, pi, 0, SAFI_EVPN,
+				route_vty_out(vty, &bd->rn->p, pi, 0, SAFI_EVPN,
 					      json_path, false);
 
 			if (json)
@@ -3441,7 +3441,7 @@ static void show_l3vni_routes(struct bgp *bgp, struct ipaddr *ip, vni_t vni, int
 		rd_header = 1;
 
 		for (dest = bgp_table_top(table); dest; dest = bgp_route_next(dest)) {
-			struct prefix_evpn *evp = (struct prefix_evpn *)&dest->p;
+			struct prefix_evpn *evp = (struct prefix_evpn *)&dest->rn->p;
 
 			if (type && evp->prefix.route_type != type)
 					continue;

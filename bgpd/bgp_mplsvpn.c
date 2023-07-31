@@ -1868,14 +1868,14 @@ static void vpn_try_leak_to_withdraw_onevrf(struct bgp *bgp_vrf,       /* to */
 	struct prefix *p;
 	afi_t afi;
 	safi_t safi = SAFI_UNICAST;
-	struct bgp_node *bn;
+	struct bgp_dest *bd;
 	struct bgp_path_info *bpi;
 	char buf_prefix[PREFIX_STRLEN];
 
 	int debug = BGP_DEBUG(vpn, VPN_LEAK_TO_VRF);
 
 	if (debug) {
-		prefix2str(&info_vpn->net->p, buf_prefix, sizeof(buf_prefix));
+		prefix2str(&info_vpn->net->rn->p, buf_prefix, sizeof(buf_prefix));
 		zlog_debug("%s: entry: p=%s, type=%d, sub_type=%d",
 			__func__, buf_prefix,
 			info_vpn->type, info_vpn->sub_type);
@@ -1899,11 +1899,11 @@ static void vpn_try_leak_to_withdraw_onevrf(struct bgp *bgp_vrf,       /* to */
 		return;
 	}
 
-	p = &info_vpn->net->p;
+	p = &info_vpn->net->rn->p;
 	afi = family2afi(p->family);
 
-	bn = bgp_afi_node_get(bgp_vrf->rib[afi][safi], afi, safi, p, NULL);
-	for (bpi = bgp_dest_get_bgp_path_info(bn); bpi; bpi = bpi->next) {
+	bd = bgp_afi_node_get(bgp_vrf->rib[afi][safi], afi, safi, p, NULL);
+	for (bpi = bgp_dest_get_bgp_path_info(bd); bpi; bpi = bpi->next) {
 		if (bpi->extra && bpi->extra->vrfleak
 			&& (struct bgp_path_info *)bpi->extra->vrfleak->parent == info_vpn) {
 			break;
@@ -1914,11 +1914,11 @@ static void vpn_try_leak_to_withdraw_onevrf(struct bgp *bgp_vrf,       /* to */
 		if (debug)
 			zlog_debug("%s: deleting bi %p", __func__, bpi);
 		bgp_aggregate_decrement(bgp_vrf, p, bpi, afi, safi);
-		bgp_path_info_delete(bn, bpi);
-		bgp_process(bgp_vrf, bn, afi, safi);
+		bgp_path_info_delete(bd, bpi);
+		bgp_process(bgp_vrf, bd, afi, safi);
 	}
 	
-	bgp_dest_unlock_node(bn);
+	bgp_dest_unlock_node(bd);
 
 	return;
 }
@@ -2152,7 +2152,7 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 
 	if (info_vpn->extra && info_vpn->extra->vrfleak
 		&& info_vpn->extra->vrfleak->parent && !bm->local_vrf_leak_enable) {
-		prefix2str(&info_vpn->net->p, buf_prefix, sizeof(buf_prefix));
+		prefix2str(&info_vpn->net->rn->p, buf_prefix, sizeof(buf_prefix));
 		zlog_debug("local vrf import is disable: prefix: %s", buf_prefix);
 		return;
 	}
@@ -2160,7 +2160,7 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 	memset(bitmap, 0, ROUND_UP(BGP_VRF_RANGE, BITMAP_ULONG_BITS));
 
 	if (!info_vpn->attr || !info_vpn->attr->ecommunity) {
-		prefix2str(&info_vpn->net->p, buf_prefix, sizeof(buf_prefix));
+		prefix2str(&info_vpn->net->rn->p, buf_prefix, sizeof(buf_prefix));
 		zlog_debug("none attr error (info_vpn=%s)", buf_prefix);
 		return;
 	}
@@ -2258,7 +2258,7 @@ void vpn_leak_to_vrf_withdraw(struct bgp *bgp_vpn,	    /* from */
 
     if (!path_vpn->attr || !path_vpn->attr->ecommunity) {
         char buf_prefix[PREFIX_STRLEN];
-        prefix2str(&path_vpn->net->p, buf_prefix, sizeof(buf_prefix));
+        prefix2str(&path_vpn->net->rn->p, buf_prefix, sizeof(buf_prefix));
         zlog_debug("none attr error (info_vpn=%s)", buf_prefix);
         return;
     }
