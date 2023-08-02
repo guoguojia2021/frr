@@ -2005,8 +2005,6 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 		return 1;
 	if (nexthop->nh_srv6 && nexthop->nh_srv6->seg6local_action != ZEBRA_SEG6_LOCAL_ACTION_UNSPEC)
 		return 1;
-	if (nexthop->nh_srv6 && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
-		return 1;
 
 	/*
 	 * Set afi based on nexthop type.
