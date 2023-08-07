@@ -148,7 +148,7 @@ if [ "${TOPOTEST_PULL:-1}" = "1" ]; then
 fi
 
 if [ -z "$TOPOTEST_DOCKER_TAG" ]; then
-	TOPOTEST_DOCKER_TAG=buster
+	TOPOTEST_DOCKER_TAG=latest
 fi
 if [[ -n "$TMUX" ]]; then
     TMUX_OPTIONS="-v $(dirname $TMUX):$(dirname $TMUX) -e TMUX=$TMUX -e TMUX_PANE=$TMUX_PANE"

@@ -31,10 +31,10 @@ set -e
 #
 # Script begin
 #
-"${CDIR}/compile_frr.sh"
-"${CDIR}/openvswitch.sh"
+#"${CDIR}/compile_frr.sh"
+#"${CDIR}/openvswitch.sh"
 
-cd "${FRR_BUILD_DIR}/tests/topotests"
+cd "${FRR_HOST_DIR}/tests/topotests"
 
 log_info "Setting permissions on /tmp so we can generate logs"
 chmod 1777 /tmp

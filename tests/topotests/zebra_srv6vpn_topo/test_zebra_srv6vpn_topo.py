@@ -42,9 +42,6 @@ from lib.common_config import required_linux_kernel_version
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, '../'))
 
-# Required to instantiate the topology builder class.
-from mininet.topo import Topo
-from mininet.net import Mininet
 
 
 """
@@ -66,48 +63,45 @@ def open_json_file(filename):
     except IOError:
         assert False, "Could not read file {}".format(filename)
 
-class Topology(Topo):
-    "Test topology builder"
-    def build(self, *_args, **_opts):
-        "Build function"
+def build_topo(tgen):
 
-        tgen = get_topogen(self)
-        tgen.add_router("r1")
-        tgen.add_router("r2")
+    tgen = get_topogen(self)
+    tgen.add_router("r1")
+    tgen.add_router("r2")
 
-        switch = tgen.add_switch("s1")
-        switch.add_link(tgen.gears["r1"])
-        switch.add_link(tgen.gears["r2"])
+    switch = tgen.add_switch("s1")
+    switch.add_link(tgen.gears["r1"])
+    switch.add_link(tgen.gears["r2"])
 
-        switch = tgen.add_switch("s2")
-        switch.add_link(tgen.gears["r1"])
-        switch.add_link(tgen.gears["r2"])
+    switch = tgen.add_switch("s2")
+    switch.add_link(tgen.gears["r1"])
+    switch.add_link(tgen.gears["r2"])
 
-        switch = tgen.add_switch("s3")
-        switch.add_link(tgen.gears["r1"])
-        switch.add_link(tgen.gears["r2"])
+    switch = tgen.add_switch("s3")
+    switch.add_link(tgen.gears["r1"])
+    switch.add_link(tgen.gears["r2"])
 
-        switch = tgen.add_switch("s4")
-        switch.add_link(tgen.gears["r1"])
-        switch.add_link(tgen.gears["r2"])
+    switch = tgen.add_switch("s4")
+    switch.add_link(tgen.gears["r1"])
+    switch.add_link(tgen.gears["r2"])
 
-        switch = tgen.add_switch("s5")
-        switch.add_link(tgen.gears["r1"])
-        switch.add_link(tgen.gears["r2"])
+    switch = tgen.add_switch("s5")
+    switch.add_link(tgen.gears["r1"])
+    switch.add_link(tgen.gears["r2"])
 
-        # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth0", "eth0")
-        # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth1", "eth1")
-        # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth2", "eth2")
-        # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth3", "eth3")
-        # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth4", "eth4")
-        # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth5", "eth5")
+    # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth0", "eth0")
+    # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth1", "eth1")
+    # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth2", "eth2")
+    # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth3", "eth3")
+    # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth4", "eth4")
+    # tgen.add_link(tgen.gears["r1"], tgen.gears["r2"], "eth5", "eth5")
 
 def setup_module(mod):
     result = required_linux_kernel_version("4.19")
     if result is not True:
         pytest.skip("Kernel requirements are not met")
 
-    tgen = Topogen(Topology, mod.__name__)
+    tgen = Topogen(build_topo, mod.__name__)
     tgen.start_topology()
     router_list = tgen.routers()
     for rname, router in tgen.routers().items():

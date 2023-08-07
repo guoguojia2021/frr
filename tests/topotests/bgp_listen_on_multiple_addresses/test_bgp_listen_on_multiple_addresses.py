@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# SPDX-License-Identifier: ISC
 
 #
 # test_bgp_listen_on_multiple_addresses.py
@@ -6,20 +7,6 @@
 #
 # Copyright (c) 2021 by Boeing Defence Australia
 # Adriano Marto Reis
-#
-# Permission to use, copy, modify, and/or distribute this software
-# for any purpose with or without fee is hereby granted, provided
-# that the above copyright notice and this permission notice appear
-# in all copies.
-#
-# THE SOFTWARE IS PROVIDED "AS IS" AND NETDEF DISCLAIMS ALL WARRANTIES
-# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL NETDEF BE LIABLE FOR
-# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY
-# DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-# WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
-# OF THIS SOFTWARE.
 #
 
 """
@@ -40,7 +27,6 @@ connections on multiple addresses.
 
 import os
 import sys
-import json
 import pytest
 
 
@@ -49,11 +35,13 @@ CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, "../"))
 
 from lib.topogen import Topogen, get_topogen
-from lib.topojson import build_topo_from_json, build_config_from_json
+from lib.topojson import build_config_from_json
+from lib.topojson import linux_intf_config_from_json
 from lib.common_config import start_topology
 from lib.topotest import router_json_cmp, run_and_expect
-from mininet.topo import Topo
 from functools import partial
+
+pytestmark = [pytest.mark.bgpd]
 
 
 LISTEN_ADDRESSES = {
@@ -64,28 +52,12 @@ LISTEN_ADDRESSES = {
 }
 
 
-# Reads data from JSON File for topology and configuration creation.
-jsonFile = "{}/bgp_listen_on_multiple_addresses.json".format(CWD)
-try:
-    with open(jsonFile, "r") as topoJson:
-        topo = json.load(topoJson)
-except IOError:
-    assert False, "Could not read file {}".format(jsonFile)
-
-pytestmark = [pytest.mark.esr]
-
-class TemplateTopo(Topo):
-    "Topology builder."
-
-    def build(self, *_args, **_opts):
-        "Defines the allocation and relationship between routers and switches."
-        tgen = get_topogen(self)
-        build_topo_from_json(tgen, topo)
-
-
 def setup_module(mod):
     "Sets up the test environment."
-    tgen = Topogen(TemplateTopo, mod.__name__)
+    json_file = "{}/bgp_listen_on_multiple_addresses.json".format(CWD)
+    tgen = Topogen(json_file, mod.__name__)
+    global topo
+    topo = tgen.json_topo
 
     # Adds extra parameters to bgpd so they listen for connections on specific
     # multiple addresses.
@@ -95,6 +67,9 @@ def setup_module(mod):
         )
 
     start_topology(tgen)
+
+    linux_intf_config_from_json(tgen, topo)
+
     build_config_from_json(tgen, topo)
 
 

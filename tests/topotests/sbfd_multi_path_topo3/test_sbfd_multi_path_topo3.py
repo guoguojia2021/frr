@@ -42,12 +42,6 @@ sys.path.append(os.path.join(CWD, '../'))
 # Import topogen and topotest helpers
 from lib import topotest
 from lib.topogen import Topogen, TopoRouter, get_topogen
-from lib.topolog import logger
-
-# Required to instantiate the topology builder class.
-from mininet.topo import Topo
-from mininet.net import Mininet
-
 
 """
 test_sbfd_multi_path_topo3.py:
@@ -89,7 +83,7 @@ test_sbfd_multi_path_topo3.py:
                   eth-rt4|         |eth-rt5
                          +---------+
 """
-pytestmark = [pytest.mark.esr]
+pytestmark = [pytest.mark.bgpd]
 
 def show_policy_selected_check(router, policy, sta_policy, pref):
     output = router.cmd("vtysh -c 'show sr-te policy name {} detail'".format(policy))
@@ -143,59 +137,54 @@ def show_bfd_check(router, sidlist, sta, type='echo'):
     pattern3 = re.compile(r'Peer Type: {}'.format(type))
     ret = pattern3.findall(output)
     assert len(ret) > 0, output
-class SBFDTopo(Topo):
+def build_topo(tgen):
     "Test topology builder"
-    def build(self, *_args, **_opts):
-        "Build function"
-        tgen = get_topogen(self)
+    # This function only purpose is to define allocation and relationship
+    # between routers, switches and hosts.
+    #
+    # Example
+    #
+    # Create 2 routers
+    for routern in range(1, 7):
+        tgen.add_router('r{}'.format(routern))
+    # Create a switch with just one router connected to it to simulate a
+    # empty network.
+    switch = tgen.add_switch('s1')
+    switch.add_link(tgen.gears['r1'])
+    switch.add_link(tgen.gears['r2'])
 
-        # This function only purpose is to define allocation and relationship
-        # between routers, switches and hosts.
-        #
-        # Example
-        #
-        # Create 2 routers
-        for routern in range(1, 7):
-            tgen.add_router('r{}'.format(routern))
+    switch = tgen.add_switch('s2')
+    switch.add_link(tgen.gears['r1'])
+    switch.add_link(tgen.gears['r3'])
 
-        # Create a switch with just one router connected to it to simulate a
-        # empty network.
-        switch = tgen.add_switch('s1')
-        switch.add_link(tgen.gears['r1'])
-        switch.add_link(tgen.gears['r2'])
+    switch = tgen.add_switch('s3')
+    switch.add_link(tgen.gears['r2'])
+    switch.add_link(tgen.gears['r4'])
 
-        switch = tgen.add_switch('s2')
-        switch.add_link(tgen.gears['r1'])
-        switch.add_link(tgen.gears['r3'])
+    switch = tgen.add_switch('s4')
+    switch.add_link(tgen.gears['r2'])
+    switch.add_link(tgen.gears['r4'])
 
-        switch = tgen.add_switch('s3')
-        switch.add_link(tgen.gears['r2'])
-        switch.add_link(tgen.gears['r4'])
+    switch = tgen.add_switch('s5')
+    switch.add_link(tgen.gears['r3'])
+    switch.add_link(tgen.gears['r5'])
 
-        switch = tgen.add_switch('s4')
-        switch.add_link(tgen.gears['r2'])
-        switch.add_link(tgen.gears['r4'])
+    switch = tgen.add_switch('s6')
+    switch.add_link(tgen.gears['r3'])
+    switch.add_link(tgen.gears['r5'])
 
-        switch = tgen.add_switch('s5')
-        switch.add_link(tgen.gears['r3'])
-        switch.add_link(tgen.gears['r5'])
+    switch = tgen.add_switch('s7')
+    switch.add_link(tgen.gears['r4'])
+    switch.add_link(tgen.gears['r6'])
 
-        switch = tgen.add_switch('s6')
-        switch.add_link(tgen.gears['r3'])
-        switch.add_link(tgen.gears['r5'])
-
-        switch = tgen.add_switch('s7')
-        switch.add_link(tgen.gears['r4'])
-        switch.add_link(tgen.gears['r6'])
-
-        switch = tgen.add_switch('s8')
-        switch.add_link(tgen.gears['r5'])
-        switch.add_link(tgen.gears['r6'])
+    switch = tgen.add_switch('s8')
+    switch.add_link(tgen.gears['r5'])
+    switch.add_link(tgen.gears['r6'])
 
 def setup_module(mod):
     "Sets up the pytest environment"
     # This function initiates the topology build with Topogen...
-    tgen = Topogen(SBFDTopo, mod.__name__)
+    tgen = Topogen(build_topo, mod.__name__)
     # ... and here it calls Mininet initialization functions.
     tgen.start_topology()
 

@@ -1,22 +1,9 @@
 #!/usr/bin/env python
+# SPDX-License-Identifier: ISC
 #
 # Copyright (c) 2019 by VMware, Inc. ("VMware")
 # Used Copyright (c) 2018 by Network Device Education Foundation, Inc. ("NetDEF")
 # in this file.
-#
-# Permission to use, copy, modify, and/or distribute this software
-# for any purpose with or without fee is hereby granted, provided
-# that the above copyright notice and this permission notice appear
-# in all copies.
-#
-# THE SOFTWARE IS PROVIDED "AS IS" AND VMWARE DISCLAIMS ALL WARRANTIES
-# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL VMWARE BE LIABLE FOR
-# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY
-# DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-# WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
-# OF THIS SOFTWARE.
 #
 
 """
@@ -157,7 +144,7 @@ def setup_module(mod):
     # Required linux kernel version for this suite to run.
     result = required_linux_kernel_version("4.16")
     if result is not True:
-        pytest.skip("Kernel requirements are not met")
+        pytest.skip("Kernel requirements are not met, kernel version should be >=4.16")
 
     global ADDR_TYPES
 
@@ -175,7 +162,7 @@ def setup_module(mod):
     # ... and here it calls Mininet initialization functions.
 
     # Starting topology, create tmp files which are loaded to routers
-    #  to start deamons and then start routers
+    #  to start daemons and then start routers
     start_topology(tgen)
 
     # Creating configuration from JSON
@@ -420,10 +407,10 @@ def test_BGP_GR_TC_23_p1(request):
         result = verify_eor(
             tgen, topo, addr_type, input_dict, dut="r1", peer="r2", expected=False
         )
-        assert (
-            result is not True
-        ), "Testcase {} : Failed \n " "r1: EOR is set to True\n Error: {}".format(
-            tc_name, result
+        assert result is not True, (
+            "Testcase {} : Failed \n "
+            "Expected: EOR should not be set to True in r2\n"
+            "Found: {}".format(tc_name, result)
         )
 
         # Verifying BGP RIB routes received from router R1
@@ -456,7 +443,7 @@ def test_BGP_GR_20_p1(request):
     reset_config_on_routers(tgen)
 
     logger.info(
-        "[Step 1] : Test Setup " "[Restart Mode]R3-----R1[Restart Mode] Initilized"
+        "[Step 1] : Test Setup " "[Restart Mode]R3-----R1[Restart Mode] Initialized"
     )
 
     # Configure graceful-restart
@@ -547,19 +534,17 @@ def test_BGP_GR_20_p1(request):
         result = verify_bgp_rib(tgen, addr_type, dut, input_dict_1, expected=False)
         assert result is not True, (
             "Testcase {} : Failed \n "
-            "r3: routes are still present in BGP RIB\n Error: {}".format(
-                tc_name, result
-            )
+            "Expected: Routes should not be present in {} BGP RIB \n "
+            "Found: {}".format(tc_name, dut, result)
         )
-        logger.info(" Expected behavior: {}".format(result))
 
         # Verifying RIB routes before shutting down BGPd daemon
         result = verify_rib(tgen, addr_type, dut, input_dict_1, expected=False)
         assert result is not True, (
             "Testcase {} : Failed \n "
-            "r3: routes are still present in ZEBRA\n Error: {}".format(tc_name, result)
+            "Expected: Routes should not be present in {} FIB \n "
+            "Found: {}".format(tc_name, dut, result)
         )
-        logger.info(" Expected behavior: {}".format(result))
 
     # Start BGPd daemon on R1
     start_router_daemons(tgen, "r1", ["bgpd"])
@@ -602,7 +587,7 @@ def test_BGP_GR_21_p2(request):
     reset_config_on_routers(tgen)
 
     logger.info(
-        "[Step 1] : Test Setup " "[Helper Mode]R6-----R1[Restart Mode] Initilized"
+        "[Step 1] : Test Setup " "[Helper Mode]R6-----R1[Restart Mode] Initialized"
     )
 
     # Configure graceful-restart
@@ -676,7 +661,7 @@ def test_BGP_GR_21_p2(request):
     logger.info(
         "[Step 2] : Test Setup "
         "[Restart Mode]R2-----[Helper Mode]R1[Disable Mode]"
-        "--------R6[Helper Mode] Initilized"
+        "--------R6[Helper Mode] Initialized"
     )
 
     # Configure graceful-restart
@@ -821,7 +806,7 @@ def test_BGP_GR_22_p2(request):
     reset_config_on_routers(tgen)
 
     logger.info(
-        "[Step 1] : Test Setup " "[Helper Mode]R3-----R1[Restart Mode] Initilized"
+        "[Step 1] : Test Setup " "[Helper Mode]R3-----R1[Restart Mode] Initialized"
     )
 
     # Configure graceful-restart
@@ -901,7 +886,7 @@ def test_BGP_GR_22_p2(request):
     logger.info(
         "[Step 2] : Test Setup "
         "[Restart Mode]R2-----[Helper Mode]R1[Disable Mode]"
-        "--------R3[Helper Mode] Initilized"
+        "--------R3[Helper Mode] Initialized"
     )
 
     # Configure graceful-restart

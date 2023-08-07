@@ -19,6 +19,7 @@ RUN apt update && \
       python3 -m pip install wheel && \
       python3 -m pip install pytest && \
       python3 -m pip install pytest-xdist && \
+	  python3 -m pip install pytest-html && \
       python3 -m pip install "scapy>=2.4.2" && \
       python3 -m pip install xmltodict && \
       python2 -m pip install 'exabgp<4.0.0'
@@ -34,6 +35,10 @@ RUN groupadd -r -g 92 frr && \
 
 #for libyang 2
 RUN apt-get install -y cmake libpcre2-dev
+
+COPY tests/topotests/docker/buster_dep /home
+RUN cd /home && \
+    dpkg -i *.deb
 
 USER frr:frr
 
@@ -74,5 +79,7 @@ RUN cd ~/frr && \
 
 RUN cd ~/frr && make check || true
 
+USER root:root
+
 COPY docker/ubuntu20-ci/docker-start /usr/sbin/docker-start
-CMD ["/usr/sbin/docker-start"]
+ENTRYPOINT [ "bash", "/root/host-frr/tests/topotests/docker/inner/entrypoint.sh" ]

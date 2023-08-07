@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# SPDX-License-Identifier: ISC
 
 #
 # bgp_ebgp_requires_policy.py
@@ -6,20 +7,6 @@
 #
 # Copyright (c) 2019 by
 # Donatas Abraitis <donatas.abraitis@gmail.com>
-#
-# Permission to use, copy, modify, and/or distribute this software
-# for any purpose with or without fee is hereby granted, provided
-# that the above copyright notice and this permission notice appear
-# in all copies.
-#
-# THE SOFTWARE IS PROVIDED "AS IS" AND NETDEF DISCLAIMS ALL WARRANTIES
-# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL NETDEF BE LIABLE FOR
-# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY
-# DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
-# WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
-# OF THIS SOFTWARE.
 #
 
 """
@@ -44,7 +31,6 @@ Scenario 3:
 import os
 import sys
 import json
-import time
 import pytest
 import functools
 
@@ -55,35 +41,32 @@ sys.path.append(os.path.join(CWD, "../"))
 from lib import topotest
 from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
-from mininet.topo import Topo
 
-pytestmark = [pytest.mark.esr]
+pytestmark = [pytest.mark.bgpd]
 
-class TemplateTopo(Topo):
-    def build(self, *_args, **_opts):
-        tgen = get_topogen(self)
 
-        for routern in range(1, 7):
-            tgen.add_router("r{}".format(routern))
+def build_topo(tgen):
+    for routern in range(1, 7):
+        tgen.add_router("r{}".format(routern))
 
-        # Scenario 1.
-        switch = tgen.add_switch("s1")
-        switch.add_link(tgen.gears["r1"])
-        switch.add_link(tgen.gears["r2"])
+    # Scenario 1.
+    switch = tgen.add_switch("s1")
+    switch.add_link(tgen.gears["r1"])
+    switch.add_link(tgen.gears["r2"])
 
-        # Scenario 2.
-        switch = tgen.add_switch("s2")
-        switch.add_link(tgen.gears["r3"])
-        switch.add_link(tgen.gears["r4"])
+    # Scenario 2.
+    switch = tgen.add_switch("s2")
+    switch.add_link(tgen.gears["r3"])
+    switch.add_link(tgen.gears["r4"])
 
-        # Scenario 3.
-        switch = tgen.add_switch("s3")
-        switch.add_link(tgen.gears["r5"])
-        switch.add_link(tgen.gears["r6"])
+    # Scenario 3.
+    switch = tgen.add_switch("s3")
+    switch.add_link(tgen.gears["r5"])
+    switch.add_link(tgen.gears["r6"])
 
 
 def setup_module(mod):
-    tgen = Topogen(TemplateTopo, mod.__name__)
+    tgen = Topogen(build_topo, mod.__name__)
     tgen.start_topology()
 
     router_list = tgen.routers()
@@ -133,7 +116,8 @@ def test_ebgp_requires_policy():
             )
         )
         expected = {
-            "totalPrefixCounter": 2,
+            "advertisedRoutes": {},
+            "totalPrefixCounter": 0,
             "filteredPrefixCounter": 0,
         }
         return topotest.json_cmp(output, expected)
