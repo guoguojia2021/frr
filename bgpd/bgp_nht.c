@@ -173,7 +173,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 {
 	struct bgp_nexthop_cache_head *tree = NULL;
 	struct bgp_nexthop_cache *bnc;
-	//struct bgp_nexthop_cache *te_bnc = NULL;
+	struct bgp_nexthop_cache *te_bnc = NULL;
 	struct prefix p;
 	uint32_t srte_color = 0;
 	int is_bgp_static_route = 0;
@@ -205,6 +205,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		 * addr */
 		if (make_prefix(afi, pi, &p) < 0)
 			return 1;
+
 		ecommunity_color_present(
 			pi->attr->ecommunity, &srte_color);
 
@@ -218,7 +219,6 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 			return 0;
 		}
 
-		srte_color = pi->attr->srte_color;
 	} else if (peer) {
 		/*
 		 * Gather the ifindex for if up/down events to be
@@ -268,32 +268,32 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 				bnc->path_count, bnc->nht_info);
 		}
 	}
-#if 0
-    if (srte_color != 0 && isServiceRoute)
-    {
-        te_bnc = bnc_find(tree, &p, srte_color);
-        if (!te_bnc) {
-            te_bnc = bnc_new(tree, &p, srte_color);
-            te_bnc->bgp = bgp_nexthop;
-            if (BGP_DEBUG(nht, NHT)) {
-                char buf[PREFIX2STR_BUFFER];
+#if 1
+	if (srte_color != 0 && isServiceRoute)
+	{
+		te_bnc = bnc_find(tree, &p, srte_color);
+		if (!te_bnc) {
+			te_bnc = bnc_new(tree, &p, srte_color);
+			te_bnc->bgp = bgp_nexthop;
+			if (BGP_DEBUG(nht, NHT)) {
+				char buf[PREFIX2STR_BUFFER];
 
-                zlog_debug("Allocated bnc %s(%u)(%s) peer %p",
-                       bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
-                       te_bnc->srte_color, te_bnc->bgp->name_pretty,
-                       peer);
-            }
-        } else {
-            if (BGP_DEBUG(nht, NHT)) {
-                char buf[PREFIX2STR_BUFFER];
-                zlog_debug(
-                    "Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
-                    bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
-                    te_bnc->bgp->name_pretty, te_bnc->flags, te_bnc->ifindex,
-                    te_bnc->path_count, te_bnc->nht_info, te_bnc->srte_color);
-            }
-        }
-    }
+				zlog_debug("Allocated bnc %s(%u)(%s) peer %p",
+						bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
+						te_bnc->srte_color, te_bnc->bgp->name_pretty,
+						peer);
+			}
+		} else {
+			if (BGP_DEBUG(nht, NHT)) {
+				char buf[PREFIX2STR_BUFFER];
+				zlog_debug(
+					"Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
+					bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
+					te_bnc->bgp->name_pretty, te_bnc->flags, te_bnc->ifindex,
+					te_bnc->path_count, te_bnc->nht_info, te_bnc->srte_color);
+			}
+		}
+	}
 #endif
 	if (pi && is_route_parent_evpn(pi))
 		bnc->is_evpn_gwip_nexthop = true;
@@ -353,7 +353,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
     {
 		register_zebra_rnh(bnc);
 	}
-#if 0
+#if 1
     if (te_bnc && !CHECK_FLAG(te_bnc->flags, BGP_NEXTHOP_REGISTERED)) {
         register_zebra_rnh(te_bnc);
     }
@@ -382,7 +382,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		if (CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
 			bnc->nht_info = (void *)peer; /* NHT peer reference */
 	}
-#if 0
+#if 1
 
     if (pi && pi->te_nexthop != te_bnc) {
         bgp_unlink_te_nexthop(pi);

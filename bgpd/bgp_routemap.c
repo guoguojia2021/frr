@@ -7396,6 +7396,7 @@ void bgp_route_map_init(void)
     route_map_install_set(&route_set_ecommunity_soo_cmd);
     route_map_install_set(&route_set_ecommunity_lb_cmd);
     route_map_install_set(&route_set_ecommunity_none_cmd);
+    route_map_install_set(&route_set_ecommunity_color_cmd);
     route_map_install_set(&route_set_tag_cmd);
     route_map_install_set(&route_set_label_index_cmd);
 
