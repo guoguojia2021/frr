@@ -44,6 +44,9 @@
 #include "vty.h"
 #include "command.h"
 
+atomic_size_t real_malloc_memory = 0;
+atomic_size_t max_malloc_memory = 0;
+
 #if defined(HAVE_MALLINFO2) || defined(HAVE_MALLINFO)
 static int show_memory_mallinfo(struct vty *vty)
 {
@@ -97,6 +100,8 @@ static int qmem_walker(void *arg, struct memgroup *mg, struct memtype *mt)
 			""
 #endif
 			);
+	real_malloc_memory = 0;
+	max_malloc_memory = 0;
 	} else {
 		if (mt->n_max != 0) {
 			char size[32];
@@ -105,6 +110,8 @@ static int qmem_walker(void *arg, struct memgroup *mg, struct memtype *mt)
 #define TSTR " %9zu"
 #define TARG , mt->total
 #define TARG2 , mt->max_size
+real_malloc_memory += mt->total;
+max_malloc_memory += mt->max_size;
 #else
 #define TSTR ""
 #define TARG
@@ -120,6 +127,10 @@ static int qmem_walker(void *arg, struct memgroup *mg, struct memtype *mt)
 				TARG,
 				mt->n_max
 				TARG2);
+		}
+		if (mt->next == NULL) {
+			vty_out(vty, "--- %s --- real(%zu) --- max(%zu) --\n",
+				mg->name, real_malloc_memory, max_malloc_memory);
 		}
 	}
 	return 0;
