@@ -1407,6 +1407,28 @@ static struct bmp_queue_entry *bmp_pull(struct bmp *bmp)
 	return bqe;
 }
 
+// Get the first node that the peer is valid
+static struct bmp_queue_entry *bmp_pull_by_valid_peerid(struct bmp *bmp) {
+	struct bmp_queue_entry *bqe = bmp_pull(bmp);
+	struct peer *peer;
+
+	while (bqe) {
+		// If the peer of node is established, it's valid node, return it.
+		peer = QOBJ_GET_TYPESAFE(bqe->peerid, peer);
+		if ((peer != NULL) && (peer->status == Established)) {
+			break;
+		}
+
+		// Otherwise, try to delete current node and get next one
+		if (!bqe->refcount) {
+			XFREE(MTYPE_BMP_QUEUE, bqe);
+		}
+		bqe = bmp_pull(bmp);
+	}
+
+	return bqe;
+}
+
 static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 {
 	struct bmp_queue_entry *bqe;
@@ -1419,7 +1441,12 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 	bqe = bmp_pull(bmp);
 	if (!bqe)
 		return false;
-	
+
+	bqe = bmp_pull_by_valid_peerid(bmp);
+	if (!bqe)
+		return false;
+
+	peer = QOBJ_GET_TYPESAFE(bqe->peerid, peer);
 	if (is_gbmp_en())
 	{
 		temp_bgp.vrf_id = bqe->vrf_id;
@@ -1450,14 +1477,6 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 	case BMP_AFI_LIVE:
 		break;
 	}
-
-	peer = QOBJ_GET_TYPESAFE(bqe->peerid, peer);
-	if (!peer) {
-		zlog_info("bmp: skipping queued item for deleted peer");
-		goto out;
-	}
-	if (!peer_established(peer))
-		goto out;
 
     bn =  is_gbmp_en() ? bgp_node_lookup(bgp->rib[afi][safi], &bqe->p) :
         bgp_node_lookup(bmp->targets->bgp->rib[afi][safi], &bqe->p);
