@@ -272,14 +272,21 @@ int zebra_sr_policy_notify_unknown(struct rnh *rnh,
 	/* Message flags. */
 	SET_FLAG(message, ZAPI_MESSAGE_SRTE);
 	stream_putl(s, message);
+	stream_putw(s, rnh->safi);
 
 	switch (rn->p.family) {
 	case AF_INET:
 		stream_putw(s, AF_INET);
 		stream_putc(s, IPV4_MAX_BITLEN);
 		stream_put_in_addr(s, &rn->p.u.prefix4);
+		stream_putw(s, AF_INET);
+		stream_putc(s, IPV4_MAX_BITLEN);
+		stream_put_in_addr(s, &rn->p.u.prefix4);
 		break;
 	case AF_INET6:
+		stream_putw(s, AF_INET6);
+		stream_putc(s, IPV6_MAX_BITLEN);
+		stream_put(s, &rn->p.u.prefix6, IPV6_MAX_BYTELEN);
 		stream_putw(s, AF_INET6);
 		stream_putc(s, IPV6_MAX_BITLEN);
 		stream_put(s, &rn->p.u.prefix6, IPV6_MAX_BYTELEN);
@@ -290,6 +297,7 @@ int zebra_sr_policy_notify_unknown(struct rnh *rnh,
 			  __func__, rn->p.family);
 		exit(1);
 	}
+
 	stream_putl(s, rnh->srte_color);
 
     stream_putc(s, ZEBRA_ROUTE_SRTE);
