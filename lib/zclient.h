@@ -565,6 +565,8 @@ struct zapi_route {
  */
 #define ZEBRA_FLAG_OFFLOAD_FAILED     0x200
 
+#define ZEBRA_FLAG_BACKUP_SELECTED    0x400
+#define ZEBRA_FLAG_LOCAL_SID_ROUTE    0x800
 	/* The older XXX_MESSAGE flags live here */
 	uint32_t message;
 
