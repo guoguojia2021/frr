@@ -2226,6 +2226,15 @@ static void route_map_del_plist_entries(afi_t afi,
 	}
 
 	if (entry) {
+		// The entry has already deleted from plist
+		int plist_entry_match_cnt = 1;
+		// If prefix associated by multiple seq, not delete from route-map pfx table.
+		for (pentry = plist->head; pentry; pentry = pentry->next) {
+			if (prefix_same(&pentry->prefix, &entry->prefix))
+				plist_entry_match_cnt ++;
+		}
+		if (plist_entry_match_cnt > 1)
+			return;
 		if (afi == AFI_IP) {
 			route_map_pfx_table_del(index->map->ipv4_prefix_table,
 						index, entry);
