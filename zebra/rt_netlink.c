@@ -2436,6 +2436,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 	int type = dplane_ctx_get_nhe_type(ctx);
 	struct rtattr *nest;
 	uint16_t encap;
+	int32_t flag;
 
 	if (!id) {
 		flog_err(
@@ -2460,6 +2461,16 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
 			zlog_debug(
 				"%s: nhg_id %u (%s): proto-based nexthops only, ignoring",
+				__func__, id, zebra_route_string(type));
+		return 0;
+	}
+
+	flag = dplane_ctx_get_flag(ctx);
+
+	if (CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL)) {
+		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
+			zlog_debug(
+				"%s: nhg_id %u (%s): this nexthops no need to install kernel, ignoring",
 				__func__, id, zebra_route_string(type));
 		return 0;
 	}

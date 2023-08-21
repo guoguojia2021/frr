@@ -2520,6 +2520,7 @@ int dplane_ctx_nexthop_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	struct zebra_vrf *zvrf = NULL;
 	struct zebra_ns *zns = NULL;
 	int ret = EINVAL;
+	struct nexthop *nh = NULL;
 
 	if (!ctx || !nhe)
 		goto done;
@@ -2532,6 +2533,10 @@ int dplane_ctx_nexthop_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	ctx->u.rinfo.nhe.afi = nhe->afi;
 	ctx->u.rinfo.nhe.vrf_id = nhe->vrf_id;
 	ctx->u.rinfo.nhe.type = nhe->type;
+	nh = nhe->nhg.nexthop;
+
+	if (nh->nh_srv6)
+		SET_FLAG(ctx->u.rinfo.zd_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
 
 	nexthop_group_copy(&(ctx->u.rinfo.nhe.ng), &(nhe->nhg));
 
@@ -3046,7 +3051,8 @@ dplane_route_update_internal(struct route_node *rn,
 	ret = dplane_ctx_route_init(ctx, op, rn, re);
 	if (ret == AOK) {
 		nexthop = re->nhe->nhg.nexthop;
-		if (nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+		if ((nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
 			SET_FLAG(ctx->u.rinfo.zd_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.
@@ -3054,7 +3060,8 @@ dplane_route_update_internal(struct route_node *rn,
 		if ((op == DPLANE_OP_ROUTE_UPDATE) &&
 		    old_re && (old_re != re)) {
 			old_nexthop = old_re->nhe->nhg.nexthop;
-			if (old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+			if ((old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+				|| CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
 				SET_FLAG(ctx->u.rinfo.zd_old_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
 			ctx->zd_is_update = true;
 
