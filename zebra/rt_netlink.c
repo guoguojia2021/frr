@@ -3926,7 +3926,10 @@ static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 			zlog_debug(
 				"    Neighbor Entry received is not on a VLAN or a BRIDGE, ignoring");
 
-		zsend_bfdd_neighbor_notify(cmd, ifp, &ip, &mac, ndm->ndm_state);
+		if (tb[NDA_LLADDR] && RTA_PAYLOAD(tb[NDA_LLADDR]) == ETH_ALEN) {
+			memcpy(&mac, RTA_DATA(tb[NDA_LLADDR]), ETH_ALEN);
+			zsend_bfdd_neighbor_notify(cmd, ifp, &ip, &mac, ndm->ndm_state);
+		}
 
 		return 0;
 	}
