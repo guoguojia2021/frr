@@ -462,6 +462,7 @@ static void revalidate_all_routes(void)
 				if (!peer->afc_nego[afi][safi])
 					continue;
 
+				if (!peer_established(peer->connection))
 				if (!peer->bgp->rib[afi][safi])
 					continue;
 

@@ -1055,7 +1055,9 @@ void bgp_start_routeadv(struct bgp *bgp)
 		      sizeof(bgp->update_delay_peers_resume_time));
 
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
-		if (!peer_established(peer))
+		struct peer_connection *connection = peer->connection;
+
+		if (!peer_established(connection))
 			continue;
 		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
@@ -1284,7 +1286,7 @@ static void bgp_maxmed_onstartup_begin(struct bgp *bgp)
 
 static void bgp_maxmed_onstartup_process_status_change(struct peer *peer)
 {
-	if (peer_established(peer) && !peer->bgp->established) {
+	if (peer_established(peer->connection) && !peer->bgp->established) {
 		bgp_maxmed_onstartup_begin(peer->bgp);
 	}
 }
@@ -1449,7 +1451,7 @@ static void bgp_advertise_delay_onstartup_process_status_change(struct peer *pee
 
 static void bgp_update_delay_process_status_change(struct peer *peer)
 {
-	if (peer_established(peer)) {
+	if (peer_established(peer->connection)) {
 		if (!peer->bgp->established++) {
 			bgp_update_delay_begin(peer->bgp);
 			zlog_info(
@@ -1606,7 +1608,7 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 
 	if (status == Established)
 		bgp->established_peers++;
-	else if ((peer_established(peer)) && (status != Established))
+	else if ((peer_established(peer->connection)) && (status != Established))
 		bgp->established_peers--;
 
 	if (bgp_debug_neighbor_events(peer)) {
@@ -1765,7 +1767,7 @@ int bgp_stop(struct peer_connection *connection)
 	}
 
 	/* Increment Dropped count. */
-	if (peer_established(peer)) {
+	if (peer_established(connection)) {
 		peer->dropped++;
 
 		/* Notify BGP conditional advertisement process */
@@ -1932,7 +1934,7 @@ int bgp_stop(struct peer_connection *connection)
 		peer->orf_plist[afi][safi] = NULL;
 
 		if ((connection->status == OpenConfirm) ||
-		    peer_established(peer)) {
+		    peer_established(connection)) {
 			/* ORF received prefix-filter pnt */
 			snprintf(orf_name, sizeof(orf_name), "%s.%d.%d",
 				 peer->host, afi, safi);

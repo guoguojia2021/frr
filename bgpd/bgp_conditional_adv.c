@@ -216,7 +216,7 @@ static int bgp_conditional_adv_timer(struct thread *t)
 		if (!CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
 			continue;
 
-		if (!peer_established(peer))
+		if (!peer_established(peer->connection))
 			continue;
 
 		FOREACH_AFI_SAFI (afi, safi) {
