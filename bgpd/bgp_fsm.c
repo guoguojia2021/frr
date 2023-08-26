@@ -380,7 +380,7 @@ void bgp_timer_set(struct peer *peer)
 				     peer->v_start);
 		}
 		BGP_TIMER_OFF(peer->connection->t_connect);
-		BGP_TIMER_OFF(peer->t_holdtime);
+		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->connection->t_delayopen);
@@ -401,7 +401,7 @@ void bgp_timer_set(struct peer *peer)
 			BGP_TIMER_ON(peer->connection->t_connect,
 				     bgp_connect_timer, peer->v_connect);
 
-		BGP_TIMER_OFF(peer->t_holdtime);
+		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
@@ -426,7 +426,7 @@ void bgp_timer_set(struct peer *peer)
 				BGP_TIMER_ON(peer->connection->t_connect,
 					     bgp_connect_timer, peer->v_connect);
 		}
-		BGP_TIMER_OFF(peer->t_holdtime);
+		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
@@ -438,10 +438,10 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->connection->t_start);
 		BGP_TIMER_OFF(peer->connection->t_connect);
 		if (peer->v_holdtime != 0) {
-			BGP_TIMER_ON(peer->t_holdtime, bgp_holdtime_timer,
-				     peer->v_holdtime);
+			BGP_TIMER_ON(peer->connection->t_holdtime,
+				     bgp_holdtime_timer, peer->v_holdtime);
 		} else {
-			BGP_TIMER_OFF(peer->t_holdtime);
+			BGP_TIMER_OFF(peer->connection->t_holdtime);
 		}
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
@@ -458,11 +458,11 @@ void bgp_timer_set(struct peer *peer)
 		/* If the negotiated Hold Time value is zero, then the Hold Time
 		   timer and KeepAlive timers are not started. */
 		if (peer->v_holdtime == 0) {
-			BGP_TIMER_OFF(peer->t_holdtime);
+			BGP_TIMER_OFF(peer->connection->t_holdtime);
 			bgp_keepalives_off(peer);
 		} else {
-			BGP_TIMER_ON(peer->t_holdtime, bgp_holdtime_timer,
-				     peer->v_holdtime);
+			BGP_TIMER_ON(peer->connection->t_holdtime,
+				     bgp_holdtime_timer, peer->v_holdtime);
 			bgp_keepalives_on(peer);
 		}
 		BGP_TIMER_OFF(peer->t_routeadv);
@@ -481,11 +481,11 @@ void bgp_timer_set(struct peer *peer)
 		/* Same as OpenConfirm, if holdtime is zero then both holdtime
 		   and keepalive must be turned off. */
 		if (peer->v_holdtime == 0) {
-			BGP_TIMER_OFF(peer->t_holdtime);
+			BGP_TIMER_OFF(peer->connection->t_holdtime);
 			bgp_keepalives_off(peer);
 		} else {
-			BGP_TIMER_ON(peer->t_holdtime, bgp_holdtime_timer,
-				     peer->v_holdtime);
+			BGP_TIMER_ON(peer->connection->t_holdtime,
+				     bgp_holdtime_timer, peer->v_holdtime);
 			bgp_keepalives_on(peer);
 		}
 		break;
@@ -503,7 +503,7 @@ void bgp_timer_set(struct peer *peer)
 	case Clearing:
 		BGP_TIMER_OFF(peer->connection->t_start);
 		BGP_TIMER_OFF(peer->connection->t_connect);
-		BGP_TIMER_OFF(peer->t_holdtime);
+		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
 		BGP_TIMER_OFF(peer->t_routeadv);
 		BGP_TIMER_OFF(peer->connection->t_delayopen);
@@ -591,7 +591,7 @@ static int bgp_holdtime_timer(struct thread *thread)
 	inq_count = atomic_load_explicit(&peer->connection->ibuf->count,
 					 memory_order_relaxed);
 	if (inq_count) {
-		BGP_TIMER_ON(peer->t_holdtime, bgp_holdtime_timer,
+		BGP_TIMER_ON(peer->connection->t_holdtime, bgp_holdtime_timer,
 			     peer->v_holdtime);
 
 		return 0;
@@ -1882,7 +1882,7 @@ int bgp_stop(struct peer_connection *connection)
 	/* Stop all timers. */
 	BGP_TIMER_OFF(peer->connection->t_start);
 	BGP_TIMER_OFF(peer->connection->t_connect);
-	BGP_TIMER_OFF(peer->t_holdtime);
+	BGP_TIMER_OFF(peer->connection->t_holdtime);
 	BGP_TIMER_OFF(peer->t_routeadv);
 	BGP_TIMER_OFF(peer->connection->t_delayopen);
 	bgp_peer_adv_lprio_t_off(peer);
@@ -2691,14 +2691,14 @@ static int bgp_establish(struct peer_connection *connection)
 /* Keepalive packet is received. */
 static int bgp_fsm_keepalive(struct peer_connection *connection)
 {
-	BGP_TIMER_OFF(connection->peer->t_holdtime);
+	BGP_TIMER_OFF(connection->t_holdtime);
 	return 0;
 }
 
 /* Update packet is received. */
 static int bgp_fsm_update(struct peer_connection *connection)
 {
-	BGP_TIMER_OFF(connection->peer->t_holdtime);
+	BGP_TIMER_OFF(connection->t_holdtime);
 	return 0;
 }
 

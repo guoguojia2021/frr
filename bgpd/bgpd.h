@@ -1206,6 +1206,7 @@ struct peer_connection {
 	struct thread *t_connect;
 	struct thread *t_delayopen;
 	struct thread *t_start;
+	struct thread *t_holdtime;
 
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
@@ -1587,7 +1588,7 @@ struct peer {
 	_Atomic uint32_t v_gr_restart;
 
 	/* Threads. */
-	struct thread *t_start;
+
 	struct thread *t_connect_check_r;
 	struct thread *t_connect_check_w;
 
