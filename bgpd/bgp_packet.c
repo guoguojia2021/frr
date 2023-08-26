@@ -773,14 +773,15 @@ static void bgp_write_notify(struct peer *peer)
  * @param data      Data portion
  * @param datalen   length of data portion
  */
-static void bgp_notify_send_internal(struct peer *peer, uint8_t code,
-				     uint8_t sub_code, uint8_t *data,
-				     size_t datalen, bool use_curr)
+static void bgp_notify_send_internal(struct peer_connection *connection,
+				     uint8_t code, uint8_t sub_code,
+				     uint8_t *data, size_t datalen,
+				     bool use_curr)
 {
 	struct stream *s;
 
 	/* Lock I/O mutex to prevent other threads from pushing packets */
-	frr_mutex_lock_autounlock(&peer->connection->io_mtx);
+	frr_mutex_lock_autounlock(&connection->io_mtx);
 	/* ============================================== */
 
 	/* Allocate new stream. */
@@ -801,7 +802,7 @@ static void bgp_notify_send_internal(struct peer *peer, uint8_t code,
 	bgp_packet_set_size(s);
 
 	/* wipe output buffer */
-	stream_fifo_clean(peer->connection->obuf);
+	stream_fifo_clean(connection->obuf);
 
 	/*
 	 * If possible, store last packet for debugging purposes. This check is
@@ -873,7 +874,7 @@ static void bgp_notify_send_internal(struct peer *peer, uint8_t code,
 		peer->last_reset = PEER_DOWN_NOTIFY_SEND;
 
 	/* Add packet to peer's output queue */
-	stream_fifo_push(peer->connection->obuf, s);
+	stream_fifo_push(connection->obuf, s);
 
 	bgp_peer_gr_flags_update(peer);
 	BGP_GR_ROUTER_DETECT_AND_SEND_CAPABILITY_TO_ZEBRA(peer->bgp,
@@ -892,18 +893,20 @@ static void bgp_notify_send_internal(struct peer *peer, uint8_t code,
  * @param code      BGP error code
  * @param sub_code  BGP error subcode
  */
-void bgp_notify_send(struct peer *peer, uint8_t code, uint8_t sub_code)
+void bgp_notify_send(struct peer_connection *connection, uint8_t code,
+		     uint8_t sub_code)
 {
-	bgp_notify_send_internal(peer, code, sub_code, NULL, 0, true);
+	bgp_notify_send_internal(connection, code, sub_code, NULL, 0, true);
 }
 
 /*
  * Enqueue notification; called from the main pthread, peer object access is ok.
  */
-void bgp_notify_send_with_data(struct peer *peer, uint8_t code,
+void bgp_notify_send_with_data(struct peer_connection *connection, uint8_t code,
 			       uint8_t sub_code, uint8_t *data, size_t datalen)
 {
-	bgp_notify_send_internal(peer, code, sub_code, data, datalen, true);
+	bgp_notify_send_internal(connection, code, sub_code, data, datalen,
+				 true);
 }
 
 /*
@@ -914,7 +917,8 @@ void bgp_notify_io_invalid(struct peer *peer, uint8_t code, uint8_t sub_code,
 			   uint8_t *data, size_t datalen)
 {
 	/* Avoid touching the peer object */
-	bgp_notify_send_internal(peer, code, sub_code, data, datalen, false);
+	bgp_notify_send_internal(peer->connection, code, sub_code, data,
+				 datalen, false);
 }
 
 /*
@@ -1163,7 +1167,7 @@ static int bgp_collision_detect(struct peer *new, struct in_addr remote_id)
 	 * connection upon receipt of new one.
 	 */
 	if (peer_established(peer) || peer->connection->status == Clearing) {
-		bgp_notify_send(new, BGP_NOTIFY_CEASE,
+		bgp_notify_send(new->connection, BGP_NOTIFY_CEASE,
 				BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 		return -1;
 	}
@@ -1196,11 +1200,11 @@ static int bgp_collision_detect(struct peer *new, struct in_addr remote_id)
 			 * and accepts BGP connection initiated by
 			 * the remote system.
 			 */
-			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 			return 1;
 		} else {
-			bgp_notify_send(new, BGP_NOTIFY_CEASE,
+			bgp_notify_send(new->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 			return -1;
 		}
@@ -1219,11 +1223,11 @@ static int bgp_collision_detect(struct peer *new, struct in_addr remote_id)
 		 * OpenConfirm state).
 		 */
 		if (CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER)) {
-			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 			return 1;
 		} else {
-			bgp_notify_send(new, BGP_NOTIFY_CEASE,
+			bgp_notify_send(new->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 			return -1;
 		}
@@ -1305,7 +1309,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 				EC_BGP_PKT_OPEN,
 				"BGP OPEN receipt failed for peer %s: stream does not have enough bytes for extended optional parameters",
 				peer->host);
-			bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					BGP_NOTIFY_OPEN_MALFORMED_ATTR);
 			return BGP_Stop;
 		}
@@ -1317,7 +1321,8 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 					EC_BGP_PKT_OPEN,
 					"BGP OPEN receipt failed for peer %s: stream does not have enough bytes to read the extended optional parameters optlen",
 					peer->host);
-				bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
+				bgp_notify_send(peer->connection,
+						BGP_NOTIFY_OPEN_ERR,
 						BGP_NOTIFY_OPEN_MALFORMED_ATTR);
 				return BGP_Stop;
 			}
@@ -1344,7 +1349,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 			flog_err(EC_BGP_PKT_OPEN,
 				 "BGP OPEN receipt failed for peer %s: stream has not enough bytes (%u)",
 				 peer->host, optlen);
-			bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					BGP_NOTIFY_OPEN_MALFORMED_ATTR);
 			return BGP_Stop;
 		}
@@ -1366,7 +1371,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		flog_err(EC_BGP_PKT_OPEN,
 			 "BGP OPEN receipt failed for peer %s: bad OPEN, got AS4 capability, but AS4 set to 0",
 			 peer->host);
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 					  notify_data_remote_as4, 4);
 		return BGP_Stop;
@@ -1377,7 +1382,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		flog_err(EC_BGP_PKT_OPEN, 
 			 "BGP OPEN receipt failed for peer %s: bad OPEN, got AS set to 0",
 			 peer->host);
-		bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_OPEN_ERR,
 				BGP_NOTIFY_OPEN_BAD_PEER_AS);
 		return BGP_Stop;
 	}
@@ -1392,7 +1397,8 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 				EC_BGP_PKT_OPEN,
 				"BGP OPEN receipt failed for peer %s: [AS4] NEW speaker using AS_TRANS for AS4, not allowed",
 				peer->host);
-			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+			bgp_notify_send_with_data(peer->connection,
+						  BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 						  notify_data_remote_as4, 4);
 			return BGP_Stop;
@@ -1420,7 +1426,8 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 				EC_BGP_PKT_OPEN,
 				"BGP OPEN receipt failed for peer %s: bad OPEN, got AS4 capability, but remote_as %u mismatch with 16bit 'myasn' %u in open",
 				peer->host, as4, remote_as);
-			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+			bgp_notify_send_with_data(peer->connection,
+						  BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 						  notify_data_remote_as4, 4);
 			return BGP_Stop;
@@ -1440,7 +1447,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("BGP OPEN receipt failed: %s bad OPEN, wrong router identifier %pI4",
 				   peer->host, &remote_id);
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_BGP_IDENT,
 					  notify_data_remote_id, 4);
 		return BGP_Stop;
@@ -1455,7 +1462,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 				"BGP OPEN receipt failed for peer %s: bad protocol version, remote requested %d, local request %d",
 				peer->host, version, BGP_VERSION_4);
 		/* Data must be in network byte order here */
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_UNSUP_VERSION,
 					  (uint8_t *)&maxver, 2);
 		return BGP_Stop;
@@ -1467,7 +1474,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 			zlog_debug(
 				"BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is unspecified currently",
 				peer->host);
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 					  notify_data_remote_as, 2);
 		return BGP_Stop;
@@ -1477,7 +1484,8 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 				zlog_debug(
 					"BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is %u, internal specified",
 					peer->host, remote_as);
-			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+			bgp_notify_send_with_data(peer->connection,
+						  BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 						  notify_data_remote_as, 2);
 			return BGP_Stop;
@@ -1489,7 +1497,8 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 				zlog_debug(
 					"BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is %u, external specified",
 					peer->host, remote_as);
-			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+			bgp_notify_send_with_data(peer->connection,
+						  BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 						  notify_data_remote_as, 2);
 			return BGP_Stop;
@@ -1499,7 +1508,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is %u, expected %u",
 				   peer->host, remote_as, peer->as);
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_PEER_AS,
 					  notify_data_remote_as, 2);
 		return BGP_Stop;
@@ -1541,7 +1550,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 			zlog_debug("BGP OPEN receipt failed for peer %s: bad holdtime, must be either zero or at least three second",
 						peer->host);
 		}
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_UNACEP_HOLDTIME,
 					  (uint8_t *)holdtime_ptr, 2);
 		return BGP_Stop;
@@ -1555,7 +1564,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 			zlog_debug("BGP OPEN receipt failed for peer %s: holdtime is not matching",
 						peer->host);
 		}
-		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
+		bgp_notify_send_with_data(peer->connection, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_UNACEP_HOLDTIME,
 					  (uint8_t *)holdtime_ptr, 2);
 		return BGP_Stop;
@@ -1761,7 +1770,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			 peer->host,
 			 lookup_msg(bgp_status_msg, peer->connection->status,
 				    NULL));
-		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(peer->connection->status));
 		return BGP_Stop;
 	}
@@ -1785,7 +1794,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 		flog_err(EC_BGP_UPDATE_RCV,
 			 "%s [Error] Update packet error (packet length is short for unfeasible length)",
 			 peer->host);
-		bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 				BGP_NOTIFY_UPDATE_MAL_ATTR);
 		return BGP_Stop;
 	}
@@ -1798,7 +1807,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 		flog_err(EC_BGP_UPDATE_RCV,
 			 "%s [Error] Update packet error (packet unfeasible length overflow %d)",
 			 peer->host, withdraw_len);
-		bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 				BGP_NOTIFY_UPDATE_MAL_ATTR);
 		return BGP_Stop;
 	}
@@ -1818,7 +1827,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			EC_BGP_UPDATE_PACKET_SHORT,
 			"%s [Error] Packet Error (update packet is short for attribute length)",
 			peer->host);
-		bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 				BGP_NOTIFY_UPDATE_MAL_ATTR);
 		return BGP_Stop;
 	}
@@ -1832,7 +1841,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			EC_BGP_UPDATE_PACKET_LONG,
 			"%s [Error] Packet Error (update packet attribute length overflow %d)",
 			peer->host, attribute_len);
-		bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 				BGP_NOTIFY_UPDATE_MAL_ATTR);
 		return BGP_Stop;
 	}
@@ -1952,11 +1961,11 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			flog_err(EC_BGP_UPDATE_RCV,
 				 "%s [Error] Error parsing NLRI", peer->host);
 			if (peer_established(peer))
-				bgp_notify_send(
-					peer, BGP_NOTIFY_UPDATE_ERR,
-					i <= NLRI_WITHDRAW
-						? BGP_NOTIFY_UPDATE_INVAL_NETWORK
-						: BGP_NOTIFY_UPDATE_OPT_ATTR_ERR);
+				bgp_notify_send(peer->connection,
+						BGP_NOTIFY_UPDATE_ERR,
+						i <= NLRI_WITHDRAW
+							? BGP_NOTIFY_UPDATE_INVAL_NETWORK
+							: BGP_NOTIFY_UPDATE_OPT_ATTR_ERR);
 			bgp_attr_unintern_sub(&attr);
 			return BGP_Stop;
 		}
@@ -2165,7 +2174,7 @@ static int bgp_route_refresh_receive(struct peer *peer, bgp_size_t size)
 		flog_err(EC_BGP_NO_CAP,
 			 "%s [Error] BGP route refresh is not enabled",
 			 peer->host);
-		bgp_notify_send(peer, BGP_NOTIFY_HEADER_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_HEADER_ERR,
 				BGP_NOTIFY_HEADER_BAD_MESTYPE);
 		return BGP_Stop;
 	}
@@ -2177,7 +2186,7 @@ static int bgp_route_refresh_receive(struct peer *peer, bgp_size_t size)
 			 peer->host,
 			 lookup_msg(bgp_status_msg, peer->connection->status,
 				    NULL));
-		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(peer->connection->status));
 		return BGP_Stop;
 	}
@@ -2216,9 +2225,9 @@ static int bgp_route_refresh_receive(struct peer *peer, bgp_size_t size)
 				zlog_err(
 					"%s Enhanced Route Refresh message length error",
 					peer->host);
-				bgp_notify_send(
-					peer, BGP_NOTIFY_ROUTE_REFRESH_ERR,
-					BGP_NOTIFY_ROUTE_REFRESH_INVALID_MSG_LEN);
+				bgp_notify_send(peer->connection,
+						BGP_NOTIFY_ROUTE_REFRESH_ERR,
+						BGP_NOTIFY_ROUTE_REFRESH_INVALID_MSG_LEN);
 			}
 
 			/* When the BGP speaker receives a ROUTE-REFRESH message
@@ -2234,7 +2243,7 @@ static int bgp_route_refresh_receive(struct peer *peer, bgp_size_t size)
 		if (msg_length < 5) {
 			zlog_info("%s ORF route refresh length error",
 				  peer->host);
-			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_SUBCODE_UNSPECIFIC);
 			return BGP_Stop;
 		}
@@ -2691,7 +2700,7 @@ static int bgp_capability_msg_parse(struct peer *peer, uint8_t *pnt,
 		 * length. */
 		if (pnt + 3 > end) {
 			zlog_info("%s Capability length error", peer->host);
-			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_SUBCODE_UNSPECIFIC);
 			return BGP_Stop;
 		}
@@ -2703,7 +2712,7 @@ static int bgp_capability_msg_parse(struct peer *peer, uint8_t *pnt,
 		    && action != CAPABILITY_ACTION_UNSET) {
 			zlog_info("%s Capability Action Value error %d",
 				  peer->host, action);
-			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_SUBCODE_UNSPECIFIC);
 			return BGP_Stop;
 		}
@@ -2724,7 +2733,7 @@ static int bgp_capability_msg_parse(struct peer *peer, uint8_t *pnt,
 		/* Capability length check. */
 		if ((pnt + hdr->length + 3) > end) {
 			zlog_info("%s Capability length error", peer->host);
-			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_SUBCODE_UNSPECIFIC);
 			return BGP_Stop;
 		}
@@ -2831,7 +2840,7 @@ int bgp_capability_receive(struct peer *peer, bgp_size_t size)
 		flog_err(EC_BGP_NO_CAP,
 			 "%s [Error] BGP dynamic capability is not enabled",
 			 peer->host);
-		bgp_notify_send(peer, BGP_NOTIFY_HEADER_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_HEADER_ERR,
 				BGP_NOTIFY_HEADER_BAD_MESTYPE);
 		return BGP_Stop;
 	}
@@ -2843,7 +2852,7 @@ int bgp_capability_receive(struct peer *peer, bgp_size_t size)
 			 peer->host,
 			 lookup_msg(bgp_status_msg, peer->connection->status,
 				    NULL));
-		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(peer->connection->status));
 		return BGP_Stop;
 	}

@@ -1994,7 +1994,7 @@ static int bgp_stop_with_notify(struct peer *peer, uint8_t code,
 				uint8_t sub_code)
 {
 	/* Send notify to remote peer */
-	bgp_notify_send(peer, code, sub_code);
+	bgp_notify_send(peer->connection, code, sub_code);
 
 	if (peer_dynamic_neighbor_no_nsf(peer)) {
 		if (bgp_debug_neighbor_events(peer))
@@ -2088,7 +2088,7 @@ static int bgp_connect_success(struct peer_connection *connection)
 		flog_err_sys(EC_LIB_SOCKET,
 			     "%s: bgp_getsockname(): failed for peer %s, fd %d",
 			     __func__, peer->host, connection->fd);
-		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(connection->status));
 		bgp_writes_on(connection);
 		return -1;
@@ -2127,7 +2127,7 @@ static int bgp_connect_success_w_delayopen(struct peer_connection *connection)
 		flog_err_sys(EC_LIB_SOCKET,
 			     "%s: bgp_getsockname(): failed for peer %s, fd %d",
 			     __func__, peer->host, connection->fd);
-		bgp_notify_send(peer, BGP_NOTIFY_FSM_ERR,
+		bgp_notify_send(peer->connection, BGP_NOTIFY_FSM_ERR,
 				bgp_fsm_error_subcode(connection->status));
 		bgp_writes_on(connection);
 		return -1;
@@ -2669,7 +2669,8 @@ static int bgp_establish(struct peer_connection *connection)
 				peer->host);
 
 		if (peer->doppelganger->connection->status > Active)
-			bgp_notify_send(peer->doppelganger, BGP_NOTIFY_CEASE,
+			bgp_notify_send(peer->doppelganger->connection,
+					BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_COLLISION_RESOLUTION);
 		else
 			peer_delete(peer->doppelganger);

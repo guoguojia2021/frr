@@ -59,8 +59,8 @@ DECLARE_HOOK(bgp_packet_send,
 /* Packet send and receive function prototypes. */
 extern void bgp_keepalive_send(struct peer *);
 extern void bgp_open_send(struct peer *);
-extern void bgp_notify_send(struct peer *, uint8_t, uint8_t);
-extern void bgp_notify_send_with_data(struct peer *, uint8_t, uint8_t,
+extern void bgp_notify_send(struct peer_connection *connection, uint8_t, uint8_t);
+extern void bgp_notify_send_with_data(struct peer_connection *connection, uint8_t, uint8_t,
 				      uint8_t *, size_t);
 void bgp_notify_io_invalid(struct peer *peer, uint8_t code, uint8_t sub_code,
 			   uint8_t *data, size_t datalen);
