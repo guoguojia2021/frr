@@ -183,8 +183,8 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	BGP_TIMER_OFF(peer->t_routeadv);
 	BGP_TIMER_OFF(peer->connection->t_connect);
 	BGP_TIMER_OFF(peer->connection->t_delayopen);
-	BGP_TIMER_OFF(peer->t_connect_check_r);
-	BGP_TIMER_OFF(peer->t_connect_check_w);
+	BGP_TIMER_OFF(peer->connection->t_connect_check_r);
+	BGP_TIMER_OFF(peer->connection->t_connect_check_w);
 	bgp_peer_adv_lprio_t_off(peer);
 	BGP_TIMER_OFF(peer->t_advertise_delay);
 	BGP_TIMER_OFF(from_peer->t_routeadv);
@@ -1876,8 +1876,8 @@ int bgp_stop(struct peer_connection *connection)
 	bgp_writes_off(connection);
 	bgp_reads_off(connection);
 
-	THREAD_OFF(peer->t_connect_check_r);
-	THREAD_OFF(peer->t_connect_check_w);
+	THREAD_OFF(connection->t_connect_check_r);
+	THREAD_OFF(connection->t_connect_check_w);
 
 	/* Stop all timers. */
 	BGP_TIMER_OFF(peer->connection->t_start);
@@ -2039,8 +2039,8 @@ static int bgp_connect_check(struct thread *thread)
 	assert(!peer->connection->t_read);
 	assert(!peer->connection->t_write);
 
-	THREAD_OFF(peer->t_connect_check_r);
-	THREAD_OFF(peer->t_connect_check_w);
+	THREAD_OFF(peer->connection->t_connect_check_r);
+	THREAD_OFF(peer->connection->t_connect_check_w);
 
 	/* Check file descriptor. */
 	slen = sizeof(status);
@@ -2302,9 +2302,11 @@ static int bgp_start(struct peer_connection *connection)
 		 * unused event in that function.
 		 */
 		thread_add_read(bm->master, bgp_connect_check, peer,
-			       peer->connection->fd, &peer->t_connect_check_r);
+			       peer->connection->fd,
+			       &peer->connection->t_connect_check_r);
 		thread_add_read(bm->master, bgp_connect_check, peer,
-				peer->connection->fd, &peer->t_connect_check_w);
+				peer->connection->fd,
+				&peer->connection->t_connect_check_w);
 		break;
 	}
 	return 0;
