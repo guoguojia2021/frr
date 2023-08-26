@@ -14808,10 +14808,10 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			json_object_int_add(
 				json_neigh, "nextStartTimerDueInMsecs",
 				thread_timer_remain_second(p->t_start) * 1000);
-		if (p->t_connect)
+		if (p->connection->t_connect)
 			json_object_int_add(
 				json_neigh, "nextConnectTimerDueInMsecs",
-				thread_timer_remain_second(p->t_connect)
+				thread_timer_remain_second(p->connection->t_connect)
 					* 1000);
 		if (p->t_routeadv) {
 			json_object_int_add(json_neigh, "mraiInterval",
@@ -14845,9 +14845,9 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		if (p->t_start)
 			vty_out(vty, "Next start timer due in %ld seconds\n",
 				thread_timer_remain_second(p->t_start));
-		if (p->t_connect)
+		if (p->connection->t_connect)
 			vty_out(vty, "Next connect timer due in %ld seconds\n",
-				thread_timer_remain_second(p->t_connect));
+				thread_timer_remain_second(p->connection->t_connect));
 		if (p->t_routeadv)
 			vty_out(vty,
 				"MRAI (interval %u) timer expires in %ld seconds\n",
