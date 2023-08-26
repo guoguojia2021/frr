@@ -425,7 +425,7 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 	    || bgp_update_delay_active(peer->bgp))
 		return 0;
 
-	if (peer->t_routeadv)
+	if (peer->connection->t_routeadv)
 		return 0;
 
 	do {

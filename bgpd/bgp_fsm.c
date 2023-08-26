@@ -180,7 +180,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	 */
 	bgp_keepalives_off(from_peer);
 
-	BGP_TIMER_OFF(peer->t_routeadv);
+	BGP_TIMER_OFF(peer->connection->t_routeadv);
 	BGP_TIMER_OFF(peer->connection->t_connect);
 	BGP_TIMER_OFF(peer->connection->t_delayopen);
 	BGP_TIMER_OFF(peer->connection->t_connect_check_r);
@@ -382,7 +382,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->connection->t_connect);
 		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		BGP_TIMER_OFF(peer->connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -403,7 +403,7 @@ void bgp_timer_set(struct peer *peer)
 
 		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
@@ -428,7 +428,7 @@ void bgp_timer_set(struct peer *peer)
 		}
 		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
@@ -444,7 +444,7 @@ void bgp_timer_set(struct peer *peer)
 			BGP_TIMER_OFF(peer->connection->t_holdtime);
 		}
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		BGP_TIMER_OFF(peer->connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -465,7 +465,7 @@ void bgp_timer_set(struct peer *peer)
 				     bgp_holdtime_timer, peer->v_holdtime);
 			bgp_keepalives_on(peer);
 		}
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		BGP_TIMER_OFF(peer->connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -505,7 +505,7 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->connection->t_connect);
 		BGP_TIMER_OFF(peer->connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		BGP_TIMER_OFF(peer->connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -1055,7 +1055,7 @@ void bgp_start_routeadv(struct bgp *bgp)
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
 		if (!peer_established(peer))
 			continue;
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
 	}
 }
@@ -1075,7 +1075,7 @@ void bgp_adjust_routeadv(struct peer *peer)
 		 * different
 		 * duration and schedule write thread immediately.
 		 */
-		BGP_TIMER_OFF(peer->t_routeadv);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
 
 		peer->synctime = bgp_clock();
 		/* If suppress fib pending is enabled, route is advertised to
@@ -1107,8 +1107,8 @@ void bgp_adjust_routeadv(struct peer *peer)
 	 */
 	diff = difftime(nowtime, peer->last_update);
 	if (diff > (double)peer->v_routeadv) {
-		BGP_TIMER_OFF(peer->t_routeadv);
-		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
+		BGP_TIMER_ON(peer->connection->t_routeadv, bgp_routeadv_timer, 0);
 		return;
 	}
 
@@ -1128,14 +1128,14 @@ void bgp_adjust_routeadv(struct peer *peer)
 	 *
 	 *                     (MRAI - m) < r
 	 */
-	if (peer->t_routeadv)
-		remain = thread_timer_remain_second(peer->t_routeadv);
+	if (peer->connection->t_routeadv)
+		remain = thread_timer_remain_second(peer->connection->t_routeadv);
 	else
 		remain = peer->v_routeadv;
 	diff = peer->v_routeadv - diff;
 	if (diff <= (double)remain) {
-		BGP_TIMER_OFF(peer->t_routeadv);
-		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, diff);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
+		BGP_TIMER_ON(peer->connection->t_routeadv, bgp_routeadv_timer, diff);
 	}
 }
 
@@ -1883,7 +1883,7 @@ int bgp_stop(struct peer_connection *connection)
 	BGP_TIMER_OFF(peer->connection->t_start);
 	BGP_TIMER_OFF(peer->connection->t_connect);
 	BGP_TIMER_OFF(peer->connection->t_holdtime);
-	BGP_TIMER_OFF(peer->t_routeadv);
+	BGP_TIMER_OFF(peer->connection->t_routeadv);
 	BGP_TIMER_OFF(peer->connection->t_delayopen);
 	bgp_peer_adv_lprio_t_off(peer);
 	BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -2656,8 +2656,8 @@ static int bgp_establish(struct peer_connection *connection)
 	 * of read-only mode.
 	 */
 	if (!bgp_update_delay_active(peer->bgp)) {
-		BGP_TIMER_OFF(peer->t_routeadv);
-		BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
+		BGP_TIMER_OFF(peer->connection->t_routeadv);
+		BGP_TIMER_ON(peer->connection->t_routeadv, bgp_routeadv_timer, 0);
 	}
 
 	if (peer->doppelganger &&

@@ -1211,6 +1211,7 @@ struct peer_connection {
 	struct thread *t_connect_check_r;
 	struct thread *t_connect_check_w;
 
+	struct thread *t_routeadv;
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
 
