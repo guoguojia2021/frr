@@ -158,7 +158,7 @@ void bgp_session_reset(struct peer *peer)
 	    !(CHECK_FLAG(peer->doppelganger->flags, PEER_FLAG_CONFIG_NODE)))
 		peer_delete(peer->doppelganger);
 
-	BGP_EVENT_ADD(peer, BGP_Stop);
+	BGP_EVENT_ADD(peer->connection, BGP_Stop);
 }
 
 /*
@@ -184,7 +184,7 @@ static void bgp_session_reset_safe(struct peer *peer, struct listnode **nnode)
 		peer_delete(peer->doppelganger);
 	}
 
-	BGP_EVENT_ADD(peer, BGP_Stop);
+	BGP_EVENT_ADD(peer->connection, BGP_Stop);
 }
 
 /* BGP global flag manipulation.  */
@@ -2627,7 +2627,7 @@ int peer_delete(struct peer *peer)
 	}
 
 	UNSET_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
-	bgp_fsm_change_status(peer, Deleted);
+	bgp_fsm_change_status(peer->connection, Deleted);
 
 	/* Remove from NHT */
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
@@ -3906,7 +3906,7 @@ void bgp_instance_up(struct bgp *bgp)
 			bgp_md5_set(peer);
 		}
 		if (!BGP_PEER_START_SUPPRESSED(peer))
-			BGP_EVENT_ADD(peer, BGP_Start);
+			BGP_EVENT_ADD(peer->connection, BGP_Start);
 	}
 
 	/* Process any networks that have been configured. */
@@ -4795,7 +4795,7 @@ static void peer_flag_modify_action(struct peer *peer, uint32_t flag)
 				bgp_session_reset(peer);
 		} else {
 			peer->v_start = peer->bgp->default_start;
-			BGP_EVENT_ADD(peer, BGP_Stop);
+			BGP_EVENT_ADD(peer->connection, BGP_Stop);
 		}
 	} else if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection->status)) {
 		if (flag == PEER_FLAG_DYNAMIC_CAPABILITY)
@@ -4859,7 +4859,7 @@ void bgp_shutdown_enable(struct bgp *bgp, const char *msg)
 		peer->v_start = bgp->default_start;
 
 		/* trigger a RFC 4271 ManualStop event */
-		BGP_EVENT_ADD(peer, BGP_Stop);
+		BGP_EVENT_ADD(peer->connection, BGP_Stop);
 	}
 
 	/* set the BGP instances shutdown flag */
@@ -6047,8 +6047,8 @@ int peer_timers_connect_set(struct peer *peer, uint32_t connect)
 	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
 		if (!peer_established(peer->connection)) {
 			if (peer_active(peer))
-				BGP_EVENT_ADD(peer, BGP_Stop);
-			BGP_EVENT_ADD(peer, BGP_Start);
+				BGP_EVENT_ADD(peer->connection, BGP_Stop);
+			BGP_EVENT_ADD(peer->connection, BGP_Start);
 		}
 		return 0;
 	}
@@ -6068,8 +6068,8 @@ int peer_timers_connect_set(struct peer *peer, uint32_t connect)
 
 		if (!peer_established(member->connection)) {
 			if (peer_active(member))
-				BGP_EVENT_ADD(member, BGP_Stop);
-			BGP_EVENT_ADD(member, BGP_Start);
+				BGP_EVENT_ADD(member->connection, BGP_Stop);
+			BGP_EVENT_ADD(member->connection, BGP_Start);
 		}
 	}
 
@@ -6101,8 +6101,8 @@ int peer_timers_connect_unset(struct peer *peer)
 	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
 		if (!peer_established(peer->connection)) {
 			if (peer_active(peer))
-				BGP_EVENT_ADD(peer, BGP_Stop);
-			BGP_EVENT_ADD(peer, BGP_Start);
+				BGP_EVENT_ADD(peer->connection, BGP_Stop);
+			BGP_EVENT_ADD(peer->connection, BGP_Start);
 		}
 		return 0;
 	}
@@ -6122,8 +6122,8 @@ int peer_timers_connect_unset(struct peer *peer)
 
 		if (!peer_established(member->connection)) {
 			if (peer_active(member))
-				BGP_EVENT_ADD(member, BGP_Stop);
-			BGP_EVENT_ADD(member, BGP_Start);
+				BGP_EVENT_ADD(member->connection, BGP_Stop);
+			BGP_EVENT_ADD(member->connection, BGP_Start);
 		}
 	}
 
@@ -6538,7 +6538,7 @@ int peer_local_as_set(struct peer *peer, as_t as, bool no_prepend,
 			bgp_notify_send(member->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_CONFIG_CHANGE);
 		} else
-			BGP_EVENT_ADD(member, BGP_Stop);
+			BGP_EVENT_ADD(member->connection, BGP_Stop);
 	}
 
 	return 0;
@@ -6574,7 +6574,7 @@ int peer_local_as_unset(struct peer *peer)
 			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_CONFIG_CHANGE);
 		} else
-			BGP_EVENT_ADD(peer, BGP_Stop);
+			BGP_EVENT_ADD(peer->connection, BGP_Stop);
 
 		/* Skip peer-group mechanics for regular peers. */
 		return 0;
@@ -8112,7 +8112,7 @@ static bool peer_maximum_prefix_clear_overflow(struct peer *peer)
 			zlog_debug("%s Maximum-prefix restart timer cancelled",
 				   peer->host);
 	}
-	BGP_EVENT_ADD(peer, BGP_Start);
+	BGP_EVENT_ADD(peer->connection, BGP_Start);
 	return true;
 }
 
@@ -8963,7 +8963,7 @@ void bgp_terminate(void)
 	for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp))
         if (!CHECK_FLAG(bgp->flags, BGP_FLAG_GRACEFUL_RESTART)) 
             for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer))
-                if (peer_established(peer) || peer->connection->status == OpenSent
+                if (peer_established(peer->connection) || peer->connection->status == OpenSent
                     || peer->connection->status == OpenConfirm)
                     bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
                             BGP_NOTIFY_CEASE_PEER_UNCONFIG);

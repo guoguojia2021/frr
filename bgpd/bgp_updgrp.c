@@ -2010,8 +2010,8 @@ void subgroup_trigger_write(struct update_subgroup *subgrp)
 		if (peer_established(connection))
 			thread_add_timer_msec(
 				bm->master, bgp_generate_updgrp_packets,
-				paf->peer, 0,
-				&paf->peer->connection->t_generate_updgrp_packets);
+				connection, 0,
+				&connection->t_generate_updgrp_packets);
 	}
 }
 

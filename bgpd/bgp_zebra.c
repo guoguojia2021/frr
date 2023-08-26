@@ -148,13 +148,16 @@ static void bgp_start_interface_nbrs(struct bgp *bgp, struct interface *ifp)
 {
 	struct listnode *node, *nnode;
 	struct peer *peer;
+	struct peer_connection *connection;
 
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
 		if (peer->conf_if && (strcmp(peer->conf_if, ifp->name) == 0) &&
 		    !peer_established(peer->connection)) {
-			if (peer_active(peer))
-				BGP_EVENT_ADD(peer, BGP_Stop);
+			if (peer_active(peer)) {
+				BGP_EVENT_ADD(peer->connection, BGP_Stop);
+			}
 			if (!peer->connection->t_start) {
+				connection = peer->connection;
 				BGP_TIMER_ON(peer->connection->t_start, bgp_start_timer,
 					     peer->v_start);
 			}
@@ -196,7 +199,7 @@ static void bgp_nbr_connected_delete(struct bgp *bgp, struct nbr_connected *ifc,
 		if (peer->conf_if
 		    && (strcmp(peer->conf_if, ifc->ifp->name) == 0)) {
 			peer->last_reset = PEER_DOWN_NBR_ADDR_DEL;
-			BGP_EVENT_ADD(peer, BGP_Stop);
+			BGP_EVENT_ADD(peer->connection, BGP_Stop);
 		}
 	}
 	/* Free neighbor also, if we're asked to. */
@@ -294,7 +297,7 @@ static int bgp_ifp_down(struct interface *ifp)
 				continue;
 
 			if (ifp == peer->nexthop.ifp) {
-				BGP_EVENT_ADD(peer, BGP_Stop);
+				BGP_EVENT_ADD(peer->connection, BGP_Stop);
 				peer->last_reset = PEER_DOWN_IF_DOWN;
 			}
 		}
@@ -451,7 +454,8 @@ static int bgp_interface_vrf_update(ZAPI_CALLBACK_ARGS)
 					continue;
 
 				if (ifp == peer->nexthop.ifp)
-					BGP_EVENT_ADD(peer, BGP_Stop);
+					BGP_EVENT_ADD(peer->connection,
+						      BGP_Stop);
 			}
 		}
 	}
@@ -3404,7 +3408,7 @@ static int bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 	}
 
 #endif
-/* todo: ÔøΩÔøΩÔøΩÔøΩsid exportÔøΩ‰ªØ */
+/* todo: ????sid export?Å£ */
 	vpn_leak_postchange_checksid();
 
 stream_failure:

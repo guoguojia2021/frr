@@ -396,6 +396,7 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 	struct bgp_connected_ref *bc;
 	struct listnode *node, *nnode;
 	struct peer *peer;
+	struct peer_connection *connection;
 
 	addr = ifc->address;
 
@@ -427,9 +428,11 @@ void bgp_connected_add(struct bgp *bgp, struct connected *ifc)
 			    (strcmp(peer->conf_if, ifc->ifp->name) == 0) &&
 			    !peer_established(peer->connection) &&
 			    !CHECK_FLAG(peer->flags, PEER_FLAG_IFPEER_V6ONLY)) {
-				if (peer_active(peer))
-					BGP_EVENT_ADD(peer, BGP_Stop);
+				if (peer_active(peer)) {
+					BGP_EVENT_ADD(peer->connection, BGP_Stop);
+				}
 				if (!peer->connection->t_start) {
+					connection = peer->connection;
 					BGP_TIMER_ON(peer->connection->t_start, bgp_start_timer,
 						     peer->v_start);
 				}

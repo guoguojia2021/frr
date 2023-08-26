@@ -25,8 +25,9 @@
 /* Macro for BGP read, write and timer thread.  */
 #define BGP_TIMER_ON(T, F, V)                                                  \
 	do {                                                                   \
-		if ((peer->connection->status != Deleted))                     \
-			thread_add_timer(bm->master, (F), peer, (V), &(T));    \
+		if ((connection->status != Deleted))                           \
+			thread_add_timer(bm->master, (F), connection, (V),      \
+					&(T));                                 \
 	} while (0)
 
 #define BGP_TIMER_OFF(T)                                                       \
@@ -35,10 +36,10 @@
 	} while (0)
 
 
-#define BGP_EVENT_ADD(P, E)                                                    \
+#define BGP_EVENT_ADD(C, E)                                                    \
 	do {                                                                   \
-		if ((P)->connection->status != Deleted)                                    \
-			thread_add_event(bm->master, bgp_event, (P), (E),      \
+		if ((C)->status != Deleted)                                    \
+			thread_add_event(bm->master, bgp_event, (C), (E),      \
 					 NULL);                                \
 	} while (0)
 
@@ -127,11 +128,13 @@
  */
 extern void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops);
 extern int bgp_event(struct thread *);
-extern int bgp_event_update(struct peer *, enum bgp_fsm_events event);
+extern int bgp_event_update(struct peer_connection *connection,
+			    enum bgp_fsm_events event);
 extern int bgp_stop(struct peer_connection *connection);
 extern void bgp_timer_set(struct peer_connection *connection);
-extern int bgp_routeadv_timer(struct thread *);
-extern void bgp_fsm_change_status(struct peer *peer, int status);
+extern int bgp_routeadv_timer(struct thread *event);
+extern void bgp_fsm_change_status(struct peer_connection *connection,
+				  int status);
 extern const char *const peer_down_str[];
 extern void bgp_update_delay_end(struct bgp *);
 extern void bgp_maxmed_update(struct bgp *);

@@ -345,6 +345,7 @@ static void bgp_write_proceed_actions(struct peer *peer)
 	struct bpacket *next_pkt;
 	struct update_subgroup *subgrp;
 	enum bgp_af_index index;
+	struct peer_connection *connection = peer->connection;
 
 	for (index = BGP_AF_START; index < BGP_AF_MAX; index++) {
 		paf = peer->peer_af_array[index];
@@ -357,7 +358,7 @@ static void bgp_write_proceed_actions(struct peer *peer)
 
 		next_pkt = paf->next_pkt_to_send;
 		if (next_pkt && next_pkt->buffer) {
-			BGP_TIMER_ON(peer->connection->t_generate_updgrp_packets,
+			BGP_TIMER_ON(connection->t_generate_updgrp_packets,
 				     bgp_generate_updgrp_packets, 0);
 			return;
 		}
@@ -368,7 +369,7 @@ static void bgp_write_proceed_actions(struct peer *peer)
 		if (bpacket_queue_is_full(SUBGRP_INST(subgrp),
 					  SUBGRP_PKTQ(subgrp))
 		    || subgroup_packets_to_build(subgrp)) {
-			BGP_TIMER_ON(peer->connection->t_generate_updgrp_packets,
+			BGP_TIMER_ON(connection->t_generate_updgrp_packets,
 				     bgp_generate_updgrp_packets, 0);
 			return;
 		}
@@ -383,8 +384,7 @@ static void bgp_write_proceed_actions(struct peer *peer)
 			    && !CHECK_FLAG(peer->af_sflags[afi][safi],
 					   PEER_STATUS_EOR_SEND)
 			    && safi != SAFI_MPLS_VPN) {
-				BGP_TIMER_ON(peer->connection
-						     ->t_generate_updgrp_packets,
+				BGP_TIMER_ON(connection->t_generate_updgrp_packets,
 					     bgp_generate_updgrp_packets, 0);
 				return;
 			}
@@ -399,8 +399,8 @@ static void bgp_write_proceed_actions(struct peer *peer)
  */
 int bgp_generate_updgrp_packets(struct thread *thread)
 {
-	struct peer *peer = THREAD_ARG(thread);
-
+	struct peer_connection *connection = THREAD_ARG(thread);
+	struct peer *peer = connection->peer;
 	struct stream *s;
 	struct peer_af *paf;
 	struct bpacket *next_pkt;
@@ -569,7 +569,7 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 	} while (s && (++generated < wpq));
 
 	if (generated)
-		bgp_writes_on(peer->connection);
+		bgp_writes_on(connection);
 
 	bgp_write_proceed_actions(peer);
 
@@ -719,7 +719,7 @@ static void bgp_write_notify(struct peer *peer)
 	 */
 	if (ret <= 0) {
 		stream_free(s);
-		BGP_EVENT_ADD(peer, TCP_fatal_error);
+		BGP_EVENT_ADD(peer->connection, TCP_fatal_error);
 		return;
 	}
 
@@ -749,7 +749,7 @@ static void bgp_write_notify(struct peer *peer)
 	 * Handle Graceful Restart case where the state changes to
 	 * Connect instead of Idle
 	 */
-	BGP_EVENT_ADD(peer, BGP_Stop);
+	BGP_EVENT_ADD(peer->connection, BGP_Stop);
 
 	stream_free(s);
 }
@@ -3015,7 +3015,7 @@ int bgp_process_packet(struct thread *thread)
 
 		/* Update FSM */
 		if (mprc != BGP_PACKET_NOOP)
-			fsm_update_result = bgp_event_update(peer, mprc);
+			fsm_update_result = bgp_event_update(connection, mprc);
 		else
 			continue;
 
@@ -3084,7 +3084,7 @@ int bgp_packet_process_error(struct thread *thread)
 			peer->last_reset = PEER_DOWN_CLOSE_SESSION;
 	}
 
-	bgp_event_update(peer, code);
+	bgp_event_update(connection, code);
 
 	return 0;
 }

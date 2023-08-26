@@ -479,7 +479,7 @@ static int write_bgpPeerTable(int action, uint8_t *var_val,
 #define BGP_PeerAdmin_start 2
 		/* When the peer is established,   */
 		if (intval == BGP_PeerAdmin_stop)
-			BGP_EVENT_ADD(peer, BGP_Stop);
+			BGP_EVENT_ADD(peer->connection, BGP_Stop);
 		else if (intval == BGP_PeerAdmin_start)
 			; /* Do nothing. */
 		else
@@ -859,7 +859,7 @@ static int bgpTrapEstablished(struct peer *peer)
 	oid index[sizeof(oid) * IN_ADDR_SIZE];
 
 	/* Check if this peer just went to Established */
-	if ((peer->connection->ostatus != OpenConfirm) || !(peer_established(peer)))
+	if ((peer->connection->ostatus != OpenConfirm) || !(peer_established(peer->connection)))
 		return 0;
 
 	ret = inet_aton(peer->host, &addr);

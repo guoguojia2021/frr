@@ -10458,7 +10458,7 @@ DEFUN (show_bgp_vrfs,
 			if (!CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
 				continue;
 			peers_cfg++;
-			if (peer_established(peer))
+			if (peer_established(peer->connection))
 				peers_estb++;
 		}
 

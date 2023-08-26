@@ -69,14 +69,14 @@ static void bfd_session_status_update(struct bfd_session_params *bsp,
 		}
 		peer->last_reset = PEER_DOWN_BFD_DOWN;
 
-		BGP_EVENT_ADD(peer, BGP_Stop);
+		BGP_EVENT_ADD(peer->connection, BGP_Stop);
 	}
 
 	if (bss->state == BSS_UP && bss->previous_state != BSS_UP &&
 	    !peer_established(peer->connection)) {
 		if (!BGP_PEER_START_SUPPRESSED(peer)) {
 			bgp_fsm_nht_update(peer, true);
-			BGP_EVENT_ADD(peer, BGP_Start);
+			BGP_EVENT_ADD(peer->connection, BGP_Start);
 		}
 	}
 }
