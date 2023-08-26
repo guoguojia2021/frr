@@ -14804,7 +14804,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		if (peer_established(p) && p->rtt)
 			json_object_int_add(json_neigh, "estimatedRttInMsecs",
 					    p->rtt);
-		if (p->t_start)
+		if (p->connection->t_start)
 			json_object_int_add(
 				json_neigh, "nextStartTimerDueInMsecs",
 				thread_timer_remain_second(p->t_start) * 1000);
@@ -14842,9 +14842,9 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		if (peer_established(p) && p->rtt)
 			vty_out(vty, "Estimated round trip time: %d ms\n",
 				p->rtt);
-		if (p->t_start)
+		if (p->connection->t_start)
 			vty_out(vty, "Next start timer due in %ld seconds\n",
-				thread_timer_remain_second(p->t_start));
+				thread_timer_remain_second(p->connection->t_start));
 		if (p->connection->t_connect)
 			vty_out(vty, "Next connect timer due in %ld seconds\n",
 				thread_timer_remain_second(p->connection->t_connect));

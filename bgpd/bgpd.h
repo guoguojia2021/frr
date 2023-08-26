@@ -1205,6 +1205,7 @@ struct peer_connection {
 	struct thread *t_write;
 	struct thread *t_connect;
 	struct thread *t_delayopen;
+	struct thread *t_start;
 
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;

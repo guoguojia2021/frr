@@ -438,7 +438,7 @@ static int bgp_accept(struct thread *thread)
 
 			bgp_fsm_change_status(peer1, Active);
 			BGP_TIMER_OFF(
-				peer1->t_start); /* created in peer_create() */
+				peer1->connection->t_start); /* created in peer_create() */
 
 			if (peer_active(peer1)) {
 				if (CHECK_FLAG(peer1->flags,
@@ -582,7 +582,7 @@ static int bgp_accept(struct thread *thread)
 	}
 	bgp_peer_reg_with_nht(peer);
 	bgp_fsm_change_status(peer, Active);
-	BGP_TIMER_OFF(peer->t_start); /* created in peer_create() */
+	BGP_TIMER_OFF(peer->connection->t_start); /* created in peer_create() */
 
 	SET_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
 	/* Make dummy peer until read Open packet. */
