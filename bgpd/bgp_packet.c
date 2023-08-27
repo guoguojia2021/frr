@@ -607,12 +607,13 @@ void bgp_keepalive_send(struct peer *peer)
  * Creates a BGP Open packet and appends it to the peer's output queue.
  * Sets capabilities as necessary.
  */
-void bgp_open_send(struct peer *peer)
+void bgp_open_send(struct peer_connection *connection)
 {
 	struct stream *s;
 	uint16_t send_holdtime;
 	as_t local_as;
 	bool ext_opt_params = false;
+	struct peer *peer = connection->peer;
 
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_TIMER))
 		send_holdtime = peer->holdtime;
@@ -674,7 +675,7 @@ void bgp_open_send(struct peer *peer)
 	/* Add packet to the peer. */
 	bgp_packet_add(peer, s);
 
-	bgp_writes_on(peer->connection);
+	bgp_writes_on(connection);
 }
 
 /*

@@ -2109,7 +2109,7 @@ static int bgp_connect_success(struct peer_connection *connection)
 	}
 
 	/* Send an open message */
-	bgp_open_send(peer);
+	bgp_open_send(connection);
 
 	return 0;
 }
@@ -2340,7 +2340,7 @@ static int bgp_fsm_open(struct peer_connection *connection)
 
 	/* If DelayOpen is active, we may still need to send an open message */
 	if ((connection->status == Connect) || (connection->status == Active))
-		bgp_open_send(peer);
+		bgp_open_send(connection);
 
 	/* Send keepalive and make keepalive timer */
 	bgp_keepalive_send(peer);
@@ -2377,16 +2377,14 @@ static int bgp_fsm_holdtime_expire(struct peer_connection *connection)
 /* RFC 4271 DelayOpenTimer_Expires event */
 static int bgp_fsm_delayopen_timer_expire(struct peer_connection *connection)
 {
-	struct peer *peer = connection->peer;
-
 	/* Stop the DelayOpenTimer */
-	BGP_TIMER_OFF(peer->connection->t_delayopen);
+	BGP_TIMER_OFF(connection->t_delayopen);
 
 	/* Send open message to peer */
-	bgp_open_send(peer);
+	bgp_open_send(connection);
 
 	/* Set the HoldTimer to a large value (4 minutes) */
-	peer->v_holdtime = 245;
+	connection->peer->v_holdtime = 245;
 
 	return 0;
 }
