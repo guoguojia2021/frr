@@ -779,6 +779,7 @@ static void bgp_notify_send_internal(struct peer_connection *connection,
 				     bool use_curr)
 {
 	struct stream *s;
+	struct peer *peer = connection->peer;
 
 	/* Lock I/O mutex to prevent other threads from pushing packets */
 	frr_mutex_lock_autounlock(&connection->io_mtx);
@@ -1729,7 +1730,7 @@ static int bgp_refresh_stalepath_timer_expire(struct thread *thread)
 		zlog_debug("%s: route-refresh (BoRR) timer for %s/%s expired",
 			   peer->host, afi2str(afi), safi2str(safi));
 
-	bgp_timer_set(peer);
+	bgp_timer_set(peer->connection);
 
 	return 0;
 }

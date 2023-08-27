@@ -390,7 +390,7 @@ int bgp_nlri_parse_label(struct peer *peer, struct attr *attr,
 				EC_BGP_UPDATE_RCV,
 				"%s [Error] Update packet error (wrong label length 0)",
 				peer->host);
-			bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 					BGP_NOTIFY_UPDATE_INVAL_NETWORK);
 			return BGP_NLRI_PARSE_ERROR_LABEL_LENGTH;
 		}
@@ -401,7 +401,7 @@ int bgp_nlri_parse_label(struct peer *peer, struct attr *attr,
 			flog_err(EC_BGP_UPDATE_RCV,
 				 "%s [Error] Update packet error (wrong label length %d)",
 				 peer->host, prefixlen);
-			bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 					BGP_NOTIFY_UPDATE_INVAL_NETWORK);
 			return BGP_NLRI_PARSE_ERROR_LABEL_LENGTH;
 		}

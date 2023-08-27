@@ -1081,7 +1081,7 @@ static int bgp_capability_parse(struct peer *peer, size_t length,
 
 static int bgp_auth_parse(struct peer *peer, size_t length)
 {
-	bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
+	bgp_notify_send(peer->connection, BGP_NOTIFY_OPEN_ERR,
 			BGP_NOTIFY_OPEN_AUTH_FAILURE);
 	return -1;
 }

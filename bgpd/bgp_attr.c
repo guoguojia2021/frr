@@ -3231,7 +3231,7 @@ bgp_attr_parse_ret_t bgp_attr_parse(struct peer *peer, struct attr *attr,
 				"%s: error BGP attribute type %d appears twice in a message",
 				peer->host, type);
 
-			bgp_notify_send(peer, BGP_NOTIFY_UPDATE_ERR,
+			bgp_notify_send(peer->connection, BGP_NOTIFY_UPDATE_ERR,
 					BGP_NOTIFY_UPDATE_MAL_ATTR);
 			ret = BGP_ATTR_PARSE_ERROR;
 			goto done;
@@ -3287,7 +3287,7 @@ bgp_attr_parse_ret_t bgp_attr_parse(struct peer *peer, struct attr *attr,
 			stream_get(&ndata[lfl + 1], BGP_INPUT(peer), ndl);
 
 			bgp_notify_send_with_data(
-				peer, BGP_NOTIFY_UPDATE_ERR,
+				peer->connection, BGP_NOTIFY_UPDATE_ERR,
 				BGP_NOTIFY_UPDATE_ATTR_LENG_ERR, ndata,
 				ndl + lfl + 1);
 

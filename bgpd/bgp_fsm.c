@@ -362,28 +362,29 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 /* Hook function called after bgp event is occered.  And vty's
    neighbor command invoke this function after making neighbor
    structure. */
-void bgp_timer_set(struct peer *peer)
+void bgp_timer_set(struct peer_connection *connection)
 {
 	afi_t afi;
 	safi_t safi;
+	struct peer *peer = connection->peer;
 
-	switch (peer->connection->status) {
+	switch (connection->status) {
 	case Idle:
 		/* First entry point of peer's finite state machine.  In Idle
 		   status start timer is on unless peer is shutdown or peer is
 		   inactive.  All other timer must be turned off */
 		if (BGP_PEER_START_SUPPRESSED(peer) || !peer_active(peer)
 		    || peer->bgp->vrf_id == VRF_UNKNOWN) {
-			BGP_TIMER_OFF(peer->connection->t_start);
+			BGP_TIMER_OFF(connection->t_start);
 		} else {
-			BGP_TIMER_ON(peer->connection->t_start, bgp_start_timer,
+			BGP_TIMER_ON(connection->t_start, bgp_start_timer,
 				     peer->v_start);
 		}
-		BGP_TIMER_OFF(peer->connection->t_connect);
-		BGP_TIMER_OFF(peer->connection->t_holdtime);
+		BGP_TIMER_OFF(connection->t_connect);
+		BGP_TIMER_OFF(connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->connection->t_routeadv);
-		BGP_TIMER_OFF(peer->connection->t_delayopen);
+		BGP_TIMER_OFF(connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
@@ -392,18 +393,17 @@ void bgp_timer_set(struct peer *peer)
 		/* After start timer is expired, the peer moves to Connect
 		   status.  Make sure start timer is off and connect timer is
 		   on. */
-		BGP_TIMER_OFF(peer->connection->t_start);
+		BGP_TIMER_OFF(connection->t_start);
 		if (CHECK_FLAG(peer->flags, PEER_FLAG_TIMER_DELAYOPEN))
-			BGP_TIMER_ON(peer->connection->t_connect,
-				     bgp_connect_timer,
+			BGP_TIMER_ON(connection->t_connect, bgp_connect_timer,
 				     (peer->v_delayopen + peer->v_connect));
 		else
-			BGP_TIMER_ON(peer->connection->t_connect,
-				     bgp_connect_timer, peer->v_connect);
+			BGP_TIMER_ON(connection->t_connect, bgp_connect_timer,
+				     peer->v_connect);
 
-		BGP_TIMER_OFF(peer->connection->t_holdtime);
+		BGP_TIMER_OFF(connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
@@ -411,62 +411,64 @@ void bgp_timer_set(struct peer *peer)
 	case Active:
 		/* Active is waiting connection from remote peer.  And if
 		   connect timer is expired, change status to Connect. */
-		BGP_TIMER_OFF(peer->connection->t_start);
+		BGP_TIMER_OFF(connection->t_start);
 		/* If peer is passive mode, do not set connect timer. */
 		if (CHECK_FLAG(peer->flags, PEER_FLAG_PASSIVE)
 		    || CHECK_FLAG(peer->sflags, PEER_STATUS_NSF_WAIT)) {
-			BGP_TIMER_OFF(peer->connection->t_connect);
+			BGP_TIMER_OFF(connection->t_connect);
 		} else {
 			if (CHECK_FLAG(peer->flags, PEER_FLAG_TIMER_DELAYOPEN))
-				BGP_TIMER_ON(peer->connection->t_connect,
+				BGP_TIMER_ON(connection->t_connect,
 					     bgp_connect_timer,
 					     (peer->v_delayopen +
 					      peer->v_connect));
 			else
-				BGP_TIMER_ON(peer->connection->t_connect,
+				BGP_TIMER_ON(connection->t_connect,
 					     bgp_connect_timer, peer->v_connect);
 		}
-		BGP_TIMER_OFF(peer->connection->t_holdtime);
+		BGP_TIMER_OFF(connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case OpenSent:
 		/* OpenSent status. */
-		BGP_TIMER_OFF(peer->connection->t_start);
-		BGP_TIMER_OFF(peer->connection->t_connect);
+		BGP_TIMER_OFF(connection->t_start);
+		BGP_TIMER_OFF(connection->t_connect);
 		if (peer->v_holdtime != 0) {
-			BGP_TIMER_ON(peer->connection->t_holdtime,
-				     bgp_holdtime_timer, peer->v_holdtime);
+			BGP_TIMER_ON(connection->t_holdtime, bgp_holdtime_timer,
+				     peer->v_holdtime);
 		} else {
-			BGP_TIMER_OFF(peer->connection->t_holdtime);
+			BGP_TIMER_OFF(connection->t_holdtime);
 		}
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->connection->t_routeadv);
-		BGP_TIMER_OFF(peer->connection->t_delayopen);
+		BGP_TIMER_OFF(connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
 
 	case OpenConfirm:
 		/* OpenConfirm status. */
-		BGP_TIMER_OFF(peer->connection->t_start);
-		BGP_TIMER_OFF(peer->connection->t_connect);
+		BGP_TIMER_OFF(connection->t_start);
+		BGP_TIMER_OFF(connection->t_connect);
 
 		/* If the negotiated Hold Time value is zero, then the Hold Time
 		   timer and KeepAlive timers are not started. */
 		if (peer->v_holdtime == 0) {
-			BGP_TIMER_OFF(peer->connection->t_holdtime);
+			BGP_TIMER_OFF(connection->t_holdtime);
 			bgp_keepalives_off(peer);
 		} else {
-			BGP_TIMER_ON(peer->connection->t_holdtime,
-				     bgp_holdtime_timer, peer->v_holdtime);
+			BGP_TIMER_ON(connection->t_holdtime, bgp_holdtime_timer,
+				     peer->v_holdtime);
 			bgp_keepalives_on(peer);
 		}
-		BGP_TIMER_OFF(peer->connection->t_routeadv);
-		BGP_TIMER_OFF(peer->connection->t_delayopen);
+		BGP_TIMER_OFF(connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_delayopen);
+		BGP_TIMER_OFF(connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
@@ -474,18 +476,18 @@ void bgp_timer_set(struct peer *peer)
 	case Established:
 		/* In Established status start and connect timer is turned
 		   off. */
-		BGP_TIMER_OFF(peer->connection->t_start);
-		BGP_TIMER_OFF(peer->connection->t_connect);
-		BGP_TIMER_OFF(peer->connection->t_delayopen);
+		BGP_TIMER_OFF(connection->t_start);
+		BGP_TIMER_OFF(connection->t_connect);
+		BGP_TIMER_OFF(connection->t_delayopen);
 
 		/* Same as OpenConfirm, if holdtime is zero then both holdtime
 		   and keepalive must be turned off. */
 		if (peer->v_holdtime == 0) {
-			BGP_TIMER_OFF(peer->connection->t_holdtime);
+			BGP_TIMER_OFF(connection->t_holdtime);
 			bgp_keepalives_off(peer);
 		} else {
-			BGP_TIMER_ON(peer->connection->t_holdtime,
-				     bgp_holdtime_timer, peer->v_holdtime);
+			BGP_TIMER_ON(connection->t_holdtime, bgp_holdtime_timer,
+				     peer->v_holdtime);
 			bgp_keepalives_on(peer);
 		}
 		break;
@@ -501,12 +503,12 @@ void bgp_timer_set(struct peer *peer)
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 	/* fallthru */
 	case Clearing:
-		BGP_TIMER_OFF(peer->connection->t_start);
-		BGP_TIMER_OFF(peer->connection->t_connect);
-		BGP_TIMER_OFF(peer->connection->t_holdtime);
+		BGP_TIMER_OFF(connection->t_start);
+		BGP_TIMER_OFF(connection->t_connect);
+		BGP_TIMER_OFF(connection->t_holdtime);
 		bgp_keepalives_off(peer);
-		BGP_TIMER_OFF(peer->connection->t_routeadv);
-		BGP_TIMER_OFF(peer->connection->t_delayopen);
+		BGP_TIMER_OFF(connection->t_routeadv);
+		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
@@ -717,7 +719,7 @@ static void bgp_graceful_restart_timer_off(struct peer *peer)
 		peer_delete(peer);
 	}
 
-	bgp_timer_set(peer);
+	bgp_timer_set(peer->connection);
 }
 
 static int bgp_llgr_stale_timer_expire(struct thread *thread)
@@ -2985,14 +2987,9 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 {
 	enum bgp_fsm_status next;
 	int ret = 0;
-	struct peer *other;
 	int passive_conn = 0;
 	int dyn_nbr;
 
-	/* default return code */
-	ret = FSM_PEER_NOOP;
-
-	other = peer->doppelganger;
 	passive_conn =
 		(CHECK_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER)) ? 1 : 0;
 	dyn_nbr = peer_dynamic_neighbor(peer);
@@ -3022,7 +3019,6 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 			   bgp_establish.
 			   Update the peer pointer accordingly */
 			ret = FSM_PEER_TRANSFERRED;
-			peer = other;
 		}
 
 		/* If status is changed. */
@@ -3041,7 +3037,7 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 		}
 
 		/* Make sure timer is set. */
-		bgp_timer_set(peer);
+		bgp_timer_set(peer->connection);
 
 	} else {
 		struct peer_connection *connection = peer->connection;
@@ -3065,7 +3061,7 @@ int bgp_event_update(struct peer *peer, enum bgp_fsm_events event)
 				 peer_down_str[peer->last_reset]);
 			bgp_stop(connection);
 			bgp_fsm_change_status(peer, Idle);
-			bgp_timer_set(peer);
+			bgp_timer_set(connection);
 		}
 		ret = FSM_PEER_STOPPED;
 	}

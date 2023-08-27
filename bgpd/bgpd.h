@@ -1214,6 +1214,8 @@ struct peer_connection {
 	struct thread *t_gr_restart;
 	struct thread *t_gr_stale;
 	struct thread *t_generate_updgrp_packets;
+	struct thread *t_pmax_restart;
+
 	struct thread *t_routeadv;
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
