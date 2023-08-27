@@ -1992,11 +1992,13 @@ static int bgp_stop_with_error(struct peer_connection *connection)
 
 
 /* something went wrong, send notify and tear down */
-static int bgp_stop_with_notify(struct peer *peer, uint8_t code,
+static int bgp_stop_with_notify(struct peer_connection *connection, uint8_t code,
 				uint8_t sub_code)
 {
+	struct peer *peer = connection->peer;
+
 	/* Send notify to remote peer */
-	bgp_notify_send(peer->connection, code, sub_code);
+	bgp_notify_send(connection, code, sub_code);
 
 	if (peer_dynamic_neighbor_no_nsf(peer)) {
 		if (bgp_debug_neighbor_events(peer))
@@ -2009,7 +2011,7 @@ static int bgp_stop_with_notify(struct peer *peer, uint8_t code,
 	/* Clear start timer value to default. */
 	peer->v_start = peer->bgp->default_start;
 
-	return bgp_stop(peer->connection);
+	return bgp_stop(connection);
 }
 
 /**
@@ -2356,7 +2358,7 @@ static int bgp_fsm_event_error(struct peer_connection *connection)
 		 peer->host,
 		 lookup_msg(bgp_status_msg, connection->status, NULL));
 
-	return bgp_stop_with_notify(peer, BGP_NOTIFY_FSM_ERR,
+	return bgp_stop_with_notify(connection, BGP_NOTIFY_FSM_ERR,
 				    bgp_fsm_error_subcode(connection->status));
 }
 
@@ -2369,7 +2371,7 @@ static int bgp_fsm_holdtime_expire(struct peer_connection *connection)
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug("%s [FSM] Hold timer expire", peer->host);
 
-	return bgp_stop_with_notify(peer, BGP_NOTIFY_HOLD_ERR, 0);
+	return bgp_stop_with_notify(connection, BGP_NOTIFY_HOLD_ERR, 0);
 }
 
 /* RFC 4271 DelayOpenTimer_Expires event */
