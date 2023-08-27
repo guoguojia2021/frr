@@ -1990,23 +1990,21 @@ static int bgp_connect_check(struct thread *thread)
 	int status;
 	socklen_t slen;
 	int ret;
-	struct peer_connection *connection = THREAD_ARG(thread);
+	struct peer_connection *connection = EVENT_ARG(thread);
 	struct peer *peer = connection->peer;
 
-	assert(!CHECK_FLAG(connection->thread_flags,
-			   PEER_THREAD_READS_ON));
-	assert(!CHECK_FLAG(connection->thread_flags,
-			   PEER_THREAD_WRITES_ON));
+	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_READS_ON));
+	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_WRITES_ON));
 	assert(!connection->t_read);
 	assert(!connection->t_write);
 
-	THREAD_OFF(connection->t_connect_check_r);
-	THREAD_OFF(connection->t_connect_check_w);
+	EVENT_OFF(connection->t_connect_check_r);
+	EVENT_OFF(connection->t_connect_check_w);
 
 	/* Check file descriptor. */
 	slen = sizeof(status);
-	ret = getsockopt(connection->fd, SOL_SOCKET, SO_ERROR,
-			 (void *)&status, &slen);
+	ret = getsockopt(connection->fd, SOL_SOCKET, SO_ERROR, (void *)&status,
+			 &slen);
 
 	/* If getsockopt is fail, this is fatal error. */
 	if (ret < 0) {
@@ -2263,12 +2261,10 @@ static int bgp_start(struct peer_connection *connection)
 		 * bgp_connect_check() as the handler for each and cancel the
 		 * unused event in that function.
 		 */
-		thread_add_read(bm->master, bgp_connect_check, peer,
-			       peer->connection->fd,
-			       &peer->connection->t_connect_check_r);
-		thread_add_read(bm->master, bgp_connect_check, peer,
-				peer->connection->fd,
-				&peer->connection->t_connect_check_w);
+		thread_add_read(bm->master, bgp_connect_check, connection,
+			       connection->fd, &connection->t_connect_check_r);
+		thread_add_write(bm->master, bgp_connect_check, connection,
+				connection->fd, &connection->t_connect_check_w);
 		break;
 	}
 	return 0;
