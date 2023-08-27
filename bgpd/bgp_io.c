@@ -82,7 +82,7 @@ void bgp_writes_off(struct peer_connection *connection)
 	assert(fpt->running);
 
 	thread_cancel_async(fpt->master, &connection->t_write, NULL);
-	THREAD_OFF(peer->t_generate_updgrp_packets);
+	THREAD_OFF(connection->t_generate_updgrp_packets);
 
 	UNSET_FLAG(peer->connection->thread_flags, PEER_THREAD_WRITES_ON);
 }
@@ -163,7 +163,7 @@ static int bgp_process_writes(struct thread *thread)
 		thread_add_write(fpt->master, bgp_process_writes, connection,
 				connection->fd, &connection->t_write);
 	} else if (!fatal) {
-		BGP_UPDATE_GROUP_TIMER_ON(&peer->t_generate_updgrp_packets,
+		BGP_UPDATE_GROUP_TIMER_ON(&connection->t_generate_updgrp_packets,
 					  bgp_generate_updgrp_packets);
 	}
 

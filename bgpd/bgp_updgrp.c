@@ -2009,7 +2009,7 @@ void subgroup_trigger_write(struct update_subgroup *subgrp)
 			thread_add_timer_msec(
 				bm->master, bgp_generate_updgrp_packets,
 				paf->peer, 0,
-				&paf->peer->t_generate_updgrp_packets);
+				&paf->peer->connection->t_generate_updgrp_packets);
 }
 
 int update_group_clear_update_dbg(struct update_group *updgrp, void *arg)

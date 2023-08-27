@@ -190,8 +190,8 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	BGP_TIMER_OFF(from_peer->t_routeadv);
 	BGP_TIMER_OFF(from_peer->connection->t_connect);
 	BGP_TIMER_OFF(from_peer->connection->t_delayopen);
-	BGP_TIMER_OFF(from_peer->t_connect_check_r);
-	BGP_TIMER_OFF(from_peer->t_connect_check_w);
+	BGP_TIMER_OFF(from_peer->connection->t_connect_check_r);
+	BGP_TIMER_OFF(from_peer->connection->t_connect_check_w);
 	BGP_TIMER_OFF(from_peer->connection->t_process_packet);
 	bgp_peer_adv_lprio_t_off(from_peer);
 	BGP_TIMER_OFF(from_peer->t_advertise_delay);
@@ -526,7 +526,7 @@ int bgp_start_timer(struct thread *thread)
 
 	peer = THREAD_ARG(thread);
 
-	BGP_TIMER_OFF(peer->t_start);
+	BGP_TIMER_OFF(peer->connection->t_start);
 
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug("%s [FSM] Timer (start timer expire).", peer->host);
@@ -616,7 +616,7 @@ int bgp_routeadv_timer(struct thread *thread)
 	peer->synctime = bgp_clock();
 
 	thread_add_timer_msec(bm->master, bgp_generate_updgrp_packets, peer, 0,
-			      &peer->t_generate_updgrp_packets);
+			      &peer->connection->t_generate_updgrp_packets);
 
 	/* MRAI timer will be started again when FIFO is built, no need to
 	 * do it here.
@@ -1083,7 +1083,8 @@ void bgp_adjust_routeadv(struct peer *peer)
 		 * is added to update group packet generate which will allow
 		 * more routes to be sent in the update message
 		 */
-		BGP_UPDATE_GROUP_TIMER_ON(&peer->t_generate_updgrp_packets,
+		BGP_UPDATE_GROUP_TIMER_ON(&peer->connection
+						   ->t_generate_updgrp_packets,
 					  bgp_generate_updgrp_packets);
 		return;
 	}
@@ -2756,8 +2757,8 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	switch (peer->connection->status) {
 	case Idle:
 		if (has_valid_nexthops) {
-			if (!peer->t_start)
-				BGP_TIMER_ON(peer->t_start, bgp_start_timer,
+			if (!peer->connection->t_start)
+				BGP_TIMER_ON(peer->connection->t_start, bgp_start_timer,
 					     peer->v_start);
 			//BGP_EVENT_ADD(peer, BGP_Start);
 		}

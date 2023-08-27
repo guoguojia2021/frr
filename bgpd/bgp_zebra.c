@@ -154,8 +154,8 @@ static void bgp_start_interface_nbrs(struct bgp *bgp, struct interface *ifp)
 		    && !peer_established(peer)) {
 			if (peer_active(peer))
 				BGP_EVENT_ADD(peer, BGP_Stop);
-			if (!peer->t_start) {
-				BGP_TIMER_ON(peer->t_start, bgp_start_timer,
+			if (!peer->connection->t_start) {
+				BGP_TIMER_ON(peer->connection->t_start, bgp_start_timer,
 					     peer->v_start);
 			}
 		}

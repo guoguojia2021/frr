@@ -477,7 +477,7 @@ static int bgp_accept(struct thread *thread)
 		return -1;
 	}
 
-	if (peer1->t_start) {
+	if (peer1->connection->t_start) {
 		if (bgp_debug_neighbor_events(peer1))
 			zlog_debug(
 				"[Event] connection from %s rejected(%s:%u:%s) due to start timer hold",

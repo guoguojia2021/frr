@@ -12414,7 +12414,6 @@ static void bgp_show_neighbor_graceful_restart_time(struct vty *vty,
 			p->v_gr_restart);
 		if (p->connection->t_gr_restart != NULL)
 			vty_out(vty, "      Restart Time Remaining(sec): %ld\n",
-				event_timer_remain_second(p->connection->t_gr_restart));
 				thread_timer_remain_second(p->connection->t_gr_restart));
 		if (p->connection->t_gr_restart != NULL) {
 			vty_out(vty, "      Restart Time Remaining(sec): %ld\n",
@@ -14452,7 +14451,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 				"    The remaining time of restart timer is %ld\n",
 				thread_timer_remain_second(p->t_gr_restart));
 
-		if (p->connection->connection->t_gr_stale)
+		if (p->connection->t_gr_stale)
 			vty_out(vty,
 				"    The remaining time of stalepath timer is %ld\n",
 				thread_timer_remain_second(p->connection->t_gr_stale));
@@ -14809,7 +14808,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		if (p->connection->t_start)
 			json_object_int_add(
 				json_neigh, "nextStartTimerDueInMsecs",
-				thread_timer_remain_second(p->t_start) * 1000);
+				thread_timer_remain_second(p->connection->t_start) * 1000);
 		if (p->connection->t_connect)
 			json_object_int_add(
 				json_neigh, "nextConnectTimerDueInMsecs",

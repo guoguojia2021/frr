@@ -1213,6 +1213,7 @@ struct peer_connection {
 
 	struct thread *t_gr_restart;
 	struct thread *t_gr_stale;
+	struct thread *t_generate_updgrp_packets;
 	struct thread *t_routeadv;
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
@@ -1602,9 +1603,6 @@ struct peer {
 	struct thread *t_gr_restart;
 	struct thread *t_gr_stale;
 	struct thread *t_llgr_stale[AFI_MAX][SAFI_MAX];
-	struct thread *t_generate_updgrp_packets;
-	struct thread *t_process_packet;
-	struct thread *t_process_packet_error;
 	struct thread *t_refresh_stalepath;
 	struct thread *t_adv_lprio; /* non-null when max-med onpeerup is on */
 	/* BGP advertise delay on startup */
