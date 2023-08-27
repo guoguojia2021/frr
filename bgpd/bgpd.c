@@ -4754,8 +4754,8 @@ static void peer_flag_modify_action(struct peer *peer, uint32_t flag)
 
 			UNSET_FLAG(peer->sflags, PEER_STATUS_PREFIX_OVERFLOW);
 
-			if (peer->t_pmax_restart) {
-				BGP_TIMER_OFF(peer->t_pmax_restart);
+			if (peer->connection->t_pmax_restart) {
+				BGP_TIMER_OFF(peer->connection->t_pmax_restart);
 				if (bgp_debug_neighbor_events(peer))
 					zlog_debug(
 						"%s Maximum-prefix restart timer canceled",
@@ -8096,8 +8096,8 @@ static bool peer_maximum_prefix_clear_overflow(struct peer *peer)
 		return false;
 
 	UNSET_FLAG(peer->sflags, PEER_STATUS_PREFIX_OVERFLOW);
-	if (peer->t_pmax_restart) {
-		BGP_TIMER_OFF(peer->t_pmax_restart);
+	if (peer->connection->t_pmax_restart) {
+		BGP_TIMER_OFF(peer->connection->t_pmax_restart);
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s Maximum-prefix restart timer cancelled",
 				   peer->host);

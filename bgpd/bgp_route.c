@@ -4199,7 +4199,6 @@ static int bgp_maximum_prefix_restart_timer(struct thread *thread)
 	struct peer *peer;
 
 	peer = THREAD_ARG(thread);
-	peer->t_pmax_restart = NULL;
 
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug(
@@ -4321,7 +4320,7 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 					"%s Maximum-prefix restart timer started for %d secs",
 					peer->host, peer->v_pmax_restart);
 
-			BGP_TIMER_ON(peer->t_pmax_restart,
+			BGP_TIMER_ON(peer->connection->t_pmax_restart,
 				     bgp_maximum_prefix_restart_timer,
 				     peer->v_pmax_restart);
 		}

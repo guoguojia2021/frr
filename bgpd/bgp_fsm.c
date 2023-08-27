@@ -496,7 +496,7 @@ void bgp_timer_set(struct peer *peer)
 		FOREACH_AFI_SAFI (afi, safi)
 			BGP_TIMER_OFF(peer->t_llgr_stale[afi][safi]);
 
-		BGP_TIMER_OFF(peer->t_pmax_restart);
+		BGP_TIMER_OFF(peer->connection->t_pmax_restart);
 		BGP_TIMER_OFF(peer->t_refresh_stalepath);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 	/* fallthru */
