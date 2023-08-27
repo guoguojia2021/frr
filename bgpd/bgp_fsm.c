@@ -490,8 +490,8 @@ void bgp_timer_set(struct peer *peer)
 		}
 		break;
 	case Deleted:
-		BGP_TIMER_OFF(peer->t_gr_restart);
-		BGP_TIMER_OFF(peer->t_gr_stale);
+		BGP_TIMER_OFF(peer->connection->t_gr_restart);
+		BGP_TIMER_OFF(peer->connection->t_gr_stale);
 
 		FOREACH_AFI_SAFI (afi, safi)
 			BGP_TIMER_OFF(peer->t_llgr_stale[afi][safi]);
@@ -707,7 +707,7 @@ static void bgp_graceful_restart_timer_off(struct peer *peer)
 			return;
 
 	UNSET_FLAG(peer->sflags, PEER_STATUS_NSF_WAIT);
-	BGP_TIMER_OFF(peer->t_gr_stale);
+	BGP_TIMER_OFF(peer->connection->t_gr_stale);
 
 	if (peer_dynamic_neighbor(peer) &&
 	    !(CHECK_FLAG(peer->flags, PEER_FLAG_DELETE))) {
@@ -1786,8 +1786,8 @@ int bgp_stop(struct peer_connection *connection)
 		}
 
 		/* graceful restart */
-		if (peer->t_gr_stale) {
-			BGP_TIMER_OFF(peer->t_gr_stale);
+		if (connection->t_gr_stale) {
+			BGP_TIMER_OFF(connection->t_gr_stale);
 			if (bgp_debug_neighbor_events(peer))
 				zlog_debug(
 					"%s graceful restart stalepath timer stopped",
@@ -1802,10 +1802,10 @@ int bgp_stop(struct peer_connection *connection)
 					"%s graceful restart stalepath timer started for %d sec",
 					peer->host, peer->bgp->stalepath_time);
 			}
-			BGP_TIMER_ON(peer->t_gr_restart,
+			BGP_TIMER_ON(connection->t_gr_restart,
 				     bgp_graceful_restart_timer_expire,
 				     peer->v_gr_restart);
-			BGP_TIMER_ON(peer->t_gr_stale,
+			BGP_TIMER_ON(connection->t_gr_stale,
 				     bgp_graceful_stale_timer_expire,
 				     peer->bgp->stalepath_time);
 		} else {
@@ -2594,8 +2594,8 @@ static int bgp_establish(struct peer_connection *connection)
 		SET_FLAG(peer->sflags, PEER_STATUS_NSF_MODE);
 	else {
 		UNSET_FLAG(peer->sflags, PEER_STATUS_NSF_MODE);
-		if (peer->t_gr_stale) {
-			BGP_TIMER_OFF(peer->t_gr_stale);
+		if (connection->t_gr_stale) {
+			BGP_TIMER_OFF(connection->t_gr_stale);
 			if (bgp_debug_neighbor_events(peer))
 				zlog_debug(
 					"%s graceful restart stalepath timer stopped",
@@ -2603,8 +2603,8 @@ static int bgp_establish(struct peer_connection *connection)
 		}
 	}
 
-	if (peer->t_gr_restart) {
-		BGP_TIMER_OFF(peer->t_gr_restart);
+	if (connection->t_gr_restart) {
+		BGP_TIMER_OFF(connection->t_gr_restart);
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s graceful restart timer stopped",
 				   peer->host);

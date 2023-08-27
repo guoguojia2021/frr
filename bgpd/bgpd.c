@@ -2534,14 +2534,14 @@ void peer_nsf_stop(struct peer *peer)
 	FOREACH_AFI_SAFI_NSF (afi, safi)
 		peer->nsf[afi][safi] = 0;
 
-	if (peer->t_gr_restart) {
-		BGP_TIMER_OFF(peer->t_gr_restart);
+	if (peer->connection->t_gr_restart) {
+		BGP_TIMER_OFF(peer->connection->t_gr_restart);
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s graceful restart timer stopped",
 				   peer->host);
 	}
-	if (peer->t_gr_stale) {
-		BGP_TIMER_OFF(peer->t_gr_stale);
+	if (peer->connection->t_gr_stale) {
+		BGP_TIMER_OFF(peer->connection->t_gr_stale);
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug(
 				"%s graceful restart stalepath timer stopped",
