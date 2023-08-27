@@ -178,7 +178,7 @@ static struct peer *peer_xfer_conn(struct peer *from_peer)
 	 * fd is set to -1. If blocked on lock then keepalive
 	 * thread can access peer pointer with fd -1.
 	 */
-	bgp_keepalives_off(from_peer);
+	bgp_keepalives_off(from_peer->connection);
 
 	BGP_TIMER_OFF(peer->connection->t_routeadv);
 	BGP_TIMER_OFF(peer->connection->t_connect);
@@ -382,7 +382,7 @@ void bgp_timer_set(struct peer_connection *connection)
 		}
 		BGP_TIMER_OFF(connection->t_connect);
 		BGP_TIMER_OFF(connection->t_holdtime);
-		bgp_keepalives_off(peer);
+		bgp_keepalives_off(connection);
 		BGP_TIMER_OFF(connection->t_routeadv);
 		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
@@ -402,7 +402,7 @@ void bgp_timer_set(struct peer_connection *connection)
 				     peer->v_connect);
 
 		BGP_TIMER_OFF(connection->t_holdtime);
-		bgp_keepalives_off(peer);
+		bgp_keepalives_off(connection);
 		BGP_TIMER_OFF(connection->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -427,7 +427,7 @@ void bgp_timer_set(struct peer_connection *connection)
 					     bgp_connect_timer, peer->v_connect);
 		}
 		BGP_TIMER_OFF(connection->t_holdtime);
-		bgp_keepalives_off(peer);
+		bgp_keepalives_off(connection);
 		BGP_TIMER_OFF(connection->t_routeadv);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
@@ -443,7 +443,7 @@ void bgp_timer_set(struct peer_connection *connection)
 		} else {
 			BGP_TIMER_OFF(connection->t_holdtime);
 		}
-		bgp_keepalives_off(peer);
+		bgp_keepalives_off(connection);
 		BGP_TIMER_OFF(connection->t_routeadv);
 		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
@@ -459,11 +459,11 @@ void bgp_timer_set(struct peer_connection *connection)
 		   timer and KeepAlive timers are not started. */
 		if (peer->v_holdtime == 0) {
 			BGP_TIMER_OFF(connection->t_holdtime);
-			bgp_keepalives_off(peer);
+			bgp_keepalives_off(connection);
 		} else {
 			BGP_TIMER_ON(connection->t_holdtime, bgp_holdtime_timer,
 				     peer->v_holdtime);
-			bgp_keepalives_on(peer);
+			bgp_keepalives_on(connection);
 		}
 		BGP_TIMER_OFF(connection->t_routeadv);
 		BGP_TIMER_OFF(connection->t_delayopen);
@@ -484,11 +484,11 @@ void bgp_timer_set(struct peer_connection *connection)
 		   and keepalive must be turned off. */
 		if (peer->v_holdtime == 0) {
 			BGP_TIMER_OFF(connection->t_holdtime);
-			bgp_keepalives_off(peer);
+			bgp_keepalives_off(connection);
 		} else {
 			BGP_TIMER_ON(connection->t_holdtime, bgp_holdtime_timer,
 				     peer->v_holdtime);
-			bgp_keepalives_on(peer);
+			bgp_keepalives_on(connection);
 		}
 		break;
 	case Deleted:
@@ -506,7 +506,7 @@ void bgp_timer_set(struct peer_connection *connection)
 		BGP_TIMER_OFF(connection->t_start);
 		BGP_TIMER_OFF(connection->t_connect);
 		BGP_TIMER_OFF(connection->t_holdtime);
-		bgp_keepalives_off(peer);
+		bgp_keepalives_off(connection);
 		BGP_TIMER_OFF(connection->t_routeadv);
 		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
@@ -1873,7 +1873,7 @@ int bgp_stop(struct peer_connection *connection)
 	}
 
 	/* stop keepalives */
-	bgp_keepalives_off(peer);
+	bgp_keepalives_off(connection);
 
 	/* Stop read and write threads. */
 	bgp_writes_off(connection);
@@ -2615,7 +2615,7 @@ static int bgp_establish(struct peer_connection *connection)
 
 	/* Reset uptime, turn on keepalives, send current table. */
 	if (!peer->v_holdtime)
-		bgp_keepalives_on(peer);
+		bgp_keepalives_on(connection);
 
 	peer->uptime = bgp_clock();
 
