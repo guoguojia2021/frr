@@ -348,8 +348,8 @@ static int bgp_accept(struct thread *thread)
 	int accept_sock;
 	union sockunion su;
 	struct bgp_listener *listener = THREAD_ARG(thread);
-	struct peer *peer;
-	struct peer *peer1;
+	struct peer *peer, *peer1;
+	struct peer_connection *connection, *connection1;
 	char buf[SU_ADDRSTRLEN];
 	struct bgp *bgp = NULL;
 
@@ -429,24 +429,25 @@ static int bgp_accept(struct thread *thread)
 	if (!peer1) {
 		peer1 = peer_lookup_dynamic_neighbor(bgp, &su);
 		if (peer1) {
+			connection1 = peer1->connection;
 			/* Dynamic neighbor has been created, let it proceed */
-			peer1->connection->fd = bgp_sock;
+			connection1->fd = bgp_sock;
 
 			/* Set the user configured MSS to TCP socket */
 			if (CHECK_FLAG(peer1->flags, PEER_FLAG_TCP_MSS))
 				sockopt_tcp_mss_set(bgp_sock, peer1->tcp_mss);
 
-			bgp_fsm_change_status(peer1->connection, Active);
+			bgp_fsm_change_status(connection1, Active);
 			BGP_TIMER_OFF(
-				peer1->connection->t_start); /* created in peer_create() */
+				connection1->t_start); /* created in peer_create() */
 
 			if (peer_active(peer1)) {
 				if (CHECK_FLAG(peer1->flags,
 					       PEER_FLAG_TIMER_DELAYOPEN))
-					BGP_EVENT_ADD(peer1->connection,
+					BGP_EVENT_ADD(connection1,
 						      TCP_connection_open_w_delay);
 				else
-					BGP_EVENT_ADD(peer1->connection,
+					BGP_EVENT_ADD(connection1,
 						      TCP_connection_open);
 			}
 
@@ -465,6 +466,7 @@ static int bgp_accept(struct thread *thread)
 		return -1;
 	}
 
+	connection1 = peer1->connection;
 	if (CHECK_FLAG(peer1->flags, PEER_FLAG_SHUTDOWN)
 	    || CHECK_FLAG(peer1->bgp->flags, BGP_FLAG_SHUTDOWN)) {
 		if (bgp_debug_neighbor_events(peer1))
@@ -492,8 +494,7 @@ static int bgp_accept(struct thread *thread)
 	 * Established and then the Clearing_Completed event is generated. Also,
 	 * block incoming connection in Deleted state.
 	 */
-	if (peer1->connection->status == Clearing ||
-	    peer1->connection->status == Deleted) {
+	if (connection1->status == Clearing || connection1->status == Deleted) {
 		if (bgp_debug_neighbor_events(peer1))
 			zlog_debug("[Event] Closing incoming conn for %s (%p) state %d",
 				   peer1->host, peer1,
@@ -527,8 +528,8 @@ static int bgp_accept(struct thread *thread)
 
 	if (bgp_debug_neighbor_events(peer1))
 		zlog_debug("[Event] connection from %s fd %d, active peer status %d fd %d",
-			   inet_sutop(&su, buf), bgp_sock,
-			   peer1->connection->status, peer1->connection->fd);
+			   inet_sutop(&su, buf), bgp_sock, connection1->status,
+			   connection1->fd);
 
 	if (peer1->doppelganger) {
 		/* We have an existing connection. Kill the existing one and run
@@ -556,6 +557,8 @@ static int bgp_accept(struct thread *thread)
 	hash_release(peer->bgp->peerhash, peer);
 	hash_get(peer->bgp->peerhash, peer, hash_alloc_intern);
 
+	connection = peer->connection;
+
 	peer_xfer_config(peer, peer1);
 	bgp_peer_gr_flags_update(peer);
 
@@ -575,17 +578,17 @@ static int bgp_accept(struct thread *thread)
 
 	peer->doppelganger = peer1;
 	peer1->doppelganger = peer;
-	peer->connection->fd = bgp_sock;
+	connection->fd = bgp_sock;
 	frr_with_privs(&bgpd_privs) {
 		vrf_bind(peer->bgp->vrf_id, bgp_sock, bgp_get_bound_name(peer));
 	}
 	bgp_peer_reg_with_nht(peer);
-	bgp_fsm_change_status(peer->connection, Active);
-	BGP_TIMER_OFF(peer->connection->t_start); /* created in peer_create() */
+	bgp_fsm_change_status(connection, Active);
+	BGP_TIMER_OFF(connection->t_start); /* created in peer_create() */
 
 	SET_FLAG(peer->sflags, PEER_STATUS_ACCEPT_PEER);
 	/* Make dummy peer until read Open packet. */
-	if (peer_established(peer1->connection) &&
+	if (peer_established(connection1) &&
 	    CHECK_FLAG(peer1->sflags, PEER_STATUS_NSF_MODE)) {
 		/* If we have an existing established connection with graceful
 		 * restart
@@ -600,15 +603,14 @@ static int bgp_accept(struct thread *thread)
 				  PEER_FLAG_GRACEFUL_RESTART_HELPER))
 			SET_FLAG(peer1->sflags, PEER_STATUS_NSF_WAIT);
 
-		bgp_event_update(peer1->connection, TCP_connection_closed);
+		bgp_event_update(connection1, TCP_connection_closed);
 	}
 
 	if (peer_active(peer)) {
 		if (CHECK_FLAG(peer->flags, PEER_FLAG_TIMER_DELAYOPEN))
-			BGP_EVENT_ADD(peer->connection,
-				      TCP_connection_open_w_delay);
+			BGP_EVENT_ADD(connection, TCP_connection_open_w_delay);
 		else
-			BGP_EVENT_ADD(peer->connection, TCP_connection_open);
+			BGP_EVENT_ADD(connection, TCP_connection_open);
 	}
 
 	/*
