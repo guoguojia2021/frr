@@ -79,7 +79,5 @@ RUN cd ~/frr && \
 
 RUN cd ~/frr && make check || true
 
-USER root:root
-
 COPY docker/ubuntu20-ci/docker-start /usr/sbin/docker-start
-ENTRYPOINT [ "bash", "/root/host-frr/tests/topotests/docker/inner/entrypoint.sh" ]
+CMD ["/usr/sbin/docker-start"]

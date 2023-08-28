@@ -128,7 +128,7 @@ def setup_module(mod):
     cmd2 = "sysctl -w net.ipv6.conf.default.seg6_enabled=1"
     cmd3 = "sysctl -w net.ipv6.conf.{}-eth0.seg6_enabled=1"
     cmd4 = "sysctl -w net.ipv6.conf.{}-eth1.seg6_enabled=1"
-    for rname, router in router_list.iteritems():
+    for rname, router in router_list.items():
         router.load_config(
             TopoRouter.RD_ZEBRA,
             os.path.join(CWD, '{}/zebra.conf'.format(rname))

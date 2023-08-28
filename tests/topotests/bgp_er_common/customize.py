@@ -72,7 +72,6 @@ from lib.common_config import (
     required_linux_kernel_version,
 )
 # Required to instantiate the topology builder class.
-from mininet.topo import Topo
 
 import shutil
 
@@ -83,62 +82,56 @@ TEST = os.path.basename(CWD)
 LOOPBACK_1 = {
     "ipv4": "10.10.10.10/32",
     "ipv6": "1000::1000/128",
-    "ipv4_mask": "255.255.255.255",
-    "ipv6_mask": None,
+
 }
 LOOPBACK_2 = {
     "ipv4": "20.20.20.20/32",
     "ipv6": "2000::2000/128",
-    "ipv4_mask": "255.255.255.255",
-    "ipv6_mask": None,
 }
 
-class ThisTestTopo(Topo):
-    "Test topology builder"
+def build_topo(tgen):
+    "Build function"
+    tgen = get_topogen(self)
 
-    def build(self, *_args, **_opts):
-        "Build function"
-        tgen = get_topogen(self)
+    # This function only purpose is to define allocation and relationship
+    # between routers, switches and hosts.
+    #
+    # Create P/PE routers
+    for routern in range(1, 3):
+        tgen.add_router("r{}".format(routern))
+    # Create CE routers
+    for routern in range(1, 5):
+        tgen.add_router("ce{}".format(routern))
 
-        # This function only purpose is to define allocation and relationship
-        # between routers, switches and hosts.
-        #
-        # Create P/PE routers
-        for routern in range(1, 3):
-            tgen.add_router("r{}".format(routern))
-        # Create CE routers
-        for routern in range(1, 5):
-            tgen.add_router("ce{}".format(routern))
+    # CE/PE links
+    tgen.add_link(tgen.gears["ce1"], tgen.gears["r1"], "ce1-eth0", "r1-eth3")
+    tgen.add_link(tgen.gears["ce2"], tgen.gears["r1"], "ce2-eth0", "r1-eth4")
+    tgen.add_link(tgen.gears["ce3"], tgen.gears["r2"], "ce3-eth0", "r2-eth3")
+    tgen.add_link(tgen.gears["ce4"], tgen.gears["r2"], "ce4-eth0", "r2-eth4")
 
-        # CE/PE links
-        tgen.add_link(tgen.gears["ce1"], tgen.gears["r1"], "ce1-eth0", "r1-eth3")
-        tgen.add_link(tgen.gears["ce2"], tgen.gears["r1"], "ce2-eth0", "r1-eth4")
-        tgen.add_link(tgen.gears["ce3"], tgen.gears["r2"], "ce3-eth0", "r2-eth3")
-        tgen.add_link(tgen.gears["ce4"], tgen.gears["r2"], "ce4-eth0", "r2-eth4")
+    # Create a switch with just one router connected to it to simulate a
+    # empty network.
+    switch = {}
+    switch[0] = tgen.add_switch("sw0")
+    switch[0].add_link(tgen.gears["r1"], nodeif="r1-eth0")
+    switch[0].add_link(tgen.gears["r2"], nodeif="r2-eth0")
 
-        # Create a switch with just one router connected to it to simulate a
-        # empty network.
-        switch = {}
-        switch[0] = tgen.add_switch("sw0")
-        switch[0].add_link(tgen.gears["r1"], nodeif="r1-eth0")
-        switch[0].add_link(tgen.gears["r2"], nodeif="r2-eth0")
+    switch[1] = tgen.add_switch("sw1")
+    switch[1].add_link(tgen.gears["r1"], nodeif="r1-eth1")
+    switch[1].add_link(tgen.gears["r2"], nodeif="r2-eth1")
 
-        switch[1] = tgen.add_switch("sw1")
-        switch[1].add_link(tgen.gears["r1"], nodeif="r1-eth1")
-        switch[1].add_link(tgen.gears["r2"], nodeif="r2-eth1")
-
-        switch[2] = tgen.add_switch("sw2")
-        peer1 = tgen.add_exabgp_peer(
-            "peer1", ip="100.0.1.101", defaultRoute="via 100.0.1.1"
-        )
-        switch[2].add_link(peer1)
-        switch[2].add_link(tgen.gears["ce1"], nodeif="ce1-eth1")
-        switch[3] = tgen.add_switch("sw3")
-        peer2 = tgen.add_exabgp_peer(
-            "peer2", ip="100.0.2.102", defaultRoute="via 100.0.2.1"
-        )
-        switch[3].add_link(peer2)
-        switch[3].add_link(tgen.gears["ce2"], nodeif="ce2-eth1")
+    switch[2] = tgen.add_switch("sw2")
+    peer1 = tgen.add_exabgp_peer(
+        "peer1", ip="100.0.1.101", defaultRoute="via 100.0.1.1"
+    )
+    switch[2].add_link(peer1)
+    switch[2].add_link(tgen.gears["ce1"], nodeif="ce1-eth1")
+    switch[3] = tgen.add_switch("sw3")
+    peer2 = tgen.add_exabgp_peer(
+        "peer2", ip="100.0.2.102", defaultRoute="via 100.0.2.1"
+    )
+    switch[3].add_link(peer2)
+    switch[3].add_link(tgen.gears["ce2"], nodeif="ce2-eth1")
 
 def ltemplatePreRouterStartHook():
     cc = ltemplateRtrCmd()
@@ -146,10 +139,6 @@ def ltemplatePreRouterStartHook():
     tgen = get_topogen()
     logger.info("pre router-start hook, kernel=" + krel)
 
-    # check for normal init
-    if len(tgen.net) == 1:
-        logger.info("Topology not configured, skipping setup")
-        return False
     # trace errors/unexpected output
     cc.resetCounts()
     # configure cust1 VRFs 
@@ -185,7 +174,6 @@ def ltemplatePreRouterStartHook():
             "loopback1",
             LOOPBACK_1[addr_type],
             "None",
-            LOOPBACK_1["{}_mask".format(addr_type)],
         )
 
         create_interface_in_kernel(
@@ -194,7 +182,6 @@ def ltemplatePreRouterStartHook():
             "loopback1",
             LOOPBACK_2[addr_type],
             "None",
-            LOOPBACK_2["{}_mask".format(addr_type)],
         )
 
     if cc.getOutput() != 0:

@@ -79,9 +79,6 @@ from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
 from lib.ltemplate import ltemplateRtrCmd
 
-# Required to instantiate the topology builder class.
-from mininet.topo import Topo
-
 import shutil
 
 CWD = os.path.dirname(os.path.realpath(__file__))
