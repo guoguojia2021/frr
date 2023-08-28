@@ -2697,6 +2697,7 @@ static int bgp_tracking_delay_timer(struct thread *thread)
 {
 	struct peer *peer;
 
+void bgp_fsm_nht_update(struct peer_connection *connection, bool has_valid_nexthops)
 	peer = THREAD_ARG(thread);
 
 	if (bgp_debug_neighbor_events(peer))
@@ -2716,27 +2717,25 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	if (!peer)
 		return;
 
-	connection = peer->connection;
-
-	switch (peer->connection->status) {
+	switch (connection->status) {
 	case Idle:
 		if (has_valid_nexthops) {
 			if (!peer->connection->t_start)
-				BGP_TIMER_ON(peer->connection->t_start, bgp_start_timer,
+				BGP_TIMER_ON(connection->t_start, bgp_start_timer,
 					     peer->v_start);
 			//BGP_EVENT_ADD(peer, BGP_Start);
 		}
 		break;
 	case Connect:
 		if (!has_valid_nexthops) {
-			BGP_TIMER_OFF(peer->connection->t_connect);
-			BGP_EVENT_ADD(peer->connection, TCP_fatal_error);
+			BGP_TIMER_OFF(connection->t_connect);
+			BGP_EVENT_ADD(connection, TCP_fatal_error);
 		}
 		break;
 	case Active:
 		if (has_valid_nexthops) {
-			BGP_TIMER_OFF(peer->connection->t_connect);
-			BGP_TIMER_ON(peer->connection->t_connect, bgp_connect_timer,
+			BGP_TIMER_OFF(connection->t_connect);
+			BGP_TIMER_ON(connection->t_connect, bgp_connect_timer,
 					     peer->v_start);
 			//BGP_EVENT_ADD(peer, ConnectRetry_timer_expired);
 		}
@@ -2746,14 +2745,14 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	case Established:
 		if (!has_valid_nexthops) {
 			if (peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED || peer->bgp->fast_convergence)
-				BGP_EVENT_ADD(peer->connection, TCP_fatal_error);
+				BGP_EVENT_ADD(connection, TCP_fatal_error);
 			else if (peer->tracking_delay && !peer->t_advertise_delay) {
 				/* Start the update-delay timer */
 				thread_add_timer(bm->master, bgp_tracking_delay_timer, peer,
 						peer->tracking_delay, &peer->t_tracking_delay);
 			}
 			else if (CHECK_FLAG(peer->flags, PEER_FLAG_TRACKING))
-				BGP_EVENT_ADD(peer->connection, TCP_fatal_error);
+				BGP_EVENT_ADD(connection, TCP_fatal_error);
 		}
 	case Clearing:
 	case Deleted:
