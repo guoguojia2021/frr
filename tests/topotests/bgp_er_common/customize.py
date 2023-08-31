@@ -90,8 +90,6 @@ LOOPBACK_2 = {
 }
 
 def build_topo(tgen):
-    "Build function"
-    tgen = get_topogen(self)
 
     # This function only purpose is to define allocation and relationship
     # between routers, switches and hosts.
