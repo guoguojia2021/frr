@@ -397,6 +397,8 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(A, "frr-bgp-route-map:rmac"))
 #define IS_SET_VNI(A)                                                       \
 	(strmatch(A, "frr-bgp-route-map:vni"))
+#define IS_SET_ZEBRA_KERNEL_BYPASS(A)                              \
+	(strmatch(A, "frr-zebra-route-map:kernel-bypass"))
 
 enum ecommunity_lb_type {
 	EXPLICIT_BANDWIDTH,
