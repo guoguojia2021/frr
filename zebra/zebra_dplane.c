@@ -118,9 +118,6 @@ struct dplane_route_info {
 	int zd_type;
 	int zd_old_type;
 
-	int zd_flag;
-	int zd_old_flag;
-
 	route_tag_t zd_tag;
 	route_tag_t zd_old_tag;
 	uint32_t zd_metric;
@@ -134,6 +131,9 @@ struct dplane_route_info {
 
 	uint32_t zd_mtu;
 	uint32_t zd_nexthop_mtu;
+
+	uint32_t zd_flags;
+	uint32_t zd_old_flags;
 
 	/* Nexthop hash entry info */
 	struct dplane_nexthop_info nhe;
@@ -1244,20 +1244,6 @@ int dplane_ctx_get_old_type(const struct zebra_dplane_ctx *ctx)
 	return ctx->u.rinfo.zd_old_type;
 }
 
-int dplane_ctx_get_flag(const struct zebra_dplane_ctx *ctx)
-{
-	DPLANE_CTX_VALID(ctx);
-
-	return ctx->u.rinfo.zd_flag;
-}
-
-int dplane_ctx_get_old_flag(const struct zebra_dplane_ctx *ctx)
-{
-	DPLANE_CTX_VALID(ctx);
-
-	return ctx->u.rinfo.zd_old_flag;
-}
-
 void dplane_ctx_set_afi(struct zebra_dplane_ctx *ctx, afi_t afi)
 {
 	DPLANE_CTX_VALID(ctx);
@@ -1340,6 +1326,34 @@ uint16_t dplane_ctx_get_old_instance(const struct zebra_dplane_ctx *ctx)
 	DPLANE_CTX_VALID(ctx);
 
 	return ctx->u.rinfo.zd_old_instance;
+}
+
+uint32_t dplane_ctx_get_flags(const struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	return ctx->u.rinfo.zd_flags;
+}
+
+void dplane_ctx_set_flags(struct zebra_dplane_ctx *ctx, uint32_t flags)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	ctx->u.rinfo.zd_flags = flags;
+}
+
+int dplane_ctx_get_old_flags(const struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	return ctx->u.rinfo.zd_old_flags;
+}
+
+void dplane_ctx_set_old_flags(struct zebra_dplane_ctx *ctx, uint32_t flags)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	ctx->u.rinfo.zd_old_flags = flags;
 }
 
 uint32_t dplane_ctx_get_metric(const struct zebra_dplane_ctx *ctx)
@@ -2389,6 +2403,7 @@ int dplane_ctx_route_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 
 	ctx->zd_table_id = re->table;
 
+	ctx->u.rinfo.zd_flags = re->flags;
 	ctx->u.rinfo.zd_metric = re->metric;
 	ctx->u.rinfo.zd_old_metric = re->metric;
 	ctx->zd_vrf_id = re->vrf_id;
@@ -2536,7 +2551,7 @@ int dplane_ctx_nexthop_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	nh = nhe->nhg.nexthop;
 
 	if (nh->nh_srv6)
-		SET_FLAG(ctx->u.rinfo.zd_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
+		dplane_ctx_set_flags(ctx, ZEBRA_FLAG_KERNEL_BYPASS);
 
 	nexthop_group_copy(&(ctx->u.rinfo.nhe.ng), &(nhe->nhg));
 
@@ -3053,22 +3068,24 @@ dplane_route_update_internal(struct route_node *rn,
 		nexthop = re->nhe->nhg.nexthop;
 		if ((nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
-			SET_FLAG(ctx->u.rinfo.zd_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
+			dplane_ctx_set_flags(ctx, ZEBRA_FLAG_KERNEL_BYPASS);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.
 		 */
+
 		if ((op == DPLANE_OP_ROUTE_UPDATE) &&
 		    old_re && (old_re != re)) {
 			old_nexthop = old_re->nhe->nhg.nexthop;
+			/* Assign ZEBRA_FLAG_KERNEL_BYPASS to dplane route info */
+			ctx->u.rinfo.zd_old_flags = old_re->flags;
 			if ((old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 				|| CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
-				SET_FLAG(ctx->u.rinfo.zd_old_flag, DPLANE_RINFO_FLAG_NO_KERNEL);
+				dplane_ctx_set_old_flags(ctx, ZEBRA_FLAG_KERNEL_BYPASS);
 			ctx->zd_is_update = true;
 
 			old_re->dplane_sequence =
 				zebra_router_get_next_sequence();
 			ctx->zd_old_seq = old_re->dplane_sequence;
-
 			ctx->u.rinfo.zd_old_tag = old_re->tag;
 			ctx->u.rinfo.zd_old_type = old_re->type;
 			ctx->u.rinfo.zd_old_instance = old_re->instance;

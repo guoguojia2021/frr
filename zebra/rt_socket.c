@@ -321,18 +321,30 @@ enum zebra_dplane_result kernel_route_update(struct zebra_dplane_ctx *ctx)
 
 	type = dplane_ctx_get_type(ctx);
 	old_type = dplane_ctx_get_old_type(ctx);
-	flag = dplane_ctx_get_flag(ctx);
-	old_flag = dplane_ctx_get_old_flag(ctx);
 
+	flag = dplane_ctx_get_flags(ctx);
+	old_flag = dplane_ctx_get_old_flags(ctx);
 	frr_with_privs(&zserv_privs) {
+		/* If new route is set kernel-bypass,we just return success
+		 * unless old route is not kernel-bypass when update operation.
+		 */
+		if (!CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)) {
+			if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_UPDATE &&
+			    !CHECK_FLAG(old_flag, ZEBRA_FLAG_KERNEL_BYPASS) &&
+						!RSYSTEM_ROUTE(old_type))
+				kernel_rtm(RTM_DELETE, dplane_ctx_get_dest(ctx),
+					   dplane_ctx_get_old_ng(ctx),
+					   dplane_ctx_get_old_metric(ctx));
+			continue;
+		}
 
 		if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_DELETE) {
-			if (!RSYSTEM_ROUTE(type) && !CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL))
+			if (!RSYSTEM_ROUTE(type))
 				kernel_rtm(RTM_DELETE, dplane_ctx_get_dest(ctx),
 					   dplane_ctx_get_ng(ctx),
 					   dplane_ctx_get_metric(ctx));
 		} else if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_INSTALL) {
-			if (!RSYSTEM_ROUTE(type) && !CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL))
+			if (!RSYSTEM_ROUTE(type))
 				kernel_rtm(RTM_ADD, dplane_ctx_get_dest(ctx),
 					   dplane_ctx_get_ng(ctx),
 					   dplane_ctx_get_metric(ctx));
@@ -340,12 +352,12 @@ enum zebra_dplane_result kernel_route_update(struct zebra_dplane_ctx *ctx)
 			/* Must do delete and add separately -
 			 * no update available
 			 */
-			if (!RSYSTEM_ROUTE(old_type) && !CHECK_FLAG(old_flag, DPLANE_RINFO_FLAG_NO_KERNEL))
+			if (!RSYSTEM_ROUTE(old_type))
 				kernel_rtm(RTM_DELETE, dplane_ctx_get_dest(ctx),
 					   dplane_ctx_get_old_ng(ctx),
 					   dplane_ctx_get_old_metric(ctx));
 
-			if (!RSYSTEM_ROUTE(type) && !CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL))
+			if (!RSYSTEM_ROUTE(type))
 				kernel_rtm(RTM_ADD, dplane_ctx_get_dest(ctx),
 					   dplane_ctx_get_ng(ctx),
 					   dplane_ctx_get_metric(ctx));

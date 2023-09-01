@@ -2436,7 +2436,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 	int type = dplane_ctx_get_nhe_type(ctx);
 	struct rtattr *nest;
 	uint16_t encap;
-	int32_t flag;
+	uint32_t flag;
 
 	if (!id) {
 		flog_err(
@@ -2465,9 +2465,9 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 		return 0;
 	}
 
-	flag = dplane_ctx_get_flag(ctx);
+	flag = dplane_ctx_get_flags(ctx);
 
-	if (CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL)) {
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)) {
 		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
 			zlog_debug(
 				"%s: nhg_id %u (%s): this nexthops no need to install kernel, ignoring",
@@ -2785,9 +2785,21 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 	const struct prefix *p = dplane_ctx_get_dest(ctx);
 	uint32_t flag, old_flag;
 
-	flag = dplane_ctx_get_flag(ctx);
-	old_flag = dplane_ctx_get_old_flag(ctx);
+	flag = dplane_ctx_get_flags(ctx);
+	old_flag = dplane_ctx_get_old_flags(ctx);
 
+	/* If new route is set kernel-bypass,we just return success
+	 *  unless old route is not kernel-bypass when update operation .
+	 */
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)) {
+		if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_UPDATE &&
+		    !CHECK_FLAG(old_flag, ZEBRA_FLAG_KERNEL_BYPASS) &&
+					!RSYSTEM_ROUTE(dplane_ctx_get_old_type(ctx)))
+			netlink_batch_add_msg(bth, ctx,
+					      netlink_delroute_msg_encoder,
+					      true);
+		return FRR_NETLINK_SUCCESS;
+	}
 	if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_DELETE) {
 		cmd = RTM_DELROUTE;
 	} else if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_INSTALL) {
@@ -2795,8 +2807,7 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 	} else if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_UPDATE) {
 
 		if ((p->family == AF_INET || v6_rr_semantics) &&
-		    (!RSYSTEM_ROUTE(dplane_ctx_get_type(ctx))) &&
-		    (!CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL))) {
+		    (!RSYSTEM_ROUTE(dplane_ctx_get_type(ctx)))) {
 			/* Single 'replace' operation */
 
 			/*
@@ -2825,7 +2836,7 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 			 * of the route delete.  If that happens yeah we're
 			 * screwed.
 			 */
-			if (!RSYSTEM_ROUTE(dplane_ctx_get_old_type(ctx)) && !CHECK_FLAG(old_flag, DPLANE_RINFO_FLAG_NO_KERNEL))
+			if (!RSYSTEM_ROUTE(dplane_ctx_get_old_type(ctx)))
 				netlink_batch_add_msg(
 					bth, ctx, netlink_delroute_msg_encoder,
 					true);
@@ -2835,7 +2846,7 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 	} else
 		return FRR_NETLINK_ERROR;
 
-	if (RSYSTEM_ROUTE(dplane_ctx_get_type(ctx)) || CHECK_FLAG(flag, DPLANE_RINFO_FLAG_NO_KERNEL))
+	if (RSYSTEM_ROUTE(dplane_ctx_get_type(ctx)))
 		return FRR_NETLINK_SUCCESS;
 
 	return netlink_batch_add_msg(bth, ctx,

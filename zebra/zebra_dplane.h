@@ -183,7 +183,6 @@ enum dplane_op_e {
 	DPLANE_OP_INTF_ADDR_ADD,
 	DPLANE_OP_INTF_ADDR_DEL,
 };
-#define DPLANE_RINFO_FLAG_NO_KERNEL  0x01
 
 /*
  * The vxlan/evpn neighbor management code needs some values to use
@@ -927,6 +926,10 @@ void zebra_dplane_start(void);
 void zebra_dplane_pre_finish(void);
 void zebra_dplane_finish(void);
 void zebra_dplane_shutdown(void);
+uint32_t dplane_ctx_get_flags(const struct zebra_dplane_ctx *ctx);
+void dplane_ctx_set_flags(struct zebra_dplane_ctx *ctx, uint32_t flags);
+int dplane_ctx_get_old_flags(const struct zebra_dplane_ctx *ctx);
+void dplane_ctx_set_old_flags(struct zebra_dplane_ctx *ctx, uint32_t flags);
 
 #ifdef __cplusplus
 }

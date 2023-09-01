@@ -1492,7 +1492,7 @@ route_set_kernel_bypass(void *rule, const struct prefix *prefix,
 
 	rm_data = (struct zebra_rmap_obj *)object;
 	SET_FLAG(rm_data->re->flags, ZEBRA_FLAG_KERNEL_BYPASS);
-	if (unlikely(IS_ZEBRA_DEBUG_KERNEL)) {
+	if (IS_ZEBRA_DEBUG_KERNEL) {
 		switch (rm_data->nexthop->type) {
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
 		case NEXTHOP_TYPE_IPV4:
