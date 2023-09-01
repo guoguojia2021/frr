@@ -321,6 +321,10 @@ Route Map Set Command
    Policy is uniquely determined by the color and the BGP nexthop.
 
 
+.. clicmd:: set kernel-bypass
+
+   Set route not to be installed in kernel. Only support mount to Zebra.
+
 .. _route-map-call-command:
 
 Route Map Call Command
