@@ -565,8 +565,15 @@ struct zapi_route {
  */
 #define ZEBRA_FLAG_OFFLOAD_FAILED     0x200
 
+
 #define ZEBRA_FLAG_BACKUP_SELECTED    0x400
 #define ZEBRA_FLAG_LOCAL_SID_ROUTE    0x800
+/*
+ * This flag lets us know that the route entry is set to bypass
+ * kernel for some reason (e.g. route-map, etc)
+ */
+#define ZEBRA_FLAG_KERNEL_BYPASS      0x1000
+
 	/* The older XXX_MESSAGE flags live here */
 	uint32_t message;
 
