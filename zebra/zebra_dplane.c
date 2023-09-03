@@ -3368,6 +3368,9 @@ enum zebra_dplane_result dplane_nexthop_add(struct nhg_hash_entry *nhe)
 {
 	enum zebra_dplane_result ret = ZEBRA_DPLANE_REQUEST_FAILURE;
 
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_BYPASS_KERNEL))
+		return ZEBRA_DPLANE_REQUEST_SUCCESS;
+
 	if (nhe)
 		ret = dplane_nexthop_update_internal(nhe, DPLANE_OP_NH_INSTALL);
 	return ret;
