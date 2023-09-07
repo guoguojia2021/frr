@@ -4014,7 +4014,6 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 			}
 		}
 	} else if (CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AS_OVERWRITE))) {
-		/* Ìí¼Ó±¾µØas */
 		aspath = aspath_empty_get();
 		aspath = aspath_add_seq(aspath, peer->local_as);
 	} else if (peer->sort == BGP_PEER_CONFED) {

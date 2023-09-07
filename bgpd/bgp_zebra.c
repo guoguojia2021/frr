@@ -3926,7 +3926,7 @@ int bgp_zebra_srv6_manager_get_locator_sid(const char *name)
 	return srv6_manager_get_locator_sid(zclient, name);
 }
 
-int bgp_zebra_srv6_manager_get_locator_all()
+int bgp_zebra_srv6_manager_get_locator_all(void)
 {
 	return srv6_manager_get_locator_all(zclient);
 }

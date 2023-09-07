@@ -231,7 +231,7 @@ const char *seg6local_context2str(char *str, size_t size,
 
 int snprintf_seg6_segs(char *str,
 		size_t size, const struct seg6_segs *segs);
-extern struct srv6_locator *srv6_locator_new();
+extern struct srv6_locator *srv6_locator_new(void);
 extern void srv6_locator_del(struct srv6_locator *locator);
 
 extern struct srv6_locator *srv6_locator_alloc(const char *name);

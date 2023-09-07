@@ -79,6 +79,81 @@ static struct cmd_node srv6_loc_node = {
 	.prompt = "%s(config-srv6-locator)# "
 };
 
+static bool seg6local_act_contain_sidact(enum seg6local_action_t action,
+	enum seg6local_action_t sidaction)
+{
+	switch (action) {
+	case ZEBRA_SEG6_LOCAL_ACTION_END:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_X:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_T:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DX2:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DX6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DX4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_B6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_BM:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_S:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_AS:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_AM:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UN:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UA:
+		if (action == sidaction)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT46:
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT4
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT6)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT46)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT4:
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT4
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT46)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DT6:
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT46
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT6:
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT46
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT6)
+			return true;
+		break;
+	default:
+		return false;
+	}
+	return false;
+}
+static struct seg6_sid *sid_lookup_by_vrf_action(struct srv6_locator *loc,
+	const char *vrfname, enum seg6local_action_t sidaction)
+{
+	struct seg6_sid *sid = NULL;
+	struct listnode *node, *nnode;
+
+	if (!vrfname)
+		return NULL;
+
+	for (ALL_LIST_ELEMENTS(loc->sids, node, nnode, sid)) {
+		if (strcmp(sid->vrfName, vrfname) == 0
+			&& seg6local_act_contain_sidact(sid->sidaction, sidaction))
+			return sid;
+	}
+	return NULL;
+}
+
 DEFUN (show_srv6_tunnel,
        show_srv6_tunnel_cmd,
        "show srv6 tunnel [detail]",
@@ -516,7 +591,11 @@ DEFPY (locator_prefix,
             return CMD_WARNING;
         }
     }
-
+	sid = sid_lookup_by_vrf_action(locator, vrfName, sidaction);
+	if (sid) {
+		vty_out(vty, "VRF %s is already exist,please delete it first. \n",vrfName);
+		return CMD_WARNING;
+	}
 	sid = srv6_locator_sid_alloc();
 	sid->sidaction = sidaction;
 

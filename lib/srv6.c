@@ -145,7 +145,7 @@ const char *seg6local_context2str(char *str, size_t size,
 	}
 }
 
-struct srv6_locator *srv6_locator_new()
+struct srv6_locator *srv6_locator_new(void)
 {
 	struct srv6_locator *locator = NULL;
 	locator = XCALLOC(MTYPE_SRV6_LOCATOR, sizeof(struct srv6_locator));
