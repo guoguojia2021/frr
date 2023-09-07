@@ -957,6 +957,8 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 
 		if (nh_valid)
 			bgp_path_info_set_flag(bn, bpi, BGP_PATH_VALID);
+		else
+			bgp_path_info_unset_flag(bn, bpi, BGP_PATH_VALID);
 
 		/* Process change. */
 		bgp_aggregate_increment(bgp, p, bpi, afi, safi);
@@ -1088,6 +1090,8 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 			bgp_nexthop->name_pretty);
 	if (nh_valid)
 		bgp_path_info_set_flag(bn, new, BGP_PATH_VALID);
+	else
+		bgp_path_info_unset_flag(bn, new, BGP_PATH_VALID);
 
 	bgp_aggregate_increment(bgp, p, new, afi, safi);
 	bgp_path_info_add(bn, new);
