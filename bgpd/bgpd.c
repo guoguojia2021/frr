@@ -1349,7 +1349,49 @@ struct srv6_locator *locator_lookup_by_name(struct hash *hash, const char *name)
 	return loc;
 }
 
-struct seg6_sid *sid_lookup_by_vrf(void *p, const char *vrfname)
+static bool sidaction_check(enum seg6local_action_t action, afi_t afi)
+{
+	if (afi != AFI_IP && afi != AFI_IP6)
+		return false;
+
+	switch (action) {
+	case ZEBRA_SEG6_LOCAL_ACTION_END:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_X:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_T:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DX2:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DX6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DX4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_B6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_BM:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_S:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_AS:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_AM:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX6:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDX4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UN:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UA:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT46:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT4:
+	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT6:
+		return false;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
+		return true;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
+		if (afi == AFI_IP)
+			return true;
+		break;
+	case ZEBRA_SEG6_LOCAL_ACTION_END_DT6:
+		if (afi == AFI_IP6)
+			return true;
+		break;
+	default:
+		return false;
+	}
+	return false;
+}
+
+struct seg6_sid *sid_lookup_by_vrf(void *p, const char *vrfname, afi_t afi)
 {
     struct srv6_locator *loc = (struct srv6_locator *)p;
     struct seg6_sid *sid = NULL;
@@ -1359,7 +1401,7 @@ struct seg6_sid *sid_lookup_by_vrf(void *p, const char *vrfname)
 		return NULL;
 
     for (ALL_LIST_ELEMENTS(loc->sids, node, nnode, sid)) {
-        if (strcmp(sid->vrfName, vrfname) == 0)
+        if (strcmp(sid->vrfName, vrfname) == 0 && sidaction_check(sid->sidaction, afi))
             return sid;
     }
     return NULL;

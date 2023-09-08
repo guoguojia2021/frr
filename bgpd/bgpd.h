@@ -2615,7 +2615,7 @@ extern int bgp_lookup_by_as_name_type(struct bgp **bgp_val, as_t *as,
 				      const char *name,
 				      enum bgp_instance_type inst_type);
 extern struct srv6_locator *locator_lookup_by_name(struct hash *hash, const char *name);
-extern struct seg6_sid *sid_lookup_by_vrf(void *loc, const char *vrfname);
+extern struct seg6_sid *sid_lookup_by_vrf(void *loc, const char *vrfname, afi_t afi);
 
 /* Hooks */
 DECLARE_HOOK(bgp_vrf_status_changed, (struct bgp *bgp, struct interface *ifp),
