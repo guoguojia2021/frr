@@ -291,6 +291,8 @@ static void *updgrp_hash_alloc(void *p)
 	updgrp = XCALLOC(MTYPE_BGP_UPDGRP, sizeof(struct update_group));
 	memcpy(updgrp, in, sizeof(struct update_group));
 	updgrp->conf = XCALLOC(MTYPE_BGP_PEER, sizeof(struct peer));
+	updgrp->conf->connection = XCALLOC(MTYPE_BGP_PEER_CONNECTION,
+					   sizeof(struct peer_connection));
 	conf_copy(updgrp->conf, in->conf, in->afi, in->safi);
 	return updgrp;
 }
@@ -625,7 +627,7 @@ static bool updgrp_hash_cmp(const void *p1, const void *p2)
 	     || CHECK_FLAG(pe1->af_cap[afi][safi], PEER_CAP_ORF_PREFIX_SM_RCV)
 	     || CHECK_FLAG(pe1->af_cap[afi][safi],
 			   PEER_CAP_ORF_PREFIX_SM_OLD_RCV))
-	    && !sockunion_same(&pe1->su, &pe2->su))
+	    && !sockunion_same(&pe1->connection->su, &pe2->connection->su))
 		return false;
 
 	return true;
@@ -815,13 +817,18 @@ static struct update_group *update_group_find(struct peer_af *paf)
 	struct update_group *updgrp;
 	struct update_group tmp;
 	struct peer tmp_conf;
+	struct peer_connection tmp_connection;
 
 	if (!peer_established((PAF_PEER(paf))->connection))
 		return NULL;
 
 	memset(&tmp, 0, sizeof(tmp));
 	memset(&tmp_conf, 0, sizeof(tmp_conf));
+	memset(&tmp_connection, 0, sizeof(struct peer_connection));
+
 	tmp.conf = &tmp_conf;
+	tmp_conf.connection = &tmp_connection;
+
 	peer2_updgrp_copy(&tmp, paf);
 
 	updgrp = hash_lookup(paf->peer->bgp->update_groups[paf->afid], &tmp);
@@ -834,10 +841,14 @@ static struct update_group *update_group_create(struct peer_af *paf)
 	struct update_group *updgrp;
 	struct update_group tmp;
 	struct peer tmp_conf;
+	struct peer_connection tmp_connection;
 
 	memset(&tmp, 0, sizeof(tmp));
 	memset(&tmp_conf, 0, sizeof(tmp_conf));
+	memset(&tmp_connection, 0, sizeof(tmp_connection));
+
 	tmp.conf = &tmp_conf;
+	tmp_conf.connection = &tmp_connection;
 	peer2_updgrp_copy(&tmp, paf);
 
 	updgrp = hash_get(paf->peer->bgp->update_groups[paf->afid], &tmp,
@@ -869,6 +880,7 @@ static void update_group_delete(struct update_group *updgrp)
 
 	XFREE(MTYPE_BGP_PEER_IFNAME, updgrp->conf->ifname);
 
+	XFREE(MTYPE_BGP_PEER_CONNECTION, updgrp->conf->connection);
 	XFREE(MTYPE_BGP_PEER, updgrp->conf);
 	XFREE(MTYPE_BGP_UPDGRP, updgrp);
 }

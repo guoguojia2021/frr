@@ -126,8 +126,7 @@
 /*
  * Update FSM for peer based on whether we have valid nexthops or not.
  */
-extern void bgp_fsm_nht_update(struct peer_connection *connection,
-			       struct peer *peer, bool has_valid_nexthops);
+extern void bgp_fsm_nht_update(struct peer_connection *connection, bool has_valid_nexthops);
 extern int bgp_event(struct thread *);
 extern int bgp_event_update(struct peer_connection *connection,
 			    enum bgp_fsm_events event);

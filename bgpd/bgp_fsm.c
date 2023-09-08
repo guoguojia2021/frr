@@ -107,9 +107,11 @@ int bgp_peer_reg_with_nht(struct peer *peer)
 	    && !CHECK_FLAG(peer->bgp->flags, BGP_FLAG_DISABLE_NH_CONNECTED_CHK))
 		connected = 1;
 
-	return bgp_find_or_add_nexthop(
-		peer->bgp, peer->bgp, family2afi(peer->su.sa.sa_family),
-		SAFI_UNICAST, NULL, peer, connected, NULL);
+	return bgp_find_or_add_nexthop(peer->bgp, peer->bgp,
+				       family2afi(
+					       peer->connection->su.sa.sa_family),
+				       SAFI_UNICAST, NULL, peer, connected,
+				       NULL);
 }
 
 static void bgp_peer_adv_lprio_t_off (struct peer *peer)
@@ -1918,7 +1920,7 @@ int bgp_stop(struct peer_connection *connection)
 		peer_delete(peer);
 		ret = -1;
 	} else {
-		bgp_peer_conf_if_to_su_update(peer);
+		bgp_peer_conf_if_to_su_update(connection);
 	}
 	return ret;
 }
@@ -1990,7 +1992,7 @@ static int bgp_connect_check(struct thread *thread)
 	int status;
 	socklen_t slen;
 	int ret;
-	struct peer_connection *connection = EVENT_ARG(thread);
+	struct peer_connection *connection = THREAD_ARG(thread);
 	struct peer *peer = connection->peer;
 
 	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_READS_ON));
@@ -1998,8 +2000,8 @@ static int bgp_connect_check(struct thread *thread)
 	assert(!connection->t_read);
 	assert(!connection->t_write);
 
-	EVENT_OFF(connection->t_connect_check_r);
-	EVENT_OFF(connection->t_connect_check_w);
+	THREAD_OFF(connection->t_connect_check_r);
+	THREAD_OFF(connection->t_connect_check_w);
 
 	/* Check file descriptor. */
 	slen = sizeof(status);
@@ -2147,9 +2149,9 @@ static int bgp_start(struct peer_connection *connection)
 	struct peer *peer = connection->peer;
 	int status;
 
-	bgp_peer_conf_if_to_su_update(peer);
+	bgp_peer_conf_if_to_su_update(connection);
 
-	if (peer->su.sa.sa_family == AF_UNSPEC) {
+	if (connection->su.sa.sa_family == AF_UNSPEC) {
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug(
 				"%s [FSM] Unable to get neighbor's IP address, waiting...",
@@ -2697,7 +2699,6 @@ static int bgp_tracking_delay_timer(struct thread *thread)
 {
 	struct peer *peer;
 
-void bgp_fsm_nht_update(struct peer_connection *connection, bool has_valid_nexthops)
 	peer = THREAD_ARG(thread);
 
 	if (bgp_debug_neighbor_events(peer))
@@ -2711,18 +2712,17 @@ void bgp_fsm_nht_update(struct peer_connection *connection, bool has_valid_nexth
 	return 0;
 }
 
-void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
+void bgp_fsm_nht_update(struct peer_connection *connection, bool has_valid_nexthops)
 {
-	struct peer_connection *connection = NULL;
-	if (!peer)
+	if (!connection)
 		return;
 
 	switch (connection->status) {
 	case Idle:
 		if (has_valid_nexthops) {
-			if (!peer->connection->t_start)
+			if (!connection->peer->connection->t_start)
 				BGP_TIMER_ON(connection->t_start, bgp_start_timer,
-					     peer->v_start);
+					     connection->peer->v_start);
 			//BGP_EVENT_ADD(peer, BGP_Start);
 		}
 		break;
@@ -2736,7 +2736,7 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 		if (has_valid_nexthops) {
 			BGP_TIMER_OFF(connection->t_connect);
 			BGP_TIMER_ON(connection->t_connect, bgp_connect_timer,
-					     peer->v_start);
+					     connection->peer->v_start);
 			//BGP_EVENT_ADD(peer, ConnectRetry_timer_expired);
 		}
 		break;
@@ -2744,14 +2744,14 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	case OpenConfirm:
 	case Established:
 		if (!has_valid_nexthops) {
-			if (peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED || peer->bgp->fast_convergence)
+			if (connection->peer->gtsm_hops == BGP_GTSM_HOPS_CONNECTED || connection->peer->bgp->fast_convergence)
 				BGP_EVENT_ADD(connection, TCP_fatal_error);
-			else if (peer->tracking_delay && !peer->t_advertise_delay) {
+			else if (connection->peer->tracking_delay && !connection->peer->t_advertise_delay) {
 				/* Start the update-delay timer */
-				thread_add_timer(bm->master, bgp_tracking_delay_timer, peer,
-						peer->tracking_delay, &peer->t_tracking_delay);
+				thread_add_timer(bm->master, bgp_tracking_delay_timer, connection->peer,
+						connection->peer->tracking_delay, &connection->peer->t_tracking_delay);
 			}
-			else if (CHECK_FLAG(peer->flags, PEER_FLAG_TRACKING))
+			else if (CHECK_FLAG(connection->peer->flags, PEER_FLAG_TRACKING))
 				BGP_EVENT_ADD(connection, TCP_fatal_error);
 		}
 	case Clearing:

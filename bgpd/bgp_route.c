@@ -10331,7 +10331,7 @@ void route_vty_out(struct vty *vty, const struct prefix *p,
 		char buf[BUFSIZ];
 		json_object_string_add(
 			json_path, "peerId",
-			sockunion2str(&path->peer->su, buf, SU_ADDRSTRLEN));
+			sockunion2str(&path->peer->connection->su, buf, SU_ADDRSTRLEN));
 	}
 
 	/* Print aspath */
@@ -10947,7 +10947,7 @@ static void route_vty_out_advertised_to(struct vty *vty, struct peer *peer,
 		else
 			json_object_object_add(
 				json_adv_to,
-				sockunion2str(&peer->su, buf1, SU_ADDRSTRLEN),
+				sockunion2str(&peer->connection->su, buf1, SU_ADDRSTRLEN),
 				json_peer);
 	} else {
 		if (*first) {
@@ -10962,14 +10962,14 @@ static void route_vty_out_advertised_to(struct vty *vty, struct peer *peer,
 					peer->conf_if);
 			else
 				vty_out(vty, " %s(%s)", peer->hostname,
-					sockunion2str(&peer->su, buf1,
+					sockunion2str(&peer->connection->su, buf1,
 						      SU_ADDRSTRLEN));
 		} else {
 			if (peer->conf_if)
 				vty_out(vty, " %s", peer->conf_if);
 			else
 				vty_out(vty, " %s",
-					sockunion2str(&peer->su, buf1,
+					sockunion2str(&peer->connection->su, buf1,
 						      SU_ADDRSTRLEN));
 		}
 	}
@@ -11409,7 +11409,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 
 		if (json_paths) {
 			json_object_string_add(json_peer, "peerId",
-					       sockunion2str(&path->peer->su,
+					       sockunion2str(&path->peer->connection->su,
 							     buf,
 							     SU_ADDRSTRLEN));
 			json_object_string_addf(json_peer, "routerId", "%pI4",
@@ -11446,7 +11446,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 						path->peer->host);
 				else
 					vty_out(vty, " from %s",
-						sockunion2str(&path->peer->su,
+						sockunion2str(&path->peer->connection->su,
 							      buf,
 							      SU_ADDRSTRLEN));
 			}
@@ -15763,8 +15763,8 @@ static int bgp_show_neighbor_route(struct vty *vty, struct peer *peer,
 	if (safi == SAFI_LABELED_UNICAST)
 		safi = SAFI_UNICAST;
 
-	return bgp_show(vty, peer->bgp, afi, safi, type, &peer->su, show_flags,
-			RPKI_NOT_BEING_USED);
+	return bgp_show(vty, peer->bgp, afi, safi, type, &peer->connection->su,
+			show_flags, RPKI_NOT_BEING_USED);
 }
 
 /*
@@ -16032,8 +16032,8 @@ uint8_t bgp_distance_apply(const struct prefix *p, struct bgp_path_info *pinfo,
 	/* Check source address.
 	 * Note: for aggregate route, peer can have unspec af type.
 	 */
-	if (pinfo->sub_type != BGP_ROUTE_AGGREGATE
-	    && !sockunion2hostprefix(&peer->su, &q))
+	if (pinfo->sub_type != BGP_ROUTE_AGGREGATE &&
+	    !sockunion2hostprefix(&peer->connection->su, &q))
 		return 0;
 
 	dest = bgp_node_match(bgp_distance_table[afi][safi], &q);
@@ -16511,7 +16511,7 @@ static void show_bgp_peerhash_entry(struct hash_bucket *bucket, void *arg)
        char buf[SU_ADDRSTRLEN];
 
        vty_out(vty, "\tPeer: %s %s\n", peer->host,
-	       sockunion2str(&peer->su, buf, sizeof(buf)));
+	       sockunion2str(&peer->connection->su, buf, sizeof(buf)));
 }
 
 DEFUN (show_bgp_listeners,

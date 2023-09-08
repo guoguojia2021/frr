@@ -157,13 +157,13 @@ void bgp_replace_nexthop_by_peer(struct peer *from, struct peer *to)
 	struct bgp_nexthop_cache *bncp, *bnct;
 	afi_t afi;
 
-	if (!sockunion2hostprefix(&from->su, &pp))
+	if (!sockunion2hostprefix(&from->connection->su, &pp))
 		return;
 
 	afi = family2afi(pp.family);
 	bncp = bnc_find(&from->bgp->nexthop_cache_table[afi], &pp, 0, 0);
 
-	if (!sockunion2hostprefix(&to->su, &pt))
+	if (!sockunion2hostprefix(&to->connection->su, &pt))
 		return;
 
 	bnct = bnc_find(&to->bgp->nexthop_cache_table[afi], &pt, 0, 0);
@@ -179,9 +179,9 @@ void bgp_unlink_nexthop_by_peer(struct peer *peer)
 {
 	struct prefix p;
 	struct bgp_nexthop_cache *bnc;
-	afi_t afi = family2afi(peer->su.sa.sa_family);
+	afi_t afi = family2afi(peer->connection->su.sa.sa_family);
 
-	if (!sockunion2hostprefix(&peer->su, &p))
+	if (!sockunion2hostprefix(&peer->connection->su, &p))
 		return;
 
 	bnc = bnc_find(&peer->bgp->nexthop_cache_table[afi], &p, 0, 0);
@@ -272,10 +272,10 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		 * tagged into this fun
 		 */
 		if (afi == AFI_IP6
-		    && IN6_IS_ADDR_LINKLOCAL(&peer->su.sin6.sin6_addr))
-			ifindex = peer->su.sin6.sin6_scope_id;
+		    && IN6_IS_ADDR_LINKLOCAL(&peer->connection->su.sin6.sin6_addr))
+			ifindex = peer->connection->su.sin6.sin6_scope_id;
 
-		if (!sockunion2hostprefix(&peer->su, &p)) {
+		if (!sockunion2hostprefix(&peer->connection->su, &p)) {
 			if (nht_debug_print) {
 				zlog_debug(
 					"%s: %s Attempting to register with unknown AFI %d (not %d or %d)",
@@ -512,7 +512,7 @@ void bgp_delete_connected_nexthop(afi_t afi, struct peer *peer)
 	if (!peer)
 		return;
 
-	if (!sockunion2hostprefix(&peer->su, &p))
+	if (!sockunion2hostprefix(&peer->connection->su, &p))
 		return;
 
 	bnc = bnc_find(&peer->bgp->nexthop_cache_table[family2afi(p.family)],
@@ -887,10 +887,10 @@ void bgp_nht_interface_events(struct peer *peer)
 	struct bgp_nexthop_cache *bnc;
 	struct prefix p;
 
-	if (!IN6_IS_ADDR_LINKLOCAL(&peer->su.sin6.sin6_addr))
+	if (!IN6_IS_ADDR_LINKLOCAL(&peer->connection->su.sin6.sin6_addr))
 		return;
 
-	if (!sockunion2hostprefix(&peer->su, &p))
+	if (!sockunion2hostprefix(&peer->connection->su, &p))
 		return;
 
 	table = &bgp->nexthop_cache_table[AFI_IP6];
@@ -1500,8 +1500,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 					__func__, peer->host,
 					peer->bgp->name_pretty,
 					!!valid_nexthops);
-			bgp_fsm_nht_update(peer->connection, peer,
-					   !!valid_nexthops);
+			bgp_fsm_nht_update(peer->connection, !!valid_nexthops);
 			SET_FLAG(bnc->flags, BGP_NEXTHOP_PEER_NOTIFIED);
 		}
 	}
@@ -1662,7 +1661,7 @@ void bgp_nht_reg_enhe_cap_intfs(struct peer *peer)
 		return;
 
 	bgp = peer->bgp;
-	if (!sockunion2hostprefix(&peer->su, &p)) {
+	if (!sockunion2hostprefix(&peer->connection->su, &p)) {
 		zlog_warn("%s: Unable to convert sockunion to prefix for %s",
 			  __func__, peer->host);
 		return;
@@ -1704,7 +1703,7 @@ void bgp_nht_dereg_enhe_cap_intfs(struct peer *peer)
 
 	bgp = peer->bgp;
 
-	if (!sockunion2hostprefix(&peer->su, &p)) {
+	if (!sockunion2hostprefix(&peer->connection->su, &p)) {
 		zlog_warn("%s: Unable to convert sockunion to prefix for %s",
 			  __func__, peer->host);
 		return;

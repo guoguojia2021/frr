@@ -71,7 +71,7 @@ extern void bgp_route_refresh_send(struct peer *peer, afi_t afi, safi_t safi,
 				   int remove, uint8_t subtype);
 extern void bgp_capability_send(struct peer *, afi_t, safi_t, int, int);
 
-extern int bgp_capability_receive(struct peer_connection *connection, bgp_size_t);
+extern int bgp_capability_receive(struct peer_connection *connection, struct peer *peer, bgp_size_t);
 
 extern int bgp_nlri_parse(struct peer *, struct attr *, struct bgp_nlri *,
 			  int mp_withdraw);
