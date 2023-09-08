@@ -27,6 +27,21 @@
 
 #include "bfdd_nb.h"
 
+static int dummy_create(struct nb_cb_create_args *args)
+{
+	return NB_OK;
+}
+
+static int dummy_modify(struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+static int dummy_destroy(struct nb_cb_destroy_args *args)
+{
+	return NB_OK;
+}
+
 /* clang-format off */
 const struct frr_yang_module_info frr_bfdd_info = {
 	.name = "frr-bfdd",
@@ -180,6 +195,13 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.cbs = {
 				.modify = bfdd_bfd_sessions_single_hop_echo_mode_modify,
 				.cli_show = bfd_cli_show_echo,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/single-hop/bfd-name",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_bfd_name_modify,
+				.destroy = dummy_destroy,
 			}
 		},
 		{
@@ -369,6 +391,13 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.cbs = {
 				.modify = bfdd_bfd_sessions_single_hop_passive_mode_modify,
 				.cli_show = bfd_cli_show_passive,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/bfd-name",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_bfd_name_modify,
+				.destroy = dummy_destroy,
 			}
 		},
 		{

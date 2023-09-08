@@ -267,6 +267,7 @@ static void bgp_peer_bfd_reset(struct peer *p)
 	p->bfd_config->min_tx = BFD_DEF_MIN_TX;
 	p->bfd_config->cbit = false;
 	p->bfd_config->profile[0] = 0;
+	p->bfd_config->bfd_name[0] = 0;
 }
 
 void bgp_peer_configure_bfd(struct peer *p, bool manual)

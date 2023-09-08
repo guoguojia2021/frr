@@ -24,7 +24,7 @@
 #include "lib/vxlan.h"
 #include "table.h"
 #include "memory.h"
-
+#include "bfd.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -154,6 +154,10 @@ struct static_nexthop {
 	uint32_t color;
 	vni_t nh_vni;
 	struct ethaddr nh_rmac;
+
+	/* bfd name*/
+	char bfd_name[BFD_NAME_SIZE + 1];
+	struct bfd_session_status bfd_status;
 };
 
 DECLARE_DLIST(static_nexthop_list, struct static_nexthop, list);
@@ -190,6 +194,7 @@ extern void static_install_intf_nh(struct interface *ifp);
 extern void static_ifindex_update(struct interface *ifp, bool up);
 
 extern void static_install_path(struct static_path *pn);
+extern void static_uninstall_path(struct static_path *pn);
 
 extern struct route_node *static_add_route(afi_t afi, safi_t safi,
 					   struct prefix *p,

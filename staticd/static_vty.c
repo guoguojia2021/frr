@@ -53,7 +53,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 			     const char *distance_str, const char *label_str,
 			     const char *table_str, bool onlink,
 			     const char *color_str, const char *nh_vni_str,
-                 const char *nh_rmac_str)
+                 const char *nh_rmac_str, const char *bfd_name)
 {
 	int ret;
 	struct prefix p, src;
@@ -309,6 +309,13 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 				nb_cli_enqueue_change(vty, ab_xpath,
 						      NB_OP_MODIFY, color_str);
 		}
+		/* bfd-name proccessing */
+		strlcpy(ab_xpath, xpath_nexthop, sizeof(ab_xpath));
+		strlcat(ab_xpath, FRR_STATIC_ROUTE_NH_BFD_NAME_XPATH,sizeof(ab_xpath));
+		if (bfd_name)
+			nb_cli_enqueue_change(vty, ab_xpath, NB_OP_MODIFY, bfd_name);
+		else
+			nb_cli_enqueue_change(vty, ab_xpath, NB_OP_DESTROY, NULL);
 		if (label_str) {
 			/* copy of label string (start) */
 			char *ostr;
@@ -407,7 +414,7 @@ static int static_route(struct vty *vty, afi_t afi, safi_t safi,
 	return static_route_leak(vty, vrf_name, vrf_name, afi, safi, negate,
 				 dest_str, mask_str, src_str, gate_str, ifname,
 				 flag_str, tag_str, NULL, distance_str, label_str,
-				 table_str, false, NULL, NULL, NULL);
+				 table_str, false, NULL, NULL, NULL, NULL);
 }
 
 /* Static unicast routes for multicast RPF lookup. */
@@ -504,7 +511,7 @@ DEFPY_YANG(ip_route_blackhole_vrf,
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, NULL, NULL, flag,
 				 tag_str, NULL, distance_str, label, table_str,
-				 false, NULL, NULL, NULL);
+				 false, NULL, NULL, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route_address_interface,
@@ -522,6 +529,7 @@ DEFPY_YANG(ip_route_address_interface,
 	  |nexthop-vrf NAME                            \
 	  |onlink$onlink                               \
 	  |color (1-4294967295)                        \
+	  |bfd-name BFD$bfd_name                       \
           }]",
       NO_STR IP_STR
       "Establish static routes\n"
@@ -541,7 +549,9 @@ DEFPY_YANG(ip_route_address_interface,
       VRF_CMD_HELP_STR
       "Treat the nexthop as directly attached to the interface\n"
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	 "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -561,7 +571,7 @@ DEFPY_YANG(ip_route_address_interface,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, NULL, distance_str, label, table_str,
-				 !!onlink, color_str, NULL, NULL);
+				 !!onlink, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ip_route_address_interface_vrf,
@@ -578,6 +588,7 @@ DEFPY_YANG(ip_route_address_interface_vrf,
 	  |nexthop-vrf NAME                            \
 	  |onlink$onlink                               \
 	  |color (1-4294967295)                        \
+	  |bfd-name BFD$bfd_name                       \
 	  }]",
       NO_STR IP_STR
       "Establish static routes\n"
@@ -596,7 +607,9 @@ DEFPY_YANG(ip_route_address_interface_vrf,
       VRF_CMD_HELP_STR
       "Treat the nexthop as directly attached to the interface\n"
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -623,7 +636,7 @@ DEFPY_YANG(ip_route_address_interface_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, NULL, distance_str, label, table_str,
-				 !!onlink, color_str, NULL, NULL);
+				 !!onlink, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ip_route,
@@ -639,6 +652,7 @@ DEFPY_YANG(ip_route,
 	  |table (1-4294967295)                        \
 	  |nexthop-vrf NAME                            \
 	  |color (1-4294967295)                        \
+	  |bfd-name BFD$bfd_name                       \
           }]",
       NO_STR IP_STR
       "Establish static routes\n"
@@ -657,7 +671,9 @@ DEFPY_YANG(ip_route,
       "The table number to configure\n"
       VRF_CMD_HELP_STR
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -678,7 +694,7 @@ DEFPY_YANG(ip_route,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, NULL, distance_str, label, table_str,
-				 false, color_str, NULL, NULL);
+				 false, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ip_route_vrf,
@@ -693,6 +709,7 @@ DEFPY_YANG(ip_route_vrf,
 	  |table (1-4294967295)                        \
 	  |nexthop-vrf NAME                            \
 	  |color (1-4294967295)                        \
+	  |bfd-name BFD$bfd_name                       \
           }]",
       NO_STR IP_STR
       "Establish static routes\n"
@@ -710,7 +727,9 @@ DEFPY_YANG(ip_route_vrf,
       "The table number to configure\n"
       VRF_CMD_HELP_STR
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -738,7 +757,7 @@ DEFPY_YANG(ip_route_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, NULL, distance_str, label, table_str,
-				 false, color_str, NULL, NULL);
+				 false, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ipv6_route_blackhole,
@@ -819,7 +838,7 @@ DEFPY_YANG(ipv6_route_blackhole_vrf,
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, NULL, NULL,
 				 flag, tag_str, NULL, distance_str, label, table_str,
-				 false, NULL, NULL, NULL);
+				 false, NULL, NULL, NULL, NULL);
 }
 
 DEFPY_YANG(ipv6_route_address_interface,
@@ -836,6 +855,7 @@ DEFPY_YANG(ipv6_route_address_interface,
             |nexthop-vrf NAME                              \
 	    |onlink$onlink                                 \
 	    |color (1-4294967295)                          \
+	    |bfd-name BFD$bfd_name                         \
           }]",
       NO_STR
       IPV6_STR
@@ -856,7 +876,9 @@ DEFPY_YANG(ipv6_route_address_interface,
       VRF_CMD_HELP_STR
       "Treat the nexthop as directly attached to the interface\n"
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -877,7 +899,7 @@ DEFPY_YANG(ipv6_route_address_interface,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP6, SAFI_UNICAST, no,
 				 prefix_str, NULL, from_str, gate_str, ifname,
 				 flag, tag_str, NULL, distance_str, label, table_str,
-				 !!onlink, color_str, NULL, NULL);
+				 !!onlink, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ipv6_route_address_interface_vrf,
@@ -893,6 +915,7 @@ DEFPY_YANG(ipv6_route_address_interface_vrf,
             |nexthop-vrf NAME                              \
 	    |onlink$onlink                                 \
 	    |color (1-4294967295)                          \
+	    |bfd-name BFD$bfd_name                         \
           }]",
       NO_STR
       IPV6_STR
@@ -912,7 +935,9 @@ DEFPY_YANG(ipv6_route_address_interface_vrf,
       VRF_CMD_HELP_STR
       "Treat the nexthop as directly attached to the interface\n"
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -939,7 +964,7 @@ DEFPY_YANG(ipv6_route_address_interface_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, gate_str,
 				 ifname, flag, tag_str, NULL, distance_str, label,
-				 table_str, !!onlink, color_str, NULL, NULL);
+				 table_str, !!onlink, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ipv6_route,
@@ -954,6 +979,7 @@ DEFPY_YANG(ipv6_route,
 	    |table (1-4294967295)                          \
             |nexthop-vrf NAME                              \
             |color (1-4294967295)                          \
+            |bfd-name BFD$bfd_name                         \
           }]",
       NO_STR
       IPV6_STR
@@ -973,7 +999,9 @@ DEFPY_YANG(ipv6_route,
       "The table number to configure\n"
       VRF_CMD_HELP_STR
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -993,7 +1021,7 @@ DEFPY_YANG(ipv6_route,
 	return static_route_leak(vty, vrf, nh_vrf, AFI_IP6, SAFI_UNICAST, no,
 				 prefix_str, NULL, from_str, gate_str, ifname,
 				 flag, tag_str, NULL, distance_str, label, table_str,
-				 false, color_str, NULL, NULL);
+				 false, color_str, NULL, NULL, bfd_name);
 }
 
 DEFPY_YANG(ipv6_route_vrf,
@@ -1007,6 +1035,7 @@ DEFPY_YANG(ipv6_route_vrf,
 	    |table (1-4294967295)                          \
             |nexthop-vrf NAME                              \
 	    |color (1-4294967295)                          \
+	    |bfd-name BFD$bfd_name                         \
           }]",
       NO_STR
       IPV6_STR
@@ -1025,7 +1054,9 @@ DEFPY_YANG(ipv6_route_vrf,
       "The table number to configure\n"
       VRF_CMD_HELP_STR
       "SR-TE color\n"
-      "The SR-TE color to configure\n")
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	const char *nh_vrf;
 	const char *flag = NULL;
@@ -1052,7 +1083,7 @@ DEFPY_YANG(ipv6_route_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP6, SAFI_UNICAST,
 				 no, prefix_str, NULL, from_str, gate_str,
 				 ifname, flag, tag_str, NULL, distance_str, label,
-				 table_str, false, color_str, NULL, NULL);
+				 table_str, false, color_str, NULL, NULL, bfd_name);
 }
 DEFPY_YANG(ip_route_etag,
       ip_route_etag_cmd,
@@ -1075,7 +1106,7 @@ DEFPY_YANG(ip_route_etag,
 	return static_route_leak(vty, vrf, vrf, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, gate_str, NULL, NULL,
 				 NULL, etag_str, NULL, NULL, NULL, false, NULL,
-				 NULL, NULL);
+				 NULL, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route_vrf_etag,
@@ -1112,7 +1143,7 @@ DEFPY_YANG(ip_route_vrf_etag,
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP, SAFI_UNICAST,
 				 no, prefix, mask_str, NULL, gate_str, NULL, NULL,
 				 NULL, etag_str, NULL, NULL, NULL, false, NULL,
-				 NULL, NULL);
+				 NULL, NULL, NULL);
 }
 
 
@@ -1158,7 +1189,7 @@ DEFPY_YANG(ip_route_evpn_vrf,
 				 no, prefix, mask_str, NULL, gate_str,
 				 buf, NULL, tag_str, NULL, distance_str, NULL,
 				 NULL, true, NULL, nexthop_vni_str,
-				 nexthop_rmac);
+				 nexthop_rmac, NULL);
 }
 
 DEFPY_YANG(ipv6_route_evpn_vrf,
@@ -1201,7 +1232,7 @@ DEFPY_YANG(ipv6_route_evpn_vrf,
 				 no, prefix, NULL, NULL, gate_str,
 				 buf, NULL, tag_str, NULL, distance_str, NULL,
 				 NULL, true, NULL,  nexthop_vni_str,
-				 nexthop_rmac);
+				 nexthop_rmac, NULL);
 }
 
 void static_cli_show(struct vty *vty, const struct lyd_node *dnode,

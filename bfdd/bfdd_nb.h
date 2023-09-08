@@ -226,5 +226,7 @@ void bfd_cli_show_passive(struct vty *vty, const struct lyd_node *dnode,
 			  bool show_defaults);
 void bfd_cli_show_minimum_ttl(struct vty *vty, const struct lyd_node *dnode,
 			      bool show_defaults);
+int bfdd_bfd_sessions_bfd_name_modify(
+	struct nb_cb_modify_args *args);
 
 #endif /* _FRR_BFDD_NB_H_ */

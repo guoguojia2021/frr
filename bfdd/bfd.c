@@ -2921,3 +2921,39 @@ static inline int bfd_sr_endx_info_compare(const struct bfd_sr_endx_info *a,
 RB_GENERATE(bfd_sr_endx_info_head, bfd_sr_endx_info, entry, bfd_sr_endx_info_compare)
 
 struct bfd_sr_endx_info_head bfd_sr_endx_info_tree = RB_INITIALIZER(&bfd_sr_endx_info_tree);
+
+struct bfd_session_name_match_unique {
+	char *bfd_name;
+	struct bfd_session *bfd_found;
+};
+
+static int _bfd_session_name_cmp(struct hash_bucket *hb, void *arg)
+{
+	struct bfd_session *bs = hb->data;
+	struct bfd_session_name_match_unique *match = (struct bfd_session_name_match_unique *)arg;
+
+    if (strlen(bs->bfd_name) != strlen(match->bfd_name))
+	{
+		return HASHWALK_CONTINUE;
+	}
+
+	if (!strncmp(bs->bfd_name, match->bfd_name, strlen(bs->bfd_name))) {
+		match->bfd_found = bs;
+		return HASHWALK_ABORT;
+	}
+	return HASHWALK_CONTINUE;	
+}
+
+struct bfd_session * bfd_session_get_by_name(const char * name)
+{
+	if (!name)
+		return NULL;
+
+    struct bfd_session_name_match_unique match;
+	match.bfd_name = name;
+	match.bfd_found = NULL;
+	
+	hash_walk(bfd_key_hash, _bfd_session_name_cmp, &match);
+
+	return match.bfd_found;
+}

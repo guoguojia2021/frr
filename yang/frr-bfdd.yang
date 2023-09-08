@@ -425,6 +425,12 @@ module frr-bfdd {
             description "Override defaults with profile.";
           }
 
+          leaf bfd-name {
+            type string;
+            default "";
+            description "Bfd session name.";
+          }
+
           uses session-common;
           uses session-echo;
 
@@ -456,6 +462,12 @@ module frr-bfdd {
           leaf profile {
             type profile-ref;
             description "Override defaults with profile.";
+          }
+
+          leaf bfd-name {
+            type string;
+            default "";
+            description "Bfd session name.";
           }
 
           uses session-common;

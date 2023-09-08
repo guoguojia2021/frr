@@ -29,6 +29,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "lib/bfd.h"
 
 /*
  * Auxiliary definitions
@@ -104,6 +105,8 @@ struct bfd_peer_cfg {
 	bool bpc_has_profile;
 	char bpc_profile[64];
 
+	char bfd_name[BFD_NAME_SIZE +1];
+	uint8_t bfd_name_len;
 	/* Status information */
 	enum bfd_peer_status bpc_bps;
 	uint32_t bpc_id;

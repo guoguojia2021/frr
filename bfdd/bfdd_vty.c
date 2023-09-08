@@ -84,6 +84,11 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 	vty_out(vty, "\tpeer %s",
 		inet_ntop(bs->key.family, &bs->key.peer, addr_buf,
 			  sizeof(addr_buf)));
+    
+	if (bs->bfd_name[0])
+	{
+		vty_out(vty, " bfd-name %s", bs->bfd_name);
+	}
 
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		vty_out(vty, " multihop");

@@ -46,6 +46,7 @@ extern "C" {
 #define BFD_STATUS_ADMIN_DOWN (1 << 3) /* BFD session is admin down */
 
 #define BFD_PROFILE_NAME_LEN 64
+#define BFD_NAME_SIZE 255
 
 const char *bfd_get_status_str(int status);
 
@@ -447,6 +448,8 @@ struct bfd_session_arg {
 	uint32_t min_tx;
 	/** Detection multiplier. */
 	uint32_t detection_multiplier;
+	/* bfd session name*/
+	char bfd_name[BFD_NAME_SIZE +1];
 
 	/* sbfd param*/
 	uint8_t is_sbfd_echo;
@@ -456,6 +459,53 @@ struct bfd_session_arg {
 	uint32_t sr_color;
 	struct in6_addr sr_endpoint;
 	uint32_t sbfd_remote_discr;
+};
+
+/** Events definitions. */
+enum bfd_session_event {
+	/** Remove the BFD session configuration. */
+	BSE_UNINSTALL,
+	/** Install the BFD session configuration. */
+	BSE_INSTALL,
+};
+
+/**
+ * Data structure to do the necessary tricks to hide the BFD protocol
+ * integration internals.
+ */
+struct bfd_session_params {
+	/** Contains the session parameters and more. */
+	struct bfd_session_arg args;
+	/** Contains the session state. */
+	struct bfd_session_status bss;
+	/** Protocol implementation status update callback. */
+	bsp_status_update updatecb;
+	/** Protocol implementation custom data pointer. */
+	void *arg;
+
+	/**
+	 * Next event.
+	 *
+	 * This variable controls what action to execute when the command batch
+	 * finishes. Normally we'd use `thread_add_event` value, however since
+	 * that function is going to be called multiple times and the value
+	 * might be different we'll use this variable to keep track of it.
+	 */
+	enum bfd_session_event lastev;
+	/**
+	 * BFD session configuration event.
+	 *
+	 * Multiple actions might be asked during a command batch (either via
+	 * configuration load or northbound batch), so we'll use this to
+	 * install/uninstall the BFD session parameters only once.
+	 */
+	struct thread *installev;
+
+	/** BFD session installation state. */
+	bool installed;
+
+	/** Global BFD paramaters list. */
+	TAILQ_ENTRY(bfd_session_params) entry;
 };
 
 /**
@@ -497,6 +547,10 @@ extern bool bfd_protocol_integration_debug(void);
  * Get API shutdown state.
  */
 extern bool bfd_protocol_integration_shutting_down(void);
+
+extern void bfd_name_register(struct bfd_session_params *bsp) ;
+
+DECLARE_HOOK(bfd_state_change_hook, (char *bfd_name, int state,int remote_cbit),(bfd_name, state, remote_cbit));
 
 #ifdef __cplusplus
 }

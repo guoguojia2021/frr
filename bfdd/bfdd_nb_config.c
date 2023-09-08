@@ -87,7 +87,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop)
 	const char *vrfname;
 	struct bfd_key bk;
 	struct prefix p;
-
+	const char * bfd_name = NULL;
 	switch (args->event) {
 	case NB_EV_VALIDATE:
 		yang_dnode_get_prefix(&p, args->dnode, "./dest-addr");
@@ -139,6 +139,12 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop)
 				"It is not allowed to configure the same peer with and without ifname");
 			return NB_ERR_VALIDATION;
 		}
+		if(bfd_session_get_by_name(yang_dnode_get_string(args->dnode, "./bfd-name"))) {
+			snprintf(
+				args->errmsg, args->errmsg_len,
+				"bfd name already exist.");
+			return NB_ERR_VALIDATION;
+		}
 		break;
 
 	case NB_EV_PREPARE:
@@ -154,12 +160,12 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop)
 			args->resource->ptr = bs;
 			break;
 		}
-
+		bfd_name = yang_dnode_get_string(args->dnode, "./bfd-name");
 		bs = bfd_session_new();
 
 		/* Fill the session key. */
 		bfd_session_get_key(mhop, args->dnode, &bs->key);
-
+		strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
 		/* Set configuration flags. */
 		bs->refcount = 1;
 		SET_FLAG(bs->flags, BFD_SESS_FLAG_CONFIG);
@@ -796,6 +802,38 @@ int bfdd_bfd_sessions_single_hop_passive_mode_modify(
 
 	bs = nb_running_get_entry(args->dnode, NULL, true);
 	bs->peer_profile.passive = passive;
+	bfd_session_apply(bs);
+
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/single-hop/echo-mode
+ */
+int bfdd_bfd_sessions_bfd_name_modify(
+	struct nb_cb_modify_args *args)
+{
+	const char *bfd_name = yang_dnode_get_string(args->dnode, NULL);
+	struct bfd_session *bs;
+
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+		if (bfd_session_get_by_name(bfd_name)) {
+			snprintf(args->errmsg, args->errmsg_len,"bfd name already exist.");
+			return NB_ERR_VALIDATION;
+		}
+	case NB_EV_PREPARE:
+		return NB_OK;
+
+	case NB_EV_APPLY:
+		break;
+
+	case NB_EV_ABORT:
+		return NB_OK;
+	}
+
+	bs = nb_running_get_entry(args->dnode, NULL, true);
+	strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
 	bfd_session_apply(bs);
 
 	return NB_OK;

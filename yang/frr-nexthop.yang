@@ -196,6 +196,11 @@ module frr-nexthop {
         "The nexthop SR-TE color";
     }
 
+    leaf bfd-name {
+        type string;
+        description "Bfd session name associated with this route";
+    }
+
     uses rt-types:mpls-label-stack {
       description
         "Nexthop's MPLS label stack.";

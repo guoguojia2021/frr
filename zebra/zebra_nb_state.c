@@ -847,6 +847,17 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_color_get_elem(
 
 /*
  * XPath:
+ * /frr-vrf:lib/vrf/frr-zebra:zebra/ribs/rib/route/route-entry/nexthop-group/nexthop/bfd-name
+ */
+struct yang_data *
+lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_bfd_name_get_elem(
+	struct nb_cb_get_elem_args *args)
+{
+	return NULL;
+}
+
+/*
+ * XPath:
  * /frr-vrf:lib/vrf/frr-zebra:zebra/ribs/rib/route/route-entry/nexthop-group/nexthop/mpls-label-stack/entry
  */
 const void *

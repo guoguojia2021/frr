@@ -127,7 +127,7 @@ void static_install_path(struct static_path *pn)
 }
 
 /* Uninstall static path from RIB. */
-static void static_uninstall_path(struct static_path *pn)
+void static_uninstall_path(struct static_path *pn)
 {
 	uint8_t rttype;
 	struct static_nexthop *nh;

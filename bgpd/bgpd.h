@@ -1761,6 +1761,8 @@ struct peer {
 		uint32_t min_tx;
 		/** Profile name. */
 		char profile[BFD_PROFILE_NAME_LEN];
+		/* bfd session name*/
+		char bfd_name[BFD_NAME_SIZE +1];
 		/** Peer BFD session */
 		struct bfd_session_params *session;
 	} * bfd_config;

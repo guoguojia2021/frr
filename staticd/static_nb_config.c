@@ -28,6 +28,7 @@
 #include "nexthop.h"
 #include "srcdest_table.h"
 #include "lib/vxlan.h"
+#include "lib/bfd.h"
 
 #include "static_vrf.h"
 #include "static_routes.h"
@@ -128,7 +129,6 @@ static void static_path_list_etag_modify(struct nb_cb_modify_args *args,
 
 	static_install_path(pn);
 }
-
 struct nexthop_iter {
 	uint32_t count;
 	bool blackhole;
@@ -380,6 +380,27 @@ static int static_nexthop_color_destroy(struct nb_cb_destroy_args *args)
 	nh = nb_running_unset_entry(args->dnode);
 	nh->color = 0;
 
+	return NB_OK;
+}
+
+static int static_nexthop_bfd_name_modify(struct nb_cb_modify_args *args)
+{
+	struct static_nexthop *nh = NULL;
+	struct bfd_session_params bsp;
+	memset(&bsp, 0, sizeof(struct bfd_session_params));
+	nh = nb_running_get_entry(args->dnode, NULL, true);
+	strlcpy(nh->bfd_name, yang_dnode_get_string(args->dnode, NULL), BFD_NAME_SIZE);
+	strlcpy(bsp.args.bfd_name,nh->bfd_name, BFD_NAME_SIZE);
+	bfd_name_register(&bsp);
+	return NB_OK;
+}
+
+static int static_nexthop_bfd_name_destroy(struct nb_cb_destroy_args *args)
+{
+	struct static_nexthop *nh = NULL;
+
+	nh = nb_running_unset_entry(args->dnode);
+	nh->bfd_name[0] = 0;
 	return NB_OK;
 }
 
@@ -942,7 +963,6 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_sr
 	return NB_OK;
 }
 
-
 int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_color_destroy(
 	struct nb_cb_destroy_args *args)
 {
@@ -958,6 +978,76 @@ int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_sr
 	}
 	return NB_OK;
 }
+/*
+ * XPath:
+ * /frr-routing:routing/control-plane-protocols/control-plane-protocol/frr-staticd:staticd/route-list/src-list/path-list/frr-nexthops/nexthop/bfd-name
+ */
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_bfd_name_modify(
+	struct nb_cb_modify_args *args)
+{
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		if (static_nexthop_bfd_name_modify(args) != NB_OK)
+			return NB_ERR;
+
+		break;
+	}
+	return NB_OK;
+}
+
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_path_list_frr_nexthops_nexthop_bfd_name_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		if (static_nexthop_bfd_name_destroy(args) != NB_OK)
+			return NB_ERR;
+		break;
+	}
+	return NB_OK;
+}
+
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_bfd_name_modify(
+	struct nb_cb_modify_args *args)
+{
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		if (static_nexthop_bfd_name_modify(args) != NB_OK)
+			return NB_ERR;
+
+		break;
+	}
+	return NB_OK;
+}
+
+int routing_control_plane_protocols_control_plane_protocol_staticd_route_list_src_list_path_list_frr_nexthops_nexthop_bfd_name_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		if (static_nexthop_bfd_name_destroy(args) != NB_OK)
+			return NB_ERR;
+		break;
+	}
+	return NB_OK;
+}
+
 
 /*
  * XPath:

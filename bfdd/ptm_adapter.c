@@ -284,6 +284,9 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 
 	stream_putc(msg, bs->remote_cbit);
 
+	stream_putc(msg, strlen(bs->bfd_name));
+	stream_put(msg, bs->bfd_name, strlen(bs->bfd_name));
+
 	/*support sbfd , add color and sidlist name*/
 	stream_putl(msg, bs->key.srte_color);
 	len = strlen(bs->key.seglist_name);
@@ -422,6 +425,12 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	STREAM_GETL(msg, pid);
 
 	*pc = pc_new(pid);
+
+	STREAM_GETC(msg, bpc->bfd_name_len);
+	if (bpc->bfd_name_len) {
+		STREAM_GET(bpc->bfd_name, msg, bpc->bfd_name_len);
+		bpc->bfd_name[bpc->bfd_name_len] = 0;
+	}
 
 	/* Register/update peer information. */
 	_ptm_msg_read_address(msg, &bpc->bpc_peer);
@@ -633,6 +642,16 @@ static void bfdd_dest_register(struct stream *msg, vrf_id_t vrf_id)
 	debug_printbpc(&bpc, "ptm-add-dest: register peer");
 
 	/* Find or start new BFD session. */
+	if (bpc.bfd_name[0] != 0)
+	{
+		bs = bfd_session_get_by_name((const char *)bpc.bfd_name);
+		if (bs != NULL)
+		{
+			ptm_bfd_notify(bs, bs->ses_state);
+		}
+		return;
+	}
+
 	bs = ptm_bfd_sess_new(&bpc);
 	if (bs == NULL) {
 		if (bglobal.debug_zebra)
@@ -661,13 +680,17 @@ static void bfdd_dest_deregister(struct stream *msg, vrf_id_t vrf_id)
 	debug_printbpc(&bpc, "ptm-del-dest: deregister peer");
 
 	/* Find or start new BFD session. */
-	bs = bs_peer_find(&bpc);
+	/* Find or start new BFD session. */
+	bs = bfd_session_get_by_name((const char *)bpc.bfd_name);
 	if (bs == NULL) {
-		if (bglobal.debug_zebra)
-			zlog_debug("ptm-del-dest: failed to find BFD session");
-		return;
+		bs = bs_peer_find(&bpc);
+		if (bs == NULL) {
+			if (bglobal.debug_zebra)
+				zlog_debug("ptm-del-dest: failed to find BFD session");
+			return;
+		}
+		SET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
 	}
-	SET_FLAG(bs->flags, BFD_SESS_FLAG_SHUTDOWN);
 
 	/* Unregister client peer notification. */
 	pcn = pcn_lookup(pc, bs);

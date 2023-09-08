@@ -65,6 +65,7 @@ struct zebra_ptm_cb {
 
 #define IS_BFD_ENABLED_PROTOCOL(protocol) ( \
 	(protocol) == ZEBRA_ROUTE_BGP || \
+	(protocol) == ZEBRA_ROUTE_STATIC || \
 	(protocol) == ZEBRA_ROUTE_OSPF || \
 	(protocol) == ZEBRA_ROUTE_OSPF6 || \
 	(protocol) == ZEBRA_ROUTE_ISIS || \

@@ -110,10 +110,12 @@ void bfd_cli_show_header_end(struct vty *vty, const struct lyd_node *dnode
 
 DEFPY_YANG_NOSH(
 	bfd_peer_enter, bfd_peer_enter_cmd,
-	"peer <A.B.C.D|X:X::X:X> [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X>  bfd-name WORD$bfdname [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
 	MHOP_STR
 	LOCAL_STR
 	LOCAL_IPV4_STR
@@ -125,7 +127,11 @@ DEFPY_YANG_NOSH(
 {
 	int ret, slen;
 	char source_str[INET6_ADDRSTRLEN + 32];
-	char xpath[XPATH_MAXLEN], xpath_srcaddr[XPATH_MAXLEN + 32];
+	char xpath[XPATH_MAXLEN], xpath_srcaddr[XPATH_MAXLEN + 32], xpath_bfdname[XPATH_MAXLEN + 32];
+	if (!bfdname) {
+		vty_out(vty,"%% bfd name is required\n");
+			return CMD_WARNING_CONFIG_FAILED;
+	}
 
 	if (multihop) {
 		if (!local_address_str) {
@@ -154,12 +160,15 @@ DEFPY_YANG_NOSH(
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen,
 				 "[interface='*']");
 	if (vrf)
-		snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
 	else
-		snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
 			 VRF_DEFAULT_NAME);
 
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+
+	snprintf(xpath_bfdname, sizeof(xpath_bfdname), "%s/bfd-name", xpath);
+	nb_cli_enqueue_change(vty, xpath_bfdname, NB_OP_MODIFY, bfdname);
 	if (multihop == NULL && local_address_str != NULL) {
 		snprintf(xpath_srcaddr, sizeof(xpath_srcaddr),
 			 "%s/source-addr", xpath);
@@ -177,11 +186,13 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	bfd_no_peer, bfd_no_peer_cmd,
-	"no peer <A.B.C.D|X:X::X:X> [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
+	"no peer <A.B.C.D|X:X::X:X>  bfd-name NAME$bfdname [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
 	MHOP_STR
 	LOCAL_STR
 	LOCAL_IPV4_STR
@@ -222,9 +233,9 @@ DEFPY_YANG(
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen,
 				 "[interface='*']");
 	if (vrf)
-		snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
 	else
-		snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
 			 VRF_DEFAULT_NAME);
 
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
@@ -241,6 +252,9 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 
 	vty_out(vty, " peer %s",
 		yang_dnode_get_string(dnode, "./dest-addr"));
+	
+	if (yang_dnode_exists(dnode, "./bfd-name"))
+	    vty_out(vty, " bfd-name %s", yang_dnode_get_string(dnode, "./bfd-name"));
 
 	if (mhop)
 		vty_out(vty, " multihop");

@@ -33,7 +33,6 @@
 #include "lib/queue.h"
 #include "lib/vrf.h"
 #include "lib/openbsd-tree.h"
-
 #include "bfdctl.h"
 
 #ifdef BFD_DEBUG
@@ -304,6 +303,7 @@ struct bfd_session {
 
 	/* This and the localDiscr are the keys to state info */
 	struct bfd_key key;
+	char bfd_name[BFD_NAME_SIZE +1];
 	struct peer_label *pl;
 
 	struct bfd_dplane_ctx *bdc;
@@ -925,6 +925,7 @@ int bfd_dplane_update_session_counters(struct bfd_session *bs);
 
 void bfd_dplane_show_counters(struct vty *vty);
 
+
 /*sbfd relfector*/
 struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct in6_addr *sip);
 void sbfd_reflector_free(const uint32_t discr);
@@ -943,5 +944,7 @@ void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr);
 struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid);
 void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *nexthop);
 void bfdd_sr_endx_tree_del(struct in6_addr *sid);
+
+struct bfd_session * bfd_session_get_by_name(const char * name);
 
 #endif /* _BFD_H_ */

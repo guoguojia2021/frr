@@ -34,57 +34,12 @@
 #include "bfd.h"
 
 DEFINE_MTYPE_STATIC(LIB, BFD_INFO, "BFD info");
+DEFINE_HOOK(bfd_state_change_hook, (char *bfd_name, int state,int remote_cbit),(bfd_name, state, remote_cbit));
+
 
 /**
  * BFD protocol integration configuration.
  */
-
-/** Events definitions. */
-enum bfd_session_event {
-	/** Remove the BFD session configuration. */
-	BSE_UNINSTALL,
-	/** Install the BFD session configuration. */
-	BSE_INSTALL,
-};
-
-/**
- * Data structure to do the necessary tricks to hide the BFD protocol
- * integration internals.
- */
-struct bfd_session_params {
-	/** Contains the session parameters and more. */
-	struct bfd_session_arg args;
-	/** Contains the session state. */
-	struct bfd_session_status bss;
-	/** Protocol implementation status update callback. */
-	bsp_status_update updatecb;
-	/** Protocol implementation custom data pointer. */
-	void *arg;
-
-	/**
-	 * Next event.
-	 *
-	 * This variable controls what action to execute when the command batch
-	 * finishes. Normally we'd use `thread_add_event` value, however since
-	 * that function is going to be called multiple times and the value
-	 * might be different we'll use this variable to keep track of it.
-	 */
-	enum bfd_session_event lastev;
-	/**
-	 * BFD session configuration event.
-	 *
-	 * Multiple actions might be asked during a command batch (either via
-	 * configuration load or northbound batch), so we'll use this to
-	 * install/uninstall the BFD session parameters only once.
-	 */
-	struct thread *installev;
-
-	/** BFD session installation state. */
-	bool installed;
-
-	/** Global BFD paramaters list. */
-	TAILQ_ENTRY(bfd_session_params) entry;
-};
 
 struct bfd_sessions_global {
 	/**
@@ -117,7 +72,7 @@ static const struct in6_addr i6a_zero;
 static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 					   struct prefix *sp, int *status,
 					   int *remote_cbit, uint32_t *srte_color, char *seglist_name,
-					   vrf_id_t vrf_id)
+					   vrf_id_t vrf_id, char *bfd_name)
 {
 	unsigned int ifindex;
 	struct interface *ifp = NULL;
@@ -125,6 +80,7 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	int local_remote_cbit;
 	uint32_t color;
 	uint8_t seglist_name_len;
+	uint8_t bfd_name_len = 0;
 
 	/*
 	 * If the ifindex lookup fails the
@@ -171,6 +127,12 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	STREAM_GETC(s, local_remote_cbit);
 	if (remote_cbit)
 		*remote_cbit = local_remote_cbit;
+
+	STREAM_GETC(s, bfd_name_len);
+	if(bfd_name_len) {
+		STREAM_GET(bfd_name, s, bfd_name_len);
+		*(bfd_name+bfd_name_len) = 0;
+	}
 
     /*support sbfd*/
 	STREAM_GETL(s, color);
@@ -308,6 +270,10 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 	/* Create new message. */
 	zclient_create_header(s, args->command, args->vrf_id);
 	stream_putl(s, getpid());
+
+	stream_putc(s, args->bfd_name[0] ? strlen(args->bfd_name) : 0);
+	if (args->bfd_name[0])
+			stream_put(s, args->bfd_name, strlen(args->bfd_name));
 
 	/* Encode destination address. */
 	stream_putw(s, args->family);
@@ -1046,6 +1012,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	char ifstr[128], cbitstr[32];
 	uint32_t srte_color = 0;
 	char seglist_name[64] = {0};
+    char bfd_name[BFD_NAME_SIZE+1] = {0};
 
 	if (!zclient->bfd_integration)
 		return 0;
@@ -1055,7 +1022,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 		return 0;
 
 	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,  &srte_color, seglist_name,
-				vrf_id);
+				vrf_id, bfd_name);
 	/*
 	 * When interface lookup fails or an invalid stream is read, we must
 	 * not proceed otherwise it will trigger an assertion while checking
@@ -1094,7 +1061,14 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 
 	/* Cache current time to avoid multiple monotime clock calls. */
 	now = monotime(NULL);
-
+    
+	if (bfd_name[0])
+	{
+		hook_call(bfd_state_change_hook, bfd_name, state, remote_cbit);
+		if (bsglobal.debugging)
+			zlog_debug("%s:   sessions updated: %s", __func__,  bfd_name);
+		return 0;
+	}
 	/* Notify all matching sessions about update. */
 	TAILQ_FOREACH_SAFE (bsp, &bsglobal.bsplist, entry, bspn) {
 		/* Skip not installed entries. */
@@ -1185,4 +1159,9 @@ bool bfd_protocol_integration_debug(void)
 bool bfd_protocol_integration_shutting_down(void)
 {
 	return bsglobal.shutting_down;
+}
+
+void bfd_name_register(struct bfd_session_params *bsp) {
+	bsp->args.command = ZEBRA_BFD_DEST_REGISTER;
+	zclient_bfd_command(bsglobal.zc, &bsp->args);
 }
