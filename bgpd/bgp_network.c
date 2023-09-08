@@ -718,12 +718,12 @@ static int bgp_update_source(struct peer *peer)
 }
 
 /* BGP try to connect to the peer.  */
-int bgp_connect(struct peer *peer)
+int bgp_connect(struct peer_connection *connection)
 {
-	assert(!CHECK_FLAG(peer->connection->thread_flags,
-			   PEER_THREAD_WRITES_ON));
-	assert(!CHECK_FLAG(peer->connection->thread_flags,
-			   PEER_THREAD_READS_ON));
+	struct peer *peer = connection->peer;
+
+	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_WRITES_ON));
+	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_READS_ON));
 	ifindex_t ifindex = 0;
 
 	if (peer->conf_if && BGP_PEER_SU_UNSPEC(peer)) {
@@ -733,11 +733,11 @@ int bgp_connect(struct peer *peer)
 	}
 	frr_with_privs(&bgpd_privs) {
 		/* Make socket for the peer. */
-		peer->connection->fd =
-			vrf_sockunion_socket(&peer->su, peer->bgp->vrf_id,
-					     bgp_get_bound_name(peer));
+		connection->fd = vrf_sockunion_socket(&peer->su,
+						      peer->bgp->vrf_id,
+						      bgp_get_bound_name(peer));
 	}
-	if (peer->connection->fd < 0) {
+	if (connection->fd < 0) {
 		peer->last_reset = PEER_DOWN_SOCKET_ERROR;
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s: Failure to create socket for connection to %s, error received: %s(%d)",
@@ -746,15 +746,15 @@ int bgp_connect(struct peer *peer)
 		return -1;
 	}
 
-	set_nonblocking(peer->connection->fd);
+	set_nonblocking(connection->fd);
 
 	/* Set the user configured MSS to TCP socket */
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_TCP_MSS))
-		sockopt_tcp_mss_set(peer->connection->fd, peer->tcp_mss);
+		sockopt_tcp_mss_set(connection->fd, peer->tcp_mss);
 
-	bgp_socket_set_buffer_size(peer->connection->fd);
+	bgp_socket_set_buffer_size(connection->fd);
 
-	if (bgp_set_socket_ttl(peer, peer->connection->fd) < 0) {
+	if (bgp_set_socket_ttl(peer, connection->fd) < 0) {
 		peer->last_reset = PEER_DOWN_SOCKET_ERROR;
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s: Failure to set socket ttl for connection to %s, error received: %s(%d)",
@@ -763,15 +763,15 @@ int bgp_connect(struct peer *peer)
 		return -1;
 	}
 
-	sockopt_reuseaddr(peer->connection->fd);
-	sockopt_reuseport(peer->connection->fd);
+	sockopt_reuseaddr(connection->fd);
+	sockopt_reuseport(connection->fd);
 
 #ifdef IPTOS_PREC_INTERNETCONTROL
 	frr_with_privs(&bgpd_privs) {
 		if (sockunion_family(&peer->su) == AF_INET)
 			setsockopt_ipv4_tos(peer->connection->fd, IPTOS_PREC_INTERNETCONTROL);
 		else if (sockunion_family(&peer->su) == AF_INET6)
-			setsockopt_ipv6_tclass(peer->connection->fd,
+			setsockopt_ipv6_tclass(connection->fd,
 					       IPTOS_PREC_INTERNETCONTROL);
 	}
 #endif
@@ -781,7 +781,7 @@ int bgp_connect(struct peer *peer)
 					     ? IPV4_MAX_BITLEN
 					     : IPV6_MAX_BITLEN;
 
-		bgp_md5_set_connect(peer->connection->fd, &peer->su, prefixlen,
+		bgp_md5_set_connect(connection->fd, &peer->su, prefixlen,
 				    peer->password);
 	}
 
@@ -798,11 +798,11 @@ int bgp_connect(struct peer *peer)
 
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug("%s [Event] Connect start to %s fd %d", peer->host,
-			   peer->host, peer->connection->fd);
+			   peer->host, connection->fd);
 
 	/* Connect to the remote peer. */
-	return sockunion_connect(peer->connection->fd, &peer->su,
-				 htons(peer->port), ifindex);
+	return sockunion_connect(connection->fd, &peer->su, htons(peer->port),
+				 ifindex);
 }
 
 /* After TCP connection is established.  Get local address and port. */

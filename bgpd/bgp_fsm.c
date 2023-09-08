@@ -2226,7 +2226,7 @@ static int bgp_start(struct peer_connection *connection)
 	assert(!connection->t_read);
 	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_WRITES_ON));
 	assert(!CHECK_FLAG(connection->thread_flags, PEER_THREAD_READS_ON));
-	status = bgp_connect(peer);
+	status = bgp_connect(connection);
 
 	switch (status) {
 	case connect_error:
