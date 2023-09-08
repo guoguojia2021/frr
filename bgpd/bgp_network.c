@@ -139,11 +139,13 @@ static int bgp_md5_set_connect(int socket, union sockunion *su,
 	return ret;
 }
 
-static int bgp_md5_set_password(struct peer *peer, const char *password)
+static int bgp_md5_set_password(struct peer_connection *connection,
+				const char *password)
 {
 	struct listnode *node;
 	int ret = 0;
 	struct bgp_listener *listener;
+	struct peer *peer = connection->peer;
 
 	/*
 	 * Set or unset the password on the listen socket(s). Outbound
@@ -208,25 +210,27 @@ int bgp_md5_unset_prefix(struct bgp *bgp, struct prefix *p)
 	return bgp_md5_set_prefix(bgp, p, NULL);
 }
 
-int bgp_md5_set(struct peer *peer)
+int bgp_md5_set(struct peer_connection *connection)
 {
 	/* Set the password from listen socket. */
-	return bgp_md5_set_password(peer, peer->password);
+	return bgp_md5_set_password(connection, connection->peer->password);
 }
 
-int bgp_md5_unset(struct peer *peer)
+int bgp_md5_unset(struct peer_connection *connection)
 {
 	/* Unset the password from listen socket. */
-	return bgp_md5_set_password(peer, NULL);
+	return bgp_md5_set_password(connection, NULL);
 }
 
-int bgp_set_socket_ttl(struct peer *peer, int bgp_sock)
+int bgp_set_socket_ttl(struct peer_connection *connection)
 {
 	int ret = 0;
+	struct peer *peer = connection->peer;
 
 	/* In case of peer is EBGP, we should set TTL for this connection.  */
 	if (!peer->gtsm_hops && (peer_sort_lookup(peer) == BGP_PEER_EBGP)) {
-		ret = sockopt_ttl(peer->su.sa.sa_family, bgp_sock, peer->ttl);
+		ret = sockopt_ttl(peer->su.sa.sa_family, connection->fd,
+				  peer->ttl);
 		if (ret) {
 			flog_err(
 				EC_LIB_SOCKET,
@@ -239,7 +243,7 @@ int bgp_set_socket_ttl(struct peer *peer, int bgp_sock)
 		   with the
 		   outgoing ttl. Therefore setting both.
 		*/
-		ret = sockopt_ttl(peer->su.sa.sa_family, bgp_sock, MAXTTL);
+		ret = sockopt_ttl(peer->su.sa.sa_family, connection->fd, MAXTTL);
 		if (ret) {
 			flog_err(
 				EC_LIB_SOCKET,
@@ -247,7 +251,7 @@ int bgp_set_socket_ttl(struct peer *peer, int bgp_sock)
 				__func__, &peer->remote_id, errno);
 			return ret;
 		}
-		ret = sockopt_minttl(peer->su.sa.sa_family, bgp_sock,
+		ret = sockopt_minttl(peer->su.sa.sa_family, connection->fd,
 				     MAXTTL + 1 - peer->gtsm_hops);
 		if (ret) {
 			flog_err(
@@ -546,7 +550,7 @@ static int bgp_accept(struct thread *thread)
     		peer_delete(peer1->doppelganger);
 	}
 
-	if (bgp_set_socket_ttl(peer1, bgp_sock) < 0)
+	if (bgp_set_socket_ttl(peer1->connection) < 0)
 		if (bgp_debug_neighbor_events(peer1))
 			zlog_debug(
 				"[Event] Unable to set min/max TTL on peer %s, Continuing",
@@ -754,7 +758,7 @@ int bgp_connect(struct peer_connection *connection)
 
 	bgp_socket_set_buffer_size(connection->fd);
 
-	if (bgp_set_socket_ttl(peer, connection->fd) < 0) {
+	if (bgp_set_socket_ttl(peer->connection) < 0) {
 		peer->last_reset = PEER_DOWN_SOCKET_ERROR;
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s: Failure to set socket ttl for connection to %s, error received: %s(%d)",

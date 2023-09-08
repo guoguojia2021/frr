@@ -1815,11 +1815,11 @@ void bgp_peer_conf_if_to_su_update(struct peer *peer)
 	if (peer_addr_updated) {
 		if (CHECK_FLAG(peer->flags, PEER_FLAG_PASSWORD)
 		    && prev_family == AF_UNSPEC)
-			bgp_md5_set(peer);
+			bgp_md5_set(peer->connection);
 	} else {
 		if (CHECK_FLAG(peer->flags, PEER_FLAG_PASSWORD)
 		    && prev_family != AF_UNSPEC)
-			bgp_md5_unset(peer);
+			bgp_md5_unset(peer->connection);
 		peer->su.sa.sa_family = AF_UNSPEC;
 		memset(&peer->su.sin6.sin6_addr, 0, sizeof(struct in6_addr));
 	}
@@ -2641,7 +2641,7 @@ int peer_delete(struct peer *peer)
 		if (!accept_peer && !BGP_PEER_SU_UNSPEC(peer)
 		    && !CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)
 		    && !CHECK_FLAG(peer->flags, PEER_FLAG_DYNAMIC_NEIGHBOR))
-			bgp_md5_unset(peer);
+			bgp_md5_unset(peer->connection);
 	}
 
 	bgp_timer_set(peer->connection); /* stops all timers for Deleted */
@@ -3014,7 +3014,7 @@ static void peer_group2peer_config_copy(struct peer_group *group,
 				      MTYPE_PEER_PASSWORD);
 
 	if (!BGP_PEER_SU_UNSPEC(peer))
-		bgp_md5_set(peer);
+		bgp_md5_set(peer->connection);
 
 	/* update-source apply */
 	if (!CHECK_FLAG(peer->flags_override, PEER_FLAG_UPDATE_SOURCE)) {
@@ -6642,8 +6642,9 @@ int peer_password_set(struct peer *peer, const char *password)
 		 */
 		if (BGP_PEER_SU_UNSPEC(peer))
 			return BGP_SUCCESS;
-		return (bgp_md5_set(peer) >= 0) ? BGP_SUCCESS
-						: BGP_ERR_TCPSIG_FAILED;
+		return (bgp_md5_set(peer->connection) >= 0)
+			       ? BGP_SUCCESS
+			       : BGP_ERR_TCPSIG_FAILED;
 	}
 
 	/*
@@ -6673,7 +6674,8 @@ int peer_password_set(struct peer *peer, const char *password)
 			bgp_session_reset(member);
 
 		/* Attempt to install password on socket. */
-		if (!BGP_PEER_SU_UNSPEC(member) && bgp_md5_set(member) < 0)
+		if (!BGP_PEER_SU_UNSPEC(member) &&
+		    bgp_md5_set(member->connection) < 0)
 			ret = BGP_ERR_TCPSIG_FAILED;
 	}
 
@@ -6720,9 +6722,9 @@ int peer_password_unset(struct peer *peer)
 		/* Attempt to uninstall password on socket. */
 		if (!BGP_PEER_SU_UNSPEC(peer)) {
 			if (CHECK_FLAG(peer->flags, PEER_FLAG_PASSWORD))
-				bgp_md5_set(peer);
+				bgp_md5_set(peer->connection);
 			else
-				bgp_md5_unset(peer);
+				bgp_md5_unset(peer->connection);
 		}
 		/* Skip peer-group mechanics for regular peers. */
 		return 0;
@@ -6750,7 +6752,7 @@ int peer_password_unset(struct peer *peer)
 
 		/* Attempt to uninstall password on socket. */
 		if (!BGP_PEER_SU_UNSPEC(member))
-			bgp_md5_unset(member);
+			bgp_md5_unset(member->connection);
 	}
 
 	/* Set flag and configuration on all peer-group listen ranges */
