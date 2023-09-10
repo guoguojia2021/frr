@@ -22,7 +22,8 @@ RUN apt update && \
 	  python3 -m pip install pytest-html && \
       python3 -m pip install "scapy>=2.4.2" && \
       python3 -m pip install xmltodict && \
-      python2 -m pip install 'exabgp<4.0.0'
+      python2 -m pip install 'exabgp<4.0.0' && \
+	  python3 -m pip install jinja2==3.0.3
 
 RUN groupadd -r -g 92 frr && \
       groupadd -r -g 85 frrvty && \
