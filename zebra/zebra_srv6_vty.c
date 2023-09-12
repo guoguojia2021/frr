@@ -104,12 +104,14 @@ static bool seg6local_act_contain_sidact(enum seg6local_action_t action,
 		break;
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
 		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4
-			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6)
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT46)
 			return true;
 		break;
 	case ZEBRA_SEG6_LOCAL_ACTION_END_UDT46:
 		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT4
-			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT6)
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT6
+			|| sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT46)
 			return true;
 		break;
 	case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
