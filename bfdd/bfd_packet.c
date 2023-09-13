@@ -50,6 +50,7 @@ int _ptm_bfd_send(struct bfd_session *bs, uint16_t *port, const void *data,
 		  size_t datalen);
 
 int _ptm_sbfd_send(struct bfd_session *bs,  const void *data, size_t datalen);
+int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datalen);
 
 static void bfd_sd_reschedule(struct bfd_vrf_global *bvrf, int sd);
 ssize_t bfd_recv_ipv4(int sd, uint8_t *msgbuf, size_t msgbuflen, uint8_t *ttl,
@@ -190,6 +191,49 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	return 0;
 }
 
+int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datalen)
+{
+	int sd = -1;
+	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
+
+	int seg_num;
+	struct in6_addr* segment_list;
+	struct bfd_sr_endx_info* endx_info = NULL;
+
+	if (!bvrf)
+		return -1;
+
+    seg_num = bfd->segnum;
+	if (seg_num > 0)
+	    segment_list = bfd->seg_list;
+	else
+	    return -1;
+
+	endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
+	if (!endx_info)
+	    return -1;
+
+	sd = bfd->sock;
+
+	if (seg_num > 1)
+	    segment_list++;
+
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, &bfd->key.local , &bfd->key.local, 
+	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num-1, segment_list, 
+	   endx_info->ifname, &endx_info->nexthop) < 0)
+	{
+		char endpoint[INET6_ADDRSTRLEN];
+		inet_ntop(AF_INET6, &bfd->key.local, endpoint, sizeof(endpoint));
+		zlog_info(
+			"sbfd initiator send failed , sr policy color is %d , endpoint is %s, sidlist is %s.", 
+			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
+        return -1;
+	}
+
+	bfd->stats.tx_echo_pkt++;
+	return 0;
+}
+
 void ptm_bfd_echo_snd(struct bfd_session *bfd)
 {
 	struct sockaddr *sa;
@@ -302,56 +346,18 @@ void ptm_sbfd_initiator_snd(struct bfd_session *bfd, int fbit)
 
 void ptm_sbfd_echo_snd(struct bfd_session *bfd)
 {
-	int sd = -1;
 	struct bfd_echo_pkt bep;
-	struct sockaddr_in6 sin6;
-	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
-
-	int seg_num;
-	struct in6_addr* segment_list;
-
-	if (!bvrf)
-		return;
-	if (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
-		SET_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE);
     
 	memset(&bep, 0, sizeof(bep));
 	bep.ver = BFD_ECHO_VERSION;
 	bep.len = BFD_ECHO_PKT_LEN;
 	bep.my_discr = htonl(bfd->discrs.my_discr);
 
-    seg_num = bfd->segnum;
-	if (seg_num > 0)
-	    segment_list = bfd->seg_list;
-	else
+    if (_ptm_sbfd_echo_send(bfd, &bep, BFD_ECHO_PKT_LEN) != 0)
 	    return;
 
-	if (bvrf->bg_sbfd == -1)
-		return;
-	sd = bvrf->bg_sbfd;
-	memset(&sin6, 0, sizeof(sin6));
-	sin6.sin6_family = AF_INET6;
-	memcpy(&sin6.sin6_addr, &bfd->seg_list[seg_num-1], sizeof(sin6.sin6_addr)); // first_segment
-	if (bfd->ifp && IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
-		sin6.sin6_scope_id = bfd->ifp->ifindex;
-
-	sin6.sin6_port = 0;
-#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
-	sin6.sin6_len = sizeof(sin6);
-#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
-
-    if (bp_raw_sbfd_send(sd, (uint8_t *)&bep, sizeof(bep), &bfd->key.local , &bfd->key.local, 
-	    BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
-	{
-		char endpoint[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
-		zlog_err(
-			"sbfd echo send failed , my_discr is %d, sr policy color is %d , endpoint is %s, sidlist is %s.", 
-			bep.my_discr, bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
-        return;
-	}
-
-	bfd->stats.tx_echo_pkt++;
+	if (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
+		SET_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE);
 }
 
 static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
@@ -391,14 +397,6 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 			/* try to offload hw sbfd echo*/
 			bfd_fpm_peer_sendmsg(bfd, true);
 		
-        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE)
-		  && CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE))
-        {
-			ptm_bfd_echo_stop(bfd);
-			return 0;
-        }
-
-		bs_sbfd_echo_timer_handler(bfd);
 	}
 
 	/* Compute detect time */
@@ -2104,7 +2102,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	memset(sendbuf, 0, sizeof(sendbuf));
 	int total_len = 0;
 
-	if (!segment_list || seg_num == 0 || seg_num != 1)
+	if (!segment_list)
 	{
 		zlog_info(
 			"sbfd segment_list is invalid , seg_num = %d .", seg_num);
@@ -2135,9 +2133,12 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	total_len += sizeof(struct ether_header);
 
     /* SRH IPv6 Header */
-    srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
-	bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip , &segment_list[0], seg_num, datalen);
-    total_len += sizeof(struct ip6_hdr);
+	if (seg_num > 0)
+	{
+		srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
+		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip , &segment_list[0], seg_num, datalen);
+		total_len += sizeof(struct ip6_hdr);
+	}
 
 	/* Inner IPv6 Header */
 	ip6h = (struct ip6_hdr *)(sendbuf + total_len);

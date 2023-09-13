@@ -775,6 +775,7 @@ int bfd_xmtdel_delay_cb(struct thread *t)
 	struct bfd_session *bs = THREAD_ARG(t);
 
 	bfd_xmttimer_delete(bs);
+	bfd_echo_xmttimer_delete(bs);
     bs->xmttimer_delay = NULL;
 
 	return 0;

@@ -487,20 +487,36 @@ static int bfpm_read_cb(struct thread *thread)
 
         if (bs && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))) {
 			UNSET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
-            bs->stats.rx_ctrl_pkt += data.recvCount;
-            bs->stats.tx_ctrl_pkt += data.sendCount;
-            bs->stats.hw_rx_ctrl_pkt = 0;
-            bs->stats.hw_tx_ctrl_pkt = 0;
-            bfd_fpm_peer_sendmsg(bs, false);
-            bfd_notify_down(bs);
-            ptm_bfd_start_xmt_timer(bs, false);
-            bfd_recvtimer_update(bs);
-            THREAD_OFF(bs->xmttimer_delay);
+
+			if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+			{
+				bs->stats.rx_echo_pkt += data.recvCount;
+				bs->stats.tx_echo_pkt += data.sendCount;
+				bs->stats.hw_rx_ctrl_pkt = 0;
+				bs->stats.hw_tx_ctrl_pkt = 0;
+				bfd_fpm_peer_sendmsg(bs, false);
+				ptm_sbfd_sess_dn(bs, BD_ECHO_FAILED);
+				ptm_bfd_start_xmt_timer(bs, true);
+				bfd_echo_recvtimer_update(bs);
+			}
+			else
+			{
+				bs->stats.rx_ctrl_pkt += data.recvCount;
+				bs->stats.tx_ctrl_pkt += data.sendCount;
+				bs->stats.hw_rx_ctrl_pkt = 0;
+				bs->stats.hw_tx_ctrl_pkt = 0;
+				bfd_fpm_peer_sendmsg(bs, false);
+				bfd_notify_down(bs);
+				ptm_bfd_start_xmt_timer(bs, false);
+				bfd_recvtimer_update(bs);
+			}
+			THREAD_OFF(bs->xmttimer_delay);
+
         }
     }
     else if (hdr.msg_type == BFD_NOTIFY_UP)
     {
-        if (bs && bs->xmttimer_ev && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE)))
+        if (bs && (bs->xmttimer_ev || bs->echo_xmttimer_ev) && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE)))
         {
 			/*recv hw BFD_NOTIFY_UP msg, set flag BFD_HWFLAG_CREATE_SUCCESS*/
             SET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
@@ -988,9 +1004,13 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
+		data->src_port = htons(BFD_DEFDESTPORT);
+		data->dest_port = htons(BFD_DEF_ECHO_PORT);
 		data->bpc_type = BPC_TYPE_SBFD_ECHO;
+		data->bpc_txinterval = htonl((uint32_t)bfd->echo_xmt_TO);
+		data->bpc_recvinterval = htonl((uint32_t)bfd->echo_detect_TO / bfd->detect_mult);
+		data->discrs.remote_discr = htonl(bfd->discrs.my_discr);
         strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
-		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
 	}
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
@@ -999,7 +1019,6 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		data->dest_port = htons(BFD_DEF_SBFD_DEST_PORT);
 		data->bpc_type = BPC_TYPE_SBFD_INIT;
         strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
-		inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_endpoint, sizeof(data->bpc_endpoint));
 	}
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);

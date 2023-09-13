@@ -74,6 +74,9 @@ void bfd_echo_recvtimer_update(struct bfd_session *bs)
 	    bs->sock == -1)
 		return;
 
+    if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+        return;
+
 	tv_normalize(&tv);
 
 	thread_add_timer_tv(master, bfd_echo_recvtimer_cb, bs, &tv,

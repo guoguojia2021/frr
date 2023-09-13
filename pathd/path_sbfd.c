@@ -289,10 +289,21 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 
 
 	/* SBFD just support IPV6. */
-	bfd_sess_set_ipv6_addrs(
-		sbs->session,
-		policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6,
-		&policy->endpoint.ipaddr_v6);
+	if (policy->bfd_config->is_echo)
+	{
+		bfd_sess_set_ipv6_addrs(
+			sbs->session,
+			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6,
+			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6);
+	}
+	else
+	{
+		bfd_sess_set_ipv6_addrs(
+			sbs->session,
+			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6,
+			&policy->endpoint.ipaddr_v6);
+	}
+
 
 	sbfd_sess_install(sbs->session);
 
@@ -733,7 +744,7 @@ void sbfd_update_flag_one_policy(struct srte_policy *policy, uint32_t flag)
 	}
 }
 
-/*traverse policyï¼?change bfd flag to update , callback when encap source-address modify or del */
+/*traverse policy change bfd flag to update , callback when encap source-address modify or del */
 void sbfd_update_flag_all_policy(uint32_t flag)
 {
 	struct srte_policy *policy;
