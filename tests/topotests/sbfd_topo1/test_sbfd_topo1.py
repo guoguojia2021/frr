@@ -119,9 +119,9 @@ def setup_module(mod):
     router_list = tgen.routers()
 
     # For all registred routers, load the zebra configuration file
-    cmd1 = "sysctl -w net.ipv6.conf.all.seg6_enabled=1"
-    cmd2 = "sysctl -w net.ipv6.conf.default.seg6_enabled=1"
-    cmd3 = "sysctl -w net.ipv6.conf.{}-eth0.seg6_enabled=1"
+    # cmd1 = "sysctl -w net.ipv6.conf.all.seg6_enabled=1"
+    # cmd2 = "sysctl -w net.ipv6.conf.default.seg6_enabled=1"
+    # cmd3 = "sysctl -w net.ipv6.conf.{}-eth0.seg6_enabled=1"
     for rname, router in router_list.items():
         router.load_config(
             TopoRouter.RD_ZEBRA,
@@ -139,10 +139,10 @@ def setup_module(mod):
             TopoRouter.RD_STATIC,
             os.path.join(CWD, '{}/staticd.conf'.format(rname))
         )
-        router.run(cmd1)
-        router.run(cmd2)
-        exec_cmd = cmd3.format(rname)
-        router.run(exec_cmd)
+        # router.run(cmd1)
+        # router.run(cmd2)
+        # exec_cmd = cmd3.format(rname)
+        # router.run(exec_cmd)
 
     # After loading the configurations, this function loads configured daemons.
     tgen.start_router()
@@ -181,6 +181,8 @@ def test_sbfd_config_check():
     
     # config sbfd
     r1 = tgen.net['r1']
+    r1.cmd("ping -c 5 2001::20")
+    time.sleep(5)
     r1.cmd("vtysh -c 'config t' -c 'segment-routing' -c 'traffic-eng' -c 'policy color 100 endpoint 3001::2' -c 'sbfd echo source-address 3001::1'")
 
     logger.info('waiting 5 sec ... for sbfd up')
