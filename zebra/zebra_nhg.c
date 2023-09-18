@@ -403,7 +403,7 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 			break;
 		}
 	}
-	if (nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+	if (nh && nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_BYPASS_KERNEL);
 }
 
