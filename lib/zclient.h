@@ -914,14 +914,14 @@ int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api);
 struct zapi_loc_sid_info {
 	struct in6_addr sid;
 	char ifname[INTERFACE_NAMSIZ];
-	struct in6_addr nexthop;
+	struct ipaddr nexthop;
 };
 
 int zclient_loc_sid_info_encode(struct stream *s,
 			    int cmd,
 			    struct in6_addr *sid,
 				char *ifname,
-			    struct in6_addr *nexthop);
+			    struct ipaddr *nexthop);
 
 int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api);
 

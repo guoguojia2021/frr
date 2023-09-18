@@ -1030,7 +1030,7 @@ void zsend_bfdd_neighbor_notify(int cmd, struct interface *ifp,
 	}
 }
 
-void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, char *ifname, struct in6_addr *nexthop)
+void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, char *ifname, struct ipaddr *nexthop)
 {
 	struct stream *s;
 	struct listnode *node, *nnode;

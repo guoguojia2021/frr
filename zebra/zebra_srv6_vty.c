@@ -507,7 +507,7 @@ DEFUN (no_srv6_locator_sid,
 
 DEFPY (locator_prefix,
        locator_prefix_cmd,
-       "opcode WORD <end | end-dt46 vrf VIEWVRFNAME | end-dt4 vrf VIEWVRFNAME | end-dt6 vrf VIEWVRFNAME | end-x interface IFNAME$ifname nexthop X:X::X:X$nhp>",
+       "opcode WORD <end | end-dt46 vrf VIEWVRFNAME | end-dt4 vrf VIEWVRFNAME | end-dt6 vrf VIEWVRFNAME | end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp>",
        "Configure SRv6 locator prefix\n"
        "Specify SRv6 locator hex opcode\n"
        "Apply the code to an End SID\n"
@@ -524,7 +524,8 @@ DEFPY (locator_prefix,
 	   "Select an interface to configure\n"
 	   "Interface's name\n"
 	   "Nexthop\n"
-	   "Nexthop IP address\n")
+	   "Nexthop IP address\n"
+	   "Nexthop IPv6 address\n")
 {
 	VTY_DECLVAR_CONTEXT(srv6_locator, locator);
 	struct seg6_sid *sid = NULL;
@@ -538,9 +539,10 @@ DEFPY (locator_prefix,
     struct zserv *client;
     struct listnode *client_node;
 	char *ifName = NULL;
-	struct in6_addr nexthop = {}; 
+	struct ipaddr nexthop = {0};
 	struct interface *ifp = NULL;
 	struct vrf *vrf = NULL;
+	char *nhpstr = NULL;
 
     if (argv_find(argv, argc, "end", &idx))
         sidaction = ZEBRA_SEG6_LOCAL_ACTION_END;
@@ -562,6 +564,8 @@ DEFPY (locator_prefix,
 	else if (argv_find(argv, argc, "end-x", &idx))
 	{
         sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_X;
+		nhpstr = argv[idx + 4]->arg;
+
 		ifp = if_lookup_by_name_all_vrf(ifname);
 		if (!ifp)
 		{
@@ -578,7 +582,14 @@ DEFPY (locator_prefix,
 
 		vrfName = vrf->aliasName;
 		ifName = ifp->name;
-		memcpy(&nexthop, &nhp, sizeof(struct in6_addr));
+		if (inet_pton(AF_INET, nhpstr, &nexthop.ipaddr_v4) == 1)
+			nexthop.ipa_type = IPADDR_V4;
+		else if (inet_pton(AF_INET6, nhpstr, &nexthop.ipaddr_v6) == 1)
+			nexthop.ipa_type = IPADDR_V6;
+		else {
+			vty_out(vty, "%% Malformed address\n");
+			return CMD_WARNING;
+		}
 	}
     prefix = argv[1]->arg;
     ret = str2prefix_ipv6(prefix, &ipv6prefix);
@@ -610,7 +621,7 @@ DEFPY (locator_prefix,
 	    strlcpy(sid->ifname, ifName, INTERFACE_NAMSIZ);
 	else
 	    sid->ifname[0] = '\0';
-	memcpy(&sid->nexthop, &nexthop, sizeof(struct in6_addr));
+	memcpy(&sid->nexthop, &nexthop, sizeof(struct ipaddr));
 
 	if (!zebra_srv6_local_sid_format_valid(locator, sid)) {
 		vty_out(vty, "%% Malformed locator sid opcode format\n");
@@ -724,7 +735,11 @@ static int zebra_sr_config(struct vty *vty)
                 {
 				    vty_out(vty, " end-x");
                     vty_out(vty, " interface %s", sid->ifname);
-					vty_out(vty, " nexthop %s", inet_ntop(AF_INET6, &sid->nexthop, buf, sizeof(buf)));
+					if (sid->nexthop.ipa_type == IPADDR_V4)
+						inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, buf, sizeof(buf));
+					else if (sid->nexthop.ipa_type == IPADDR_V6)
+						inet_ntop(AF_INET6, &sid->nexthop.ipaddr_v6, buf, sizeof(buf));
+					vty_out(vty, " nexthop %s", buf);
                 }
                 vty_out(vty, "\n");
             }

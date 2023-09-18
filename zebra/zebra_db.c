@@ -336,7 +336,7 @@ static const char *local_action2str(enum seg6local_action_t action)
 }
 
 void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *vrf_name,
-    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct in6_addr *nexthop)
+    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct ipaddr *nexthop)
 {
     int ret;
     char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
@@ -473,8 +473,12 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     /* nexthop */
     if (nexthop)
     {
-        char nhp_buf[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, nexthop, nhp_buf, sizeof(nhp_buf));
+        char nhp_buf[INET6_ADDRSTRLEN] = {0};
+        if (nexthop->ipa_type == IPADDR_V4)
+            inet_ntop(AF_INET, &nexthop->ipaddr_v4, nhp_buf, sizeof(nhp_buf));
+        else if (nexthop->ipa_type == IPADDR_V6)
+            inet_ntop(AF_INET6, &nexthop->ipaddr_v6, nhp_buf, sizeof(nhp_buf));
+
         snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
         snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "nexthop");
         snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", nhp_buf);

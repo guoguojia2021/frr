@@ -390,7 +390,7 @@ extern struct bfd_nd_info_head bfd_nd_info_tree;
 struct bfd_sr_endx_info {
 	RB_ENTRY(bfd_sr_endx_info) entry;
 	struct in6_addr sid;
-	struct in6_addr nexthop;
+	struct ipaddr nexthop;
 	char ifname[INTERFACE_NAMSIZ];
 };
 
@@ -942,7 +942,7 @@ void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struc
 void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr);
 
 struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid);
-void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *nexthop);
+void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct ipaddr *nexthop);
 void bfdd_sr_endx_tree_del(struct in6_addr *sid);
 
 struct bfd_session * bfd_session_get_by_name(const char * name);

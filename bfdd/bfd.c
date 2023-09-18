@@ -2884,7 +2884,7 @@ struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid)
 	return RB_FIND(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, &search);
 }
 
-void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *nexthop)
+void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct ipaddr *nexthop)
 {
 	struct bfd_sr_endx_info *bi;
 
@@ -2896,7 +2896,7 @@ void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct in6_addr *
 	bi = XCALLOC(MTYPE_BFD_SRENDX, sizeof(*bi));
 	strncpy(bi->ifname, ifname, INTERFACE_NAMSIZ);
 	memcpy(&bi->sid, sid, sizeof(struct in6_addr));
-	memcpy(&bi->nexthop, nexthop, sizeof(struct in6_addr));
+	memcpy(&bi->nexthop, nexthop, sizeof(struct ipaddr));
 
 	RB_INSERT(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, bi);
 

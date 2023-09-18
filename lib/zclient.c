@@ -4682,7 +4682,7 @@ int zclient_loc_sid_info_encode(struct stream *s,
 			    int cmd,
 			    struct in6_addr *sid,
 				char *ifname,
-			    struct in6_addr *nexthop)
+			    struct ipaddr *nexthop)
 {
 	/*
 	 * Message format:
@@ -4713,7 +4713,7 @@ int zclient_loc_sid_info_encode(struct stream *s,
 	}
 
 	// fill nexthop
-	stream_put(s, nexthop, sizeof(struct in6_addr));
+	stream_put(s, nexthop, sizeof(struct ipaddr));
 
 	return ret;
 }
@@ -4738,7 +4738,7 @@ int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api)
 	}
     
     // get nexthop
-	STREAM_GET(&api->nexthop, s, sizeof(struct in6_addr));
+	STREAM_GET(&api->nexthop, s, sizeof(struct ipaddr));
 
 	return 0;
  stream_failure:
