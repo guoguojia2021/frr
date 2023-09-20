@@ -4622,7 +4622,7 @@ int zclient_nd_info_encode(struct stream *s,
 	zclient_create_header(s, cmd, ifp->vrf->vrf_id);
 	// fill ip
 	stream_putc(s, ipaddr_family(ipaddr));
-	stream_put(s, &ipaddr->ipaddr_v6, sizeof(struct in6_addr));
+	stream_put(s, ipaddr, sizeof(struct ipaddr));
 
 	// fill if
 	len = strlen(ifp->name);
@@ -4649,11 +4649,11 @@ int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api)
 	uint8_t ifnamelen;
 
 	STREAM_GETC(s, family);
-	if (family != AF_INET6)
+	if (family != AF_INET6 && family != AF_INET)
 		return -1;
+    
+	STREAM_GET(&api->ipaddr, s, sizeof(struct ipaddr));
 
-    api->ipaddr.ipa_type = IPADDR_V6;
-	STREAM_GET(&api->ipaddr.ipaddr_v6, s, sizeof(struct in6_addr));
     STREAM_GETC(s, ifnamelen);
 
 	if (ifnamelen >= INTERFACE_NAMSIZ)

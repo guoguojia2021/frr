@@ -2176,18 +2176,11 @@ DEFSH(VTYSH_PATHD,
 
 DEFSH(VTYSH_PATHD,
       vtysh_seamless_bfd_echo_cmd,
-      "sbfd echo [source-address$has_sip X:X::X:X$srcip]",
+      "sbfd echo [source-address$has_sip <A.B.C.D|X:X::X:X>] [(2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx]",
       "seamless BFD\n"
       "echo mode\n"
 	  "binding source ip address\n"
-	  IPV6_STR)
-
-DEFSH(VTYSH_PATHD,
-      vtysh_seamless_bfd_echo_param_cmd,
-      "sbfd echo source-address X:X::X:X$srcip (2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx",
-      "seamless BFD\n"
-      "echo mode\n"
-	  "binding source ip address\n"
+	  IP_STR
 	  IPV6_STR
       "Detect Multiplier\n"
       "Required min receive interval\n"
@@ -4428,7 +4421,6 @@ void vtysh_init_vty(void)
     install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_init_enable_cmd);
 	install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_init_param_cmd);
 	install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_echo_cmd);
-	install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_echo_param_cmd);
 	install_node(&pcep_node);
 	install_node(&pcep_pcc_node);
 	install_node(&pcep_pce_node);

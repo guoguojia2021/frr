@@ -1008,7 +1008,7 @@ void zsend_bfdd_neighbor_notify(int cmd, struct interface *ifp,
 	if (IS_ZEBRA_DEBUG_PACKET)
 		zlog_debug("%s: Notifying Neighbor entry (%u)", __func__, cmd);
     
-	if (AF_INET6 != ipaddr_family(ipaddr))
+	if (AF_UNSPEC == ipaddr_family(ipaddr))
 	{
 		return;
 	}

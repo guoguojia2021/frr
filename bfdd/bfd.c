@@ -367,21 +367,22 @@ int bfd_session_enable(struct bfd_session *bs)
 	 * could use the destination port (3784) for the source
 	 * port we wouldn't need a socket per session.
 	 */
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_IPV6) == 0) {
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) 
+		|| CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
+	{
+		psock = bp_peer_raw_eth_socket(bs);
+		if (psock == -1)
+			return 0;
+	}
+	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_IPV6) == 0)
+	{
 		psock = bp_peer_socket(bs);
 		if (psock == -1)
 			return 0;
-	} else {
-		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) 
-		    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
-		{
-            psock = bp_peer_raw_eth_socket(bs);
-		}
-		else
-		{
-		    psock = bp_peer_socketv6(bs);
-		}
-
+	}
+	else
+	{
+		psock = bp_peer_socketv6(bs);
 		if (psock == -1)
 			return 0;
 	}

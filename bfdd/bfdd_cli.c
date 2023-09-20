@@ -917,8 +917,8 @@ DEFPY(
     	ttable_add_row(tt, "%s|%s|%s",
 	                inet_ntop(AF_INET6, &bi->sid, buf1, sizeof(buf1)), 
 					bi->ifname,
-					inet_ntop(AF_INET6, &bi->nexthop, buf2, sizeof(buf2)));
-	    
+					ipaddr2str(&bi->nexthop, buf2, sizeof(buf2)));
+
 		count++;
 	}
 

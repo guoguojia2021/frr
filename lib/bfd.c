@@ -326,6 +326,7 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 	    || args->command == ZEBRA_SBFD_DEST_UPDATE) {
 		stream_putc(s, args->is_sbfd_echo); // is sbfd echo
 		stream_putl(s, args->sr_color);  // color
+		addrlen = sizeof(struct in6_addr);
 		stream_put(s, &args->sr_endpoint, addrlen); // endpoint
 		/*sbfd remote discr ,if is sbfd echo discr == 0*/
         stream_putl(s, args->sbfd_remote_discr);
@@ -344,6 +345,7 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 	{
 		stream_putc(s, args->is_sbfd_echo); // is sbfd echo
 		stream_putl(s, args->sr_color);  // color
+		addrlen = sizeof(struct in6_addr);
 		stream_put(s, &args->sr_endpoint, addrlen); // endpoint
 		/*sbfd remote discr ,if is sbfd echo discr == 0*/
         stream_putl(s, args->sbfd_remote_discr);

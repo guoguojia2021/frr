@@ -291,16 +291,27 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 	/* SBFD just support IPV6. */
 	if (policy->bfd_config->is_echo)
 	{
-		bfd_sess_set_ipv6_addrs(
-			sbs->session,
-			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6,
-			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6);
+		if ((policy->bfd_config->is_self_sip && IS_IPADDR_V6(&policy->bfd_config->update_source))
+		    || (!policy->bfd_config->is_self_sip && IS_IPADDR_V6(&encap_source_address)))
+		{
+			bfd_sess_set_ipv6_addrs(
+				sbs->session,
+				policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6,
+				policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6);
+		}
+		else
+		{
+            bfd_sess_set_ipv4_addrs(
+				sbs->session,
+				&policy->bfd_config->update_source.ipaddr_v4,
+				&policy->bfd_config->update_source.ipaddr_v4);				
+		}
 	}
 	else
 	{
 		bfd_sess_set_ipv6_addrs(
 			sbs->session,
-			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source : &encap_source_address.ipaddr_v6,
+			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6,
 			&policy->endpoint.ipaddr_v6);
 	}
 
@@ -342,7 +353,7 @@ static void sbfd_for_policy_reset(struct srte_policy *policy)
 	policy->bfd_config->cbit = false;
 	policy->bfd_config->profile[0] = 0;
 	policy->bfd_config->update_if[0] = 0;
-	memset(&policy->bfd_config->update_source, 0 , sizeof(struct in6_addr));
+	memset(&policy->bfd_config->update_source, 0 , sizeof(struct ipaddr));
 }
 
 void srte_policy_sbfd_each_seglist_apply(struct srte_policy *policy)
@@ -543,7 +554,7 @@ int pathd_srte_policy_sbfd_source_address_modify(struct nb_cb_modify_args *args)
 
 	yang_dnode_get_ip(&source, args->dnode, NULL);
 
-	memcpy(&policy->bfd_config->update_source, &source.ipaddr_v6, sizeof(struct in6_addr));
+	memcpy(&policy->bfd_config->update_source, &source, sizeof(struct ipaddr));
 	
 	if (CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
 	{
@@ -881,11 +892,15 @@ DEFPY_NOSH(seamless_bfd_init_enable,
  */
 DEFPY_NOSH(seamless_bfd_echo,
       seamless_bfd_echo_cmd,
-      "sbfd echo [source-address$has_sip X:X::X:X$srcip]",
+      "sbfd echo [source-address$has_sip <A.B.C.D|X:X::X:X>$srcip] [(2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx]",
       "seamless BFD\n"
       "echo mode\n"
 	  "binding source ip address\n"
-	  IPV6_STR)
+	  IP_STR
+	  IPV6_STR
+      "Detect Multiplier\n"
+      "Required min receive interval\n"
+      "Desired min transmit interval\n")
 {
     int ret;
 	char sip_buf[INET6_ADDRSTRLEN];
@@ -920,30 +935,14 @@ DEFPY_NOSH(seamless_bfd_echo,
 		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/is-self-source-address", NB_OP_MODIFY, "false");
 	}
 
+	if (detection_multiplier_str != NULL)
+	{
+		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/detect-multiplier", NB_OP_MODIFY, detection_multiplier_str);
+		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/required-min-receive-interval", NB_OP_MODIFY, min_rx_str);
+		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/desired-min-transmit-interval", NB_OP_MODIFY, min_tx_str);		
+	}
+
 	return nb_cli_apply_changes(vty, NULL);
-}
-
-
-DEFPY_NOSH(seamless_bfd_echo_param,
-      seamless_bfd_echo_param_cmd,
-      "sbfd echo source-address X:X::X:X$srcip (2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx",
-      "seamless BFD\n"
-      "echo mode\n"
-	  "binding source ip address\n"
-	  IPV6_STR
-      "Detect Multiplier\n"
-      "Required min receive interval\n"
-      "Desired min transmit interval\n")
-{
-	// nb_cli_enqueue_change(vty, "./sbfd[type='echo'][remote-discr='0']", NB_OP_CREATE, NULL);
-	// nb_cli_enqueue_change(vty, "./sbfd[type='echo'][remote-discr='0']/source-address", NB_OP_MODIFY, srcip_str);
-	// nb_cli_enqueue_change(vty, "./sbfd[type='echo'][remote-discr='0']/detect-multiplier", NB_OP_MODIFY, detection_multiplier_str);
-	// nb_cli_enqueue_change(vty, "./sbfd[type='echo'][remote-discr='0']/required-min-receive-interval", NB_OP_MODIFY, min_rx_str);
-	// nb_cli_enqueue_change(vty, "./sbfd[type='echo'][remote-discr='0']/desired-min-transmit-interval", NB_OP_MODIFY, min_tx_str);
-	// return nb_cli_apply_changes(vty, NULL);
-
-	return CMD_SUCCESS;
-
 }
 
 DEFPY(
@@ -1065,7 +1064,6 @@ void sr_sbfd_init()
     install_element(SR_POLICY_NODE, &seamless_bfd_init_enable_cmd);
 	install_element(SR_POLICY_NODE, &seamless_bfd_init_param_cmd);
 	install_element(SR_POLICY_NODE, &seamless_bfd_echo_cmd);
-	install_element(SR_POLICY_NODE, &seamless_bfd_echo_param_cmd);
 	install_element(SR_POLICY_NODE, &no_seamless_bfd_echo_cmd);
     install_element(SR_POLICY_NODE, &no_seamless_bfd_enable_cmd);
 }

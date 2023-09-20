@@ -431,7 +431,7 @@ struct sbfd_session_config {
 	/** update interface **/
 	char update_if[64];
 	/** update source **/
-	struct in6_addr update_source;
+	struct ipaddr update_source;
 	/* remote discr*/
 	uint32_t remote_disc;
 

@@ -40,8 +40,12 @@
 #include "bfd.h"
 #include <ifaddrs.h>
 #include "bfd_fpm.h"
+#include "lib/checksum.h"
+#include "lib/network.h"
 
 #define BUF_SIZ 1024
+#define ACCEPT_LOCAL_PATH "/proc/sys/net/ipv4/conf/all/accept_local"
+
 /*
  * Prototypes
  */
@@ -69,10 +73,10 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
     uint8_t seg_num, struct in6_addr* segment_list);
 
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
-    struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t family, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list, 
-	char *ifname, struct in6_addr *nhp);
+	char *ifname, struct ipaddr *nhp);
 
 /* socket related prototypes */
 static void bp_set_ipopts(int sd);
@@ -175,7 +179,7 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	if (seg_num > 1)
 	    segment_list++;
 
-    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, &bfd->key.local , &bfd->key.peer, 
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.peer, 
 	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, 1, segment_list, 
 	   endx_info->ifname, &endx_info->nexthop) < 0)
 	{
@@ -218,7 +222,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	if (seg_num > 1)
 	    segment_list++;
 
-    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, &bfd->key.local , &bfd->key.local, 
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.local, 
 	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num-1, segment_list, 
 	   endx_info->ifname, &endx_info->nexthop) < 0)
 	{
@@ -388,6 +392,10 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 
 	bfd->stats.rx_echo_pkt++;
 
+	/* Compute detect time */
+	bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
+	bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
 		/*sbfd receive echo pkt ,need to update state*/
@@ -398,9 +406,6 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 			bfd_fpm_peer_sendmsg(bfd, true);
 		
 	}
-
-	/* Compute detect time */
-	bfd->echo_detect_TO = bfd->detect_mult * bfd->timers.desired_min_echo_tx;
 
 	/* Update echo receive timeout. */
 	if (bfd->echo_detect_TO > 0)
@@ -1585,6 +1590,29 @@ int bp_udp6_mhop(const struct vrf *vrf)
 	return sd;
 }
 
+static int linux_ipv4_accept_all_enable(const char* path) {
+    int fd, ret = -1;
+    fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        zlog_err("Failed to open file: %s\n", path);
+        return -1;
+    }
+
+    if (write(fd, "1", 1) == 1) {
+		zlog_warn("%s is set to 1\n", path);
+        ret = 0;
+    } else {
+        zlog_err("Failed to write to file: %s\n", path);
+    }
+
+    if (close(fd) < 0) {
+        zlog_err("Failed to close file: %s\n", path);
+        return -1;
+    }
+
+    return ret;
+}
+
 int bp_echo_socket(const struct vrf *vrf)
 {
 	int s;
@@ -1597,6 +1625,9 @@ int bp_echo_socket(const struct vrf *vrf)
 
 	bp_set_ipopts(s);
 	bp_bind_ip(s, BFD_DEF_ECHO_PORT);
+
+	//enable accept_local
+    linux_ipv4_accept_all_enable(ACCEPT_LOCAL_PATH);
 
 	return s;
 }
@@ -1727,6 +1758,77 @@ udp6_checksum (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int
   return checksum ((uint16_t *) buf, chksumlen);
 }
 
+// Build IPv4 UDP pseudo-header and call checksum function.
+static uint16_t
+udp4_checksum (struct ip iphdr, struct udphdr udphdr, uint8_t *payload, int payloadlen) {
+
+  char buf[IP_MAXPACKET];
+  char *ptr;
+  int chksumlen = 0;
+  int i;
+
+  ptr = &buf[0];  // ptr points to beginning of buffer buf
+
+  // Copy source IP address into buf (32 bits)
+  memcpy (ptr, &iphdr.ip_src.s_addr, sizeof (iphdr.ip_src.s_addr));
+  ptr += sizeof (iphdr.ip_src.s_addr);
+  chksumlen += sizeof (iphdr.ip_src.s_addr);
+
+  // Copy destination IP address into buf (32 bits)
+  memcpy (ptr, &iphdr.ip_dst.s_addr, sizeof (iphdr.ip_dst.s_addr));
+  ptr += sizeof (iphdr.ip_dst.s_addr);
+  chksumlen += sizeof (iphdr.ip_dst.s_addr);
+
+  // Copy zero field to buf (8 bits)
+  *ptr = 0; ptr++;
+  chksumlen += 1;
+
+  // Copy transport layer protocol to buf (8 bits)
+  memcpy (ptr, &iphdr.ip_p, sizeof (iphdr.ip_p));
+  ptr += sizeof (iphdr.ip_p);
+  chksumlen += sizeof (iphdr.ip_p);
+
+  // Copy UDP length to buf (16 bits)
+  memcpy (ptr, &udphdr.len, sizeof (udphdr.len));
+  ptr += sizeof (udphdr.len);
+  chksumlen += sizeof (udphdr.len);
+
+  // Copy UDP source port to buf (16 bits)
+  memcpy (ptr, &udphdr.source, sizeof (udphdr.source));
+  ptr += sizeof (udphdr.source);
+  chksumlen += sizeof (udphdr.source);
+
+  // Copy UDP destination port to buf (16 bits)
+  memcpy (ptr, &udphdr.dest, sizeof (udphdr.dest));
+  ptr += sizeof (udphdr.dest);
+  chksumlen += sizeof (udphdr.dest);
+
+  // Copy UDP length again to buf (16 bits)
+  memcpy (ptr, &udphdr.len, sizeof (udphdr.len));
+  ptr += sizeof (udphdr.len);
+  chksumlen += sizeof (udphdr.len);
+
+  // Copy UDP checksum to buf (16 bits)
+  // Zero, since we don't know it yet
+  *ptr = 0; ptr++;
+  *ptr = 0; ptr++;
+  chksumlen += 2;
+
+  // Copy payload to buf
+  memcpy (ptr, payload, payloadlen);
+  ptr += payloadlen;
+  chksumlen += payloadlen;
+
+  // Pad to the next 16-bit boundary
+  for (i=0; i<payloadlen%2; i++, ptr++) {
+    *ptr = 0;
+    ptr++;
+    chksumlen++;
+  }
+
+  return checksum ((uint16_t *) buf, chksumlen);
+}
+
 int bp_sbfd_socket(const struct vrf *vrf)
 {
 	int s;
@@ -1765,7 +1867,7 @@ static void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h,
 }
 
 static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h, 
-    struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen)
+    struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen, uint16_t family)
 {
     /* SRH IPv6 Header */
 	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
@@ -1776,7 +1878,7 @@ static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
 		srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
 				+ sizeof(struct udphdr) 
 				+ datalen);
-        srh_ip6h->ip6_nxt = IPPROTO_IPV6;
+        srh_ip6h->ip6_nxt = (family == AF_INET6) ? IPPROTO_IPV6 : IPPROTO_IP;
 	}
 	else
 	{
@@ -1824,12 +1926,35 @@ static void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip 
 	memcpy(&(ip6h->ip6_dst), dip, sizeof(struct in6_addr));
 }
 
-static void bp_sbfd_encap_udp(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
+static void bp_sbfd_encap_inner_iph(struct ip* iph, struct in6_addr* sip , struct in6_addr* dip, size_t datalen)
+{
+    /* IPv4 Header */
+    iph->ip_v = 4;
+    iph->ip_hl = 5;
+    iph->ip_tos = BFD_TOS_VAL;
+    iph->ip_len = htons(sizeof(struct ip) + sizeof(struct udphdr) + datalen);
+    iph->ip_id = (uint16_t)frr_weak_random();
+    iph->ip_ttl = BFD_TTL_VAL;
+    iph->ip_p = IPPROTO_UDP;
+    iph->ip_sum = 0;
+	memcpy(&iph->ip_src, sip, sizeof(iph->ip_src));
+	memcpy(&iph->ip_dst, dip, sizeof(iph->ip_dst));
+}
+
+static void bp_sbfd_encap_udp6(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
 {
     udph->uh_sport = htons(src_port); 
     udph->uh_dport = htons(dst_port);
     udph->uh_ulen = htons(sizeof(struct udphdr) + payloadlen);
     udph->uh_sum = udp6_checksum (*ip6h, *udph, payload, payloadlen);
+}
+
+static void bp_sbfd_encap_udp4(struct udphdr* udph, struct ip* iph, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
+{
+    udph->uh_sport = htons(src_port); 
+    udph->uh_dport = htons(dst_port);
+    udph->uh_ulen = htons(sizeof(struct udphdr) + payloadlen);
+	udph->uh_sum = udp4_checksum (*iph, *udph, payload, payloadlen);
 }
 
 /**
@@ -1889,7 +2014,7 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
 	bp_sbfd_encap_inner_ip6h(&ip6h, sip , dip, datalen);
     
 	/* UDP  Header */
-    bp_sbfd_encap_udp(&udp, &ip6h, src_port, dst_port, data, datalen);
+    bp_sbfd_encap_udp6(&udp, &ip6h, src_port, dst_port, data, datalen);
 
     memset(&msg, 0, sizeof(msg));
     msg.msg_name = &sin6;
@@ -1974,48 +2099,61 @@ static int get_intf_smac(char *ifname, uint8_t *mac)
 	return 0;
 }
 
-static int get_intf_ipv6addr(char *ifname, struct in6_addr *ipv6addr)
+static int get_intf_addr(char *ifname, struct ipaddr *ipaddr, int family) 
 {
-	struct ifaddrs *ifaddr;
-	int family;
+    struct ifaddrs *ifaddr;
 	struct sockaddr_in6 *s6;
+	struct sockaddr_in *s4;
 
-	if (getifaddrs(&ifaddr) == -1) {
-		zlog_info("get_iftf_ipv6addr: getifaddrs failed");
-		return -1;
-	}
-
-	/* Walk through linked list, maintaining head pointer so we
-		can free list later. */
-
-	for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
+    if (getifaddrs(&ifaddr) == -1) {
+        printf("get_intf_addr: getifaddrs failed\n");
+        return -1;
+    }
+    
+    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
 	{
-		if (ifa->ifa_addr == NULL)
-			continue;
+        if (ifa->ifa_addr == NULL)
+            continue;
 
 		if (strcmp(ifa->ifa_name, ifname) != 0)
 			continue;
 
-		family = ifa->ifa_addr->sa_family;
+        if (ifa->ifa_addr->sa_family == family) {
 
-		if (family == AF_INET6) {
-			s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-			memcpy(ipv6addr, &s6->sin6_addr, sizeof(struct in6_addr));
-            
-			if (bglobal.debug_network)
+			if (family == AF_INET6) {
+				SET_IPADDR_V6(ipaddr);
+				s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+				memcpy(&ipaddr->ipaddr_v6, &s6->sin6_addr, sizeof(struct in6_addr));
+				
+				if (bglobal.debug_network)
+				{
+					char buf[INET6_ADDRSTRLEN];
+					zlog_debug("%s's ipv6 address: <%s>\n", ifa->ifa_name, ipaddr2str(ipaddr, buf, sizeof(buf)));
+				}
+				break;
+			} 
+
+			if (family == AF_INET)
 			{
-				char buf[INET6_ADDRSTRLEN];
-				zlog_debug("%s's ipv6 address: <%s>\n", ifa->ifa_name, 
-				    inet_ntop(ifa->ifa_addr->sa_family, ipv6addr, buf, sizeof(buf)));
+				SET_IPADDR_V4(ipaddr);
+				s4 = (struct sockaddr_in *)ifa->ifa_addr;
+				memcpy(&ipaddr->ipaddr_v4, &s4->sin_addr, sizeof(struct in_addr));
+
+				if (bglobal.debug_network)
+				{
+					char buf[INET_ADDRSTRLEN];
+					zlog_debug("%s's ipv4 address: <%s>\n", ifa->ifa_name, ipaddr2str(ipaddr, buf, sizeof(buf)));
+				}
+				break;
 			}
-			break;
-		} 
-	}
-	freeifaddrs(ifaddr);
-	return 0;	
+        }
+    }
+    
+    freeifaddrs(ifaddr);
+    return 0;
 }
 
-static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
+static int get_nhp_mac(char* ifname, struct ipaddr *nhp, uint8_t* dmac)
 {
 	uint32_t ifindex;
 	struct ipaddr ipaddr = {0};
@@ -2028,8 +2166,7 @@ static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
 		return -1;
 	}
 
-	SET_IPADDR_V6(&ipaddr);
-	memcpy(&ipaddr.ipaddr_v6, nhp, sizeof(struct in6_addr));
+	memcpy(&ipaddr, nhp, sizeof(struct ipaddr));
     
 	nd = bfdd_neigh_tree_find(ifindex, &ipaddr);
 	if (!nd)
@@ -2051,11 +2188,11 @@ static int get_nhp_mac(char* ifname, struct in6_addr *nhp, uint8_t* dmac)
 	return 0;
 }
 
-static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t *dmac)
+static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t *dmac, uint16_t family)
 {
 	memcpy(eth->ether_shost, smac, sizeof(eth->ether_shost));
 	memcpy(eth->ether_dhost, dmac, sizeof(eth->ether_dhost));
-    eth->ether_type = htons(ETH_P_IPV6);  
+    eth->ether_type = (family == AF_INET6) ? htons(ETH_P_IPV6) : htons(ETH_P_IP);  
 }
 
 
@@ -2077,10 +2214,10 @@ static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t
  * @return int 
  */
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
-    struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t family, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list, 
-	char *ifname, struct in6_addr *nhp)
+	char *ifname, struct ipaddr *nhp)
 {
     struct msghdr msg  = {0};
     struct iovec iov;
@@ -2090,12 +2227,13 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	struct ether_header *eth;
 	struct ip6_hdr *srh_ip6h;
     struct ip6_hdr *ip6h;
+	struct ip *iph;
 	struct udphdr *udp;
 	uint8_t *payload;
 
 	uint8_t src_mac[6];
 	uint8_t dst_mac[6];
-    struct in6_addr out_sip = {0};
+	struct ipaddr out_sip_addr = {0};
 	struct sockaddr_ll sadr_ll = {0};
 
 	char sendbuf[BUF_SIZ];
@@ -2116,7 +2254,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	}
 
 	// get interface ipaddress
-	if (get_intf_ipv6addr(ifname, &out_sip) == -1)
+	if (get_intf_addr(ifname, &out_sip_addr, family) == -1)
 	{
 		return -1;
 	}
@@ -2129,27 +2267,44 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     
 	/* Ether Header */
 	eth = (struct ether_header *) sendbuf;
-    bp_sbfd_encap_ether(eth, src_mac, dst_mac);
+    bp_sbfd_encap_ether(eth, src_mac, dst_mac, family);
 	total_len += sizeof(struct ether_header);
 
     /* SRH IPv6 Header */
 	if (seg_num > 0)
 	{
 		srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
-		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip , &segment_list[0], seg_num, datalen);
+		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip_addr.ipaddr_v6 , &segment_list[0], seg_num, datalen, family);
 		total_len += sizeof(struct ip6_hdr);
 	}
 
-	/* Inner IPv6 Header */
-	ip6h = (struct ip6_hdr *)(sendbuf + total_len);
-	bp_sbfd_encap_inner_ip6h(ip6h, sip , dip, datalen);
-	total_len += sizeof(struct ip6_hdr);
+    if (family == AF_INET6)
+	{
+		/* Inner IPv6 Header */
+		ip6h = (struct ip6_hdr *)(sendbuf + total_len);
+		bp_sbfd_encap_inner_ip6h(ip6h, sip , dip, datalen);
+		total_len += sizeof(struct ip6_hdr);
 
-	/* UDP  Header */
-	udp = (struct udphdr *)(sendbuf + total_len);
-	bp_sbfd_encap_udp(udp, ip6h, src_port, dst_port, data, datalen);
-	total_len += sizeof(struct udphdr);
-    
+		/* UDP  Header */
+		udp = (struct udphdr *)(sendbuf + total_len);
+		bp_sbfd_encap_udp6(udp, ip6h, src_port, dst_port, data, datalen);
+		total_len += sizeof(struct udphdr);
+	}
+	else
+	{
+		/* Inner IPv4 Header */
+		iph = (struct ip *)(sendbuf + total_len);
+		bp_sbfd_encap_inner_iph(iph, sip , dip, datalen);
+		total_len += sizeof(struct ip);
+
+		/* UDP  Header */
+		udp = (struct udphdr *)(sendbuf + total_len);
+		bp_sbfd_encap_udp4(udp, iph, src_port, dst_port, data, datalen);
+		total_len += sizeof(struct udphdr);
+
+		iph->ip_sum = in_cksum((const void *)iph, sizeof(struct ip));
+	}
+
 	/* BFD payload*/
 	payload = (uint8_t *)(sendbuf + total_len);
     memcpy(payload, data, datalen);
