@@ -1814,10 +1814,10 @@ static struct bmp *bmp_open(struct bmp_targets *bt, int bmp_sock)
 	bt->cnt_accept++;
 
 	if (setsockopt(bmp_sock, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) < 0)
-		flog_err(EC_LIB_SOCKET, "bmp: %d can't setsockopt SO_KEEPALIVE: %s(%d)",
+		zlog_info("bmp: %d can't setsockopt SO_KEEPALIVE: %s(%d)",
 			 bmp_sock, safe_strerror(errno), errno);
 	if (setsockopt(bmp_sock, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
-		flog_err(EC_LIB_SOCKET, "bmp: %d can't setsockopt TCP_NODELAY: %s(%d)",
+	    zlog_info("bmp: %d can't setsockopt TCP_NODELAY: %s(%d)",
 			 bmp_sock, safe_strerror(errno), errno);
 
 	zlog_info("bmp[%s] connection established", buf);
@@ -2266,7 +2266,7 @@ static void bmp_active_connect(struct bmp_active *ba)
         else
             ba->socket = sockunion_socket(&ba->addrs[ba->addrpos]);
 		if (ba->socket < 0) {
-			zlog_warn("bmp[%s]: failed to create socket",
+			zlog_debug("bmp[%s]: failed to create socket",
 				  ba->hostname);
 			continue;
 		}
@@ -2277,7 +2277,7 @@ static void bmp_active_connect(struct bmp_active *ba)
     				     ba->targets->update_source);
             if (ret < 0)
             {
-                zlog_warn("bmp[%s]: failed to bind source ip",
+                zlog_debug("bmp[%s]: failed to bind source ip",
 				  ba->hostname);
     			continue;
             }
@@ -2375,7 +2375,7 @@ static int bmp_active_thread(struct thread *t)
 		goto out_next;
 	}
 
-	zlog_warn("bmp[%s]: outbound connection to %s:%d",
+	zlog_debug("bmp[%s]: outbound connection to %s:%d",
 		  ba->hostname, buf, ba->port);
 
 	ba->bmp = bmp_open(ba->targets, ba->socket);

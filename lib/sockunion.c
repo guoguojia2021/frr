@@ -140,7 +140,7 @@ int sockunion_socket(const union sockunion *su)
 	sock = socket(su->sa.sa_family, SOCK_STREAM, 0);
 	if (sock < 0) {
 		char buf[SU_ADDRSTRLEN];
-		flog_err(EC_LIB_SOCKET, "Can't make socket for %s : %s",
+		zlog_info("Can't make socket for %s : %s",
 			 sockunion_log(su, buf, SU_ADDRSTRLEN),
 			 safe_strerror(errno));
 		return -1;
@@ -274,7 +274,7 @@ int sockunion_bind(int sock, union sockunion *su, unsigned short port,
 	ret = bind(sock, (struct sockaddr *)su, size);
 	if (ret < 0) {
 		char buf[SU_ADDRSTRLEN];
-		flog_err(EC_LIB_SOCKET, "can't bind socket for %s : %s",
+		zlog_info("can't bind socket for %s : %s",
 			 sockunion_log(su, buf, SU_ADDRSTRLEN),
 			 safe_strerror(errno));
 	}
@@ -523,9 +523,8 @@ union sockunion *sockunion_getsockname(int fd)
 
 	ret = getsockname(fd, (struct sockaddr *)&name, &len);
 	if (ret < 0) {
-		flog_err(EC_LIB_SOCKET,
-			 "Can't get local address and port by getsockname: %s",
-			 safe_strerror(errno));
+		zlog_info("Can't get local address and port by getsockname: %s",
+			 safe_strerror(errno));	
 		return NULL;
 	}
 
@@ -560,8 +559,8 @@ union sockunion *sockunion_getpeername(int fd)
 	len = sizeof(name);
 	ret = getpeername(fd, (struct sockaddr *)&name, &len);
 	if (ret < 0) {
-		flog_err(EC_LIB_SOCKET, "Can't get remote address and port: %s",
-			 safe_strerror(errno));
+		zlog_info("Can't get remote address and port: %s",
+			 safe_strerror(errno));		
 		return NULL;
 	}
 
