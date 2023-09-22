@@ -598,7 +598,7 @@ void srte_clean_zebra(void)
 	path_zebra_stop();
 }
 
-static srte_clear_bfdflag(struct sbfd_session_config *bfd_config)
+static void srte_clear_bfdflag(struct sbfd_session_config *bfd_config)
 {
 	UNSET_FLAG(bfd_config->bfd_flags, SBFD_NEW);
 	UNSET_FLAG(bfd_config->bfd_flags, SBFD_MODIFIED);
@@ -607,6 +607,29 @@ static srte_clear_bfdflag(struct sbfd_session_config *bfd_config)
 	UNSET_FLAG(bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);    
 	UNSET_FLAG(bfd_config->bfd_active_flags, SBFD_AF_PASSIVE);
 }
+
+static void cpath_status_del_bfd_handle(struct srte_candidate *candidate)
+{
+	switch (candidate->status)
+	{
+	case SRTE_DETECT_DOWN:
+		// down -> none
+		candidate->status=SRTE_DETECT_NONE;
+		upcounter_increase(candidate->segment_list);
+		sidlist_Db_SetEntry(candidate->segment_list);	
+		break;
+	case SRTE_DETECT_NONE:
+		// none -> none do nothing
+		break;
+	case SRTE_DETECT_UP:
+		// up->none, do nothing
+		candidate->status=SRTE_DETECT_NONE;
+		break;
+	default:
+		break;
+	}
+}
+
 /**
  * Apply changes defined by setting the policies, candidate paths
  * and segment lists modification flags NEW, MODIFIED and DELETED.
@@ -886,8 +909,13 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 			    && CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE)
 				&& !CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED))
 			{
-				if (candidate->status == SRTE_DETECT_UP)
+				if (candidate->status == SRTE_DETECT_UP || candidate->status == SRTE_DETECT_NONE )
 					cpath_up_count++;
+			}
+			else if (policy->bfd_config && CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED))
+			{
+				cpath_status_del_bfd_handle(candidate);
+				cpath_up_count++;
 			}
 			else
 			{
@@ -1868,7 +1896,7 @@ void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candid
 	}
 }
 
-static cpath_status_up_handle(struct srte_candidate *candidate)
+static void cpath_status_up_handle(struct srte_candidate *candidate)
 {
 	switch (candidate->status)
 	{
@@ -1890,7 +1918,7 @@ static cpath_status_up_handle(struct srte_candidate *candidate)
 	}
 }
 
-static cpath_status_down_handle(struct srte_candidate *candidate)
+static void cpath_status_down_handle(struct srte_candidate *candidate)
 {
 	switch (candidate->status)
 	{
@@ -1900,7 +1928,7 @@ static cpath_status_down_handle(struct srte_candidate *candidate)
 	case SRTE_DETECT_NONE:
 		// none -> down
 	case SRTE_DETECT_UP:
-		// up->down, do nothing
+		// up->down
 		candidate->status=SRTE_DETECT_DOWN;
 		upcounter_decrease(candidate->segment_list);
 		if (candidate->segment_list->upcount == 0)
