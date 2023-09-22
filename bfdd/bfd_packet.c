@@ -216,6 +216,17 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
 	if (!endx_info)
 	    return -1;
+    
+	// when sidlist just has one sid and the sid is endx and bfd is ipv4 ,it's not support offload
+	if (seg_num == 1 && bfd->key.family == AF_INET)
+	{
+        SET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
+	}
+	else
+	{
+        UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
+	}
+	    
 
 	sd = bfd->sock;
 
@@ -1875,10 +1886,21 @@ static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
 
 	if (seg_num == 1)
 	{
-		srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
-				+ sizeof(struct udphdr) 
-				+ datalen);
-        srh_ip6h->ip6_nxt = (family == AF_INET6) ? IPPROTO_IPV6 : IPPROTO_IP;
+		if (family == AF_INET6)
+		{
+			srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
+					+ sizeof(struct udphdr) 
+					+ datalen);
+			srh_ip6h->ip6_nxt = IPPROTO_IPV6;
+		}
+		else
+		{
+			srh_ip6h->ip6_plen = htons(sizeof(struct ip) 
+					+ sizeof(struct udphdr) 
+					+ datalen);
+			srh_ip6h->ip6_nxt = IPPROTO_IPIP;
+		}
+
 	}
 	else
 	{
@@ -2253,12 +2275,6 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 		return -1;
 	}
 
-	// get interface ipaddress
-	if (get_intf_addr(ifname, &out_sip_addr, family) == -1)
-	{
-		return -1;
-	}
-
 	// get interface dmac
     if (get_nhp_mac(ifname, nhp, dst_mac) == -1)
 	{
@@ -2267,7 +2283,25 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     
 	/* Ether Header */
 	eth = (struct ether_header *) sendbuf;
-    bp_sbfd_encap_ether(eth, src_mac, dst_mac, family);
+	if (seg_num == 0 && family == AF_INET)
+	{
+        bp_sbfd_encap_ether(eth, src_mac, dst_mac, AF_INET);
+		// get interface ipaddress
+		if (get_intf_addr(ifname, &out_sip_addr, AF_INET) == -1)
+		{
+			return -1;
+		}
+	}
+	else
+	{
+		bp_sbfd_encap_ether(eth, src_mac, dst_mac, AF_INET6);
+		// get interface ipaddress
+		if (get_intf_addr(ifname, &out_sip_addr, AF_INET6) == -1)
+		{
+			return -1;
+		}
+	}
+    
 	total_len += sizeof(struct ether_header);
 
     /* SRH IPv6 Header */

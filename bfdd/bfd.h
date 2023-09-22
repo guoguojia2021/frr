@@ -179,7 +179,7 @@ enum bfd_session_flags {
 	BFD_SESS_FLAG_SBFD_INIT = 1 << 12,  /* sbfd Initiator */
 	BFD_SESS_FLAG_SBFD_REFL = 1 << 13,  /* sbfd reflector */
 	BFD_SESS_FLAG_SBFD_ECHO = 1 << 14,  /* sbfd echo */
-
+    BFD_SESS_FLAG_UNSUPPORT_OFFLOAD = 1 << 15,  /* unsupport offload flag*/
 };
 
 /*
