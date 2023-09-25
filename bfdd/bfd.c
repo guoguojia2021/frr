@@ -2948,7 +2948,7 @@ static int _bfd_session_name_cmp(struct hash_bucket *hb, void *arg)
 
 struct bfd_session * bfd_session_get_by_name(const char * name)
 {
-	if (!name)
+	if (!name || name[0] == '\0')
 		return NULL;
 
     struct bfd_session_name_match_unique match;
