@@ -22,7 +22,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cd "$(dirname "$0")"/..
+cd "$(dirname "$0")"/../../../
 
 version=$1
 
@@ -32,5 +32,5 @@ fi
 
 exec docker build  \
 		  -t debian/topotests:${version} \
-		  -f Dockerfile.${version} \
+		  -f docker/ubuntu20-ci/Dockerfile \
 		  .

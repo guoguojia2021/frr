@@ -177,4 +177,4 @@ if [ -t 0 ]; then
 fi
 
 echo "$@"
-exec docker run "$@"
+exec sudo docker run "$@"

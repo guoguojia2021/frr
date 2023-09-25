@@ -20,7 +20,7 @@ fi
 
 
 if [ -z "$DEBIAN_VERSION" ]; then
-	DEBIAN_VERSION="buster"
+	DEBIAN_VERSION="20"
 fi
 
 PARAM=""

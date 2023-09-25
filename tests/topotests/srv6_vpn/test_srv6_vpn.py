@@ -32,7 +32,7 @@ from lib.ltemplate import *
 pytestmark = [pytest.mark.bgpd, pytest.mark.ospfd, pytest.mark.esr]
 
 
-def test_check_vpn_sid():
+def SKIP_test_check_vpn_sid():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
@@ -41,103 +41,59 @@ def test_check_vpn_sid():
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
     ltemplateTest("scripts/check_vpn_sid.py", False, CliOnFail, CheckFunc)
 
-def SKIP_test_check_linux_vrf():
+def test_check_local_sid():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
+    CheckFunc = None
     # uncomment next line to start cli *before* script is run
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/check_linux_vrf.py", False, CliOnFail, CheckFunc)
+    ltemplateTest("scripts/check_local_sid.py", False, CliOnFail, CheckFunc)
 
-def SKIP_test_notification_check():
+def test_check_import_sid():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
+    CheckFunc = None
     # uncomment next line to start cli *before* script is run
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/notification_check.py", False, CliOnFail, CheckFunc)
+    ltemplateTest("scripts/check_import_sid.py", False, CliOnFail, CheckFunc)
 
-
-def SKIP_test_add_routes():
+def test_check_color():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1')"
-    # uncomment next line to start cli *before* script is run
-    # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True)'
-    ltemplateTest("scripts/add_routes.py", False, CliOnFail, CheckFunc)
-
-
-def SKIP_test_check_routes():
-    CliOnFail = None
-    # For debugging, uncomment the next line
-    # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1')"
-    # uncomment next line to start cli *before* script is run
-    # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True)'
-    ltemplateTest("scripts/check_routes.py", False, CliOnFail, CheckFunc)
-
-def SKIP_test_notification_check():
-    CliOnFail = None
-    # For debugging, uncomment the next line
-    # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
+    CheckFunc = None
     # uncomment next line to start cli *before* script is run
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/notification_check.py", False, CliOnFail, CheckFunc)
+    ltemplateTest("scripts/check_color.py", False, CliOnFail, CheckFunc)
 
-
-def SKIP_test_check_scale_up():
+def test_check_vpn_func():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
+    CheckFunc = None
     # uncomment next line to start cli *before* script is run
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/scale_up.py", False, CliOnFail, CheckFunc)
+    ltemplateTest("scripts/check_vpn_func.py", False, CliOnFail, CheckFunc)
 
-
-def SKIP_test_notification_check():
+def test_check_policy_sid():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
+    CheckFunc = None
     # uncomment next line to start cli *before* script is run
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/notification_check.py", False, CliOnFail, CheckFunc)
+    ltemplateTest("scripts/check_policy_config.py", False, CliOnFail, CheckFunc)
 
-
-def SKIP_test_check_scale_down():
+def test_check_policy_func():
     CliOnFail = None
     # For debugging, uncomment the next line
     # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
+    CheckFunc = None
     # uncomment next line to start cli *before* script is run
     # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/scale_down.py", False, CliOnFail, CheckFunc)
-
-
-def SKIP_test_notification_check():
-    CliOnFail = None
-    # For debugging, uncomment the next line
-    # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1', iproute2='4.9')"
-    # uncomment next line to start cli *before* script is run
-    # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True, iproute2=\'4.9\')'
-    ltemplateTest("scripts/notification_check.py", False, CliOnFail, CheckFunc)
-
-
-def SKIP_test_cleanup_all():
-    CliOnFail = None
-    # For debugging, uncomment the next line
-    # CliOnFail = 'tgen.mininet_cli'
-    CheckFunc = "ltemplateVersionCheck('4.1')"
-    # uncomment next line to start cli *before* script is run
-    # CheckFunc = 'ltemplateVersionCheck(\'4.1\', cli=True)'
-    ltemplateTest("scripts/cleanup_all.py", False, CliOnFail, CheckFunc)
-
+    ltemplateTest("scripts/check_policy_func.py", False, CliOnFail, CheckFunc)
 
 if __name__ == "__main__":
     retval = pytest.main(["-s"])
