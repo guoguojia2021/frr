@@ -267,6 +267,12 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
     // set policy info
     sbfd_sess_set_srpolicy_info(sbs->session, policy->color, &policy->endpoint.ipaddr_v6);
    
+	// first sid
+	if (IS_IPADDR_V6(&segl->first_sid))
+	{
+		memcpy(&seglist[seg_num], &segl->first_sid.ipaddr_v6, sizeof(struct in6_addr));
+		seg_num++;
+	}
     // get all seg
 	RB_FOREACH (s_entry, srte_segment_entry_head, &segl->segments) 
 	{

@@ -1040,7 +1040,7 @@ void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, char *ifname, struct ipa
 		zlog_debug("%s: Notifying Srv6 end-x local sid (%u)", __func__, cmd);
     
 	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
-		if (client->proto != ZEBRA_ROUTE_BFD)
+		if (client->proto != ZEBRA_ROUTE_BFD && client->proto !=ZEBRA_ROUTE_SRTE)
 		    continue;
 
 		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
@@ -4009,6 +4009,7 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_CONFIGURE_ARP] = zebra_configure_arp,
 	[ZEBRA_GRE_GET] = zebra_gre_get,
 	[ZEBRA_GRE_SOURCE_SET] = zebra_gre_source_set,
+	[ZEBRA_SRV6_ENDX_SID_GET] = zebra_ptm_endx_get
 };
 
 /*

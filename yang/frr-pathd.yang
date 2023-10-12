@@ -78,6 +78,10 @@ module frr-pathd {
           mandatory true;
           description "Originator of the segment list";
         }
+        leaf first-sid-value {
+          type inet:ip-address;
+          description "forwarding-ignore-first-sid value";
+        }
         leaf last-sid-value {
           type inet:ip-address;
           description "forwarding-ignore-last-sid value";

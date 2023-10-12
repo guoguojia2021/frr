@@ -188,6 +188,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     DB_FieldValue_List *pstDataLst_head = NULL;
     DB_FieldValue_List *pstDataLst_path = NULL;
     DB_FieldValue_List *pstDataLst_lastsid = NULL;
+    DB_FieldValue_List *pstDataLst_first_sid = NULL;
 
     if (!g_bPathRedisInUse)
         return;
@@ -251,6 +252,25 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         }
         pstDataLst_path->next = pstDataLst_lastsid;
     }
+
+    if (!IS_IPADDR_NONE(&segl->first_sid))
+    {
+        /* set first sid field and value*/
+        snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s",SRV6_SID_LIST_TABLE, segl->name);
+        snprintf(field, PATH_DB_MAX_KEY_LEN, "forwarding-ignore-first-sid");
+        snprintf(value, PATH_DB_MAX_KEY_LEN, "%s",
+            inet_ntop(AF_INET6, &segl->first_sid.ipaddr_v6, tmpbuf, sizeof(tmpbuf)));
+
+        pstDataLst_first_sid = new_Sidlist_DB_Data(key, field, value);
+        if (pstDataLst_first_sid == NULL)
+        {
+            release_Sidlist_DB_Data(pstDataLst_head);
+            zlog_err("create field first failed.");
+            return;
+        }
+        pstDataLst_path->next = pstDataLst_first_sid;
+    }
+
 
     ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst_head, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
