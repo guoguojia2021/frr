@@ -251,6 +251,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
             return;
         }
         pstDataLst_path->next = pstDataLst_lastsid;
+        pstDataLst_path = pstDataLst_path->next;
     }
 
     if (!IS_IPADDR_NONE(&segl->first_sid))
