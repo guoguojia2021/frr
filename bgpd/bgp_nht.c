@@ -1095,6 +1095,144 @@ void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc)
 	sendmsg_zebra_rnh(bnc, ZEBRA_NEXTHOP_UNREGISTER);
 }
 
+void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_info *path)
+{
+	struct bgp_dest *dest;
+	int afi;
+	struct bgp_table *table;
+	safi_t safi;
+	struct bgp *bgp_path;
+	const struct prefix *p;
+	bool isServiceRoute = false;
+	bool isSrv6TeBnc = false;
+
+	dest = path->net;
+	assert(dest && bgp_dest_table(dest));
+	p = bgp_dest_get_prefix(dest);
+	afi = family2afi(p->family);
+	table = bgp_dest_table(dest);
+	safi = table->safi;
+
+	/*
+		* handle routes from other VRFs (they can have a
+		* nexthop in THIS VRF). bgp_path is the bgp instance
+		* that owns the route referencing this nexthop.
+		*/
+	bgp_path = table->bgp;
+
+	/*
+		* Path becomes valid/invalid depending on whether the nexthop
+		* reachable/unreachable.
+		*
+		* In case of unicast routes that were imported from vpn
+		* and that have labels, they are valid only if there are
+		* nexthops with labels
+		*
+		* If the nexthop is EVPN gateway-IP,
+		* do not check for a valid label.
+		*/
+    if (bnc->srte_color != 0)
+        isSrv6TeBnc = true;
+
+	bool bnc_is_valid_nexthop = false;
+	bool path_valid = false;
+	if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
+		isServiceRoute = true;
+	else
+		isServiceRoute = false;
+
+	if (safi == SAFI_UNICAST && path->sub_type == BGP_ROUTE_IMPORTED
+		&& path->extra && path->extra->num_labels
+		&& (path->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP)
+		&& (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))
+		&& !isServiceRoute) {
+		bnc_is_valid_nexthop =
+			bgp_isvalid_labeled_nexthop(bnc) ? true : false;
+	} else {
+		if (bgp_update_martian_nexthop(
+				bnc->bgp, afi, safi, path->type,
+				path->sub_type, path->attr, dest)) {
+			if (BGP_DEBUG(nht, NHT))
+				zlog_debug(
+					"%s: prefix %pBD (vrf %s), ignoring path due to martian or self-next-hop",
+					__func__, dest, bgp_path->name);
+		} else {
+			bnc_is_valid_nexthop =
+				bgp_isvalid_nexthop(bnc) ? true : false;
+		}
+	}
+
+	if (BGP_DEBUG(nht, NHT)) {
+		char buf1[RD_ADDRSTRLEN];
+
+		if (dest->pdest) {
+			prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
+				buf1, sizeof(buf1));
+			zlog_debug(
+				"... eval path %d/%d %pBD RD %s %s flags 0x%x",
+				afi, safi, dest, buf1,
+				bgp_path->name_pretty, path->flags);
+		} else
+			zlog_debug(
+				"... eval path %d/%d %pBD %s flags 0x%x",
+				afi, safi, dest, bgp_path->name_pretty,
+				path->flags);
+	}
+
+	/* Skip paths marked for removal or as history. */
+	if (CHECK_FLAG(path->flags, BGP_PATH_REMOVED)
+		|| CHECK_FLAG(path->flags, BGP_PATH_HISTORY))
+		return;
+
+	/* Copy the metric to the path. Will be used for bestpath
+		* computation */
+	if (bgp_isvalid_nexthop(bnc) && bnc->metric)
+		(bgp_path_info_extra_get(path))->igpmetric =
+			bnc->metric;
+	else if (path->extra)
+		path->extra->igpmetric = 0;
+
+	if (CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_METRIC_CHANGED)
+		|| isSrv6TeBnc)
+		SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
+	if (CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED) 
+		&& (!isServiceRoute || !CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_COUNT_UNCHANGED)))
+		SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
+
+	path_valid = CHECK_FLAG(path->flags, BGP_PATH_VALID);
+	if (path_valid != bnc_is_valid_nexthop) {
+		if (path_valid) {
+			if (!isSrv6TeBnc)
+			{
+				/* No longer valid, clear flag; also for EVPN
+					* routes, unimport from VRFs if needed.
+					*/
+				bgp_aggregate_decrement(bgp_path, p, path, afi,
+							safi);
+				bgp_path_info_unset_flag(dest, path,
+								BGP_PATH_VALID);
+				if (safi == SAFI_EVPN &&
+					bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
+					bgp_evpn_unimport_route(bgp_path,
+						afi, safi, bgp_dest_get_prefix(dest), path);
+			}
+		} else {
+			/* Path becomes valid, set flag; also for EVPN
+				* routes, import from VRFs if needed.
+				*/
+			bgp_path_info_set_flag(dest, path,
+							BGP_PATH_VALID);
+			bgp_aggregate_increment(bgp_path, p, path, afi,
+						safi);
+			if (safi == SAFI_EVPN &&
+				bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
+				bgp_evpn_import_route(bgp_path,
+					afi, safi, bgp_dest_get_prefix(dest), path);
+		}
+	}
+
+	bgp_process(bgp_path, dest, afi, safi);
+}
 /**
  * evaluate_paths - Evaluate the paths/nets associated with a nexthop.
  * ARGUMENTS:
@@ -1104,16 +1242,8 @@ void unregister_zebra_rnh(struct bgp_nexthop_cache *bnc)
  */
 void evaluate_paths(struct bgp_nexthop_cache *bnc)
 {
-	struct bgp_dest *dest;
 	struct bgp_path_info *path;
-	int afi;
 	struct peer *peer = (struct peer *)bnc->nht_info;
-	struct bgp_table *table;
-	safi_t safi;
-	struct bgp *bgp_path;
-	const struct prefix *p;
-    bool isServiceRoute = false;
-    bool isSrv6TeBnc = false;
 
 	if (BGP_DEBUG(nht, NHT)) {
 		char buf[PREFIX2STR_BUFFER];
@@ -1129,141 +1259,26 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			bgp_nexthop_dump_bnc_change_flags(bnc, chg_buf,
 							  sizeof(bnc_buf)));
 	}
-    if (bnc->srte_color != 0)
-        isSrv6TeBnc = true;
-
-	LIST_FOREACH (path, &(bnc->paths), nh_thread) {
-		if (!(path->type == ZEBRA_ROUTE_BGP
-		      && ((path->sub_type == BGP_ROUTE_NORMAL)
-			  || (path->sub_type == BGP_ROUTE_STATIC)
-			  || (path->sub_type == BGP_ROUTE_IMPORTED))))
-			continue;
-
-		dest = path->net;
-		assert(dest && bgp_dest_table(dest));
-		p = bgp_dest_get_prefix(dest);
-		afi = family2afi(p->family);
-		table = bgp_dest_table(dest);
-		safi = table->safi;
-
-		/*
-		 * handle routes from other VRFs (they can have a
-		 * nexthop in THIS VRF). bgp_path is the bgp instance
-		 * that owns the route referencing this nexthop.
-		 */
-		bgp_path = table->bgp;
-
-		/*
-		 * Path becomes valid/invalid depending on whether the nexthop
-		 * reachable/unreachable.
-		 *
-		 * In case of unicast routes that were imported from vpn
-		 * and that have labels, they are valid only if there are
-		 * nexthops with labels
-		 *
-		 * If the nexthop is EVPN gateway-IP,
-		 * do not check for a valid label.
-		 */
-
-		bool bnc_is_valid_nexthop = false;
-		bool path_valid = false;
-        if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
-            isServiceRoute = true;
-        else
-            isServiceRoute = false;
-
-		if (safi == SAFI_UNICAST && path->sub_type == BGP_ROUTE_IMPORTED
-		    && path->extra && path->extra->num_labels
-		    && (path->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP)
-			&& (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))
-			&& !isServiceRoute) {
-			bnc_is_valid_nexthop =
-				bgp_isvalid_labeled_nexthop(bnc) ? true : false;
-		} else {
-			if (bgp_update_martian_nexthop(
-				    bnc->bgp, afi, safi, path->type,
-				    path->sub_type, path->attr, dest)) {
-				if (BGP_DEBUG(nht, NHT))
-					zlog_debug(
-						"%s: prefix %pBD (vrf %s), ignoring path due to martian or self-next-hop",
-						__func__, dest, bgp_path->name);
-			} else {
-				bnc_is_valid_nexthop =
-					bgp_isvalid_nexthop(bnc) ? true : false;
-			}
+	if (bnc->srte_color == 0) {
+		LIST_FOREACH (path, &(bnc->paths), nh_thread) {
+			if (!(path->type == ZEBRA_ROUTE_BGP
+				&& ((path->sub_type == BGP_ROUTE_NORMAL)
+				|| (path->sub_type == BGP_ROUTE_STATIC)
+				|| (path->sub_type == BGP_ROUTE_IMPORTED))))
+				continue;
+			bgp_process_nexthop_change(bnc, path);
 		}
-
-		if (BGP_DEBUG(nht, NHT)) {
-			char buf1[RD_ADDRSTRLEN];
-
-			if (dest->pdest) {
-				prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
-					buf1, sizeof(buf1));
-				zlog_debug(
-					"... eval path %d/%d %pBD RD %s %s flags 0x%x",
-					afi, safi, dest, buf1,
-					bgp_path->name_pretty, path->flags);
-			} else
-				zlog_debug(
-					"... eval path %d/%d %pBD %s flags 0x%x",
-					afi, safi, dest, bgp_path->name_pretty,
-					path->flags);
+	} else {
+		LIST_FOREACH (path, &(bnc->paths), te_nh_thread) {
+			if (!(path->type == ZEBRA_ROUTE_BGP
+				&& ((path->sub_type == BGP_ROUTE_NORMAL)
+				|| (path->sub_type == BGP_ROUTE_STATIC)
+				|| (path->sub_type == BGP_ROUTE_IMPORTED))))
+				continue;
+			bgp_process_nexthop_change(bnc, path);
 		}
-
-		/* Skip paths marked for removal or as history. */
-		if (CHECK_FLAG(path->flags, BGP_PATH_REMOVED)
-		    || CHECK_FLAG(path->flags, BGP_PATH_HISTORY))
-			continue;
-
-		/* Copy the metric to the path. Will be used for bestpath
-		 * computation */
-		if (bgp_isvalid_nexthop(bnc) && bnc->metric)
-			(bgp_path_info_extra_get(path))->igpmetric =
-				bnc->metric;
-		else if (path->extra)
-			path->extra->igpmetric = 0;
-
-		if (CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_METRIC_CHANGED)
-		    || isSrv6TeBnc)
-			SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
-		if (CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED) 
-            && (!isServiceRoute || !CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_COUNT_UNCHANGED)))
-			SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
-
-		path_valid = CHECK_FLAG(path->flags, BGP_PATH_VALID);
-		if (path_valid != bnc_is_valid_nexthop) {
-			if (path_valid) {
-				if (!isSrv6TeBnc)
-				{
-					/* No longer valid, clear flag; also for EVPN
-					 * routes, unimport from VRFs if needed.
-					 */
-					bgp_aggregate_decrement(bgp_path, p, path, afi,
-								safi);
-					bgp_path_info_unset_flag(dest, path,
-								 BGP_PATH_VALID);
-					if (safi == SAFI_EVPN &&
-					    bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
-						bgp_evpn_unimport_route(bgp_path,
-							afi, safi, bgp_dest_get_prefix(dest), path);
-				}
-			} else {
-				/* Path becomes valid, set flag; also for EVPN
-				 * routes, import from VRFs if needed.
-				 */
-				bgp_path_info_set_flag(dest, path,
-						       BGP_PATH_VALID);
-				bgp_aggregate_increment(bgp_path, p, path, afi,
-							safi);
-				if (safi == SAFI_EVPN &&
-				    bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
-					bgp_evpn_import_route(bgp_path,
-						afi, safi, bgp_dest_get_prefix(dest), path);
-			}
-		}
-
-		bgp_process(bgp_path, dest, afi, safi);
 	}
+
 
 	if (peer) {
 		int valid_nexthops = bgp_isvalid_nexthop(bnc);
