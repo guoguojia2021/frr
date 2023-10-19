@@ -432,6 +432,7 @@ static void sr_config_sbfd_destroy(struct srte_policy *policy)
 {
 	if (policy->bfd_config)
 	{
+		sbfd_for_policy_reset(policy);
         SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
 		SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 	}
