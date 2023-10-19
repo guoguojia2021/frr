@@ -72,6 +72,7 @@ zebra_zebra_SOURCES = \
 	zebra/redistribute.c \
 	zebra/router-id.c \
 	zebra/rt_netlink.c \
+	zebra/rt_protobuf.c \
 	zebra/rt_socket.c \
 	zebra/rtadv.c \
 	zebra/rtread_netlink.c \
@@ -154,6 +155,7 @@ noinst_HEADERS += \
 	zebra/router-id.h \
 	zebra/rt.h \
 	zebra/rt_netlink.h \
+	zebra/rt_protobuf.h \
 	zebra/rtadv.h \
 	zebra/rule_netlink.h \
 	zebra/table_manager.h \
@@ -242,7 +244,7 @@ module_LTLIBRARIES += zebra/dplane_fpm_nl.la
 
 zebra_dplane_fpm_nl_la_SOURCES = zebra/dplane_fpm_nl.c
 zebra_dplane_fpm_nl_la_LDFLAGS = $(MODULE_LDFLAGS)
-zebra_dplane_fpm_nl_la_LIBADD  =
+zebra_dplane_fpm_nl_la_LIBADD  = fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS)
 
 vtysh_scan += zebra/dplane_fpm_nl.c
 endif

@@ -365,7 +365,9 @@ struct zebra_dplane_ctx {
  * should bypass the kernel.
  */
 #define DPLANE_CTX_FLAG_NO_KERNEL 0x01
-
+/* Flag that informs dplane to use protocol buffer
+*/
+#define DPLANE_CTX_FLAG_USE_PB 0x02
 
 /*
  * Registration block for one dataplane provider.
@@ -897,6 +899,22 @@ bool dplane_ctx_is_skip_kernel(const struct zebra_dplane_ctx *ctx)
 	DPLANE_CTX_VALID(ctx);
 
 	return CHECK_FLAG(ctx->zd_flags, DPLANE_CTX_FLAG_NO_KERNEL);
+}
+
+/* Providers will use protocol buffer to encode data with the flag
+*/
+void dplane_ctx_set_use_pb(struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	SET_FLAG(ctx->zd_flags, DPLANE_CTX_FLAG_USE_PB);
+}
+
+bool dplane_ctx_is_use_pb(const struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	return CHECK_FLAG(ctx->zd_flags, DPLANE_CTX_FLAG_USE_PB);
 }
 
 void dplane_ctx_set_op(struct zebra_dplane_ctx *ctx, enum dplane_op_e op)
@@ -5177,7 +5195,7 @@ static int kernel_dplane_process_one_err_result(struct zebra_dplane_ctx *ctx)
 	TAILQ_INSERT_TAIL(&work_list, ctx, zd_q_entries);
 
 	kernel_update_multi(&work_list);
-	TAILQ_FOREACH_SAFE (ictx, &work_list, zd_q_entries, tctx) 
+	TAILQ_FOREACH_SAFE (ictx, &work_list, zd_q_entries, tctx)
 	{
 		if (res = dplane_ctx_get_status(ictx) == ZEBRA_DPLANE_REQUEST_FAILURE )
 		{
@@ -5200,7 +5218,7 @@ static void kernel_dplane_process_err_result(struct zebra_dplane_ctx *ctx)
 
 	enum zebra_dplane_result res = dplane_ctx_get_status(ctx);
 
-	switch (dplane_ctx_get_op(ctx)) 
+	switch (dplane_ctx_get_op(ctx))
 	{
 	case DPLANE_OP_MAC_INSTALL:
 		prefix_mac2str(dplane_ctx_mac_get_addr(ctx), buf,sizeof(buf));
@@ -5213,7 +5231,7 @@ static void kernel_dplane_process_err_result(struct zebra_dplane_ctx *ctx)
 			kernel_dplane_process_one_err_result(ctx);
 		}
 		break;
-	/* other dplane op should be adapt and tested. */ 
+	/* other dplane op should be adapt and tested. */
 	default:
 		break;
 	}

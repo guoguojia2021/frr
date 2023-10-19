@@ -50,6 +50,7 @@
 #include "zebra/zebra_vxlan_private.h"
 #include "zebra/kernel_netlink.h"
 #include "zebra/rt_netlink.h"
+#include "zebra/rt_protobuf.h"
 #include "zebra/debug.h"
 
 #define SOUTHBOUND_DEFAULT_ADDR INADDR_LOOPBACK
@@ -724,17 +725,29 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 
 		/* FALL THROUGH */
 	case DPLANE_OP_ROUTE_INSTALL:
-		rv = netlink_route_multipath_msg_encode(
-			RTM_NEWROUTE, ctx, &nl_buf[nl_buf_len],
-			sizeof(nl_buf) - nl_buf_len, true, fnc->use_nhg);
-		if (rv <= 0) {
-			zlog_err(
-				"%s: netlink_route_multipath_msg_encode failed",
-				__func__);
-			return 0;
-		}
+		if (dplane_ctx_is_use_pb(ctx)) {
+			rv = protobuf_msg_encode(RTM_NEWROUTE, ctx, nl_buf, sizeof(nl_buf));
+			if (rv <= 0) {
+				zlog_err(
+					"%s: protobuf_msg_encode failed",
+					__func__);
+				return 0;
+			}
 
-		nl_buf_len += (size_t)rv;
+			nl_buf_len += (size_t)rv;
+		} else {
+			rv = netlink_route_multipath_msg_encode(
+				RTM_NEWROUTE, ctx, &nl_buf[nl_buf_len],
+				sizeof(nl_buf) - nl_buf_len, true, fnc->use_nhg);
+			if (rv <= 0) {
+				zlog_err(
+					"%s: netlink_route_multipath_msg_encode failed",
+					__func__);
+				return 0;
+			}
+
+			nl_buf_len += (size_t)rv;
+		}
 		break;
 
 	case DPLANE_OP_MAC_INSTALL:
