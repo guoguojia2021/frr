@@ -670,12 +670,17 @@ static void cpath_status_del_bfd_handle(struct srte_candidate *candidate)
 		sidlist_Db_SetEntry(candidate->segment_list);	
 		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB);
 		break;
-	case SRTE_DETECT_NONE:
-		// none -> none do nothing
-		break;
 	case SRTE_DETECT_UP:
 		// up->none, do nothing
 		candidate->status=SRTE_DETECT_NONE;
+	case SRTE_DETECT_NONE:
+		// none -> none do nothing
+		if (!CHECK_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB) 
+		    && !CHECK_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_WAIT_MYSID))
+		{
+			sidlist_Db_SetEntry(candidate->segment_list);	
+			SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB);            
+		}
 		break;
 	default:
 		break;
