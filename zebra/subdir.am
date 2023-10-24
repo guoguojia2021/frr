@@ -52,7 +52,7 @@ endif
 
 zebra_zebra_LDADD = lib/libfrr.la -ldl $(LIBCAP)
 if HAVE_PROTOBUF3
-zebra_zebra_LDADD += mlag/libmlag_pb.la $(PROTOBUF_C_LIBS)
+zebra_zebra_LDADD += mlag/libmlag_pb.la fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS)
 zebra/zebra_mlag.$(OBJEXT): mlag/mlag.pb-c.h
 endif
 zebra_zebra_SOURCES = \
@@ -244,7 +244,7 @@ module_LTLIBRARIES += zebra/dplane_fpm_nl.la
 
 zebra_dplane_fpm_nl_la_SOURCES = zebra/dplane_fpm_nl.c
 zebra_dplane_fpm_nl_la_LDFLAGS = $(MODULE_LDFLAGS)
-zebra_dplane_fpm_nl_la_LIBADD  = fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS)
+zebra_dplane_fpm_nl_la_LIBADD  =
 
 vtysh_scan += zebra/dplane_fpm_nl.c
 endif

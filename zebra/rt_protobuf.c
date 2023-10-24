@@ -1,24 +1,5 @@
 #include <zebra.h>
 
-#include "linklist.h"
-#include "if.h"
-#include "log.h"
-#include "prefix.h"
-#include "plist.h"
-#include "plist_int.h"
-#include "connected.h"
-#include "table.h"
-#include "memory.h"
-#include "rib.h"
-#include "thread.h"
-#include "privs.h"
-#include "nexthop.h"
-#include "vrf.h"
-#include "vty.h"
-#include "mpls.h"
-#include "vxlan.h"
-#include "printfrr.h"
-
 #include "zebra/rt_protobuf.h"
 
 static ssize_t protobuf_msg_encode(int cmd, struct zebra_dplane_ctx *ctx, uint8_t *data,
@@ -65,7 +46,7 @@ static Fpm__Message *create_route_message(int cmd, qpb_allocator_t *allocator,
 			zlog_debug("has_type: %d", msg->has_type);
 			zlog_debug("type: %d", msg->type);
 		}
-		msg->add_route = create_add_route_message(allocator, ctx);
+		msg->add_route = create_route_install_message(allocator, ctx);
 		if (!msg->add_route) {
 			return NULL;
 		}
@@ -75,7 +56,7 @@ static Fpm__Message *create_route_message(int cmd, qpb_allocator_t *allocator,
 	return msg;
 }
 
-static Fpm__AddRoute *create_add_route_message(qpb_allocator_t *allocator,
+static Fpm__AddRoute *create_route_install_message(qpb_allocator_t *allocator,
 					       struct zebra_dplane_ctx *ctx)
 {
 	Fpm__AddRoute *msg;

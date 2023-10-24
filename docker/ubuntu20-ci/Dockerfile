@@ -16,6 +16,11 @@ RUN apt update && \
       curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output /tmp/get-pip.py && \
       python2 /tmp/get-pip.py && \
       rm -f  /tmp/get-pip.py && \
+      # Protobuf build requirements
+      apt-get install -y \
+        libprotobuf-c-dev \
+        protobuf-c-compiler \
+      && \
       python3 -m pip install wheel && \
       python3 -m pip install pytest && \
       python3 -m pip install pytest-xdist && \
@@ -74,6 +79,8 @@ RUN cd ~/frr && \
        --enable-vty-group=frrvty \
        --enable-snmp=agentx \
        --enable-scripting \
+       --enable-protobuf \
+       --enable-fpm \
        --with-pkg-extra-version=-my-manual-build && \
     make -j $(nproc) && \
     sudo make install
