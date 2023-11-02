@@ -3600,8 +3600,10 @@ void bgp_zebra_init(struct thread_master *master, unsigned short instance)
 {
 	zclient_num_connects = 0;
 
-	if_zapi_callbacks(bgp_ifp_create, bgp_ifp_up,
-			  bgp_ifp_down, bgp_ifp_destroy);
+	hook_register_prio(if_real, 0, bgp_ifp_create);
+	hook_register_prio(if_up, 0, bgp_ifp_up);
+	hook_register_prio(if_down, 0, bgp_ifp_down);
+	hook_register_prio(if_unreal, 0, bgp_ifp_destroy);
 
 	/* Set default values. */
 	zclient = zclient_new(master, &zclient_options_default, bgp_handlers,

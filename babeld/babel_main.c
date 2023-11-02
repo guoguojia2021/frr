@@ -202,8 +202,10 @@ main(int argc, char **argv)
     babel_replace_by_null(STDIN_FILENO);
 
     /* init some quagga's dependencies, and babeld's commands */
-    if_zapi_callbacks(babel_ifp_create, babel_ifp_up,
-		      babel_ifp_down, babel_ifp_destroy);
+    hook_register_prio(if_real, 0, babel_ifp_create);
+    hook_register_prio(if_up, 0, babel_ifp_up);
+    hook_register_prio(if_down, 0, babel_ifp_down);
+    hook_register_prio(if_unreal, 0, babel_ifp_destroy);
     babeld_quagga_init();
     /* init zebra client's structure and it's commands */
     /* this replace kernel_setup && kernel_setup_socket */
