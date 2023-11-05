@@ -4,7 +4,8 @@ tools/etc/frr/frr.conf etc/frr/
 tools/frr-reload usr/lib/frr/
 usr/bin/mtracebis
 usr/bin/vtysh
-usr/lib/*/frr/libfrr.*
+usr/lib/*/frr/libfrr*
+usr/lib/*/frr/libmlag_pb*
 usr/lib/*/frr/libfrrcares.*
 usr/lib/*/frr/libfrrospfapiclient.*
 usr/lib/*/frr/modules/bgpd_bmp.so
