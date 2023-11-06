@@ -246,6 +246,7 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 const char *vrfname)
 {
 	memset(key, 0, sizeof(*key));
+    struct vrf *vrf = NULL;
 
 	switch (peer->sa_sin.sin_family) {
 	case AF_INET:
@@ -267,10 +268,26 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 	key->mhop = mhop;
 	if (ifname && ifname[0])
 		strlcpy(key->ifname, ifname, sizeof(key->ifname));
-	if (vrfname && vrfname[0])
-		strlcpy(key->vrfname, vrfname, sizeof(key->vrfname));
+	if (vrfname && vrfname[0] && strcmp(vrfname, VRF_DEFAULT_NAME) != 0)
+	{
+		vrf = vrf_lookup_by_name(vrfname);
+		if (vrf)
+		{
+			strlcpy(key->vrfname, vrf->name, sizeof(key->vrfname));
+			strlcpy(key->vrfaliasname, vrf->aliasName, sizeof(key->vrfaliasname));
+		}
+		else
+		{
+            strlcpy(key->vrfname, vrfname, sizeof(key->vrfname));
+			strlcpy(key->vrfaliasname, vrfname, sizeof(key->vrfaliasname));
+		}
+	}
 	else
+	{
 		strlcpy(key->vrfname, VRF_DEFAULT_NAME, sizeof(key->vrfname));
+		strlcpy(key->vrfaliasname, VRF_DEFAULT_NAME, sizeof(key->vrfaliasname));
+	}
+
 }
 
 struct bfd_session *bs_peer_find(struct bfd_peer_cfg *bpc)
