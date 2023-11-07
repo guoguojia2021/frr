@@ -497,6 +497,11 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 		if (nh->nh_vrf_id == VRF_UNKNOWN)
 			continue;
 
+		if ((install) && (nh->bfd_name[0])) {
+			if ((nh->bfd_status.state == BFD_STATUS_DOWN) || (nh->bfd_status.state == BFD_STATUS_ADMIN_DOWN))
+				continue;
+		}
+
 		api_nh->vrf_id = nh->nh_vrf_id;
 		if (nh->onlink)
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
