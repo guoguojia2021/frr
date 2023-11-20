@@ -120,6 +120,8 @@ extern unsigned int term_bgp_debug_update_strict;
 struct bgp_debug_filter {
 	char *host;
 	char *plist_name;
+	struct prefix_list *plist_v4;
+	struct prefix_list *plist_v6;
 	struct prefix *p;
 };
 
