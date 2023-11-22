@@ -2510,18 +2510,15 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 
 		ret = RMAP_PERMITMATCH;
 		if (bgp_path_suppressed(pi)) {
-			zlog_debug("supress route-map start");
 			ret = route_map_apply(UNSUPPRESS_MAP(filter), p,
 					      &rmap_path);
 		}
 		else if (ROUTE_MAP_OUT_NAME(filter)) {
-			zlog_debug("peer route-map %s start", ROUTE_MAP_OUT_NAME(filter));
 			ret = route_map_apply(ROUTE_MAP_OUT(filter), p,
 					      &rmap_path);
 		}
 
 		if (bgp_advertise_delay_applicable(peer) && ADVERTISE_DELAY_MAP(filter)) {
-			zlog_debug("advertise delay route-map start");
 			adv_ret = route_map_apply(ADVERTISE_DELAY_MAP(filter), p,
 					      &rmap_path);
 		}
