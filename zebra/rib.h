@@ -121,6 +121,9 @@ struct route_entry {
 	uint32_t nhe_id;
 	uint32_t nhe_installed_id;
 
+	uint32_t pic_nhe_id;
+	uint32_t pic_nhe_installed_id;
+
 	/* Tag */
 	route_tag_t tag;
 
@@ -518,6 +521,7 @@ extern int rib_if_arp2host_route(struct route_entry *i_rib);
 
 
 extern uint8_t route_distance(int type);
+extern bool zebra_update_pic_nhe(struct route_node *rn);
 
 extern void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 					   bool rt_delete);
@@ -664,6 +668,8 @@ extern void zebra_vty_init(void);
 extern pid_t pid;
 
 extern bool v6_rr_semantics;
+
+extern bool fpm_pic_nexthop;
 
 #ifdef __cplusplus
 }

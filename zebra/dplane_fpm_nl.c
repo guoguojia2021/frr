@@ -89,6 +89,9 @@ struct fpm_nl_ctx {
 	 * When a FPM server connection becomes a bottleneck, we must keep the
 	 * data plane contexts until we get a chance to process them.
 	 */
+
+    struct dplane_ctx_q ctxprequeue;
+	pthread_mutex_t ctxprequeue_mutex;
 	struct dplane_ctx_q ctxqueue;
 	pthread_mutex_t ctxqueue_mutex;
 
@@ -187,6 +190,8 @@ static int fpm_rib_send(struct thread *t);
 static int fpm_rib_reset(struct thread *t);
 static int fpm_rmac_send(struct thread *t);
 static int fpm_rmac_reset(struct thread *t);
+static int fpm_nhg_send_enqueue(struct nhg_hash_entry *nhe, struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx);
+
 
 /*
  * CLI.
@@ -690,6 +695,7 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 	ssize_t rv;
 	uint64_t obytes, obytes_peak;
 	enum dplane_op_e op = dplane_ctx_get_op(ctx);
+	bool use_protobuf =false;
 
 	/*
 	 * If we were configured to not use next hop groups, then quit as soon
@@ -697,7 +703,8 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 	 */
 	if ((!fnc->use_nhg)
 	    && (op == DPLANE_OP_NH_DELETE || op == DPLANE_OP_NH_INSTALL
-		|| op == DPLANE_OP_NH_UPDATE))
+		|| op == DPLANE_OP_NH_UPDATE || op == DPLANE_PROTOBUF_OP_NH_DELETE
+		|| op == DPLANE_PROTOBUF_OP_NH_INSTALL || op == DPLANE_PROTOBUF_OP_NH_UPDATE))
 		return 0;
 
 	nl_buf_len = 0;
@@ -705,7 +712,6 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 	frr_mutex_lock_autounlock(&fnc->obuf_mutex);
 
 	switch (op) {
-	case DPLANE_OP_ROUTE_UPDATE:
 	case DPLANE_OP_ROUTE_DELETE:
 		rv = netlink_route_multipath_msg_encode(RTM_DELROUTE, ctx,
 							nl_buf, sizeof(nl_buf),
@@ -716,17 +722,14 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 				__func__);
 			return 0;
 		}
-
 		nl_buf_len = (size_t)rv;
-
-		/* UPDATE operations need a INSTALL, otherwise just quit. */
-		if (op == DPLANE_OP_ROUTE_DELETE)
-			break;
+		break;
 
 		/* FALL THROUGH */
+    case DPLANE_OP_ROUTE_UPDATE:
 	case DPLANE_OP_ROUTE_INSTALL:
 		if (dplane_ctx_is_use_pb(ctx)) {
-			rv = protobuf_msg_encode(RTM_NEWROUTE, ctx, nl_buf, sizeof(nl_buf));
+			rv = protobuf_msg_encode(RTM_NEWROUTE, ctx, nl_buf, sizeof(nl_buf), true);
 			if (rv <= 0) {
 				zlog_err(
 					"%s: protobuf_msg_encode failed",
@@ -763,6 +766,8 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 		break;
 
 	case DPLANE_OP_NH_DELETE:
+		//rv = protobuf_msg_encode(RTM_DELNEXTHOP, ctx, nl_buf,
+		//				sizeof(nl_buf), true);
 		rv = netlink_nexthop_msg_encode(RTM_DELNEXTHOP, ctx, nl_buf,
 						sizeof(nl_buf), true);
 		if (rv <= 0) {
@@ -770,22 +775,46 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 				 __func__);
 			return 0;
 		}
-
 		nl_buf_len = (size_t)rv;
 		break;
 	case DPLANE_OP_NH_INSTALL:
 	case DPLANE_OP_NH_UPDATE:
+		//rv = protobuf_msg_encode(RTM_NEWNEXTHOP, ctx, nl_buf,
+		//				sizeof(nl_buf), true);
 		rv = netlink_nexthop_msg_encode(RTM_NEWNEXTHOP, ctx, nl_buf,
-						sizeof(nl_buf), true);
+		 				sizeof(nl_buf), true);
 		if (rv <= 0) {
 			zlog_err("%s: netlink_nexthop_msg_encode failed",
 				 __func__);
 			return 0;
 		}
-
 		nl_buf_len = (size_t)rv;
 		break;
+	case DPLANE_PROTOBUF_OP_NH_DELETE:
+		rv = protobuf_msg_encode(RTM_DELNEXTHOP, ctx, nl_buf,
+						sizeof(nl_buf), true);
+		if (rv <= 0) {
+			zlog_err("%s: protobuf_msg_encode failed",
+				 __func__);
+			return 0;
+		}
 
+		nl_buf_len = (size_t)rv;
+		use_protobuf = true;
+		break;
+	case DPLANE_PROTOBUF_OP_NH_INSTALL:
+	case DPLANE_PROTOBUF_OP_NH_UPDATE:
+		rv = protobuf_msg_encode(RTM_NEWNEXTHOP, ctx, nl_buf,
+						sizeof(nl_buf), true);
+		if (rv <= 0) {
+			zlog_err("%s: protobuf_msg_encode failed",
+				 __func__);
+			return 0;
+		}
+
+		nl_buf_len = (size_t)rv;
+		use_protobuf = true;
+		break;
 	case DPLANE_OP_LSP_INSTALL:
 	case DPLANE_OP_LSP_UPDATE:
 	case DPLANE_OP_LSP_DELETE:
@@ -850,7 +879,8 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 	 * See FPM_HEADER_SIZE definition for more information.
 	 */
 	stream_putc(fnc->obuf, 1);
-	stream_putc(fnc->obuf, 1);
+	if (!use_protobuf) stream_putc(fnc->obuf, 1);
+	else stream_putc(fnc->obuf, 2);
 	stream_putw(fnc->obuf, nl_buf_len + FPM_HEADER_SIZE);
 
 	/* Write current data. */
@@ -944,21 +974,35 @@ struct fpm_nhg_arg {
 	bool complete;
 };
 
-static int fpm_nhg_send_cb(struct hash_bucket *bucket, void *arg)
+static int fpm_nhg_send_enqueue(struct nhg_hash_entry *nhe, struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 {
-	struct nhg_hash_entry *nhe = bucket->data;
-	struct fpm_nhg_arg *fna = arg;
+    struct nhg_connected *rb_node_dep = NULL;
+    struct nhg_hash_entry *nhe_resolve = NULL;
+    int ret = HASHWALK_CONTINUE;
 
 	/* This entry was already sent, skip it. */
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FPM))
 		return HASHWALK_CONTINUE;
 
+	/* Resolve it first */
+	nhe_resolve = zebra_nhg_resolve(nhe);
+
+	/* Make sure all depends are installed/queued */
+	frr_each(nhg_connected_tree, &nhe_resolve->nhg_depends, rb_node_dep) {
+		ret = fpm_nhg_send_enqueue(rb_node_dep->nhe, fnc, ctx);
+        if (ret == HASHWALK_ABORT) {
+    		return HASHWALK_ABORT;
+        }
+	}
+
 	/* Reset ctx to reuse allocated memory, take a snapshot and send it. */
-	dplane_ctx_reset(fna->ctx);
-	dplane_ctx_nexthop_init(fna->ctx, DPLANE_OP_NH_INSTALL, nhe);
-	if (fpm_nl_enqueue(fna->fnc, fna->ctx) == -1) {
+	dplane_ctx_reset(ctx);
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT))
+		dplane_ctx_nexthop_init(ctx, DPLANE_OP_NH_INSTALL, nhe);
+	else
+		dplane_ctx_nexthop_init(ctx, DPLANE_PROTOBUF_OP_NH_INSTALL, nhe);
+	if (fpm_nl_enqueue(fnc, ctx) == -1) {
 		/* Our buffers are full, lets give it some cycles. */
-		fna->complete = false;
 		return HASHWALK_ABORT;
 	}
 
@@ -966,6 +1010,27 @@ static int fpm_nhg_send_cb(struct hash_bucket *bucket, void *arg)
 	SET_FLAG(nhe->flags, NEXTHOP_GROUP_FPM);
 
 	return HASHWALK_CONTINUE;
+}
+
+static int fpm_nhg_send_cb(struct hash_bucket *bucket, void *arg)
+{
+	struct nhg_hash_entry *nhe = bucket->data;
+	struct fpm_nhg_arg *fna = arg;
+    int ret = HASHWALK_CONTINUE;
+
+	/* This entry was already sent, skip it. */
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FPM))
+		return HASHWALK_CONTINUE;
+    
+    //zebra_nhg_install_kernel(nhe);
+    ret = fpm_nhg_send_enqueue(nhe, fna->fnc, fna->ctx);
+    if (ret == HASHWALK_ABORT) {
+        fna->complete = false;
+		return HASHWALK_ABORT;
+    }
+    
+    return HASHWALK_CONTINUE;
+
 }
 
 static int fpm_nhg_send(struct thread *t)
@@ -1242,12 +1307,17 @@ static int fpm_process_queue(struct thread *t)
 		}
 
 		/* Dequeue next item or quit processing. */
-		frr_with_mutex (&fnc->ctxqueue_mutex) {
-			ctx = dplane_ctx_dequeue(&fnc->ctxqueue);
+		frr_with_mutex (&fnc->ctxprequeue_mutex) {
+			ctx = dplane_ctx_dequeue(&fnc->ctxprequeue);
 		}
-		if (ctx == NULL)
-			break;
-
+		if (ctx == NULL) {
+            /* Dequeue next item or quit processing. */
+    		frr_with_mutex (&fnc->ctxqueue_mutex) {
+    			ctx = dplane_ctx_dequeue(&fnc->ctxqueue);
+    		}
+    		if (ctx == NULL)
+    			break;
+		}
 		/*
 		 * Intentionally ignoring the return value
 		 * as that we are ensuring that we can write to
@@ -1372,7 +1442,9 @@ static int fpm_nl_start(struct zebra_dplane_provider *prov)
 	fnc->disabled = true;
 	fnc->prov = prov;
 	TAILQ_INIT(&fnc->ctxqueue);
+	TAILQ_INIT(&fnc->ctxprequeue);
 	pthread_mutex_init(&fnc->ctxqueue_mutex, NULL);
+	pthread_mutex_init(&fnc->ctxprequeue_mutex, NULL);
 
 	/* Set default values. */
 	fnc->use_nhg = true;
@@ -1456,8 +1528,17 @@ static int fpm_nl_process(struct zebra_dplane_provider *prov)
 			atomic_fetch_add_explicit(&fnc->counters.ctxqueue_len,
 						  1, memory_order_relaxed);
 
-			frr_with_mutex (&fnc->ctxqueue_mutex) {
-				dplane_ctx_enqueue_tail(&fnc->ctxqueue, ctx);
+			if (dplane_ctx_get_op(ctx) == DPLANE_OP_NH_INSTALL || dplane_ctx_get_op(ctx) == DPLANE_OP_NH_UPDATE
+				|| dplane_ctx_get_op(ctx) == DPLANE_PROTOBUF_OP_NH_INSTALL 
+				|| dplane_ctx_get_op(ctx) == DPLANE_PROTOBUF_OP_NH_UPDATE) {
+				frr_with_mutex (&fnc->ctxprequeue_mutex) {
+					dplane_ctx_enqueue_tail(&fnc->ctxprequeue, ctx);
+				}
+			}
+			else {
+				frr_with_mutex (&fnc->ctxqueue_mutex) {
+					dplane_ctx_enqueue_tail(&fnc->ctxqueue, ctx);
+				}
 			}
 
 			cur_queue = atomic_load_explicit(

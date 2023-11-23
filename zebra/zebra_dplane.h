@@ -182,6 +182,11 @@ enum dplane_op_e {
 	/* Incoming interface address events */
 	DPLANE_OP_INTF_ADDR_ADD,
 	DPLANE_OP_INTF_ADDR_DEL,
+
+	/* Protobuf nexthop update*/
+	DPLANE_PROTOBUF_OP_NH_INSTALL,
+	DPLANE_PROTOBUF_OP_NH_UPDATE,
+	DPLANE_PROTOBUF_OP_NH_DELETE,
 };
 
 /*
@@ -287,6 +292,9 @@ const char *dplane_res2str(enum zebra_dplane_result res);
 
 enum dplane_op_e dplane_ctx_get_op(const struct zebra_dplane_ctx *ctx);
 void dplane_ctx_set_op(struct zebra_dplane_ctx *ctx, enum dplane_op_e op);
+void dplane_ctx_set_use_pb(struct zebra_dplane_ctx *ctx);
+bool dplane_ctx_is_use_pb(const struct zebra_dplane_ctx *ctx);
+
 const char *dplane_op2str(enum dplane_op_e op);
 
 const struct prefix *dplane_ctx_get_dest(const struct zebra_dplane_ctx *ctx);

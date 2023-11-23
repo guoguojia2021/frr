@@ -1370,6 +1370,41 @@ static ssize_t fill_seg6ipt_encap(char *buffer, size_t buflen,
 	return srhlen + 4;
 }
 
+static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
+				  const struct in6_addr *seg, const struct in6_addr *src)
+{
+	struct seg6_iptunnel_encap_pri *ipt;
+	struct ipv6_sr_hdr *srh;
+	const size_t srhlen = 40;
+
+	/*
+	 * Caution: Support only SINGLE-SID, not MULTI-SID
+	 * This function only supports the case where segs represents
+	 * a single SID. If you want to extend the SRv6 functionality,
+	 * you should improve the Boundary Check.
+	 * Ex. In case of set a SID-List include multiple-SIDs as an
+	 * argument of the Transit Behavior, we must support variable
+	 * boundary check for buflen.
+	 */
+	if (buflen < (sizeof(struct seg6_iptunnel_encap_pri) +
+		      sizeof(struct ipv6_sr_hdr) + 16))
+		return -1;
+
+	memset(buffer, 0, buflen);
+
+	ipt = (struct seg6_iptunnel_encap_pri *)buffer;
+	ipt->mode = SEG6_IPTUN_MODE_ENCAP;
+	srh = ipt->srh;
+	srh->hdrlen = (srhlen >> 3) - 1;
+	srh->type = 4;
+	srh->segments_left = 0;
+	srh->first_segment = 0;
+	memcpy(&srh->segments[0], seg, sizeof(struct in6_addr));
+	memcpy(&ipt->src, src, sizeof(struct in6_addr));
+
+	return srhlen + 4;
+}
+
 /* This function takes a nexthop as argument and adds
  * the appropriate netlink attributes to an existing
  * netlink message.
@@ -2058,7 +2093,11 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 	}
 #endif
 	/* Table corresponding to this route. */
+
 	table_id = dplane_ctx_get_table(ctx);
+	if (fpm)
+		table_id = dplane_ctx_get_vrf(ctx);
+
 	if (table_id < 256)
 		req->r.rtm_table = table_id;
 	else {
@@ -2066,6 +2105,7 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 		if (!nl_attr_put32(&req->n, datalen, RTA_TABLE, table_id))
 			return 0;
 	}
+	
 
 	if (IS_ZEBRA_DEBUG_KERNEL)
 		zlog_debug(
@@ -2157,6 +2197,14 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 						 &src.ipv6, bytelen))
 					return 0;
 			}
+		}
+		/* download pic_nhe_id */
+		uint32_t pic_nh_id = 0;
+		pic_nh_id = dplane_ctx_get_pic_context_id(ctx);
+		if (pic_nh_id != 0) {
+			if (!nl_attr_put32(&req->n, datalen, RTA_PROTOINFO,
+				   pic_nh_id))
+				return 0;
 		}
 
 		return NLMSG_ALIGN(req->n.nlmsg_len);
@@ -2468,7 +2516,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 
 	flag = dplane_ctx_get_flags(ctx);
 
-	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)) {
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS) && !fpm) {
 		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
 			zlog_debug(
 				"%s: nhg_id %u (%s): this nexthops no need to install kernel, ignoring",
@@ -2548,7 +2596,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				break;
 			}
 
-			if (!nh->ifindex) {
+			if (!nh->ifindex && !fpm) {
 				flog_err(
 					EC_ZEBRA_NHG_FIB_UPDATE,
 					"Context received for kernel nexthop update without an interface");
@@ -2594,6 +2642,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 			}
 
 			if (nh->nh_srv6) {
+				/*
 				if (nh->nh_srv6->seg6local_action !=
 				    ZEBRA_SEG6_LOCAL_ACTION_UNSPEC) {
 					uint32_t action;
@@ -2679,6 +2728,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 					}
 					nl_attr_nest_end(&req->n, nest);
 				}
+				*/
 
 				if (!sid_zero(&nh->nh_srv6->seg6_segs)) {
 					char tun_buf[4096];
@@ -2693,9 +2743,17 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 					    NHA_ENCAP | NLA_F_NESTED);
 					if (!nest)
 						return 0;
-					tun_len = fill_seg6ipt_encap(tun_buf,
+					if (fpm) {
+						tun_len = fill_seg6ipt_encap_private(tun_buf,
+						    sizeof(tun_buf),
+						    &nh->nh_srv6->seg6_segs,
+						    &nh->nh_srv6->seg6_src);
+					}
+					else {
+						tun_len = fill_seg6ipt_encap(tun_buf,
 					    sizeof(tun_buf),
 					    &nh->nh_srv6->seg6_segs);
+					}
 					if (tun_len < 0)
 						return 0;
 					if (!nl_attr_put(&req->n, buflen,
@@ -2704,6 +2762,23 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						return 0;
 					nl_attr_nest_end(&req->n, nest);
 				}
+			}
+
+			if (!sid_zero(&nh->seg6_src)) {
+				encap = LWTUNNEL_ENCAP_IP6;
+				if (!nl_attr_put16(&req->n, buflen,
+						   NHA_ENCAP_TYPE, encap))
+					return 0;
+				nest = nl_attr_nest(&req->n, buflen, NHA_ENCAP);
+				if (!nest)
+					return 0;
+				if (!nl_attr_put(
+						    &req->n, buflen,
+						    LWTUNNEL_IP6_SRC, &nh->seg6_src,
+						    sizeof(struct in6_addr)))
+					return 0;
+
+				nl_attr_nest_end(&req->n, nest);
 			}
 
 nexthop_done:
@@ -2739,9 +2814,10 @@ static ssize_t netlink_nexthop_msg_encoder(struct zebra_dplane_ctx *ctx,
 	int cmd = 0;
 
 	op = dplane_ctx_get_op(ctx);
-	if (op == DPLANE_OP_NH_INSTALL || op == DPLANE_OP_NH_UPDATE)
+	if (op == DPLANE_OP_NH_INSTALL || op == DPLANE_OP_NH_UPDATE
+		|| op == DPLANE_PROTOBUF_OP_NH_INSTALL || op == DPLANE_PROTOBUF_OP_NH_UPDATE)
 		cmd = RTM_NEWNEXTHOP;
-	else if (op == DPLANE_OP_NH_DELETE)
+	else if (op == DPLANE_OP_NH_DELETE || op == DPLANE_PROTOBUF_OP_NH_DELETE)
 		cmd = RTM_DELNEXTHOP;
 	else {
 		flog_err(EC_ZEBRA_NHG_FIB_UPDATE,
@@ -2757,10 +2833,12 @@ enum netlink_msg_status
 netlink_put_nexthop_update_msg(struct nl_batch *bth,
 			       struct zebra_dplane_ctx *ctx)
 {
+    uint32_t flag;
+    flag = dplane_ctx_get_flags(ctx);
 	/* Nothing to do if the kernel doesn't support nexthop objects */
-	if (!kernel_nexthops_supported())
+	if (!kernel_nexthops_supported() || CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS))
 		return FRR_NETLINK_SUCCESS;
-
+    
 	return netlink_batch_add_msg(bth, ctx, netlink_nexthop_msg_encoder,
 				     false);
 }

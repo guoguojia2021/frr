@@ -25,12 +25,15 @@
 
 #include "zebra/zebra_mpls.h"
 #include "zebra/zebra_dplane.h"
+#include <linux/seg6.h>		/* For struct ipv6_sr_hdr. */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define NL_DEFAULT_ROUTE_METRIC 20
+
+#define NL_RTA_ENCAP_TYPE_PIC_CONTEXT_ID 300
 
 /*
  * Additional protocol strings to push into routes
@@ -61,6 +64,12 @@ extern "C" {
 #define RTPROT_ZSTATIC     196
 #define RTPROT_OPENFABRIC  197
 #define RTPROT_SRTE        198
+
+struct seg6_iptunnel_encap_pri {
+	int mode;
+	struct in6_addr src;
+	struct ipv6_sr_hdr srh[0];
+};
 
 void rt_netlink_init(void);
 

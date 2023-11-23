@@ -605,8 +605,10 @@ void nexthop_add_srv6_seg6(struct nexthop *nexthop,
 					   sizeof(struct nexthop_srv6));
 
 	nexthop->nh_srv6->seg6_segs = *segs;
-    if (segs_src)
+    if (segs_src) {
         nexthop->nh_srv6->seg6_src = *segs_src;
+		nexthop->seg6_src = *segs_src;
+    }
 }
 
 void nexthop_del_srv6_seg6(struct nexthop *nexthop)
@@ -799,6 +801,35 @@ uint32_t nexthop_hash(const struct nexthop *nexthop)
 
 	return key;
 }
+void nexthop_copy_no_context(struct nexthop *copy,
+			     const struct nexthop *nexthop,
+			     struct nexthop *rparent)
+{
+	copy->vrf_id = nexthop->vrf_id;
+	copy->ifindex = nexthop->ifindex;
+	copy->type = nexthop->type;
+	copy->flags = nexthop->flags;
+	copy->weight = nexthop->weight;
+
+	assert(nexthop->backup_num < NEXTHOP_MAX_BACKUPS);
+	copy->backup_num = nexthop->backup_num;
+	if (copy->backup_num > 0)
+		memcpy(copy->backup_idx, nexthop->backup_idx, copy->backup_num);
+
+	//copy->srte_color = nexthop->srte_color;
+	memcpy(&copy->gate, &nexthop->gate, sizeof(nexthop->gate));
+	memcpy(&copy->src, &nexthop->src, sizeof(nexthop->src));
+	memcpy(&copy->rmap_src, &nexthop->rmap_src, sizeof(nexthop->rmap_src));
+    memcpy(&copy->rmac, &nexthop->rmac, sizeof(nexthop->rmac));
+	memcpy(&copy->seg6_src, &nexthop->seg6_src, sizeof(nexthop->seg6_src));
+	copy->alibgp_flags = nexthop->alibgp_flags;
+	copy->rparent = rparent;
+
+	if (CHECK_FLAG(copy->flags, NEXTHOP_FLAG_RECURSIVE))
+		copy_nexthops_nocontext(&copy->resolved, nexthop->resolved, copy);
+	
+}
+
 
 void nexthop_copy_no_recurse(struct nexthop *copy,
 			     const struct nexthop *nexthop,
@@ -820,6 +851,7 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 	memcpy(&copy->src, &nexthop->src, sizeof(nexthop->src));
 	memcpy(&copy->rmap_src, &nexthop->rmap_src, sizeof(nexthop->rmap_src));
     memcpy(&copy->rmac, &nexthop->rmac, sizeof(nexthop->rmac));
+	memcpy(&copy->seg6_src, &nexthop->seg6_src, sizeof(nexthop->seg6_src));
 	copy->alibgp_flags = nexthop->alibgp_flags;
     copy->nh_encap.vni = nexthop->nh_encap.vni;
 	copy->rparent = rparent;
@@ -852,6 +884,13 @@ void nexthop_copy(struct nexthop *copy, const struct nexthop *nexthop,
 	 */
 	if (CHECK_FLAG(copy->flags, NEXTHOP_FLAG_RECURSIVE))
 		copy_nexthops(&copy->resolved, nexthop->resolved, copy);
+}
+struct nexthop *nexthop_dup_no_context(const struct nexthop *nexthop, struct nexthop *rparent)
+{
+	struct nexthop *new = nexthop_new();
+
+	nexthop_copy_no_context(new, nexthop, rparent);
+	return new;
 }
 
 struct nexthop *nexthop_dup_no_recurse(const struct nexthop *nexthop,

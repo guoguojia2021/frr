@@ -148,6 +148,7 @@ struct nexthop {
 
 	/* SRv6 information */
 	struct nexthop_srv6 *nh_srv6;
+	struct in6_addr seg6_src;
 };
 
 /* Utility to append one nexthop to another. */
@@ -252,6 +253,7 @@ extern struct nexthop *nexthop_dup(const struct nexthop *nexthop,
 /* Duplicates a nexthop and returns the newly allocated nexthop */
 extern struct nexthop *nexthop_dup_no_recurse(const struct nexthop *nexthop,
 					      struct nexthop *rparent);
+extern struct nexthop *nexthop_dup_no_context(const struct nexthop *nexthop, struct nexthop *rparent);
 
 /*
  * Parse one or more backup index values, as comma-separated numbers,

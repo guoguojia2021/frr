@@ -88,6 +88,7 @@ struct nhg_hash_entry {
 	 * faster with ID's.
 	 */
 	struct nhg_connected_tree_head nhg_depends, nhg_dependents;
+    struct nhg_hash_entry *pic_nhe;
 
 /*
  * Is this nexthop group valid, ie all nexthops are fully resolved.
@@ -135,6 +136,10 @@ struct nhg_hash_entry {
 #define NEXTHOP_GROUP_FPM (1 << 6)
 
 #define NEXTHOP_GROUP_BYPASS_KERNEL (1 << 7)
+
+#define NEXTHOP_GROUP_PIC_NHT           (1 << 8)
+#define NEXTHOP_GROUP_PIC_NON_RECURSIVE (1 << 9)
+
 };
 
 /* Upper 4 bits of the NHG are reserved for indicating the NHG type */
@@ -289,7 +294,7 @@ extern int zebra_nhg_kernel_del(uint32_t id, vrf_id_t vrf_id);
 /* Find an nhe based on a nexthop_group */
 extern struct nhg_hash_entry *zebra_nhg_rib_find(uint32_t id,
 						 struct nexthop_group *nhg,
-						 afi_t rt_afi, int type);
+						 afi_t rt_afi, int type, bool pic);
 
 /* Find an nhe based on a route's nhe, used during route creation */
 struct nhg_hash_entry *
@@ -346,6 +351,7 @@ extern uint8_t zebra_nhg_nhe2grp(struct nh_grp *grp, struct nhg_hash_entry *nhe,
 /* Dataplane install/uninstall */
 extern void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe);
+extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);
 
 /* Forward ref of dplane update context type */
 struct zebra_dplane_ctx;
@@ -365,6 +371,9 @@ extern void zebra_nhg_mark_keep(void);
 /* Nexthop resolution processing */
 struct route_entry; /* Forward ref to avoid circular includes */
 extern int nexthop_active_update(struct route_node *rn, struct route_entry *re);
+extern bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value */
+				   struct nhg_hash_entry *nhe,
+				   afi_t afi, bool from_dplane);
 
 #ifdef __cplusplus
 }

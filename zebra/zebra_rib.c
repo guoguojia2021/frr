@@ -325,6 +325,9 @@ static void route_entry_attach_ref(struct route_entry *re,
 	re->nhe_id = new->id;
 	re->nhe_installed_id = 0;
 
+	if (new->pic_nhe)
+		re->pic_nhe_id = new->pic_nhe->id;
+
 	zebra_nhg_increment_ref(new);
 }
 
@@ -340,6 +343,7 @@ int route_entry_update_nhe(struct route_entry *re,
 
 		re->nhe_id = 0;
 		re->nhe_installed_id = 0;
+		re->pic_nhe_id = 0;
 		re->nhe = NULL;
 		goto done;
 	}
@@ -736,11 +740,74 @@ static int rib_can_delete_dest(rib_dest_t *dest)
 	return 1;
 }
 
+bool zebra_update_pic_nhe(struct route_node *rn)
+{
+	afi_t afi;
+	int ret = 0;
+	struct nhg_hash_entry *picnhe;
+	struct nexthop *nh = NULL;
+	struct nhg_hash_entry pic_nh_lookup = {0};
+	//struct nexthop *nexthop_tmp;
+	struct prefix *p;
+	struct zebra_vrf *zvrf;
+	struct nhg_connected *rb_node_dep = NULL;
+	rib_dest_t *dest = rib_dest_from_rnode(rn);
+	if (!dest)
+		return;
+	zvrf = rib_dest_vrf(dest);
+	p = &rn->p;
+	afi = family2afi(p->family);
+	pic_nh_lookup.afi = afi;
+	/* Use a temporary nhe to find pic nh */
+	pic_nh_lookup.type = ZEBRA_ROUTE_NHG;
+	pic_nh_lookup.vrf_id = zvrf_id(zvrf);
+	SET_FLAG(pic_nh_lookup.flags, NEXTHOP_GROUP_PIC_NHT);
+    /* the nhg.nexthop is sorted */
+	switch (afi) {
+	case AFI_IP:
+		nh = nexthop_from_ipv4(&p->u.prefix4, NULL,
+					    zvrf_id(zvrf));
+		
+		break;
+	case AFI_IP6:
+		nh = nexthop_from_ipv6(&p->u.prefix6, zvrf_id(zvrf));
+		break;
+	default:
+		return false;
+	}
+	ret = nexthop_group_add_sorted_nodup(&pic_nh_lookup.nhg, nh);
+	if (!ret) {
+		nexthop_free(nh);
+		return false;
+	}
+	picnhe = hash_lookup(zrouter.nhgs, &pic_nh_lookup);
+
+	if (pic_nh_lookup.nhg.nexthop)
+		nexthops_free(pic_nh_lookup.nhg.nexthop);
+
+	if (!picnhe) {
+		return false;
+	}
+	UNSET_FLAG(picnhe->flags, NEXTHOP_GROUP_VALID);
+
+	frr_each_safe(nhg_connected_tree, &picnhe->nhg_dependents, rb_node_dep) {
+		//zebra_nhg_set_invalid(rb_node_dep->nhe);
+		UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
+		zebra_nhg_install_kernel(rb_node_dep->nhe);
+	}
+	
+	return true;
+
+}
+
 void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 				    bool rt_delete)
 {
 	rib_dest_t *dest = rib_dest_from_rnode(rn);
 	struct rnh *rnh;
+
+	if(rt_delete)
+		zebra_update_pic_nhe(rn);
 
 	/*
 	 * We are storing the rnh's associated withb
@@ -4607,6 +4674,9 @@ static int rib_process_dplane_results(struct thread *thread)
 			case DPLANE_OP_NH_INSTALL:
 			case DPLANE_OP_NH_UPDATE:
 			case DPLANE_OP_NH_DELETE:
+			case DPLANE_PROTOBUF_OP_NH_INSTALL:
+			case DPLANE_PROTOBUF_OP_NH_UPDATE:
+			case DPLANE_PROTOBUF_OP_NH_DELETE:
 				zebra_nhg_dplane_result(ctx);
 				break;
 

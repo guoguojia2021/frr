@@ -1520,6 +1520,8 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 						continue;
 				}
 				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6);
+				UNSET_FLAG(api.flags, ZEBRA_FLAG_ALLOW_RECURSION);
+				allow_recursion = false;
 			}
 		}
 		valid_nh_count++;
