@@ -1971,7 +1971,7 @@ struct bgp_nlri {
 #define BGP_ROUTE_REFRESH_EORR 2
 
 /* BGP timers default value.  */
-#define BGP_INIT_START_TIMER                     1
+#define BGP_INIT_START_TIMER                     30
 /* The following 3 are RFC defaults that are overridden in bgp_vty.c with
  * version-/profile-specific values.  The values here do not matter, they only
  * exist to provide a clear layering separation between core and CLI.

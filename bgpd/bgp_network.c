@@ -477,6 +477,16 @@ static int bgp_accept(struct thread *thread)
 		return -1;
 	}
 
+	if (peer1->t_start) {
+		if (bgp_debug_neighbor_events(peer1))
+			zlog_debug(
+				"[Event] connection from %s rejected(%s:%u:%s) due to start timer hold",
+				inet_sutop(&su, buf), bgp->name_pretty, bgp->as,
+				VRF_LOGNAME(vrf_lookup_by_id(bgp->vrf_id)));
+		close(bgp_sock);
+		return -1;
+	}
+
 	/*
 	 * Do not accept incoming connections in Clearing state. This can result
 	 * in incorect state transitions - e.g., the connection goes back to

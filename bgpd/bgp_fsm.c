@@ -526,7 +526,10 @@ static int bgp_start_timer(struct thread *thread)
 {
 	struct peer *peer;
 
+
 	peer = THREAD_ARG(thread);
+
+	BGP_TIMER_OFF(peer->t_start);
 
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug("%s [FSM] Timer (start timer expire).", peer->host);
@@ -2583,7 +2586,10 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	switch (peer->status) {
 	case Idle:
 		if (has_valid_nexthops) {
-			BGP_EVENT_ADD(peer, BGP_Start);
+			if (!peer->t_start)
+				BGP_TIMER_ON(peer->t_start, bgp_start_timer,
+					     peer->v_start);
+			//BGP_EVENT_ADD(peer, BGP_Start);
 		}
 		break;
 	case Connect:
@@ -2595,7 +2601,9 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 	case Active:
 		if (has_valid_nexthops) {
 			BGP_TIMER_OFF(peer->t_connect);
-			BGP_EVENT_ADD(peer, ConnectRetry_timer_expired);
+			BGP_TIMER_ON(peer->t_connect, bgp_connect_timer,
+					     peer->v_connect);
+			//BGP_EVENT_ADD(peer, ConnectRetry_timer_expired);
 		}
 		break;
 	case OpenSent:
