@@ -149,6 +149,7 @@ extern void bgp_advertise_delay_end(struct peer *peer);
  * out of read-only mode.
  */
 extern void bgp_start_routeadv(struct bgp *);
+extern int bgp_start_timer(struct thread *thread);
 
 /**
  * See if the route advertisement timer needs to be adjusted for a

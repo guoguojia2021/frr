@@ -93,7 +93,6 @@ static const char *const bgp_event_str[] = {
 int bgp_event(struct thread *);
 
 /* BGP thread functions. */
-static int bgp_start_timer(struct thread *);
 static int bgp_connect_timer(struct thread *);
 static int bgp_holdtime_timer(struct thread *);
 static int bgp_delayopen_timer(struct thread *);
@@ -522,7 +521,7 @@ void bgp_timer_set(struct peer *peer)
 
 /* BGP start timer.  This function set BGP_Start event to thread value
    and process event. */
-static int bgp_start_timer(struct thread *thread)
+int bgp_start_timer(struct thread *thread)
 {
 	struct peer *peer;
 
