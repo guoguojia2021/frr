@@ -42,18 +42,18 @@ static void redistribute_get_metrics(const struct lyd_node *dnode,
 {
 	memset(em, 0, sizeof(*em));
 
-	if (yang_dnode_exists(dnode, "./bandwidth"))
-		em->bandwidth = yang_dnode_get_uint32(dnode, "./bandwidth");
-	if (yang_dnode_exists(dnode, "./delay"))
-		em->delay = yang_dnode_get_uint32(dnode, "./delay");
+	if (yang_dnode_exists(dnode, "bandwidth"))
+		em->bandwidth = yang_dnode_get_uint32(dnode, "bandwidth");
+	if (yang_dnode_exists(dnode, "delay"))
+		em->delay = yang_dnode_get_uint32(dnode, "delay");
 #if 0 /* TODO: How does MTU work? */
-	if (yang_dnode_exists(dnode, "./mtu"))
-		em->mtu[0] = yang_dnode_get_uint32(dnode, "./mtu");
+	if (yang_dnode_exists(dnode, "mtu"))
+		em->mtu[0] = yang_dnode_get_uint32(dnode, "mtu");
 #endif
-	if (yang_dnode_exists(dnode, "./load"))
-		em->load = yang_dnode_get_uint32(dnode, "./load");
-	if (yang_dnode_exists(dnode, "./reliability"))
-		em->reliability = yang_dnode_get_uint32(dnode, "./reliability");
+	if (yang_dnode_exists(dnode, "load"))
+		em->load = yang_dnode_get_uint32(dnode, "load");
+	if (yang_dnode_exists(dnode, "reliability"))
+		em->reliability = yang_dnode_get_uint32(dnode, "reliability");
 }
 
 static struct eigrp_interface *eigrp_interface_lookup(const struct eigrp *eigrp,
@@ -87,7 +87,7 @@ static int eigrpd_instance_create(struct nb_cb_create_args *args)
 		/* NOTHING */
 		break;
 	case NB_EV_PREPARE:
-		vrf = yang_dnode_get_string(args->dnode, "./vrf");
+		vrf = yang_dnode_get_string(args->dnode, "vrf");
 
 		pVrf = vrf_lookup_by_name(vrf);
 		if (pVrf)
@@ -95,7 +95,7 @@ static int eigrpd_instance_create(struct nb_cb_create_args *args)
 		else
 			vrfid = VRF_DEFAULT;
 
-		eigrp = eigrp_get(yang_dnode_get_uint16(args->dnode, "./asn"),
+		eigrp = eigrp_get(yang_dnode_get_uint16(args->dnode, "asn"),
 				  vrfid);
 		args->resource->ptr = eigrp;
 		break;
@@ -729,7 +729,7 @@ static int eigrpd_instance_redistribute_create(struct nb_cb_create_args *args)
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
-		proto = yang_dnode_get_enum(args->dnode, "./protocol");
+		proto = yang_dnode_get_enum(args->dnode, "protocol");
 		vrfname = yang_dnode_get_string(args->dnode, "../vrf");
 
 		pVrf = vrf_lookup_by_name(vrfname);
@@ -747,7 +747,7 @@ static int eigrpd_instance_redistribute_create(struct nb_cb_create_args *args)
 		break;
 	case NB_EV_APPLY:
 		eigrp = nb_running_get_entry(args->dnode, NULL, true);
-		proto = yang_dnode_get_enum(args->dnode, "./protocol");
+		proto = yang_dnode_get_enum(args->dnode, "protocol");
 		redistribute_get_metrics(args->dnode, &metrics);
 		eigrp_redistribute_set(eigrp, proto, metrics);
 		break;
@@ -769,7 +769,7 @@ static int eigrpd_instance_redistribute_destroy(struct nb_cb_destroy_args *args)
 		break;
 	case NB_EV_APPLY:
 		eigrp = nb_running_get_entry(args->dnode, NULL, true);
-		proto = yang_dnode_get_enum(args->dnode, "./protocol");
+		proto = yang_dnode_get_enum(args->dnode, "protocol");
 		eigrp_redistribute_unset(eigrp, proto);
 		break;
 	}
@@ -1134,7 +1134,7 @@ static int lib_interface_eigrp_instance_create(struct nb_cb_create_args *args)
 			break;
 		}
 
-		eigrp = eigrp_get(yang_dnode_get_uint16(args->dnode, "./asn"),
+		eigrp = eigrp_get(yang_dnode_get_uint16(args->dnode, "asn"),
 				  ifp->vrf->vrf_id);
 		eif = eigrp_interface_lookup(eigrp, ifp->name);
 		if (eif == NULL)
@@ -1146,7 +1146,7 @@ static int lib_interface_eigrp_instance_create(struct nb_cb_create_args *args)
 		break;
 	case NB_EV_APPLY:
 		ifp = nb_running_get_entry(args->dnode, NULL, true);
-		eigrp = eigrp_get(yang_dnode_get_uint16(args->dnode, "./asn"),
+		eigrp = eigrp_get(yang_dnode_get_uint16(args->dnode, "asn"),
 				  ifp->vrf->vrf_id);
 		eif = eigrp_interface_lookup(eigrp, ifp->name);
 		if (eif == NULL)

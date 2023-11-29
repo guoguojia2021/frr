@@ -126,7 +126,7 @@ prefix_list_nb_validate_v4_af_type(const struct lyd_node *plist_dnode,
 {
 	int af_type;
 
-	af_type = yang_dnode_get_enum(plist_dnode, "./type");
+	af_type = yang_dnode_get_enum(plist_dnode, "type");
 	if (af_type != YPLT_IPV4) {
 		snprintf(errmsg, errmsg_len,
 			 "prefix-list type %u is mismatched.", af_type);
@@ -142,7 +142,7 @@ prefix_list_nb_validate_v6_af_type(const struct lyd_node *plist_dnode,
 {
 	int af_type;
 
-	af_type = yang_dnode_get_enum(plist_dnode, "./type");
+	af_type = yang_dnode_get_enum(plist_dnode, "type");
 	if (af_type != YPLT_IPV6) {
 		snprintf(errmsg, errmsg_len,
 			 "prefix-list type %u is mismatched.", af_type);
@@ -394,14 +394,14 @@ static void plist_dnode_to_prefix(const struct lyd_node *dnode, bool *any,
 	*ge = 0;
 	*le = 0;
 
-	if (yang_dnode_exists(dnode, "./any")) {
+	if (yang_dnode_exists(dnode, "any")) {
 		*any = true;
 		return;
 	}
 
 	switch (yang_dnode_get_enum(dnode, "../type")) {
 	case YPLT_IPV4:
-		yang_dnode_get_prefix(p, dnode, "./ipv4-prefix");
+		yang_dnode_get_prefix(p, dnode, "ipv4-prefix");
 		if (yang_dnode_exists(dnode,
 				      "./ipv4-prefix-length-greater-or-equal"))
 			*ge = yang_dnode_get_uint8(
@@ -412,7 +412,7 @@ static void plist_dnode_to_prefix(const struct lyd_node *dnode, bool *any,
 				dnode, "./ipv4-prefix-length-lesser-or-equal");
 		break;
 	case YPLT_IPV6:
-		yang_dnode_get_prefix(p, dnode, "./ipv6-prefix");
+		yang_dnode_get_prefix(p, dnode, "ipv6-prefix");
 		if (yang_dnode_exists(dnode,
 				      "./ipv6-prefix-length-greater-or-equal"))
 			*ge = yang_dnode_get_uint8(
@@ -499,8 +499,8 @@ static int lib_access_list_create(struct nb_cb_create_args *args)
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
-	type = yang_dnode_get_enum(args->dnode, "./type");
-	acl_name = yang_dnode_get_string(args->dnode, "./name");
+	type = yang_dnode_get_enum(args->dnode, "type");
+	acl_name = yang_dnode_get_string(args->dnode, "name");
 
 	switch (type) {
 	case YALT_IPV4:
@@ -581,7 +581,7 @@ static int lib_access_list_entry_create(struct nb_cb_create_args *args)
 		return NB_OK;
 
 	f = filter_new();
-	f->seq = yang_dnode_get_uint32(args->dnode, "./sequence");
+	f->seq = yang_dnode_get_uint32(args->dnode, "sequence");
 
 	acl = nb_running_get_entry(args->dnode, NULL, true);
 	f->acl = acl;
@@ -1154,8 +1154,8 @@ static int lib_prefix_list_create(struct nb_cb_create_args *args)
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
-	type = yang_dnode_get_enum(args->dnode, "./type");
-	name = yang_dnode_get_string(args->dnode, "./name");
+	type = yang_dnode_get_enum(args->dnode, "type");
+	name = yang_dnode_get_string(args->dnode, "name");
 	switch (type) {
 	case 0: /* ipv4 */
 		pl = prefix_list_get(AFI_IP, 0, name);
@@ -1232,7 +1232,7 @@ static int lib_prefix_list_entry_create(struct nb_cb_create_args *args)
 	pl = nb_running_get_entry(args->dnode, NULL, true);
 	ple = prefix_list_entry_new();
 	ple->pl = pl;
-	ple->seq = yang_dnode_get_uint32(args->dnode, "./sequence");
+	ple->seq = yang_dnode_get_uint32(args->dnode, "sequence");
 	prefix_list_entry_set_empty(ple);
 	nb_running_set_entry(args->dnode, ple);
 

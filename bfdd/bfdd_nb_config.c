@@ -38,17 +38,17 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 	struct sockaddr_any psa, lsa;
 
 	/* Required destination parameter. */
-	strtosa(yang_dnode_get_string(dnode, "./dest-addr"), &psa);
+	strtosa(yang_dnode_get_string(dnode, "dest-addr"), &psa);
 
 	/* Get optional source address. */
 	memset(&lsa, 0, sizeof(lsa));
-	if (yang_dnode_exists(dnode, "./source-addr"))
-		strtosa(yang_dnode_get_string(dnode, "./source-addr"), &lsa);
+	if (yang_dnode_exists(dnode, "source-addr"))
+		strtosa(yang_dnode_get_string(dnode, "source-addr"), &lsa);
 
-	vrfname = yang_dnode_get_string(dnode, "./vrf");
+	vrfname = yang_dnode_get_string(dnode, "vrf");
 
 	if (!mhop) {
-		ifname = yang_dnode_get_string(dnode, "./interface");
+		ifname = yang_dnode_get_string(dnode, "interface");
 		if (strcmp(ifname, "*") == 0)
 			ifname = NULL;
 	}
@@ -64,24 +64,24 @@ static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 	struct sockaddr_any psa, lsa;
 
 	/* Required source parameter. */
-	strtosa(yang_dnode_get_string(dnode, "./source-addr"), &lsa);
+	strtosa(yang_dnode_get_string(dnode, "source-addr"), &lsa);
 
 	/* Get optional destination address. */
 	memset(&psa, 0, sizeof(psa));
-	if (yang_dnode_exists(dnode, "./dest-addr"))
-		strtosa(yang_dnode_get_string(dnode, "./dest-addr"), &psa);
+	if (yang_dnode_exists(dnode, "dest-addr"))
+		strtosa(yang_dnode_get_string(dnode, "dest-addr"), &psa);
 
-	if (yang_dnode_exists(dnode, "./vrf"))
-		vrfname = yang_dnode_get_string(dnode, "./vrf");
+	if (yang_dnode_exists(dnode, "vrf"))
+		vrfname = yang_dnode_get_string(dnode, "vrf");
 
 	if (!mhop) {
-		ifname = yang_dnode_get_string(dnode, "./interface");
+		ifname = yang_dnode_get_string(dnode, "interface");
 		if (strcmp(ifname, "*") == 0)
 			ifname = NULL;
 	}
 
-	if (yang_dnode_exists(dnode, "./bfd-name")){
-	    bfdname = yang_dnode_get_string(dnode, "./bfd-name");
+	if (yang_dnode_exists(dnode, "bfd-name")){
+	    bfdname = yang_dnode_get_string(dnode, "bfd-name");
 	}
 
 	/* Generate the corresponding key. */
@@ -98,7 +98,7 @@ static int session_iter_cb(const struct lyd_node *dnode, void *arg)
 	struct session_iter *iter = arg;
 	const char *ifname;
 
-	ifname = yang_dnode_get_string(dnode, "./interface");
+	ifname = yang_dnode_get_string(dnode, "interface");
 
 	if (strmatch(ifname, "*"))
 		iter->wildcard = true;
@@ -124,7 +124,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
-		yang_dnode_get_prefix(&p, args->dnode, "./dest-addr");
+		yang_dnode_get_prefix(&p, args->dnode, "dest-addr");
 
 		if (mhop) {
 			/*
@@ -145,7 +145,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 		 * require interface name, otherwise we can't figure
 		 * which interface to use to send the packets.
 		 */
-		ifname = yang_dnode_get_string(args->dnode, "./interface");
+		ifname = yang_dnode_get_string(args->dnode, "interface");
 
 		if (p.family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL(&p.u.prefix6)
 		    && strcmp(ifname, "*") == 0) {
@@ -160,8 +160,8 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 
 		sess_dnode = yang_dnode_get_parent(args->dnode, "sessions");
 
-		dest = yang_dnode_get_string(args->dnode, "./dest-addr");
-		vrfname = yang_dnode_get_string(args->dnode, "./vrf");
+		dest = yang_dnode_get_string(args->dnode, "dest-addr");
+		vrfname = yang_dnode_get_string(args->dnode, "vrf");
 
 		yang_dnode_iterate(session_iter_cb, &iter, sess_dnode,
 				   "./single-hop[dest-addr='%s'][vrf='%s']",
@@ -173,7 +173,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 				"It is not allowed to configure the same peer with and without ifname");
 			return NB_ERR_VALIDATION;
 		}
-		if(bfd_session_get_by_name(yang_dnode_get_string(args->dnode, "./bfd-name"))) {
+		if(bfd_session_get_by_name(yang_dnode_get_string(args->dnode, "bfd-name"))) {
 			snprintf(
 				args->errmsg, args->errmsg_len,
 				"bfd name already exist.");
@@ -196,7 +196,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 				args->resource->ptr = bs;
 				break;
 			}
-			bfd_name = yang_dnode_get_string(args->dnode, "./bfd-name");
+			bfd_name = yang_dnode_get_string(args->dnode, "bfd-name");
 			bs = bfd_session_new();
 
 			/* Fill the session key. */
@@ -230,7 +230,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 				break;
 			}
 
-			if (!yang_dnode_exists(args->dnode, "./segment-list")){
+			if (!yang_dnode_exists(args->dnode, "segment-list")){
 				//currenty segment-list should not be null 
 				snprintf(
 					args->errmsg, args->errmsg_len,
@@ -238,7 +238,8 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 				return NB_ERR_RESOURCE;
 			}
 
-			bfd_name = yang_dnode_get_string(args->dnode, "./bfd-name");
+			bfd_name = yang_dnode_get_string(args->dnode, "bfd-name");
+
 			bs = bfd_common_session_new(segnum);
 			if (bs == NULL) {
 				snprintf(
@@ -411,7 +412,7 @@ int bfdd_bfd_profile_create(struct nb_cb_create_args *args)
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
-	name = yang_dnode_get_string(args->dnode, "./name");
+	name = yang_dnode_get_string(args->dnode, "name");
 	bp = bfd_profile_new(name);
 	nb_running_set_entry(args->dnode, bp);
 

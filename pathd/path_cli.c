@@ -417,7 +417,7 @@ void cli_show_srte_segment_list(struct vty *vty, const struct lyd_node *dnode,
 				bool show_defaults)
 {
 	vty_out(vty, "  segment-list %s\n",
-		yang_dnode_get_string(dnode, "./name"));
+		yang_dnode_get_string(dnode, "name"));
 }
 
 void cli_show_srte_segment_list_end(struct vty *vty,
@@ -693,63 +693,65 @@ void cli_show_srte_segment_list_segment(struct vty *vty,
 					const struct lyd_node *dnode,
 					bool show_defaults)
 {
-	vty_out(vty, "   index %s ", yang_dnode_get_string(dnode, "./index"));
-	if (yang_dnode_exists(dnode, "./srv6-sid-value")) {
+
+	vty_out(vty, "   index %s ", yang_dnode_get_string(dnode, "index"));
+	if (yang_dnode_exists(dnode, "srv6-sid-value")) {
 		vty_out(vty, "ipv6-address %s",
-			yang_dnode_get_string(dnode, "./srv6-sid-value"));
+			yang_dnode_get_string(dnode, "srv6-sid-value"));
 	}
-	if (yang_dnode_exists(dnode, "./sid-value")) {
+	if (yang_dnode_exists(dnode, "sid-value")) {
+
 		vty_out(vty, " mpls label %s",
-			yang_dnode_get_string(dnode, "./sid-value"));
+			yang_dnode_get_string(dnode, "sid-value"));
 	}
-	if (yang_dnode_exists(dnode, "./nai")) {
+	if (yang_dnode_exists(dnode, "nai")) {
 		struct ipaddr addr;
 		struct ipaddr addr_rmt;
 
-		switch (yang_dnode_get_enum(dnode, "./nai/type")) {
+		switch (yang_dnode_get_enum(dnode, "nai/type")) {
 		case SRTE_SEGMENT_NAI_TYPE_IPV4_NODE:
 		case SRTE_SEGMENT_NAI_TYPE_IPV4_LOCAL_IFACE:
 		case SRTE_SEGMENT_NAI_TYPE_IPV4_ALGORITHM:
-			yang_dnode_get_ip(&addr, dnode, "./nai/local-address");
+			yang_dnode_get_ip(&addr, dnode, "nai/local-address");
 			vty_out(vty, " nai prefix %pI4", &addr.ipaddr_v4);
 			break;
 		case SRTE_SEGMENT_NAI_TYPE_IPV6_NODE:
 		case SRTE_SEGMENT_NAI_TYPE_IPV6_LOCAL_IFACE:
 		case SRTE_SEGMENT_NAI_TYPE_IPV6_ALGORITHM:
-			yang_dnode_get_ip(&addr, dnode, "./nai/local-address");
+			yang_dnode_get_ip(&addr, dnode, "nai/local-address");
 			vty_out(vty, " nai prefix %pI6", &addr.ipaddr_v6);
 			break;
 		case SRTE_SEGMENT_NAI_TYPE_IPV4_ADJACENCY:
-			yang_dnode_get_ip(&addr, dnode, "./nai/local-address");
+			yang_dnode_get_ip(&addr, dnode, "nai/local-address");
 			yang_dnode_get_ip(&addr_rmt, dnode,
-					  "./nai/remote-address");
+					  "nai/remote-address");
 			vty_out(vty, " nai adjacency %pI4", &addr.ipaddr_v4);
 			vty_out(vty, " %pI4", &addr_rmt.ipaddr_v4);
 			break;
 		case SRTE_SEGMENT_NAI_TYPE_IPV6_ADJACENCY:
-			yang_dnode_get_ip(&addr, dnode, "./nai/local-address");
+			yang_dnode_get_ip(&addr, dnode, "nai/local-address");
 			yang_dnode_get_ip(&addr_rmt, dnode,
-					  "./nai/remote-address");
+					  "nai/remote-address");
 			vty_out(vty, " nai adjacency %pI6", &addr.ipaddr_v6);
 			vty_out(vty, " %pI6", &addr_rmt.ipaddr_v6);
 			break;
 		default:
 			break;
 		}
-		if (yang_dnode_exists(dnode, "./nai/local-prefix-len")) {
+		if (yang_dnode_exists(dnode, "nai/local-prefix-len")) {
 			vty_out(vty, "/%s",
 				yang_dnode_get_string(
-					dnode, "./nai/local-prefix-len"));
+					dnode, "nai/local-prefix-len"));
 		}
-		if (yang_dnode_exists(dnode, "./nai/local-interface")) {
+		if (yang_dnode_exists(dnode, "nai/local-interface")) {
 			vty_out(vty, " iface %s",
 				yang_dnode_get_string(dnode,
-						      "./nai/local-interface"));
+						      "nai/local-interface"));
 		}
-		if (yang_dnode_exists(dnode, "./nai/algorithm")) {
+		if (yang_dnode_exists(dnode, "nai/algorithm")) {
 			vty_out(vty, " algorithm %s",
 				yang_dnode_get_string(dnode,
-						      "./nai/algorithm"));
+						      "nai/algorithm"));
 		}
 	}
 	vty_out(vty, "\n");
@@ -809,8 +811,8 @@ void cli_show_srte_policy(struct vty *vty, const struct lyd_node *dnode,
 			  bool show_defaults)
 {
 	vty_out(vty, "  policy color %s endpoint %s\n",
-		yang_dnode_get_string(dnode, "./color"),
-		yang_dnode_get_string(dnode, "./endpoint"));
+		yang_dnode_get_string(dnode, "color"),
+		yang_dnode_get_string(dnode, "endpoint"));
 }
 
 void cli_show_srte_policy_end(struct vty *vty, const struct lyd_node *dnode)
@@ -1369,11 +1371,11 @@ static int config_write_metric_cb(const struct lyd_node *dnode, void *arg)
 	bool required, is_bound = false;
 	float value;
 
-	type = yang_dnode_get_enum(dnode, "./type");
-	value = (float)yang_dnode_get_dec64(dnode, "./value");
-	required = yang_dnode_get_bool(dnode, "./required");
-	if (yang_dnode_exists(dnode, "./is-bound"))
-		is_bound = yang_dnode_get_bool(dnode, "./is-bound");
+	type = yang_dnode_get_enum(dnode, "type");
+	value = (float)yang_dnode_get_dec64(dnode, "value");
+	required = yang_dnode_get_bool(dnode, "required");
+	if (yang_dnode_exists(dnode, "is-bound"))
+		is_bound = yang_dnode_get_bool(dnode, "is-bound");
 
 	config_write_metric(vty, type, value, required, is_bound);
 	return YANG_ITER_CONTINUE;
@@ -1387,31 +1389,31 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 	uint32_t affinity;
 	bool required;
 	enum objfun_type objfun_type;
-	const char *type = yang_dnode_get_string(dnode, "./type");
+	const char *type = yang_dnode_get_string(dnode, "type");
 
 	vty_out(vty, "   candidate-path preference %s name %s %s",
-		yang_dnode_get_string(dnode, "./preference"),
-		yang_dnode_get_string(dnode, "./name"), type);
+		yang_dnode_get_string(dnode, "preference"),
+		yang_dnode_get_string(dnode, "name"), type);
 	if (strmatch(type, "explicit"))
 	{
 		vty_out(vty, " segment-list %s",
-			yang_dnode_get_string(dnode, "./segment-list-name"));
+			yang_dnode_get_string(dnode, "segment-list-name"));
 		vty_out(vty, " weight %s",
-			yang_dnode_get_string(dnode, "./weight"));
-		if (yang_dnode_exists(dnode, "./bfd-name"))
+			yang_dnode_get_string(dnode, "weight"));
+		if (yang_dnode_exists(dnode, "bfd-name"))
 		{
 			vty_out(vty, " bfd-name %s",
-				yang_dnode_get_string(dnode, "./bfd-name"));
+				yang_dnode_get_string(dnode, "bfd-name"));
 		}
 	}
 	vty_out(vty, "\n");
 
 	if (strmatch(type, "dynamic")) {
-		if (yang_dnode_exists(dnode, "./constraints/bandwidth")) {
+		if (yang_dnode_exists(dnode, "constraints/bandwidth")) {
 			bandwidth = (float)yang_dnode_get_dec64(
-				dnode, "./constraints/bandwidth/value");
+				dnode, "constraints/bandwidth/value");
 			required = yang_dnode_get_bool(
-				dnode, "./constraints/bandwidth/required");
+				dnode, "constraints/bandwidth/required");
 			vty_out(vty, "    bandwidth");
 			config_write_float(vty, bandwidth);
 			if (required)
@@ -1419,34 +1421,34 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 			vty_out(vty, "\n");
 		}
 		if (yang_dnode_exists(dnode,
-				      "./constraints/affinity/exclude-any")) {
+				      "constraints/affinity/exclude-any")) {
 			affinity = yang_dnode_get_uint32(
-				dnode, "./constraints/affinity/exclude-any");
+				dnode, "constraints/affinity/exclude-any");
 			vty_out(vty, "    affinity exclude-any 0x%08x\n",
 				affinity);
 		}
 		if (yang_dnode_exists(dnode,
-				      "./constraints/affinity/include-any")) {
+				      "constraints/affinity/include-any")) {
 			affinity = yang_dnode_get_uint32(
-				dnode, "./constraints/affinity/include-any");
+				dnode, "constraints/affinity/include-any");
 			vty_out(vty, "    affinity include-any 0x%08x\n",
 				affinity);
 		}
 		if (yang_dnode_exists(dnode,
-				      "./constraints/affinity/include-all")) {
+				      "constraints/affinity/include-all")) {
 			affinity = yang_dnode_get_uint32(
-				dnode, "./constraints/affinity/include-all");
+				dnode, "constraints/affinity/include-all");
 			vty_out(vty, "    affinity include-all 0x%08x\n",
 				affinity);
 		}
 		yang_dnode_iterate(config_write_metric_cb, vty, dnode,
-				   "./constraints/metrics");
+				   "constraints/metrics");
 		if (yang_dnode_exists(dnode,
-		                      "./constraints/objective-function")) {
+		                      "constraints/objective-function")) {
 			objfun_type = yang_dnode_get_enum(dnode,
-				"./constraints/objective-function/type");
+				"constraints/objective-function/type");
 			required = yang_dnode_get_bool(dnode,
-				"./constraints/objective-function/required");
+				"constraints/objective-function/required");
 			vty_out(vty, "    objective-function %s%s\n",
 			        objfun_type_name(objfun_type),
 				required ? " required" : "");
@@ -1457,7 +1459,7 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 void cli_show_srte_policy_candidate_path_end(struct vty *vty,
 					     const struct lyd_node *dnode)
 {
-	const char *type = yang_dnode_get_string(dnode, "./type");
+	const char *type = yang_dnode_get_string(dnode, "type");
 
 	if (strmatch(type, "dynamic"))
 		vty_out(vty, "   exit\n");

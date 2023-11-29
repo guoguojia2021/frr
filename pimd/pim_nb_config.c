@@ -511,7 +511,7 @@ int routing_control_plane_protocols_name_validate(
 {
 	const char *name;
 
-	name = yang_dnode_get_string(args->dnode, "./name");
+	name = yang_dnode_get_string(args->dnode, "name");
 	if (!strmatch(name, "pim")) {
 		snprintf(args->errmsg, args->errmsg_len,
 				"pim supports only one instance with name pimd");
@@ -805,7 +805,7 @@ void routing_control_plane_protocols_control_plane_protocol_pim_address_family_s
 
 	vrf = nb_running_get_entry(args->dnode, NULL, true);
 	pim = vrf->info;
-	spt_switch_action = yang_dnode_get_enum(args->dnode, "./spt-action");
+	spt_switch_action = yang_dnode_get_enum(args->dnode, "spt-action");
 
 	switch (spt_switch_action) {
 	case PIM_SPT_INFINITY:
@@ -1263,8 +1263,8 @@ int routing_control_plane_protocols_control_plane_protocol_pim_address_family_ms
 	case NB_EV_APPLY:
 		vrf = nb_running_get_entry(args->dnode, NULL, true);
 		pim = vrf->info;
-		yang_dnode_get_ip(&peer_ip, args->dnode, "./peer-ip");
-		yang_dnode_get_ip(&source_ip, args->dnode, "./source-ip");
+		yang_dnode_get_ip(&peer_ip, args->dnode, "peer-ip");
+		yang_dnode_get_ip(&source_ip, args->dnode, "source-ip");
 		mp = pim_msdp_peer_add(pim, &peer_ip.ipaddr_v4,
 				       &source_ip.ipaddr_v4, NULL);
 		nb_running_set_entry(args->dnode, mp);
@@ -1368,16 +1368,16 @@ void routing_control_plane_protocols_control_plane_protocol_pim_address_family_m
 	struct interface *ifp;
 	struct ipaddr reg_addr;
 
-	ifname = yang_dnode_get_string(args->dnode, "./peerlink-rif");
+	ifname = yang_dnode_get_string(args->dnode, "peerlink-rif");
 	ifp = if_lookup_by_name(ifname, VRF_DEFAULT);
 	if (!ifp) {
 		snprintf(args->errmsg, args->errmsg_len,
 			 "No such interface name %s", ifname);
 		return;
 	}
-	role = yang_dnode_get_enum(args->dnode, "./my-role");
-	peer_state = yang_dnode_get_bool(args->dnode, "./peer-state");
-	yang_dnode_get_ip(&reg_addr, args->dnode, "./reg-address");
+	role = yang_dnode_get_enum(args->dnode, "my-role");
+	peer_state = yang_dnode_get_bool(args->dnode, "peer-state");
+	yang_dnode_get_ip(&reg_addr, args->dnode, "reg-address");
 
 	pim_vxlan_mlag_update(true, peer_state, role, ifp,
 			&reg_addr.ip._v4_addr);
@@ -1772,11 +1772,11 @@ void lib_interface_pim_address_family_bfd_apply_finish(
 	}
 
 	pim_ifp->bfd_config.detection_multiplier =
-		yang_dnode_get_uint8(args->dnode, "./detect_mult");
+		yang_dnode_get_uint8(args->dnode, "detect_mult");
 	pim_ifp->bfd_config.min_rx =
-		yang_dnode_get_uint16(args->dnode, "./min-rx-interval");
+		yang_dnode_get_uint16(args->dnode, "min-rx-interval");
 	pim_ifp->bfd_config.min_tx =
-		yang_dnode_get_uint16(args->dnode, "./min-tx-interval");
+		yang_dnode_get_uint16(args->dnode, "min-tx-interval");
 
 	pim_bfd_reg_dereg_all_nbr(ifp);
 }
@@ -2201,7 +2201,7 @@ int lib_interface_pim_address_family_mroute_destroy(
 		pim_iifp = iif->info;
 		pim = pim_iifp->pim;
 
-		oifname = yang_dnode_get_string(args->dnode, "./oif");
+		oifname = yang_dnode_get_string(args->dnode, "oif");
 		oif = if_lookup_by_name(oifname, pim->vrf->vrf_id);
 
 		if (!oif) {
@@ -2211,8 +2211,8 @@ int lib_interface_pim_address_family_mroute_destroy(
 			return NB_ERR_INCONSISTENCY;
 		}
 
-		yang_dnode_get_ip(&source_addr, args->dnode, "./source-addr");
-		yang_dnode_get_ip(&group_addr, args->dnode, "./group-addr");
+		yang_dnode_get_ip(&source_addr, args->dnode, "source-addr");
+		yang_dnode_get_ip(&group_addr, args->dnode, "group-addr");
 
 		if (pim_static_del(pim, iif, oif, group_addr.ip._v4_addr,
 					source_addr.ip._v4_addr)) {
@@ -2353,9 +2353,9 @@ int routing_control_plane_protocols_control_plane_protocol_pim_address_family_rp
 	case NB_EV_APPLY:
 		vrf = nb_running_get_entry(args->dnode, NULL, true);
 		pim = vrf->info;
-		yang_dnode_get_ip(&rp_addr, args->dnode, "./rp-address");
+		yang_dnode_get_ip(&rp_addr, args->dnode, "rp-address");
 
-		if (yang_dnode_get(args->dnode, "./group-list")) {
+		if (yang_dnode_get(args->dnode, "group-list")) {
 			yang_dnode_get_ipv4p(&group, args->dnode,
 					"./group-list");
 			apply_mask_ipv4((struct prefix_ipv4 *)&group);
@@ -2364,9 +2364,9 @@ int routing_control_plane_protocols_control_plane_protocol_pim_address_family_rp
 					args->errmsg_len);
 		}
 
-		else if (yang_dnode_get(args->dnode, "./prefix-list")) {
+		else if (yang_dnode_get(args->dnode, "prefix-list")) {
 			plist = yang_dnode_get_string(args->dnode,
-					"./prefix-list");
+					"prefix-list");
 			if (!str2prefix("224.0.0.0/4", &group)) {
 				flog_err(
 					EC_LIB_DEVELOPMENT,

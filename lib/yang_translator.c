@@ -154,7 +154,7 @@ struct yang_translator *yang_translator_load(const char *path)
 	 */
 	assert(dnode);
 
-	family = yang_dnode_get_string(dnode, "./family");
+	family = yang_dnode_get_string(dnode, "family");
 	translator = yang_translator_find(family);
 	if (translator != NULL) {
 		flog_warn(EC_LIB_YANG_TRANSLATOR_LOAD,
@@ -189,7 +189,7 @@ struct yang_translator *yang_translator_load(const char *path)
 		tmodule =
 			XCALLOC(MTYPE_YANG_TRANSLATOR_MODULE, sizeof(*tmodule));
 
-		module_name = yang_dnode_get_string(set->dnodes[i], "./name");
+		module_name = yang_dnode_get_string(set->dnodes[i], "name");
 		tmodule->module = ly_ctx_load_module(translator->ly_ctx,
 						     module_name, NULL, NULL);
 		if (!tmodule->module) {
@@ -240,7 +240,7 @@ struct yang_translator *yang_translator_load(const char *path)
 		const struct lysc_node *snode_custom, *snode_native;
 
 		xpath_custom =
-			yang_dnode_get_string(set->dnodes[i], "./custom");
+			yang_dnode_get_string(set->dnodes[i], "custom");
 
 		snode_custom = lys_find_path(translator->ly_ctx, NULL,
 					     xpath_custom, 0);
@@ -253,7 +253,7 @@ struct yang_translator *yang_translator_load(const char *path)
 		}
 
 		xpath_native =
-			yang_dnode_get_string(set->dnodes[i], "./native");
+			yang_dnode_get_string(set->dnodes[i], "native");
 		snode_native =
 			lys_find_path(ly_native_ctx, NULL, xpath_native, 0);
 		if (!snode_native) {

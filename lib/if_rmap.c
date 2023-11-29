@@ -286,6 +286,7 @@ int config_write_if_rmap(struct vty *vty,
 			}
 		}
 	return write;
+
 }
 
 void if_rmap_ctx_delete(struct if_rmap_ctx *ctx)

@@ -455,12 +455,12 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 		return NB_OK;
 
 	policy = nb_running_get_entry(args->dnode, NULL, true);
-	type = yang_dnode_get_enum(args->dnode, "./type");
+	type = yang_dnode_get_enum(args->dnode, "type");
 	is_echo = (type == SRTE_SBFD_ECHO) ? true : false;
 
     sr_config_sbfd_create(policy, is_echo);
 
-	is_self_sip = yang_dnode_get_bool(args->dnode, "./is-self-source-address");
+	is_self_sip = yang_dnode_get_bool(args->dnode, "is-self-source-address");
 	policy->bfd_config->is_self_sip = is_self_sip;
 	
     SET_FLAG(policy->flags, F_POLICY_CONF_BFD);
@@ -704,24 +704,24 @@ void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
 {
 	enum srte_sbfd_type type;
 
-	type = yang_dnode_get_enum(dnode, "./type");
+	type = yang_dnode_get_enum(dnode, "type");
 
 	if (type == SRTE_SBFD_ECHO) 
 	{
 		vty_out(vty, "   sbfd echo source-address %s %d %d %d\n",
-		    yang_dnode_get_string(dnode, "./source-address"),
-			yang_dnode_get_uint8(dnode, "./detect-multiplier"),
-			yang_dnode_get_uint32(dnode, "./required-min-receive-interval"),
-			yang_dnode_get_uint32(dnode, "./desired-min-transmit-interval"));
+		    yang_dnode_get_string(dnode, "source-address"),
+			yang_dnode_get_uint8(dnode, "detect-multiplier"),
+			yang_dnode_get_uint32(dnode, "required-min-receive-interval"),
+			yang_dnode_get_uint32(dnode, "desired-min-transmit-interval"));
 	}
 	else
 	{
 		vty_out(vty, "   sbfd enable remote %d source-address %s %d %d %d\n",
-		    yang_dnode_get_uint32(dnode, "./remote-discr"),
-			yang_dnode_get_string(dnode, "./source-address"),
-			yang_dnode_get_uint8(dnode, "./detect-multiplier"),
-			yang_dnode_get_uint32(dnode, "./required-min-receive-interval"),
-			yang_dnode_get_uint32(dnode, "./desired-min-transmit-interval"));
+		    yang_dnode_get_uint32(dnode, "remote-discr"),
+			yang_dnode_get_string(dnode, "source-address"),
+			yang_dnode_get_uint8(dnode, "detect-multiplier"),
+			yang_dnode_get_uint32(dnode, "required-min-receive-interval"),
+			yang_dnode_get_uint32(dnode, "desired-min-transmit-interval"));
 	}
 
 }
