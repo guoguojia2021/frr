@@ -2618,15 +2618,15 @@ int dplane_ctx_nexthop_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 			ctx->u.rinfo.nhe.nh_grp, nhe, MULTIPATH_NUM);
 
 	if ((nh->nh_srv6 || CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NON_RECURSIVE)) && zebra_nhg_depends_count(nhe) > 1) {
-		ctx->u.rinfo.nhe.nh_grp_count = zebra_nhg_depends_count(nhe);
 		frr_each(nhg_connected_tree, &nhe->nhg_depends, rb_node_dep) {
-			if (!CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID))
+			if (!CHECK_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_VALID))
 				continue;
 			depend = rb_node_dep->nhe;
 			ctx->u.rinfo.nhe.nh_grp[i].id = depend->id;
 			ctx->u.rinfo.nhe.nh_grp[i].weight = depend->nhg.nexthop->weight;
 			i++;
 		}
+		ctx->u.rinfo.nhe.nh_grp_count = i;
 	}
 
 	zvrf = vrf_info_lookup(nhe->vrf_id);

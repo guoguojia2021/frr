@@ -1483,6 +1483,7 @@ static int fpm_nl_finish_late(struct fpm_nl_ctx *fnc)
 	/* Free all allocated resources. */
 	pthread_mutex_destroy(&fnc->obuf_mutex);
 	pthread_mutex_destroy(&fnc->ctxqueue_mutex);
+	pthread_mutex_destroy(&fnc->ctxprequeue_mutex);
 	stream_free(fnc->ibuf);
 	stream_free(fnc->obuf);
 	free(gfnc);
