@@ -1632,12 +1632,21 @@ static void thread_process_io(struct thread_master *m, unsigned int num)
 		 * read function should handle it appropriately
 		 */
 		if (pfds[i].revents & (POLLIN | POLLHUP | POLLERR)) {
-			thread_process_io_helper(m, m->read[pfds[i].fd], POLLIN,
-						 pfds[i].revents, i);
+			if (NULL == m->read[pfds[i].fd]) {
+				thread_cancel_rw(m, pfds[i].fd, POLLIN, -1);
+			}
+			else
+				thread_process_io_helper(m, m->read[pfds[i].fd], POLLIN,
+							 pfds[i].revents, i);
 		}
-		if (pfds[i].revents & POLLOUT)
-			thread_process_io_helper(m, m->write[pfds[i].fd],
-						 POLLOUT, pfds[i].revents, i);
+		if (pfds[i].revents & POLLOUT) {
+			if (NULL == m->write[pfds[i].fd]) {
+				thread_cancel_rw(m, pfds[i].fd, POLLOUT, -1);
+			}
+			else
+				thread_process_io_helper(m, m->write[pfds[i].fd],
+							 POLLOUT, pfds[i].revents, i);
+		}
 
 		/* if one of our file descriptors is garbage, remove the same
 		 * from
