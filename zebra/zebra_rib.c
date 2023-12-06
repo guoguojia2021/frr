@@ -775,7 +775,7 @@ bool zebra_update_pic_nhe(struct route_node *rn)
 	default:
 		return false;
 	}
-	SET_FLAG(nh.flags, NEXTHOP_FLAG_ACTIVE);
+	SET_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE);
 	ret = nexthop_group_add_sorted_nodup(&pic_nh_lookup.nhg, nh);
 	if (!ret) {
 		nexthop_free(nh);

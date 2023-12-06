@@ -997,7 +997,7 @@ static int fpm_nhg_send_enqueue(struct nhg_hash_entry *nhe, struct fpm_nl_ctx *f
 
 	/* Reset ctx to reuse allocated memory, take a snapshot and send it. */
 	dplane_ctx_reset(ctx);
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT))
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT) || !nhe->pic_nhe)
 		dplane_ctx_nexthop_init(ctx, DPLANE_OP_NH_INSTALL, nhe);
 	else
 		dplane_ctx_nexthop_init(ctx, DPLANE_PROTOBUF_OP_NH_INSTALL, nhe);
