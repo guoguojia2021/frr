@@ -1854,7 +1854,7 @@ static int bgp_stop_with_notify(struct peer *peer, uint8_t code,
 	}
 
 	/* Clear start timer value to default. */
-	peer->v_start = BGP_INIT_START_TIMER;
+	peer->v_start = peer->bgp->default_start;
 
 	return (bgp_stop(peer));
 }
@@ -2329,7 +2329,7 @@ static int bgp_establish(struct peer *peer)
 	}
 
 	/* Clear start timer value to default. */
-	peer->v_start = BGP_INIT_START_TIMER;
+	peer->v_start = bgp->default_start;
 
 	/* Increment established count. */
 	peer->established++;

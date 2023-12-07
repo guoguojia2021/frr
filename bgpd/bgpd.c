@@ -1442,7 +1442,7 @@ struct peer *peer_new(struct bgp *bgp)
 
 	/* Set default value. */
 	peer->fd = -1;
-	peer->v_start = BGP_INIT_START_TIMER;
+	peer->v_start = bgp->default_start;
 	peer->v_connect = bgp->default_connect_retry;
 	peer->status = Idle;
 	peer->ostatus = Idle;
@@ -4726,7 +4726,7 @@ static void peer_flag_modify_action(struct peer *peer, uint32_t flag)
 			} else
 				bgp_session_reset(peer);
 		} else {
-			peer->v_start = BGP_INIT_START_TIMER;
+			peer->v_start = peer->bgp->default_start;
 			BGP_EVENT_ADD(peer, BGP_Stop);
 		}
 	} else if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status)) {
@@ -4788,7 +4788,7 @@ void bgp_shutdown_enable(struct bgp *bgp, const char *msg)
 		}
 
 		/* reset start timer to initial value */
-		peer->v_start = BGP_INIT_START_TIMER;
+		peer->v_start = bgp->default_start;
 
 		/* trigger a RFC 4271 ManualStop event */
 		BGP_EVENT_ADD(peer, BGP_Stop);
@@ -7300,7 +7300,6 @@ int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi, int d
 						const char *name, struct route_map *route_map)
 {
 	char *map_name = NULL;
-	struct route_map *rmap = NULL;
 	struct listnode *mnode, *mnnode;
 	struct listnode *node, *nnode;
 	struct bgp *bgp;
@@ -7366,7 +7365,6 @@ int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi, int d
 
 int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int direct)
 {
-	struct route_map *rmap = NULL;
 	struct listnode *mnode, *mnnode;
 	struct listnode *node, *nnode;
 	struct bgp *bgp;
@@ -8376,7 +8374,7 @@ int peer_clear(struct peer *peer, struct listnode **nnode)
 		if (peer_maximum_prefix_clear_overflow(peer))
 			return 0;
 
-		peer->v_start = BGP_INIT_START_TIMER;
+		peer->v_start = peer->bgp->default_start;
 		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
 			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_ADMIN_RESET);

@@ -2578,7 +2578,41 @@ DEFUN (no_bgp_timers,
 	return CMD_SUCCESS;
 }
 
+DEFUN (bgp_timers_start,
+       bgp_timers_start_cmd,
+       "timers bgp start-timer (0-65535)",
+       "Adjust routing timers\n"
+       "BGP timers\n"
+       "Start to connect to peer\n"
+       "timer-value\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+	int idx = 3;
+	unsigned long start = BGP_INIT_START_TIMER;
+	start = strtoul(argv[idx]->arg, NULL, 10);
+
+	bgp->default_start = start;
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_timers_start,
+       no_bgp_timers_start_cmd,
+       "no timers bgp start-timer [(0-65535)]",
+       NO_STR
+       "Adjust routing timers\n"
+       "BGP timers\n"
+       "Start to connect to peer\n"
+       "timer-value\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+	bgp->default_start = BGP_INIT_START_TIMER;
+
+	return CMD_SUCCESS;
+}
+
 /* BGP minimum holdtime.  */
+
 
 DEFUN(bgp_minimum_holdtime, bgp_minimum_holdtime_cmd,
       "bgp minimum-holdtime (1-65535)",
@@ -18459,6 +18493,9 @@ int bgp_config_write(struct vty *vty)
 			vty_out(vty, " timers bgp %u %u\n",
 				bgp->default_keepalive, bgp->default_holdtime);
 
+		if (bgp->default_start != BGP_INIT_START_TIMER)
+			vty_out(vty, " timers bgp start-timer %u\n",
+				bgp->default_start);
 		/* BGP minimum holdtime configuration. */
 		if (bgp->default_min_holdtime != SAVE_BGP_HOLDTIME
 		    && bgp->default_min_holdtime != 0)
@@ -18901,6 +18938,8 @@ void bgp_vty_init(void)
 	/* "timers bgp" commands. */
 	install_element(BGP_NODE, &bgp_timers_cmd);
 	install_element(BGP_NODE, &no_bgp_timers_cmd);
+	install_element(BGP_NODE, &bgp_timers_start_cmd);
+	install_element(BGP_NODE, &no_bgp_timers_start_cmd);
 
 	/* "minimum-holdtime" commands. */
 	install_element(BGP_NODE, &bgp_minimum_holdtime_cmd);

@@ -741,6 +741,7 @@ struct bgp {
 	uint32_t default_keepalive;
 	uint32_t default_connect_retry;
 	uint32_t default_delayopen;
+	uint32_t default_start;
 
 	/* BGP minimum holdtime.  */
 	uint16_t default_min_holdtime;
@@ -1971,7 +1972,7 @@ struct bgp_nlri {
 #define BGP_ROUTE_REFRESH_EORR 2
 
 /* BGP timers default value.  */
-#define BGP_INIT_START_TIMER                     30
+#define BGP_INIT_START_TIMER                    10
 /* The following 3 are RFC defaults that are overridden in bgp_vty.c with
  * version-/profile-specific values.  The values here do not matter, they only
  * exist to provide a clear layering separation between core and CLI.
