@@ -532,6 +532,7 @@ int bgp_get_vty(struct bgp **bgp, as_t *as, const char *name,
 	if (ret == BGP_CREATED) {
 		bgp_timers_set(*bgp, DFLT_BGP_KEEPALIVE, DFLT_BGP_HOLDTIME,
 			       DFLT_BGP_CONNECT_RETRY, BGP_DEFAULT_DELAYOPEN);
+		(*bgp)->default_start = BGP_INIT_START_TIMER;
 
 		if (DFLT_BGP_IMPORT_CHECK)
 			SET_FLAG((*bgp)->flags, BGP_FLAG_IMPORT_CHECK);
