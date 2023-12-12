@@ -2601,7 +2601,7 @@ void bgp_fsm_nht_update(struct peer *peer, bool has_valid_nexthops)
 		if (has_valid_nexthops) {
 			BGP_TIMER_OFF(peer->t_connect);
 			BGP_TIMER_ON(peer->t_connect, bgp_connect_timer,
-					     peer->v_connect);
+					     peer->v_start);
 			//BGP_EVENT_ADD(peer, ConnectRetry_timer_expired);
 		}
 		break;
