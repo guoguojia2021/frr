@@ -3062,6 +3062,20 @@ DEFUN (vtysh_show_history,
 }
 
 /* Memory */
+DEFUN_HIDDEN (vtysh_clean_memory,
+       vtysh_clean_memory_cmd,
+       "clean memory [" DAEMONS_LIST "]",
+       "Call malloc_trim to return the memory occupied by the application back to the system.\n"
+       "Call malloc_trim to return the memory occupied by the application back to the system.\n"
+       DAEMONS_STR)
+{
+	if (argc == 3)
+		return show_one_daemon(vty, argv, argc - 1,
+				       argv[argc - 1]->text);
+
+	return show_per_daemon(vty, argv, argc, "Clean memory for %s:\n");
+}
+
 DEFUN (vtysh_show_memory,
        vtysh_show_memory_cmd,
        "show memory [" DAEMONS_LIST "]",
@@ -4612,6 +4626,7 @@ void vtysh_init_vty(void)
 
 	/* misc lib show commands */
 	install_element(VIEW_NODE, &vtysh_show_history_cmd);
+	install_element(VIEW_NODE, &vtysh_clean_memory_cmd);
 	install_element(VIEW_NODE, &vtysh_show_memory_cmd);
 	install_element(VIEW_NODE, &vtysh_show_modules_cmd);
 	install_element(VIEW_NODE, &vtysh_show_work_queues_cmd);

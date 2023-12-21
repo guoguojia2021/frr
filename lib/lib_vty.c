@@ -32,6 +32,10 @@
 #include <link.h>
 #endif
 
+#ifdef ENABLE_TC_MALLOC
+#include <google/malloc_extension_c.h>
+#endif
+
 #include "log.h"
 #include "memory.h"
 #include "module.h"
@@ -134,6 +138,21 @@ max_malloc_memory += mt->max_size;
 		}
 	}
 	return 0;
+}
+
+DEFUN_NOSH (clean_memory,
+	    clean_memory_cmd,
+	    "clean memory",
+	    "Call malloc_trim to return the memory occupied by the application back to the system.\n"
+	    "Call malloc_trim to return the memory occupied by the application back to the system.\n")
+{
+	malloc_trim(0);
+#ifdef ENABLE_TC_MALLOC
+	MallocExtension_ReleaseFreeMemory();
+	vty_out(vty, "tc Malloc release done!\n");
+#endif
+	vty_out(vty, "Malloc trim done!\n");
+	return CMD_SUCCESS;
 }
 
 
@@ -307,6 +326,7 @@ void lib_cmd_init(void)
 
 	install_element(VIEW_NODE, &show_memory_cmd);
 	install_element(VIEW_NODE, &show_modules_cmd);
+	install_element(VIEW_NODE, &clean_memory_cmd);
 
 	install_element(CONFIG_NODE, &start_config_cmd);
 	install_element(CONFIG_NODE, &end_config_cmd);
