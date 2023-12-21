@@ -2109,9 +2109,9 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 
 	if (IS_ZEBRA_DEBUG_KERNEL)
 		zlog_debug(
-			"%s: %s %pFX vrf %u(%u)", __func__,
+			"%s: %s %pFX vrf %u(%u), fpm:%d", __func__,
 			nl_msg_type_to_str(cmd), p, dplane_ctx_get_vrf(ctx),
-			table_id);
+			table_id, fpm);
 
 	/*
 	 * If we are not updating the route and we have received
@@ -2172,8 +2172,8 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 	    || (fpm && force_nhg)) {
 		/* Kernel supports nexthop objects */
 		if (IS_ZEBRA_DEBUG_KERNEL)
-			zlog_debug("%s: %pFX nhg_id is %u", __func__, p,
-				   dplane_ctx_get_nhe_id(ctx));
+			zlog_debug("%s: %pFX nhg_id is %u, fpm:%d", __func__, p,
+				   dplane_ctx_get_nhe_id(ctx), fpm);
 
 		if (!nl_attr_put32(&req->n, datalen, RTA_NH_ID,
 				   dplane_ctx_get_nhe_id(ctx)))

@@ -2892,7 +2892,7 @@ static wq_item_status meta_queue_process(struct work_queue *dummy, void *data)
 	/* Ensure there's room for more dataplane updates */
 	queue_limit = dplane_get_in_queue_limit();
 	queue_len = dplane_get_in_queue_len();
-	if (queue_len > queue_limit) {
+	if (queue_len > queue_limit || t_dplane) {
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("rib queue: dplane queue len %u, limit %u, retrying",
 				   queue_len, queue_limit);
@@ -4758,6 +4758,7 @@ static int rib_process_dplane_results(struct thread *thread)
 		}
 
 	} while (1);
+	t_dplane = NULL;
 
 	return 0;
 }
