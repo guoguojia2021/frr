@@ -308,9 +308,9 @@ DEFUN (show_srv6_locator_detail,
 		vty_out(vty, "Prefix: %s\n", str);
 		vty_out(vty, "Block-Bit-Len: %u\n",
 			locator->block_bits_length);
-		vty_out(vty, "Function-Bit-Len: %u\n",
+        vty_out(vty, "Node-Bit-Len: %u\n",
 			locator->node_bits_length);
-		vty_out(vty, "Node-Bit-Len: %u\n",
+        vty_out(vty, "Function-Bit-Len: %u\n",
 			locator->function_bits_length);
 		vty_out(vty, "Argument-Bit-Len: %u\n",
 			locator->argument_bits_length);
@@ -457,9 +457,9 @@ DEFUN_NOSH (srv6_locator_sid,
 	} else if (node_bit_len == 0) {
 		node_bit_len = locator_sid->prefix.prefixlen - block_bit_len;
 	} else {
-		if (block_bit_len + node_bit_len + func_bit_len != locator_sid->prefix.prefixlen) {
+		if (block_bit_len + node_bit_len != locator_sid->prefix.prefixlen) {
 			srv6_locator_del(locator_sid);
-			vty_out(vty, "%% block-bits + node-bits + func_bit_len must be equal to the prefix length\n");
+			vty_out(vty, "%% block-bits + node-bits must be equal to the prefix length\n");
 			return CMD_WARNING_CONFIG_FAILED;
 		}
 	}
