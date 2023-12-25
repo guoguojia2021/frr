@@ -708,8 +708,10 @@ extern bool zebra_srv6_local_sid_get_format(struct srv6_locator *locator)
 extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, struct seg6_sid *sid)
 {
 	struct in6_addr result_sid = {0};
+	uint16_t sid_masklen = 0;
 	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
 
+	sid_masklen = locator->block_bits_length + locator->node_bits_length + locator->function_bits_length;
 	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
 	// addr_msb
 	//uint32_t addr_0 = result_sid.s6_addr32[0];
@@ -720,7 +722,7 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 	uint32_t addr_3 = result_sid.s6_addr32[3];
 
 	if (locator->format == SRV6_FORMAT_F1) {
-		if (locator->prefix.prefixlen == 128) {
+		if (sid_masklen == 128) {
 			// Verify that bits [39:0] are zero
 			if ((addr_2 & 0xff000000) == 0 &&
 				(addr_3 & 0xffffffff) == 0) {
@@ -735,7 +737,7 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 	}
 
 	// Check for valid prefix lengths. /48, /64, /80.
-	if (locator->prefix.prefixlen == 48) {
+	if (sid_masklen == 48) {
 		// Make sure that bits [95:80] are not zero.
 		if ((addr_1 & 0xffff) != 0) {
 			return true;
@@ -743,7 +745,7 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 		return false;
 	}
 
-	if (locator->prefix.prefixlen == 64) {
+	if (sid_masklen == 64) {
 		// Make sure that bits [79:64] are not zero.
 		if ((addr_1 & 0xffff0000) != 0) {
 			return true;
@@ -751,7 +753,7 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 		return false;
 	}
 
-	if (locator->prefix.prefixlen == 80) {
+	if (sid_masklen == 80) {
 		// WLIB format
 		// Make sure that [79:64] == 0xfff_0xxx
 		if ((addr_1 & 0xf8ff0000) != 0xf0ff0000) {
