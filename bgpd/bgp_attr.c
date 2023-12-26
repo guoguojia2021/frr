@@ -3922,7 +3922,6 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 	bool use32bit = CHECK_FLAG(peer->cap, PEER_CAP_AS4_RCV)
 			&& CHECK_FLAG(peer->cap, PEER_CAP_AS4_ADV);
 	int adv_lprio = 0;
-	u_int32_t maxmed_value = 0;
 
 	if (!bgp)
 		bgp = peer->bgp;
@@ -4091,7 +4090,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 		stream_putc(s, BGP_ATTR_MULTI_EXIT_DISC);
 		stream_putc(s, 4);
 		if (bgp->maxmed_active) {
-			stream_putl(s, maxmed_value);
+			stream_putl(s, bgp->maxmed_value);
 		} else if (adv_lprio) {
 			stream_putl(s, BGP_MED_MAX);
 		} else {
