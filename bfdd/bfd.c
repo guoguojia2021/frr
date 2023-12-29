@@ -1242,11 +1242,16 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 		return NULL;
 	}
 
-	if (bpc->bpc_sbfd && bpc->bpc_echo)
+	if (bpc->bpc_sbfd)
 	{
-		bfd->timers.desired_min_echo_tx = bfd->timers.desired_min_tx;
-		bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
-		bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+		if(bpc->bpc_echo){
+		    bfd->timers.desired_min_echo_tx = bfd->timers.desired_min_tx;
+		    bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
+		    bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+		}else{
+		    bfd->xmt_TO = bfd->timers.desired_min_tx;
+		    bfd->detect_TO = bfd->detect_mult * bfd->xmt_TO;
+		}
 	}
     
     if (bpc->seg_num > 0)
