@@ -856,7 +856,7 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	if (bnc_cond && bnc_cond->srte_color == 0) {
 		bgp_process_cond_nexthop_update(bnc_cond, &nhr);
 	}
-
+#if 0
 	/*
 	 * HACK: if any BGP route is dependant on an SR-policy that doesn't
 	 * exist, zebra will never send NH updates relative to that policy. In
@@ -868,7 +868,7 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	 * which should provide a better infrastructure to solve this issue in
 	 * a more efficient and elegant way.
 	 */
-	if (bnc_nhc && (nhr.srte_color == 0) || (nhr.srte_color == bnc_nhc->srte_color)) {
+	if (bnc_nhc && ((nhr.srte_color == 0) || (nhr.srte_color == bnc_nhc->srte_color))) {
 		struct bgp_nexthop_cache *bnc_iter;
 
 		frr_each (bgp_nexthop_cache, &bgp->nexthop_cache_table[afi],
@@ -881,6 +881,7 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 			bgp_process_nexthop_update(bnc_iter, &nhr);
 		}
 	}
+#endif
 }
 
 /*
