@@ -90,5 +90,4 @@ void isis_route_switchover_nexthop(struct isis_area *area,
 				   struct route_table *table, int family,
 				   union g_addr *nexthop_addr,
 				   ifindex_t ifindex);
-
 #endif /* _ZEBRA_ISIS_ROUTE_H */
