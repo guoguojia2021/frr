@@ -17928,42 +17928,15 @@ static void bgp_config_write_bgp_high_routemap(struct vty *vty)
 				if (map_name == NULL) {
 					continue;
 				}
-
-				vty_frame(vty, "bgp neighbor instance %s ",
-							inst == BGP_INSTANCE_TYPE_DEFAULT ? "default" : "vrf");
-				if (afi == AFI_IP) {
-					if (safi == SAFI_UNICAST)
-						vty_frame(vty, "ipv4 unicast");
-					else if (safi == SAFI_LABELED_UNICAST)
-						vty_frame(vty, "ipv4 labeled-unicast");
-					else if (safi == SAFI_MULTICAST)
-						vty_frame(vty, "ipv4 multicast");
-					else if (safi == SAFI_MPLS_VPN)
-						vty_frame(vty, "ipv4 vpn");
-					else if (safi == SAFI_ENCAP)
-						vty_frame(vty, "ipv4 encap");
-					else if (safi == SAFI_FLOWSPEC)
-						vty_frame(vty, "ipv4 flowspec");
-				} else if (afi == AFI_IP6) {
-					if (safi == SAFI_UNICAST)
-						vty_frame(vty, "ipv6 unicast");
-					else if (safi == SAFI_LABELED_UNICAST)
-						vty_frame(vty, "ipv6 labeled-unicast");
-					else if (safi == SAFI_MULTICAST)
-						vty_frame(vty, "ipv6 multicast");
-					else if (safi == SAFI_MPLS_VPN)
-						vty_frame(vty, "ipv6 vpn");
-					else if (safi == SAFI_ENCAP)
-						vty_frame(vty, "ipv6 encap");
-					else if (safi == SAFI_FLOWSPEC)
-						vty_frame(vty, "ipv6 flowspec");
-				} else if (afi == AFI_L2VPN) {
-					if (safi == SAFI_EVPN)
-						vty_frame(vty, "l2vpn evpn");
+				if (inst == BGP_INSTANCE_TYPE_DEFAULT) {
+					vty_frame(vty, "bgp neighbor instance default %s route-map %s %s\n",
+						get_afi_safi_vty_str(afi, safi), map_name, dir == RMAP_IN ? "in" : "out");
+				} else {
+					if (safi != SAFI_UNICAST && safi != SAFI_MULTICAST && safi != SAFI_EVPN)
+						continue;
+					vty_frame(vty,"bgp neighbor instance vrf %s route-map %s %s\n",
+						get_afi_safi_vty_str(afi, safi), map_name, dir == RMAP_IN ? "in" : "out");
 				}
-
-				vty_out(vty, " route-map %s %s\n", map_name,
-							dir == RMAP_IN ? "in" : "out");
 			}
 		}
 	}
