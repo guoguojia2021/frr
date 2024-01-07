@@ -3295,14 +3295,26 @@ Debugging
    information on BGP events such as peer connection / disconnection, session
    establishment / teardown, and capability negotiation.
 
+
    If ``detail`` is specified, the output will include extra context about state
    transitions and related activity useful for deep troubleshooting of peer sessions.
+
 
 .. clicmd:: debug bgp updates [detail]
 
    Enable or disable debugging for BGP updates. This provides information on
    BGP UPDATE messages transmitted and received between local and remote
    instances.
+
+
+   If ``detail`` is specified, the output will include the full BGP UPDATE with
+   detailed information such as attribute length, withdraw length, and more.
+
+.. clicmd:: debug bgp updates <in|out> [<A.B.C.D|X:X::X:X|WORD> [prefix-list WORD]]
+
+   Enable or disable debugging for BGP updates. Optionally, you can specify
+   a prefix-list to filter the updates for an arbitrary neighbor.
+
 
 .. clicmd:: debug bgp keepalives
 

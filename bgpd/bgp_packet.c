@@ -1915,8 +1915,9 @@ static int bgp_update_receive(struct peer_connection *connection,
 				"%s rcvd UPDATE with errors in attr(s)!! Withdrawing route.",
 				peer->host);
 
-		if (ret && bgp_debug_update(peer, NULL, NULL, 1)) {
-			zlog_debug("%s rcvd UPDATE w/ attr: %s", peer->host,
+		if (ret && bgp_debug_update(peer, NULL, NULL, 1) &&
+		    BGP_DEBUG(update, UPDATE_DETAIL)) {
+			zlog_debug("%pBP rcvd UPDATE w/ attr: %s", peer,
 				   peer->rcvd_attr_str);
 			peer->rcvd_attr_printed = 1;
 		}
@@ -1950,9 +1951,9 @@ static int bgp_update_receive(struct peer_connection *connection,
 		}
 	}
 
-	if (BGP_DEBUG(update, UPDATE_IN))
-		zlog_debug("%s rcvd UPDATE wlen %d attrlen %d alen %d",
-			   peer->host, withdraw_len, attribute_len, update_len);
+	if (BGP_DEBUG(update, UPDATE_IN) && BGP_DEBUG(update, UPDATE_DETAIL))
+		zlog_debug("%pBP rcvd UPDATE wlen %d attrlen %d alen %d", peer,
+			   withdraw_len, attribute_len, update_len);
 
 	/* Parse any given NLRIs */
 	for (int i = NLRI_UPDATE; i < NLRI_TYPE_MAX; i++) {
