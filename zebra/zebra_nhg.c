@@ -2108,6 +2108,8 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 		return 1;
 	if (nexthop->nh_srv6)
 		return 1;
+	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+		return 1;
 
 	/*
 	 * Set afi based on nexthop type.

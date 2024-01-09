@@ -2603,7 +2603,7 @@ int dplane_ctx_nexthop_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	ctx->u.rinfo.nhe.type = nhe->type;
 	nh = nhe->nhg.nexthop;
 
-	if (nh->nh_srv6)
+	if (nh->nh_srv6 || CHECK_FLAG(nh->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
 		dplane_ctx_set_flags(ctx, ZEBRA_FLAG_KERNEL_BYPASS);
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NON_RECURSIVE))
 		dplane_ctx_set_flags(ctx, ZEBRA_FLAG_KERNEL_BYPASS);
@@ -3135,7 +3135,8 @@ dplane_route_update_internal(struct route_node *rn,
 	if (ret == AOK) {
 		nexthop = re->nhe->nhg.nexthop;
 		if ((nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
-			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE))
+			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)
+			|| (nexthop->srte_color && re->type == ZEBRA_ROUTE_STATIC))
 			dplane_ctx_set_flags(ctx, ZEBRA_FLAG_KERNEL_BYPASS);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.

@@ -37,7 +37,7 @@ extern "C" {
  * vrf_id -> The vrf the nexthop is in.
  */
 extern void static_nht_update(struct prefix *sp, struct prefix *nhp,
-			      uint32_t nh_num, afi_t afi, vrf_id_t vrf_id, bool set_etag);
+			      uint32_t nh_num, afi_t afi, vrf_id_t vrf_id, bool set_etag, uint32_t color);
 /*
  * For the given tracked nexthop, nhp, mark all routes that use
  * this route as in starting state again.

@@ -206,7 +206,7 @@ extern struct static_path *static_add_path(struct route_node *rn,
 					   uint32_t table_id, uint8_t distance);
 extern void static_del_path(struct static_path *pn);
 
-extern void static_get_nh_type(enum static_nh_type stype, char *type,
+extern void static_get_nh_type(enum static_nh_type stype, const char *gatestr, char *type,
 			       size_t size);
 extern bool static_add_nexthop_validate(const char *nh_vrf_name,
 					enum static_nh_type type,

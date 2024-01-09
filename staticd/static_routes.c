@@ -842,14 +842,22 @@ void static_ifindex_update(struct interface *ifp, bool up)
 	static_ifindex_update_af(ifp, up, AFI_IP6, SAFI_MULTICAST);
 }
 
-void static_get_nh_type(enum static_nh_type stype, char *type, size_t size)
+void static_get_nh_type(enum static_nh_type stype, const char *gatestr, char *type, size_t size)
 {
+	struct prefix nh;
+	int ret;
 	switch (stype) {
 	case STATIC_IFNAME:
 		strlcpy(type, "ifindex", size);
 		break;
 	case STATIC_IPV4_GATEWAY:
 		strlcpy(type, "ip4", size);
+		if (gatestr) {
+			ret = str2prefix(gatestr, &nh);
+			if (ret > 0 && nh.family == AF_INET6) {
+				strlcpy(type, "ip6", size);
+			}
+		}
 		break;
 	case STATIC_IPV4_GATEWAY_IFNAME:
 	case STATIC_IPV4_GATEWAY_EVPN:

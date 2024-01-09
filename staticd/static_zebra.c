@@ -149,6 +149,7 @@ struct static_nht_data {
 	uint32_t refcount;
 	uint8_t type;
 	uint8_t nh_num;
+	uint32_t color;
 };
 
 /* API to check whether the configured nexthop address is
@@ -194,6 +195,7 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.nh = &matched;
 	lookup.nh_vrf_id = vrf_id;
+	lookup.color = nhr.srte_color;
 
 	nhtd = hash_lookup(static_nht_hash, &lookup);
 
@@ -209,7 +211,12 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 		        nhtd->nh_num, nhtd->type);
 		static_nht_reset_start(&matched, afi, nhtd->nh_vrf_id);
 		static_nht_update(NULL, &matched, nhr.nexthop_num, afi,
-				  nhtd->nh_vrf_id, set_etag);
+				  nhtd->nh_vrf_id, set_etag, nhr.srte_color);
+		if (afi == AFI_IP6) {
+			static_nht_reset_start(&matched, AFI_IP, nhtd->nh_vrf_id);
+			static_nht_update(NULL, &matched, nhr.nexthop_num, AFI_IP,
+					  nhtd->nh_vrf_id, set_etag, nhr.srte_color);
+		}
 	} else
 		zlog_err("No nhtd?");
 
@@ -228,6 +235,7 @@ static unsigned int static_nht_hash_key(const void *data)
 	unsigned int key = 0;
 
 	key = prefix_hash_key(nhtd->nh);
+	key = jhash_1word(nhtd->color, key);
 	return jhash_1word(nhtd->nh_vrf_id, key);
 }
 
@@ -237,6 +245,8 @@ static bool static_nht_hash_cmp(const void *d1, const void *d2)
 	const struct static_nht_data *nhtd2 = d2;
 
 	if (nhtd1->nh_vrf_id != nhtd2->nh_vrf_id)
+		return false;
+	if (nhtd1->color != nhtd2->color)
 		return false;
 
 	return prefix_same(nhtd1->nh, nhtd2->nh);
@@ -254,6 +264,7 @@ static void *static_nht_hash_alloc(void *data)
 	new->refcount = 0;
 	new->nh_num = 0;
 	new->nh_vrf_id = copy->nh_vrf_id;
+	new->color = copy->color;
 
 	return new;
 }
@@ -311,6 +322,7 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.nh = &p;
 	lookup.nh_vrf_id = nh->nh_vrf_id;
+	lookup.color = nh->color;
 
 	nh->nh_registered = reg;
 
@@ -326,7 +338,11 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 			set_etag = true;
 		if (nhtd->refcount > 1 && nhtd->nh_num) {
 			static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, afi,
-					  nh->nh_vrf_id, set_etag);
+					  nh->nh_vrf_id, set_etag, nh->color);
+			if (afi == AFI_IP6) {
+				static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, AFI_IP,
+						  nhtd->nh_vrf_id, set_etag, nh->color);
+			}
 			return;
 		}
 	} else {
@@ -341,10 +357,16 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 		hash_release(static_nht_hash, nhtd);
 		static_nht_hash_free(nhtd);
 	}
-
-	if (zclient_send_rnh(zclient, cmd, &p, false, false, nh->nh_vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL)
-	    == ZCLIENT_SEND_FAILURE)
-		zlog_warn("%s: Failure to send nexthop to zebra", __func__);
+	if (nh->color) {
+		if (zclient_send_rnh(zclient, cmd, &p, false, false, nh->nh_vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &nh->color)
+		    == ZCLIENT_SEND_FAILURE)
+			zlog_warn("%s: Failure to send nexthop to zebra", __func__);
+	}
+	else {
+		if (zclient_send_rnh(zclient, cmd, &p, false, false, nh->nh_vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL)
+		    == ZCLIENT_SEND_FAILURE)
+			zlog_warn("%s: Failure to send nexthop to zebra", __func__);
+	}
 }
 
 
@@ -379,6 +401,7 @@ void get_static_nht_nh_rttype(struct route_node *rn, struct static_nexthop *nh, 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.nh = &p;
 	lookup.nh_vrf_id = nh->nh_vrf_id;
+	lookup.color = nh->color;
 
 
 	nhtd = hash_get(static_nht_hash, &lookup,
@@ -429,6 +452,7 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 
 	lookup.nh = &p;
 	lookup.nh_vrf_id = nh->nh_vrf_id;
+	lookup.color = nh->color;
 
 	nhtd = hash_lookup(static_nht_hash, &lookup);
 	if (nhtd && nhtd->nh_num) {
@@ -438,7 +462,11 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 			set_etag = true;
 		}
 		static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, afi,
-				  nh->nh_vrf_id, set_etag);
+				  nh->nh_vrf_id, set_etag, nh->color);
+		if (afi == AFI_IP6) {
+			static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, AFI_IP,
+					  nhtd->nh_vrf_id, set_etag, nh->color);
+		}
 		return 1;
 	}
 	return 0;
@@ -506,8 +534,8 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 		if (nh->onlink)
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
 		if (nh->color != 0) {
-			SET_FLAG(api.message, ZAPI_MESSAGE_SRTE);
-			api_nh->srte_color = nh->color;
+			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
+            api_nh->srte_color = nh->color;
 		}
 
 		nh->state = STATIC_SENT_TO_ZEBRA;

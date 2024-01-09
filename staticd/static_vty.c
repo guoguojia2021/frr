@@ -65,7 +65,6 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	char xpath_mpls[XPATH_MAXLEN];
 	char xpath_label[XPATH_MAXLEN];
 	char ab_xpath[XPATH_MAXLEN];
-	char ab_etag_xpath[XPATH_MAXLEN];
 	char buf_prefix[PREFIX_STRLEN];
 	char buf_src_prefix[PREFIX_STRLEN];
 	char buf_nh_type[PREFIX_STRLEN];
@@ -182,7 +181,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	if (table_str)
 		table_id = atol(table_str);
 
-	static_get_nh_type(type, buf_nh_type, PREFIX_STRLEN);
+	static_get_nh_type(type, gate_str, buf_nh_type, PREFIX_STRLEN);
 	if (!negate) {
 		if (src_str)
 			snprintf(ab_xpath, sizeof(ab_xpath),
@@ -697,6 +696,51 @@ DEFPY_YANG(ip_route,
 				 false, color_str, NULL, NULL, bfd_name);
 }
 
+DEFPY_YANG(ip_route_v6gate,
+      ip_route_v6gate_cmd,
+      "[no] ip route\
+	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
+	X:X::X:X$gate        \
+	[{                                             \
+	  tag (1-4294967295)                           \
+	  |(1-255)$distance                            \
+	  |vrf NAME                                    \
+	  |nexthop-vrf NAME                            \
+	  |color (1-4294967295)                        \
+	  |bfd-name BFD$bfd_name                       \
+          }]",
+      NO_STR IP_STR
+      "Establish static routes\n"
+      "IP destination prefix (e.g. 10.0.0.0/8)\n"
+      "IP destination prefix\n"
+      "IP destination prefix mask\n"
+      "IPv6 gateway address\n"
+      "Set tag for this route\n"
+      "Tag value\n"
+      "Distance value for this route\n"
+      VRF_CMD_HELP_STR
+      VRF_CMD_HELP_STR
+      "SR-TE color\n"
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
+{
+	const char *nh_vrf;
+
+	if (!vrf)
+		vrf = VRF_DEFAULT_NAME;
+
+	if (nexthop_vrf)
+		nh_vrf = nexthop_vrf;
+	else
+		nh_vrf = vrf;
+
+	return static_route_leak(vty, vrf, nh_vrf, AFI_IP, SAFI_UNICAST, no,
+				 prefix, mask_str, NULL, gate_str, NULL, NULL,
+				 tag_str, NULL, distance_str, NULL, NULL,
+				 false, color_str, NULL, NULL, bfd_name);
+}
+
 DEFPY_YANG(ip_route_vrf,
       ip_route_vrf_cmd,
       "[no] ip route\
@@ -757,6 +801,58 @@ DEFPY_YANG(ip_route_vrf,
 	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
 				 prefix, mask_str, NULL, gate_str, ifname, flag,
 				 tag_str, NULL, distance_str, label, table_str,
+				 false, color_str, NULL, NULL, bfd_name);
+}
+
+DEFPY_YANG(ip_route_v6gate_vrf,
+      ip_route_v6gate_vrf_cmd,
+      "[no] ip route\
+	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
+	X:X::X:X$gate                                  \
+	[{                                             \
+	  tag (1-4294967295)                           \
+	  |(1-255)$distance                            \
+	  |nexthop-vrf NAME                            \
+	  |color (1-4294967295)                        \
+	  |bfd-name BFD$bfd_name                       \
+          }]",
+      NO_STR IP_STR
+      "Establish static routes\n"
+      "IP destination prefix (e.g. 10.0.0.0/8)\n"
+      "IP destination prefix\n"
+      "IP destination prefix mask\n"
+      "IPv6 gateway address\n"
+      "Set tag for this route\n"
+      "Tag value\n"
+      "Distance value for this route\n"
+      VRF_CMD_HELP_STR
+      "SR-TE color\n"
+      "The SR-TE color to configure\n"
+      "Specify bfd session name\n"
+	  "bfd session name\n")
+{
+	const char *nh_vrf;
+	const char *flag = NULL;
+	const struct lyd_node *vrf_dnode;
+	const char *vrfname;
+
+	vrf_dnode =
+		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
+	if (!vrf_dnode) {
+		vty_out(vty, "%% Failed to get vrf dnode in candidate db\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
+
+	if (nexthop_vrf)
+		nh_vrf = nexthop_vrf;
+	else
+		nh_vrf = vrfname;
+
+	return static_route_leak(vty, vrfname, nh_vrf, AFI_IP, SAFI_UNICAST, no,
+				 prefix, mask_str, NULL, gate_str, NULL, NULL,
+				 tag_str, NULL, distance_str, NULL, NULL,
 				 false, color_str, NULL, NULL, bfd_name);
 }
 
@@ -1567,7 +1663,9 @@ void static_vty_init(void)
 	install_element(CONFIG_NODE, &ip_route_address_interface_cmd);
 	install_element(VRF_NODE, &ip_route_address_interface_vrf_cmd);
 	install_element(CONFIG_NODE, &ip_route_cmd);
+	install_element(CONFIG_NODE, &ip_route_v6gate_cmd);
 	install_element(VRF_NODE, &ip_route_vrf_cmd);
+	install_element(VRF_NODE, &ip_route_v6gate_vrf_cmd);
 
 	install_element(CONFIG_NODE, &ipv6_route_blackhole_cmd);
 	install_element(VRF_NODE, &ipv6_route_blackhole_vrf_cmd);

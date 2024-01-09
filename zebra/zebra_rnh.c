@@ -1376,7 +1376,11 @@ static void print_rnh(struct route_node *rn, struct vty *vty)
 			for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
 			     nexthop = nexthop->next)
 				print_nh(nexthop, vty);
-		} else
+		}
+		else if (rnh->srp_status == ZEBRA_SR_POLICY_UP) {
+			vty_out(vty, " resolved via sr-te\n");
+		}
+		else
 			vty_out(vty, " unresolved%s\n",
 				CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED)
 					? "(Connected)"
