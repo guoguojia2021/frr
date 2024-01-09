@@ -53,6 +53,7 @@ override_dh_auto_configure:
 		--enable-fpm \
 	  --enable-arp2host-backup=yes \
 		--enable-protobuf \
+		--enable-lttng=yes \
 		--disable-zeromq \
 		--enable-ospfapi \
 		--disable-bgp-vnc \

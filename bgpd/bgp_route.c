@@ -1553,13 +1553,6 @@ static enum filter_type bgp_in_filter_run(struct peer *peer, const struct prefix
 	}
 
 done:
-	if (frrtrace_enabled(frr_bgp, input_filter)) {
-		char pfxprint[PREFIX2STR_BUFFER];
-
-		prefix2str(p, pfxprint, sizeof(pfxprint));
-		frrtrace(5, frr_bgp, input_filter, peer, pfxprint, afi, safi,
-			 ret == FILTER_PERMIT ? "permit" : "deny");
-	}
 
 	return ret;
 #undef FILTER_EXIST_WARN
@@ -1623,14 +1616,6 @@ static enum filter_type bgp_out_filter_run(struct peer *peer, const struct prefi
 			ret = FILTER_DENY;
 			goto done;
 		}
-	}
-
-	if (frrtrace_enabled(frr_bgp, output_filter)) {
-		char pfxprint[PREFIX2STR_BUFFER];
-
-		prefix2str(p, pfxprint, sizeof(pfxprint));
-		frrtrace(5, frr_bgp, output_filter, peer, pfxprint, afi, safi,
-			 ret == FILTER_PERMIT ? "permit" : "deny");
 	}
 
 done:
