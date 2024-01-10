@@ -134,6 +134,7 @@ enum srv6_servicesid_encap_info_type_t {
 	SEG6_SRC = 1,
 	SEG6_ENDPOINT = 2,
 	SEG6_COLOR = 3,
+	SEG6_SIDLISTNAME = 4,
 };
 
 struct srv6_servicesid_encap_info_t {
@@ -141,6 +142,7 @@ struct srv6_servicesid_encap_info_t {
 	struct in6_addr seg_src;
     struct in6_addr endpoint;
 	uint8_t color;
+	char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
 };
 
 struct fpm_nh_encap_info_t {
@@ -277,7 +279,8 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 	nhi.weight = nexthop->weight;
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV4
-	    || nexthop->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
+		|| nexthop->type == NEXTHOP_TYPE_IPV4_IFINDEX
+		|| nexthop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
 		nhi.gateway = &nexthop->gate;
 		if (nexthop->src.ipv4.s_addr != INADDR_ANY)
 			src = &nexthop->src;
@@ -285,9 +288,10 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 	}
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV6
-	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
+		|| nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX
+		|| nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
 		/* Special handling for IPv4 route with IPv6 Link Local next hop
-		 */
+			*/
 		if (ri->af == AF_INET)
 			nhi.gateway = &ipv4ll_gateway;
 		else
@@ -307,7 +311,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 	if ((re && CHECK_FLAG(re->flags, ZEBRA_FLAG_EVPN_ROUTE))
 		|| (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_EVPN_RVTEP))){
 		nhi.encap_info.encap_type = FPM_NH_ENCAP_VXLAN;
-        zl3vni = zl3vni_from_vrf(nexthop->vrf_id);
+		zl3vni = zl3vni_from_vrf(nexthop->vrf_id);
 		/* Extract VNI id for the nexthop SVI interface */
 		zvrf = zebra_vrf_lookup_by_id(nexthop->vrf_id);
 		if (zvrf) {
@@ -344,7 +348,7 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 				prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 				nhbuf,
 				prefix_mac2str(&nhi.encap_info.vxlan_encap.rmac, buf, sizeof(buf)),
-                vid, nhi.encap_info.vxlan_encap.vni);
+				vid, nhi.encap_info.vxlan_encap.vni);
 		}
 	}
 
@@ -384,26 +388,29 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
     else if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
     {
 		nhi.gateway = &nexthop->gate;
-		zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s, gate:%s, color:%d", __FUNCTION__,
+		zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s, gate:%s, color:%d, sidlist_name:%s", __FUNCTION__,
 			prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 			addr_to_a(AF_INET6, &nexthop->nh_srv6->seg6_segs),
 			addr_to_a(AF_INET6, &nexthop->nh_srv6->seg6_src),
 			addr_to_a(AF_INET6, &nexthop->gate.ipv6),
-			nexthop->srte_color);
+			nexthop->srte_color,
+			nexthop->sidlist_name);
 
-        nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_SERVICE_SID;
-        nhi.encap_info.srv6_service_encap.seg6 = nexthop->nh_srv6->seg6_segs;
-        nhi.encap_info.srv6_service_encap.seg_src = nexthop->nh_srv6->seg6_src;
-        if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
-        {
-            nhi.encap_info.srv6_service_encap.endpoint = nexthop->gate.ipv6;
-            nhi.encap_info.srv6_service_encap.color = nexthop->srte_color;
-        }
-    }
-    
+		nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_SERVICE_SID;
+		nhi.encap_info.srv6_service_encap.seg6 = nexthop->nh_srv6->seg6_segs;
+		nhi.encap_info.srv6_service_encap.seg_src = nexthop->nh_srv6->seg6_src;
+		memcpy(nhi.encap_info.srv6_service_encap.sidlist_name,
+			nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+		{
+			nhi.encap_info.srv6_service_encap.endpoint = nexthop->gate.ipv6;
+			nhi.encap_info.srv6_service_encap.color = nexthop->srte_color;
+		}
+	}
+
 	/*
-	 * We have a valid nhi. Copy the structure over to the route_info.
-	 */
+		* We have a valid nhi. Copy the structure over to the route_info.
+		*/
 	ri->nhs[ri->num_nhs] = nhi;
 	ri->num_nhs++;
 
@@ -476,12 +483,14 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
 	for (ALL_NEXTHOPS(re->nhe->nhg, nexthop)) {
 		if (ri->num_nhs >= zrouter.multipath_num)
 			break;
-        if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
-        {
-            if (nexthop->rparent)
+		if (re && nexthop->nh_srv6 && (memcmp(&nexthop->nh_srv6->seg6_segs, &in6addr_any, sizeof(struct in6_addr))))
+		{
+			if (nexthop->rparent && !CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
 				continue;
-        }
-        else if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+			if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+				continue;
+		}
+		else if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
 		{
 			zfpm_debug("%s: ignore recursive nexthop", __func__);
 			continue;
@@ -551,7 +560,8 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	struct rtnexthop *rtnh;
 	struct vxlan_encap_info_t *vxlan;
 	struct in6_addr ipv6;
-    size_t nh_len;
+	size_t nh_len;
+	char gatewaybuf[PREFIX_STRLEN];
 
 	struct {
 		struct nlmsghdr n;
@@ -597,7 +607,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	req->r.rtm_scope = RT_SCOPE_UNIVERSE;
 
 	nl_attr_put(&req->n, in_buf_len, RTA_DST, &ri->prefix->u.prefix,
-		    bytelen);
+			bytelen);
 
 	req->r.rtm_type = ri->rtm_type;
 
@@ -613,27 +623,36 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 
 		if (nhi->gateway) {
 			if (nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX
-			    && ri->af == AF_INET6) {
+				&& ri->af == AF_INET6) {
 				ipv4_to_ipv4_mapped_ipv6(&ipv6,
-							 nhi->gateway->ipv4);
+								nhi->gateway->ipv4);
 				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-					    &ipv6, bytelen);
+						&ipv6, bytelen);
+				inet_ntop(AF_INET6, nhi->gateway, gatewaybuf, sizeof(gatewaybuf));
 			} else
 			{
-                if (nhi->type == NEXTHOP_TYPE_IPV4 || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX)
-    				nh_len = af_addr_size(AF_INET);
-    			else if (nhi->type == NEXTHOP_TYPE_IPV6 || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX)
-    				nh_len = af_addr_size(AF_INET6);
-                else
-                    nh_len = bytelen;
+				if (nhi->type == NEXTHOP_TYPE_IPV4
+					|| nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX
+					|| nhi->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
+						inet_ntop(AF_INET, nhi->gateway, gatewaybuf, sizeof(gatewaybuf));
+						nh_len = af_addr_size(AF_INET);
+					}
+				else if (nhi->type == NEXTHOP_TYPE_IPV6
+					|| nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX
+					|| nhi->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+						inet_ntop(AF_INET6, nhi->gateway, gatewaybuf, sizeof(gatewaybuf));
+						nh_len = af_addr_size(AF_INET6);
+					}
+				else
+					nh_len = bytelen;
 				nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
-					    nhi->gateway, nh_len);
+						nhi->gateway, nh_len);
 			}
 		}
 
 		if (nhi->if_index) {
 			nl_attr_put32(&req->n, in_buf_len, RTA_OIF,
-				      nhi->if_index);
+						nhi->if_index);
 		}
 
 		encap = nhi->encap_info.encap_type;
@@ -643,25 +662,25 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 			break;
 		case FPM_NH_ENCAP_VXLAN:
 			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
-				      encap);
+						encap);
 			vxlan = &nhi->encap_info.vxlan_encap;
 			char buf[ETHER_ADDR_STRLEN];
 			zfpm_debug("%s: VNI:%d RMAC:%s VLAN:%d", __FUNCTION__,
 					vxlan->vni, prefix_mac2str(&vxlan->rmac, buf, sizeof(buf)),
 					vxlan->vlan);
- 
+
 			nest = nl_attr_nest(&req->n, in_buf_len, RTA_ENCAP);
 			/* nl_attr_nest add NLA_F_NESTED flag by default.
-			 * To avoid fpmsyncd cannot parse this flag, remove
-			 * this flag for vxlan ecnap.
-			 */
+				* To avoid fpmsyncd cannot parse this flag, remove
+				* this flag for vxlan ecnap.
+				*/
 			nest->rta_type &= ~(NLA_F_NESTED);
 
 			nl_attr_put32(&req->n, in_buf_len, VXLAN_VNI,
-				      vxlan->vni);
+						vxlan->vni);
 			nl_attr_put(&req->n, in_buf_len, VXLAN_RMAC,
 						&vxlan->rmac, sizeof(vxlan->rmac));
- 
+
 			nl_attr_put32(&req->n, in_buf_len, VXLAN_VLAN,
 						vxlan->vlan);
 			nl_attr_nest_end(&req->n, nest);
@@ -677,20 +696,27 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 			 */
 			nest->rta_type &= ~(NLA_F_NESTED);
 
-			zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s", __FUNCTION__,
+			zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s, gateway:%s, sidname:%s, color:%d", __FUNCTION__,
 				prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 				addr_to_a(AF_INET6, &nhi->encap_info.srv6_service_encap.seg6),
-				addr_to_a(AF_INET6, &nhi->encap_info.srv6_service_encap.seg_src));
+				addr_to_a(AF_INET6, &nhi->encap_info.srv6_service_encap.seg_src),
+				gatewaybuf,
+				nhi->encap_info.srv6_service_encap.sidlist_name,
+				nhi->encap_info.srv6_service_encap.color);
 
-            nl_attr_put(&req->n, in_buf_len, SEG6_ADDR,
+			nl_attr_put(&req->n, in_buf_len, SEG6_ADDR,
 						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
-            nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
+			nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
 						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
-            nl_attr_put(&req->n, in_buf_len, SEG6_ENDPOINT,
-                        &nhi->encap_info.srv6_service_encap.endpoint, 
-                        sizeof(nhi->encap_info.srv6_service_encap.endpoint));
-            nl_attr_put32(&req->n, in_buf_len, SEG6_COLOR, 
-                nhi->encap_info.srv6_service_encap.color);
+			nl_attr_put(&req->n, in_buf_len, SEG6_ENDPOINT,
+						&nhi->encap_info.srv6_service_encap.endpoint,
+						sizeof(nhi->encap_info.srv6_service_encap.endpoint));
+			nl_attr_put32(&req->n, in_buf_len, SEG6_COLOR,
+				nhi->encap_info.srv6_service_encap.color);
+
+			nl_attr_put(&req->n, in_buf_len, SEG6_SIDLISTNAME,
+						nhi->encap_info.srv6_service_encap.sidlist_name,
+						sizeof(nhi->encap_info.srv6_service_encap.sidlist_name));
 
 			nl_attr_nest_end(&req->n, nest);
 			break;
@@ -720,10 +746,18 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 
 		if (nhi->gateway)
 		{
-            if (nhi->type == NEXTHOP_TYPE_IPV4 || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX)
+            if (nhi->type == NEXTHOP_TYPE_IPV4
+				|| nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX
+				|| nhi->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
+				inet_ntop(AF_INET, nhi->gateway, gatewaybuf, sizeof(gatewaybuf));
 				nh_len = af_addr_size(AF_INET);
-			else if (nhi->type == NEXTHOP_TYPE_IPV6 || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX)
+			}
+			else if (nhi->type == NEXTHOP_TYPE_IPV6
+				|| nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX
+				|| nhi->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+				inet_ntop(AF_INET6, nhi->gateway, gatewaybuf, sizeof(gatewaybuf));
 				nh_len = af_addr_size(AF_INET6);
+			}
             else
                 nh_len = bytelen;
 			nl_attr_put(&req->n, in_buf_len, RTA_GATEWAY,
@@ -777,21 +811,26 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 			 */
 			inner_nest->rta_type &= ~(NLA_F_NESTED);
 
-			zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s", __FUNCTION__,
+			zfpm_debug("%s: NEWROUTE:%s/%d, seg6:%s, seg_src:%s, gateway:%s, sidname:%s, color:%d", __FUNCTION__,
 				prefix_addr_to_a(ri->prefix), ri->prefix->prefixlen,
 				addr_to_a(AF_INET6, &nhi->encap_info.srv6_service_encap.seg6),
-				addr_to_a(AF_INET6, &nhi->encap_info.srv6_service_encap.seg_src));
+				addr_to_a(AF_INET6, &nhi->encap_info.srv6_service_encap.seg_src),
+				gatewaybuf,
+				nhi->encap_info.srv6_service_encap.sidlist_name,
+				nhi->encap_info.srv6_service_encap.color);
 
-            nl_attr_put(&req->n, in_buf_len, SEG6_ADDR,
+			nl_attr_put(&req->n, in_buf_len, SEG6_ADDR,
 						&nhi->encap_info.srv6_service_encap.seg6, sizeof(nhi->encap_info.srv6_service_encap.seg6));
-            nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
+			nl_attr_put(&req->n, in_buf_len, SEG6_SRC,
 						&nhi->encap_info.srv6_service_encap.seg_src, sizeof(nhi->encap_info.srv6_service_encap.seg_src));
-            nl_attr_put(&req->n, in_buf_len, SEG6_ENDPOINT,
-                        &nhi->encap_info.srv6_service_encap.endpoint, 
-                        sizeof(nhi->encap_info.srv6_service_encap.endpoint));
-            nl_attr_put32(&req->n, in_buf_len, SEG6_COLOR, 
-                nhi->encap_info.srv6_service_encap.color);
-
+			nl_attr_put(&req->n, in_buf_len, SEG6_ENDPOINT,
+						&nhi->encap_info.srv6_service_encap.endpoint,
+						sizeof(nhi->encap_info.srv6_service_encap.endpoint));
+			nl_attr_put32(&req->n, in_buf_len, SEG6_COLOR,
+						nhi->encap_info.srv6_service_encap.color);
+			nl_attr_put(&req->n, in_buf_len, SEG6_SIDLISTNAME,
+						nhi->encap_info.srv6_service_encap.sidlist_name,
+						sizeof(nhi->encap_info.srv6_service_encap.sidlist_name));
 			nl_attr_nest_end(&req->n, inner_nest);
 			break;
 		}
@@ -817,36 +856,38 @@ static void zfpm_log_route_info(struct netlink_route_info *ri,
 {
 	struct netlink_nh_info *nhi;
 	unsigned int i;
-	char buf[PREFIX_STRLEN];
-    uint8_t af = ri->af;
+	char buf[PREFIX_STRLEN] = {0};
+    uint8_t af = AF_UNSPEC;
 
 	zfpm_debug("%s : %s %pFX, Proto: %s, Metric: %u", label,
-		   nl_msg_type_to_str(ri->nlmsg_type), ri->prefix,
-		   nl_rtproto_to_str(ri->rtm_protocol),
-		   ri->metric ? *ri->metric : 0);
+			nl_msg_type_to_str(ri->nlmsg_type), ri->prefix,
+			nl_rtproto_to_str(ri->rtm_protocol),
+			ri->metric ? *ri->metric : 0);
 
 	for (i = 0; i < ri->num_nhs; i++) {
 		nhi = &ri->nhs[i];
-        if (nhi->type == NEXTHOP_TYPE_IPV4
-                || nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
-            af = AF_INET;
-        }
+		if (nhi->type == NEXTHOP_TYPE_IPV4
+			|| nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX
+			|| nhi->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
+			af = AF_INET;
+		}
 
-        if (nhi->type == NEXTHOP_TYPE_IPV6
-            || nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
-            af = AF_INET6;
-        }
+		if (nhi->type == NEXTHOP_TYPE_IPV6
+			|| nhi->type == NEXTHOP_TYPE_IPV6_IFINDEX
+			|| nhi->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+			af = AF_INET6;
+		}
 
-		if (ri->af == AF_INET)
-			inet_ntop(AF_INET, &nhi->gateway, buf, sizeof(buf));
-		else
-			inet_ntop(AF_INET6, &nhi->gateway, buf, sizeof(buf));
+		if (af == AF_INET)
+			inet_ntop(AF_INET, nhi->gateway, buf, sizeof(buf));
+		else if (af == AF_INET6)
+			inet_ntop(AF_INET6, nhi->gateway, buf, sizeof(buf));
 
 		zfpm_debug("  Intf: %u, Gateway: %s, Recursive: %s, Type: %s, Encap type: %s",
-			   nhi->if_index, buf, nhi->recursive ? "yes" : "no",
-			   nexthop_type_to_str(nhi->type),
-			   fpm_nh_encap_type_to_str(nhi->encap_info.encap_type)
-			   );
+				nhi->if_index, buf, nhi->recursive ? "yes" : "no",
+				nexthop_type_to_str(nhi->type),
+				fpm_nh_encap_type_to_str(nhi->encap_info.encap_type)
+				);
 	}
 }
 

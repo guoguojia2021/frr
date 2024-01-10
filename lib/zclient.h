@@ -91,6 +91,9 @@ typedef uint16_t zebra_size_t;
 #define NEXTHOP_REGISTER_FLAG_USERDATA       0x02
 #define NEXTHOP_REGISTER_FLAG_TRACKROUTE     0x04
 
+#define ZEBRA_SID_INDEX_MAX_NUM 8
+#define ZEBRA_SID_LIST_MAX_NUM 16
+
 /* Client capabilities */
 enum zserv_client_capabilities {
 	ZEBRA_CLIENT_GR_CAPABILITIES = 1,
@@ -434,7 +437,7 @@ struct zapi_nexthop {
 	enum nexthop_types_t type;
 	vrf_id_t vrf_id;
 	ifindex_t ifindex;
-	uint8_t flags;
+	uint32_t flags;
 	union {
 		union g_addr gate;
 		enum blackhole_type bh_type;
@@ -463,7 +466,7 @@ struct zapi_nexthop {
 	/* SRv6 Headend-behaviour:vpn-sid */
 	struct in6_addr seg6_segs;
     struct in6_addr seg6_src;
-
+	char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
     char tnlName[];
 };
 
@@ -653,24 +656,43 @@ enum zapi_srte_tunnel_type {
 	SRTE_TUNNEL_TYPE_SRV6 = 2,
 };
 
+enum zapi_srte_segment_sid_type {
+	ZAPI_SRTE_SEGMENT_SID_TYPE_UNDEFINED = 0,
+	ZAPI_SRTE_SEGMENT_SID_TYPE_V6 = 1,
+	ZAPI_SRTE_SEGMENT_SID_TYPE_MPLS = 2,
+};
+struct zapi_srte_segment_entry {
+	uint32_t index;
+    enum zapi_srte_segment_sid_type sid_type;
+	mpls_label_t sid_value;
+	struct ipaddr srv6_sid_value;
+};
 struct zapi_srv6_active_sidlist{
-    char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
-    uint32_t weight;
+	char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
+	uint32_t segment_count;
+	struct zapi_srte_segment_entry segments[ZEBRA_SID_INDEX_MAX_NUM];
+	uint32_t type;
+#define SRV6_SID_LIST_ADD 0x01
+#define SRV6_SID_LIST_UPDATE 0x02
+#define SRV6_SID_LIST_DEL 0x04
+	uint8_t weight;
 };
 
 struct zapi_srv6te_tunnel {
-    uint32_t path_num;
-    struct zapi_srv6_active_sidlist sidlists[16];
+	uint8_t path_num;
+	uint8_t path_num_old;
+	struct zapi_srv6_active_sidlist sidlists[ZEBRA_SID_LIST_MAX_NUM];
+	struct zapi_srv6_active_sidlist sidlists_old[ZEBRA_SID_LIST_MAX_NUM];
 };
 
 struct zapi_sr_policy {
 	uint32_t color;
 	struct ipaddr endpoint;
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
-    enum zapi_srte_tunnel_type tunnel_type;  //sr-mpls. or srv6
+	enum zapi_srte_tunnel_type tunnel_type;  //sr-mpls. or srv6
 	struct zapi_srte_tunnel segment_list;
-    /*srv6 tunnel*/
-    struct zapi_srv6te_tunnel srv6_tunnel;
+	/*srv6 tunnel*/
+	struct zapi_srv6te_tunnel srv6_tunnel;
 	struct ipaddr binding_v6sid;
 	int status;
 };
@@ -1356,6 +1378,7 @@ extern int zclient_send_zebra_gre_request(struct zclient *client,
 	
 extern struct connected *zebra_interface_address_read_when_up(
 	int, struct stream *, vrf_id_t);
+
 #ifdef __cplusplus
 }
 #endif

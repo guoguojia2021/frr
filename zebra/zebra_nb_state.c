@@ -559,6 +559,7 @@ int lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_get_keys(
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		snprintfrr(args->keys->key[2], sizeof(args->keys->key[2]),
 			   "%pI4", &nexthop->gate.ipv4);
 		if (nexthop->ifindex)
@@ -574,6 +575,7 @@ int lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_get_keys(
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		snprintfrr(args->keys->key[2], sizeof(args->keys->key[2]),
 			   "%pI6", &nexthop->gate.ipv6);
 
@@ -652,6 +654,8 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_lookup_entry(
 		break;
 	case NEXTHOP_TYPE_IFINDEX:
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -666,6 +670,8 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_lookup_entry(
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -741,12 +747,14 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_gateway_get_elem(
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		addr.ipa_type = IPADDR_V4;
 		memcpy(&addr.ipaddr_v4, &(nexthop->gate.ipv4),
 		       sizeof(struct in_addr));
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		addr.ipa_type = IPADDR_V6;
 		memcpy(&addr.ipaddr_v6, &(nexthop->gate.ipv6),
 		       sizeof(struct in6_addr));

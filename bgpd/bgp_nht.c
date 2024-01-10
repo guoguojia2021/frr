@@ -502,70 +502,69 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		bnc->flags &= ~BGP_NEXTHOP_LABELED_VALID; /* check below */
 
-		if (nhr->type != ZEBRA_ROUTE_SRTE)
-			for (i = 0; i < nhr->nexthop_num; i++) {
-				int num_labels = 0;
+		for (i = 0; i < nhr->nexthop_num; i++) {
+			int num_labels = 0;
 
-				nexthop = nexthop_from_zapi_nexthop(&nhr->nexthops[i]);
+			nexthop = nexthop_from_zapi_nexthop(&nhr->nexthops[i]);
 
-				/*
-				 * Turn on RA for the v6 nexthops
-				 * we receive from bgp.  This is to allow us
-				 * to work with v4 routing over v6 nexthops
-				 */
-				if (peer && !peer->ifp
-				    && CHECK_FLAG(peer->flags,
-						  PEER_FLAG_CAPABILITY_ENHE)
-				    && nhr->prefix.family == AF_INET6
-				    && nexthop->type != NEXTHOP_TYPE_BLACKHOLE) {
-					struct interface *ifp;
+			/*
+				* Turn on RA for the v6 nexthops
+				* we receive from bgp.  This is to allow us
+				* to work with v4 routing over v6 nexthops
+				*/
+			if (peer && !peer->ifp
+				&& CHECK_FLAG(peer->flags,
+						PEER_FLAG_CAPABILITY_ENHE)
+				&& nhr->prefix.family == AF_INET6
+				&& nexthop->type != NEXTHOP_TYPE_BLACKHOLE) {
+				struct interface *ifp;
 
-					ifp = if_lookup_by_index(nexthop->ifindex,
-								 nexthop->vrf_id);
-					if (ifp)
-						zclient_send_interface_radv_req(
-							zclient, nexthop->vrf_id, ifp,
-							true,
-							BGP_UNNUM_DEFAULT_RA_INTERVAL);
-				}
-				/* There is at least one label-switched path */
-				if (nexthop->nh_label &&
-					nexthop->nh_label->num_labels) {
-
-					bnc->flags |= BGP_NEXTHOP_LABELED_VALID;
-					num_labels = nexthop->nh_label->num_labels;
-				}
-
-				if (BGP_DEBUG(nht, NHT)) {
-					char buf[NEXTHOP_STRLEN];
-					zlog_debug(
-						"    nhop via %s (%d labels)",
-						nexthop2str(nexthop, buf, sizeof(buf)),
-						num_labels);
-				}
-
-				if (nhlist_tail) {
-					nhlist_tail->next = nexthop;
-					nhlist_tail = nexthop;
-				} else {
-					nhlist_tail = nexthop;
-					nhlist_head = nexthop;
-				}
-
-				/* No need to evaluate the nexthop if we have already
-				 * determined
-				 * that there has been a change.
-				 */
-				if (bnc->change_flags & BGP_NEXTHOP_CHANGED)
-					continue;
-
-				for (oldnh = bnc->nexthop; oldnh; oldnh = oldnh->next)
-					if (nexthop_same(oldnh, nexthop))
-						break;
-
-				if (!oldnh)
-					bnc->change_flags |= BGP_NEXTHOP_CHANGED;
+				ifp = if_lookup_by_index(nexthop->ifindex,
+								nexthop->vrf_id);
+				if (ifp)
+					zclient_send_interface_radv_req(
+						zclient, nexthop->vrf_id, ifp,
+						true,
+						BGP_UNNUM_DEFAULT_RA_INTERVAL);
 			}
+			/* There is at least one label-switched path */
+			if (nexthop->nh_label &&
+				nexthop->nh_label->num_labels) {
+
+				bnc->flags |= BGP_NEXTHOP_LABELED_VALID;
+				num_labels = nexthop->nh_label->num_labels;
+			}
+
+			if (BGP_DEBUG(nht, NHT)) {
+				char buf[NEXTHOP_STRLEN];
+				zlog_debug(
+					"    nhop via %s (%d labels, %s sidlist)",
+					nexthop2str(nexthop, buf, sizeof(buf)),
+					num_labels, nexthop->sidlist_name);
+			}
+
+			if (nhlist_tail) {
+				nhlist_tail->next = nexthop;
+				nhlist_tail = nexthop;
+			} else {
+				nhlist_tail = nexthop;
+				nhlist_head = nexthop;
+			}
+
+			/* No need to evaluate the nexthop if we have already
+				* determined
+				* that there has been a change.
+				*/
+			if (bnc->change_flags & BGP_NEXTHOP_CHANGED)
+				continue;
+
+			for (oldnh = bnc->nexthop; oldnh; oldnh = oldnh->next)
+				if (nexthop_same(oldnh, nexthop))
+					break;
+
+			if (!oldnh)
+				bnc->change_flags |= BGP_NEXTHOP_CHANGED;
+		}
 		bnc_nexthop_free(bnc);
 		bnc->nexthop = nhlist_head;
 

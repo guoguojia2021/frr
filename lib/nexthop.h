@@ -27,7 +27,7 @@
 #include "mpls.h"
 #include "vxlan.h"
 #include "srv6.h"
-
+#include "srte.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -47,6 +47,8 @@ enum nexthop_types_t {
 	NEXTHOP_TYPE_IPV6,	 /* IPv6 nexthop.  */
 	NEXTHOP_TYPE_IPV6_IFINDEX, /* IPv6 nexthop with ifindex.  */
 	NEXTHOP_TYPE_BLACKHOLE,    /* Null0 nexthop.  */
+	NEXTHOP_TYPE_IPV4_SEGMENTLIST, /* Segment list */
+	NEXTHOP_TYPE_IPV6_SEGMENTLIST, /* Segment list */
 };
 
 enum blackhole_type {
@@ -149,6 +151,7 @@ struct nexthop {
 	/* SRv6 information */
 	struct nexthop_srv6 *nh_srv6;
 	struct in6_addr seg6_src;
+	char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
 };
 
 /* Utility to append one nexthop to another. */
@@ -192,6 +195,10 @@ struct nexthop *nexthop_from_ipv6_ifindex(const struct in6_addr *ipv6,
 struct nexthop *nexthop_from_blackhole(enum blackhole_type bh_type,
 				       vrf_id_t nh_vrf_id);
 
+struct nexthop *nexthop_from_ipv4_segment_list(const struct in_addr *ipv4,
+	vrf_id_t vrf_id);
+struct nexthop *nexthop_from_ipv6_segment_list(const struct in6_addr *ipv6,
+	vrf_id_t vrf_id);
 /*
  * Hash a nexthop. Suitable for use with hash tables.
  *

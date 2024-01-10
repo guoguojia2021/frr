@@ -1496,6 +1496,7 @@ route_set_kernel_bypass(void *rule, const struct prefix *prefix,
 		switch (rm_data->nexthop->type) {
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
 		case NEXTHOP_TYPE_IPV4:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 			zlog_debug("zebra-route-map: set kernel-bypass flag on route, nh src: %pI4, nh gate: %pI4, re flags:0x%x",
 				&rm_data->nexthop->src.ipv4,
 				&rm_data->nexthop->gate.ipv4,
@@ -1504,6 +1505,7 @@ route_set_kernel_bypass(void *rule, const struct prefix *prefix,
 			break;
 		case NEXTHOP_TYPE_IPV6_IFINDEX:
 		case NEXTHOP_TYPE_IPV6:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			zlog_debug("zebra-route-map: set kernel-bypass flag on route, nh gate: %pI6, reflags:0x%x",
 				&rm_data->nexthop->gate.ipv6,
 				rm_data->re->flags);

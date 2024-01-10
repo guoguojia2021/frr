@@ -150,6 +150,11 @@ struct wq_nhg_wrapper {
 	} u;
 };
 
+struct nhe_update_context {
+	struct nexthop *nexthop;
+	afi_t afi;
+};
+
 #define WQ_NHG_WRAPPER_TYPE_CTX  0x01
 #define WQ_NHG_WRAPPER_TYPE_NHG  0x02
 
@@ -328,7 +333,10 @@ static void route_entry_attach_ref(struct route_entry *re,
 	if (new->pic_nhe)
 		re->pic_nhe_id = new->pic_nhe->id;
 
-	zebra_nhg_increment_ref(new);
+	if (CHECK_FLAG(new->flags, NEXTHOP_GROUP_SEGMENTLIST))
+		zebra_nhg_seg_increment_ref(new);
+	else
+		zebra_nhg_increment_ref(new);
 }
 
 /* Replace (if 'new_nhghe') or clear (if that's NULL) an re's nhe. */
@@ -359,8 +367,12 @@ int route_entry_update_nhe(struct route_entry *re,
 
 done:
 	/* Detach / deref previous nhg */
-	if (old_nhg)
-		zebra_nhg_decrement_ref(old_nhg);
+	if (old_nhg) {
+		if (CHECK_FLAG(old_nhg->flags, NEXTHOP_GROUP_SEGMENTLIST))
+			zebra_nhg_seg_decrement_ref(old_nhg);
+		else
+			zebra_nhg_decrement_ref(old_nhg);
+	}
 
 	return ret;
 }
@@ -608,7 +620,10 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 	/*
 	 * Install the resolved nexthop object first.
 	 */
-	zebra_nhg_install_kernel(re->nhe);
+	if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
+		zebra_nhg_seg_install_kernel(re->nhe);
+	else
+		zebra_nhg_install_kernel(re->nhe);
 
 	/*
 	 * If this is a replace to a new RE let the originator of the RE
@@ -740,6 +755,95 @@ static int rib_can_delete_dest(rib_dest_t *dest)
 	return 1;
 }
 
+static int zebra_update_pic_nhe_walk(struct hash_bucket *bucket, void *arg)
+{
+	struct nhe_update_context *ctx = arg;
+	struct nhg_hash_entry *nhe = bucket->data;
+	struct nhg_update_entry *nhg_entry = NULL;
+	struct nexthop *nexthop = NULL;
+	struct nhg_segment *rb_node_dep = NULL;
+	int ret = 0;
+
+	for (nexthop = nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
+
+		if (!CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
+			goto done;
+
+		if (!CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT))
+			goto done;
+
+		if (!CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+			goto done;
+
+		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
+			zlog_debug("%s: nhe->id=%d", __func__, nhe->id);
+
+		switch (ctx->afi) {
+		case AFI_IP:
+			ret = memcmp(&nexthop->gate.ipv4, &ctx->nexthop->gate.ipv4, sizeof(struct in_addr));
+			break;
+		case AFI_IP6:
+			ret = memcmp(&nexthop->gate.ipv6, &ctx->nexthop->gate.ipv6, sizeof(struct in6_addr));
+			break;
+		default:
+			goto done;
+		}
+
+		if (ret != 0)
+			continue;
+
+		if (nexthop->next == NULL && nexthop->prev == NULL) {
+			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_VALID);
+
+			frr_each_safe(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
+				UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_VALID);
+			}
+
+			goto done;
+		}
+
+		nhg_entry = nhg_update_entry_create();
+		nhg_entry->nhe = nhe;
+		nhg_update_entry_list_add_head(&zrouter.nhg_update_list, nhg_entry);
+		goto done;
+	}
+
+done:
+	return HASHWALK_CONTINUE;
+}
+
+static void zebra_update_seg_pic_nhe(struct nexthop *nexthop, afi_t afi)
+{
+	struct nhg_update_entry *nhg_entry = NULL;
+	struct nhe_update_context ctx = {0};
+
+	ctx.afi = afi;
+	ctx.nexthop = nexthop;
+
+	hash_walk(zrouter.nhgs, zebra_update_pic_nhe_walk, &ctx);
+
+	frr_each_safe(nhg_update_entry_list, &zrouter.nhg_update_list, nhg_entry) {
+
+		if (nhg_entry->nhe == NULL) {
+			nhg_update_entry_list_del(&zrouter.nhg_update_list, nhg_entry);
+			nhg_entry->nhe = NULL;
+			nhg_update_entry_free(nhg_entry);
+			continue;
+		}
+
+		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
+			zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
+				nhg_entry->nhe->id, nhg_entry->nhe->flags);
+
+		UNSET_FLAG(nhg_entry->nhe->flags, NEXTHOP_GROUP_INSTALLED);
+		zebra_nhg_seg_install_kernel(nhg_entry->nhe);
+
+		nhg_update_entry_list_del(&zrouter.nhg_update_list, nhg_entry);
+		nhg_entry->nhe = NULL;
+		nhg_update_entry_free(nhg_entry);
+	}
+}
+
 bool zebra_update_pic_nhe(struct route_node *rn)
 {
 	afi_t afi;
@@ -753,7 +857,7 @@ bool zebra_update_pic_nhe(struct route_node *rn)
 	struct nhg_connected *rb_node_dep = NULL;
 	rib_dest_t *dest = rib_dest_from_rnode(rn);
 	if (!dest)
-		return;
+		return false;
 	zvrf = rib_dest_vrf(dest);
 	p = &rn->p;
 	afi = family2afi(p->family);
@@ -775,6 +879,9 @@ bool zebra_update_pic_nhe(struct route_node *rn)
 	default:
 		return false;
 	}
+
+	zebra_update_seg_pic_nhe(nh, afi);
+
 	SET_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE);
 	ret = nexthop_group_add_sorted_nodup(&pic_nh_lookup.nhg, nh);
 	if (!ret) {
@@ -3630,6 +3737,7 @@ static void _route_entry_dump_nh(const struct route_entry *re,
 	char nhname[PREFIX_STRLEN];
 	char backup_str[50];
 	char wgt_str[50];
+	char color_srt[50];
 	char temp_str[10];
 	char label_str[MPLS_LABEL_STRLEN];
 	int i;
@@ -3648,10 +3756,12 @@ static void _route_entry_dump_nh(const struct route_entry *re,
 	case NEXTHOP_TYPE_IPV4:
 		/* fallthrough */
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		inet_ntop(AF_INET, &nexthop->gate, nhname, INET6_ADDRSTRLEN);
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		inet_ntop(AF_INET6, &nexthop->gate, nhname, INET6_ADDRSTRLEN);
 		break;
 	}
@@ -3679,11 +3789,15 @@ static void _route_entry_dump_nh(const struct route_entry *re,
 	if (nexthop->weight)
 		snprintf(wgt_str, sizeof(wgt_str), "wgt %d,", nexthop->weight);
 
-	zlog_debug("%s: %s %s[%u] %svrf %s(%u) %s%s with flags %s%s%s%s%s%s%s%s",
+	color_srt[0] = '\0';
+	if (nexthop->srte_color)
+		snprintf(color_srt, sizeof(color_srt), "color %d,", nexthop->srte_color);
+
+	zlog_debug("%s: %s %s[%u] %svrf %s(%u) %s%s %s%swith flags %s%s%s%s%s%s%s%s%s",
 		   straddr, (nexthop->rparent ? "  NH" : "NH"), nhname,
 		   nexthop->ifindex, label_str, vrf ? vrf->aliasName : "Unknown",
 		   nexthop->vrf_id,
-		   wgt_str, backup_str,
+		   wgt_str, backup_str, color_srt, nexthop->sidlist_name ? nexthop->sidlist_name : "NULL",
 		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE)
 		    ? "ACTIVE "
 		    : ""),

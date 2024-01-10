@@ -977,6 +977,7 @@ struct fpm_nhg_arg {
 static int fpm_nhg_send_enqueue(struct nhg_hash_entry *nhe, struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 {
     struct nhg_connected *rb_node_dep = NULL;
+	struct nhg_segment *rb_node_segdep = NULL;
     struct nhg_hash_entry *nhe_resolve = NULL;
     int ret = HASHWALK_CONTINUE;
 
@@ -984,15 +985,28 @@ static int fpm_nhg_send_enqueue(struct nhg_hash_entry *nhe, struct fpm_nl_ctx *f
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FPM))
 		return HASHWALK_CONTINUE;
 
-	/* Resolve it first */
-	nhe_resolve = zebra_nhg_resolve(nhe);
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
+		/* Resolve it first */
+		//nhe_resolve = zebra_nhg_seg_resolve(nhe);
 
-	/* Make sure all depends are installed/queued */
-	frr_each(nhg_connected_tree, &nhe_resolve->nhg_depends, rb_node_dep) {
-		ret = fpm_nhg_send_enqueue(rb_node_dep->nhe, fnc, ctx);
-        if (ret == HASHWALK_ABORT) {
-    		return HASHWALK_ABORT;
-        }
+		/* Make sure all depends are installed/queued */
+		frr_each(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_segdep) {
+			ret = fpm_nhg_send_enqueue(rb_node_segdep->nhe, fnc, ctx);
+			if (ret == HASHWALK_ABORT) {
+				return HASHWALK_ABORT;
+			}
+		}
+	} else {
+		/* Resolve it first */
+		nhe_resolve = zebra_nhg_resolve(nhe);
+
+		/* Make sure all depends are installed/queued */
+		frr_each(nhg_connected_tree, &nhe_resolve->nhg_depends, rb_node_dep) {
+			ret = fpm_nhg_send_enqueue(rb_node_dep->nhe, fnc, ctx);
+			if (ret == HASHWALK_ABORT) {
+				return HASHWALK_ABORT;
+			}
+		}
 	}
 
 	/* Reset ctx to reuse allocated memory, take a snapshot and send it. */

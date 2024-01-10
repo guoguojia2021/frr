@@ -1371,11 +1371,12 @@ static ssize_t fill_seg6ipt_encap(char *buffer, size_t buflen,
 }
 
 static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
-				  const struct in6_addr *seg, const struct in6_addr *src)
+				  const struct in6_addr *seg, const struct in6_addr *src,
+				  const char *segment_name)
 {
 	struct seg6_iptunnel_encap_pri *ipt;
 	struct ipv6_sr_hdr *srh;
-	const size_t srhlen = 40;
+	const size_t srhlen = 40 + 8 + 64;
 
 	/*
 	 * Caution: Support only SINGLE-SID, not MULTI-SID
@@ -1401,6 +1402,9 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 	srh->first_segment = 0;
 	memcpy(&srh->segments[0], seg, sizeof(struct in6_addr));
 	memcpy(&ipt->src, src, sizeof(struct in6_addr));
+
+	if (segment_name != NULL)
+		memcpy(ipt->segment_name, segment_name, 64);
 
 	return srhlen + 4;
 }
@@ -1634,7 +1638,8 @@ static bool _netlink_route_build_singlepath(const struct prefix *p,
 	}
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV4
-	    || nexthop->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
+	    || nexthop->type == NEXTHOP_TYPE_IPV4_IFINDEX
+		|| nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
 		/* Send deletes to the kernel without specifying the next-hop */
 		if (cmd != RTM_DELROUTE) {
 			if (!_netlink_route_add_gateway_info(
@@ -1660,7 +1665,8 @@ static bool _netlink_route_build_singlepath(const struct prefix *p,
 	}
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV6
-	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
+	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX
+		|| nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
 		if (!_netlink_route_add_gateway_info(rtmsg->rtm_family,
 						     AF_INET6, nlmsg, req_size,
 						     bytelen, nexthop))
@@ -1778,7 +1784,8 @@ static bool _netlink_route_build_multipath(const struct prefix *p,
 	}
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV4
-	    || nexthop->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
+	    || nexthop->type == NEXTHOP_TYPE_IPV4_IFINDEX
+		|| nexthop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
 		if (!_netlink_route_add_gateway_info(rtmsg->rtm_family, AF_INET,
 						     nlmsg, req_size, bytelen,
 						     nexthop))
@@ -1796,7 +1803,8 @@ static bool _netlink_route_build_multipath(const struct prefix *p,
 				   VRF_LOGNAME(vrf), nexthop->vrf_id);
 	}
 	if (nexthop->type == NEXTHOP_TYPE_IPV6
-	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
+	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX
+		|| nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
 		if (!_netlink_route_add_gateway_info(rtmsg->rtm_family,
 						     AF_INET6, nlmsg, req_size,
 						     bytelen, nexthop))
@@ -2105,7 +2113,6 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 		if (!nl_attr_put32(&req->n, datalen, RTA_TABLE, table_id))
 			return 0;
 	}
-	
 
 	if (IS_ZEBRA_DEBUG_KERNEL)
 		zlog_debug(
@@ -2493,6 +2500,9 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 		return -1;
 	}
 
+	if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
+		zlog_debug(
+			"%s: nhg_id %u (%s) (%s)", __func__, id, zebra_route_string(type), nl_msg_type_to_str(cmd));
 	/*
 	 * Nothing to do if the kernel doesn't support nexthop objects or
 	 * we dont want to install this type of NHG, but FPM may possible to
@@ -2560,8 +2570,8 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				    dplane_ctx_get_nhe_nh_grp_count(ctx)))
 				return 0;
 		} else {
-			const struct nexthop *nh =
-				dplane_ctx_get_nhe_ng(ctx)->nexthop;
+			struct nexthop *nh = dplane_ctx_get_nhe_ng(ctx)->nexthop;
+
 			afi_t afi = dplane_ctx_get_nhe_afi(ctx);
 
 			if (afi == AFI_IP)
@@ -2572,6 +2582,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 			switch (nh->type) {
 			case NEXTHOP_TYPE_IPV4:
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				if (!nl_attr_put(&req->n, buflen, NHA_GATEWAY,
 						 &nh->gate.ipv4,
 						 IPV4_MAX_BYTELEN))
@@ -2579,6 +2590,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				break;
 			case NEXTHOP_TYPE_IPV6:
 			case NEXTHOP_TYPE_IPV6_IFINDEX:
+			case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				if (!nl_attr_put(&req->n, buflen, NHA_GATEWAY,
 						 &nh->gate.ipv6,
 						 IPV6_MAX_BYTELEN))
@@ -2595,6 +2607,12 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				/* Don't need anymore info for this */
 				break;
 			}
+
+			if (IS_ZEBRA_DEBUG_KERNEL)
+				zlog_debug("%s: ID (%u): %pNHv(%d) vrf %s(%u) sidlist_name %s fpm %s",
+						__func__, id, nh, nh->ifindex,
+						vrf_id_to_name(nh->vrf_id),
+						nh->vrf_id, nh->sidlist_name, fpm ? "true":"false");
 
 			if (!nh->ifindex && !fpm) {
 				flog_err(
@@ -2747,7 +2765,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						tun_len = fill_seg6ipt_encap_private(tun_buf,
 						    sizeof(tun_buf),
 						    &nh->nh_srv6->seg6_segs,
-						    &nh->nh_srv6->seg6_src);
+						    &nh->nh_srv6->seg6_src, NULL);
 					}
 					else {
 						tun_len = fill_seg6ipt_encap(tun_buf,
@@ -2762,16 +2780,49 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						return 0;
 					nl_attr_nest_end(&req->n, nest);
 				}
-			}
+			} else if (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+				|| nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+					char tun_buf[4096];
+					ssize_t tun_len;
+					struct rtattr *nest;
+					struct in6_addr segs = {0};
 
-			if (!sid_zero(&nh->seg6_src)) {
+					if (!nl_attr_put16(&req->n, buflen,
+						NHA_ENCAP_TYPE,
+						LWTUNNEL_ENCAP_SEG6))
+						return 0;
+					nest = nl_attr_nest(&req->n, buflen,
+						NHA_ENCAP);
+
+					if (!nest)
+						return 0;
+
+					tun_len = fill_seg6ipt_encap_private(tun_buf,
+						    sizeof(tun_buf), &segs,
+						    &nh->seg6_src, nh->sidlist_name);
+					if (tun_len < 0)
+						return 0;
+
+					if (IS_ZEBRA_DEBUG_KERNEL)
+						zlog_debug("%s: id %d src %pI6 segment:%s", __func__, id,
+							&nh->seg6_src, nh->sidlist_name);
+
+					if (!nl_attr_put(&req->n, buflen,
+							 SEG6_IPTUNNEL_SRH,
+							 tun_buf, tun_len))
+						return 0;
+
+					nl_attr_nest_end(&req->n, nest);
+			} else if (!sid_zero(&nh->seg6_src)) {
 				encap = LWTUNNEL_ENCAP_IP6;
 				if (!nl_attr_put16(&req->n, buflen,
 						   NHA_ENCAP_TYPE, encap))
 					return 0;
+
 				nest = nl_attr_nest(&req->n, buflen, NHA_ENCAP);
 				if (!nest)
 					return 0;
+
 				if (!nl_attr_put(
 						    &req->n, buflen,
 						    LWTUNNEL_IP6_SRC, &nh->seg6_src,

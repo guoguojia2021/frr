@@ -82,7 +82,7 @@ ssize_t protobuf_msg_encode(int cmd, struct zebra_dplane_ctx *ctx, uint8_t *data
 	if (!msg)
 	{
 		zlog_err("%s: create route message errors", __func__);
-		return NULL;
+		return 0;
 	}
 	len = fpm__message__pack(msg, data);
 	memory_deallocation(msg, cmd);
@@ -306,11 +306,12 @@ static int build_label_stack(struct mpls_label_stack *nh_label,
 }
 
 static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
-				  const struct in6_addr *seg, const struct in6_addr *src)
+				  const struct in6_addr *seg, const struct in6_addr *src,
+				  const char *segment_name)
 {
 	struct seg6_iptunnel_encap_proto *ipt;
 	struct ipv6_sr_hdr *srh;
-	const size_t srhlen = 40;
+	const size_t srhlen = 40 + 8 + 64;
 
 	/*
 	 * Caution: Support only SINGLE-SID, not MULTI-SID
@@ -336,6 +337,9 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 	srh->first_segment = 0;
 	memcpy(&srh->segments[0], seg, sizeof(struct in6_addr));
 	memcpy(&ipt->src, src, sizeof(struct in6_addr));
+
+	if (segment_name != NULL)
+		memcpy(ipt->segment_name, segment_name, 64);
 
 	return srhlen + 4;
 }
@@ -442,6 +446,7 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 			switch (nh->type) {
 			case NEXTHOP_TYPE_IPV4:
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				nhg->gate = create_gate_message(allocator,
 				         NHA_GATEWAY, &nh->gate.ipv4,
 						 IPV4_MAX_BYTELEN, AF_INET);
@@ -449,6 +454,7 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 				break;
 			case NEXTHOP_TYPE_IPV6:
 			case NEXTHOP_TYPE_IPV6_IFINDEX:
+			case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				nhg->gate = create_gate_message(allocator,
 				         NHA_GATEWAY, &nh->gate.ipv6,
 						 IPV6_MAX_BYTELEN, AF_INET6);
@@ -575,7 +581,8 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 					tun_len = fill_seg6ipt_encap_private(tun_buf,
 					    sizeof(tun_buf),
 					    &nh->nh_srv6->seg6_segs,
-					    &nh->nh_srv6->seg6_src);
+					    &nh->nh_srv6->seg6_src,
+						nh->sidlist_name);
 					if (tun_len < 0)
 						return NULL;
 					Fpm__Seg6Segs *seg6_segs = create_seg6_segs_message(allocator,

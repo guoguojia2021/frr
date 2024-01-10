@@ -108,10 +108,12 @@ int nexthop_g_addr_cmp(enum nexthop_types_t type, const union g_addr *addr1,
 	switch (type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		ret = IPV4_ADDR_CMP(&addr1->ipv4, &addr2->ipv4);
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		ret = IPV6_ADDR_CMP(&addr1->ipv6, &addr2->ipv6);
 		break;
 	case NEXTHOP_TYPE_IFINDEX:
@@ -155,6 +157,8 @@ static int _nexthop_cmp_no_labels(const struct nexthop *next1,
 	switch (next1->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV6:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (next1->vrf_id < next2->vrf_id)
 			return -1;
 
@@ -197,6 +201,11 @@ static int _nexthop_cmp_no_labels(const struct nexthop *next1,
 		goto done;
 
 	ret = memcmp(next1->rmac.octet, next2->rmac.octet, ETH_ALEN);
+	if (ret != 0)
+		goto done;
+
+	ret = memcmp(next1->sidlist_name,
+			next2->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 	if (ret != 0)
 		goto done;
 
@@ -287,6 +296,8 @@ int nexthop_cmp_basic(const struct nexthop *nh1,
 	switch (nh1->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV6:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		ret = nexthop_g_addr_cmp(nh1->type, &nh1->gate, &nh2->gate);
 		if (ret != 0)
 			return ret;
@@ -353,7 +364,8 @@ const char *nexthop_type_to_str(enum nexthop_types_t nh_type)
 		"none",		 "Directly connected",
 		"IPv4 nexthop",  "IPv4 nexthop with ifindex",
 		"IPv6 nexthop",  "IPv6 nexthop with ifindex",
-		"Null0 nexthop",
+		"Null0 nexthop", "IPv4 segment list",
+		"IPv6 Segment list",
 	};
 
 	return desc[nh_type];
@@ -536,6 +548,32 @@ struct nexthop *nexthop_from_blackhole(enum blackhole_type bh_type,
 	return nexthop;
 }
 
+struct nexthop *nexthop_from_ipv4_segment_list(const struct in_addr *ipv4,
+	vrf_id_t vrf_id)
+{
+	struct nexthop *nexthop;
+
+	nexthop = nexthop_new();
+	nexthop->vrf_id = vrf_id;
+	nexthop->type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
+	nexthop->gate.ipv4 = *ipv4;
+	SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+	return nexthop;
+}
+
+struct nexthop *nexthop_from_ipv6_segment_list(const struct in6_addr *ipv6,
+	vrf_id_t vrf_id)
+{
+	struct nexthop *nexthop;
+
+	nexthop = nexthop_new();
+	nexthop->vrf_id = vrf_id;
+	nexthop->type = NEXTHOP_TYPE_IPV6_SEGMENTLIST;
+	nexthop->gate.ipv6 = *ipv6;
+	SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+	return nexthop;
+}
+
 /* Update nexthop with label information. */
 void nexthop_add_labels(struct nexthop *nexthop, enum lsp_types_t ltype,
 			uint8_t num_labels, const mpls_label_t *labels)
@@ -632,11 +670,13 @@ const char *nexthop2str(const struct nexthop *nexthop, char *str, int size)
 		break;
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		snprintfrr(str, size, "%pI4 if %u", &nexthop->gate.ipv4,
 			   nexthop->ifindex);
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		snprintfrr(str, size, "%pI6 if %u", &nexthop->gate.ipv6,
 			   nexthop->ifindex);
 		break;
@@ -773,7 +813,8 @@ uint32_t nexthop_hash_quick(const struct nexthop *nexthop)
 		key = jhash(&nexthop->nh_srv6->seg6_segs,
 			    sizeof(nexthop->nh_srv6->seg6_segs), key);
 	}
-
+	key = jhash_1word(nexthop->srte_color, key);
+	key = jhash(nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH, key);
 	return key;
 }
 
@@ -816,13 +857,14 @@ void nexthop_copy_no_context(struct nexthop *copy,
 	if (copy->backup_num > 0)
 		memcpy(copy->backup_idx, nexthop->backup_idx, copy->backup_num);
 
-	//copy->srte_color = nexthop->srte_color;
+	copy->srte_color = nexthop->srte_color;
 	memcpy(&copy->gate, &nexthop->gate, sizeof(nexthop->gate));
 	memcpy(&copy->src, &nexthop->src, sizeof(nexthop->src));
 	memcpy(&copy->rmap_src, &nexthop->rmap_src, sizeof(nexthop->rmap_src));
     memcpy(&copy->rmac, &nexthop->rmac, sizeof(nexthop->rmac));
 	memcpy(&copy->seg6_src, &nexthop->seg6_src, sizeof(nexthop->seg6_src));
 	copy->alibgp_flags = nexthop->alibgp_flags;
+	memcpy(copy->sidlist_name, nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 	copy->rparent = rparent;
 
 	if (CHECK_FLAG(copy->flags, NEXTHOP_FLAG_RECURSIVE))
@@ -871,6 +913,7 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 				&nexthop->nh_srv6->seg6_segs,
 				&nexthop->nh_srv6->seg6_src);
 	}
+	memcpy(copy->sidlist_name, nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 }
 
 void nexthop_copy(struct nexthop *copy, const struct nexthop *nexthop,
@@ -1018,12 +1061,14 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 		switch (nexthop->type) {
 		case NEXTHOP_TYPE_IPV4:
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 			ret += bprintfrr(buf, "%s%pI4", v_via,
 					 &nexthop->gate.ipv4);
 			do_ifi = true;
 			break;
 		case NEXTHOP_TYPE_IPV6:
 		case NEXTHOP_TYPE_IPV6_IFINDEX:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			ret += bprintfrr(buf, "%s%pI6", v_via,
 					 &nexthop->gate.ipv6);
 			do_ifi = true;
@@ -1069,11 +1114,13 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 			break;
 		case NEXTHOP_TYPE_IPV4:
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 			ret += bprintfrr(buf, "%pI4 if %u", &nexthop->gate.ipv4,
 					 nexthop->ifindex);
 			break;
 		case NEXTHOP_TYPE_IPV6:
 		case NEXTHOP_TYPE_IPV6_IFINDEX:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			ret += bprintfrr(buf, "%pI6 if %u", &nexthop->gate.ipv6,
 					 nexthop->ifindex);
 			break;
@@ -1091,11 +1138,13 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 			switch (nexthop->type) {
 			case NEXTHOP_TYPE_IPV4:
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				ret += bprintfrr(buf, "%pI4",
 						 &nexthop->gate.ipv4);
 				break;
 			case NEXTHOP_TYPE_IPV6:
 			case NEXTHOP_TYPE_IPV6_IFINDEX:
+			case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				ret += bprintfrr(buf, "%pI6",
 						 &nexthop->gate.ipv6);
 				break;
@@ -1118,6 +1167,8 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
 			case NEXTHOP_TYPE_IPV6:
 			case NEXTHOP_TYPE_IPV6_IFINDEX:
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+			case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				if (nexthop->ifindex)
 					ret += bprintfrr(
 						buf, "%s",

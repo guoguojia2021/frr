@@ -1125,7 +1125,9 @@ static bool update_ipv4nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 	} else if (nh_othervrf && api_nh->gate.ipv4.s_addr == INADDR_ANY) {
 		api_nh->type = NEXTHOP_TYPE_IFINDEX;
 		api_nh->ifindex = attr->nh_ifindex;
-	} else
+	} else if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
+		api_nh->type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
+	else
 		api_nh->type = NEXTHOP_TYPE_IPV4;
 
 	return true;
@@ -1169,6 +1171,9 @@ static bool update_ipv6nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 				return false;
 			api_nh->type = NEXTHOP_TYPE_IPV6_IFINDEX;
 			api_nh->ifindex = ifindex;
+		} else if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE)) {
+			api_nh->type = NEXTHOP_TYPE_IPV6_SEGMENTLIST;
+			api_nh->ifindex = 0;
 		} else {
 			api_nh->type = NEXTHOP_TYPE_IPV6;
 			api_nh->ifindex = 0;
@@ -1197,6 +1202,9 @@ static bool update_ipv6nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 				return false;
 			api_nh->type = NEXTHOP_TYPE_IPV6_IFINDEX;
 			api_nh->ifindex = ifindex;
+		} else if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE)) {
+			api_nh->type = NEXTHOP_TYPE_IPV6_SEGMENTLIST;
+			api_nh->ifindex = 0;
 		} else {
 			api_nh->type = NEXTHOP_TYPE_IPV6;
 			api_nh->ifindex = 0;
@@ -1592,7 +1600,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 		char label_buf[20];
 		char sid_buf[INET6_ADDRSTRLEN];
 		char segs_buf[256];
-		int i;
+		uint16_t i;
 
 		zlog_debug(
 			"Tx route %s VRF %u %pFX metric %u tag %" ROUTE_TAG_PRI
@@ -1609,12 +1617,14 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				break;
 			case NEXTHOP_TYPE_IPV4:
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				nh_family = AF_INET;
 				inet_ntop(nh_family, &api_nh->gate, nh_buf,
 					  sizeof(nh_buf));
 				break;
 			case NEXTHOP_TYPE_IPV6:
 			case NEXTHOP_TYPE_IPV6_IFINDEX:
+			case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				nh_family = AF_INET6;
 				inet_ntop(nh_family, &api_nh->gate, nh_buf,
 					  sizeof(nh_buf));

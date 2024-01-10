@@ -43,6 +43,7 @@ struct nh_grp {
 
 PREDECL_RBTREE_UNIQ(nhg_connected_tree);
 
+PREDECL_RBTREE_UNIQ(nhg_segment_tree);
 /*
  * Hashtables containing nhg entries is in `zebra_router`.
  */
@@ -76,6 +77,7 @@ struct nhg_hash_entry {
 
 	uint32_t refcnt;
 	uint32_t dplane_ref;
+	uint32_t segment_ref;
 
 	uint32_t flags;
 
@@ -88,6 +90,7 @@ struct nhg_hash_entry {
 	 * faster with ID's.
 	 */
 	struct nhg_connected_tree_head nhg_depends, nhg_dependents;
+	struct nhg_segment_tree_head nhg_segdepends, nhg_segdependents;
     struct nhg_hash_entry *pic_nhe;
 
 /*
@@ -139,7 +142,9 @@ struct nhg_hash_entry {
 
 #define NEXTHOP_GROUP_PIC_NHT           (1 << 8)
 #define NEXTHOP_GROUP_PIC_NON_RECURSIVE (1 << 9)
-
+#define NEXTHOP_GROUP_SEGMENTLIST       (1 << 10)
+#define NEXTHOP_GROUP_UPDATE            (1 << 11)
+#define NEXTHOP_GROUP_DELETE            (1 << 12)
 };
 
 /* Upper 4 bits of the NHG are reserved for indicating the NHG type */
@@ -257,13 +262,15 @@ void zebra_nhg_backup_free(struct nhg_backup_info **p);
 struct nexthop_group *zebra_nhg_get_backup_nhg(struct nhg_hash_entry *nhe);
 
 extern struct nhg_hash_entry *zebra_nhg_resolve(struct nhg_hash_entry *nhe);
-
+extern struct nhg_hash_entry *zebra_nhg_seg_resolve(struct nhg_hash_entry *nhe);
 extern unsigned int zebra_nhg_depends_count(const struct nhg_hash_entry *nhe);
+extern unsigned int zebra_nhg_segdepends_count(const struct nhg_hash_entry *nhe);
 extern bool zebra_nhg_depends_is_empty(const struct nhg_hash_entry *nhe);
-
+extern bool zebra_nhg_segdepends_is_empty(const struct nhg_hash_entry *nhe);
 extern unsigned int
 zebra_nhg_dependents_count(const struct nhg_hash_entry *nhe);
 extern bool zebra_nhg_dependents_is_empty(const struct nhg_hash_entry *nhe);
+extern void zebra_nhg_seg_release(struct nhg_hash_entry *nhe);
 
 /* Lookup ID, doesn't create */
 extern struct nhg_hash_entry *zebra_nhg_lookup_id(uint32_t id);
@@ -344,13 +351,18 @@ extern void zebra_nhg_increment_ref(struct nhg_hash_entry *nhe);
 /* Check validity of nhe, if invalid will update dependents as well */
 extern void zebra_nhg_check_valid(struct nhg_hash_entry *nhe);
 
+extern void zebra_nhg_seg_increment_ref(struct nhg_hash_entry *nhe);
+extern void zebra_nhg_seg_decrement_ref(struct nhg_hash_entry *nhe);
+extern void zebra_nhg_seg_check_valid(struct nhg_hash_entry *nhe);
 /* Convert nhe depends to a grp context that can be passed around safely */
 extern uint8_t zebra_nhg_nhe2grp(struct nh_grp *grp, struct nhg_hash_entry *nhe,
 				 int size);
-
+extern uint8_t zebra_nhg_seg_nhe2grp(struct nh_grp *grp, struct nhg_hash_entry *nhe,
+				 int size);
 /* Dataplane install/uninstall */
 extern void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe);
+extern void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);
 
 /* Forward ref of dplane update context type */
@@ -374,6 +386,13 @@ extern int nexthop_active_update(struct route_node *rn, struct route_entry *re);
 extern bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value */
 				   struct nhg_hash_entry *nhe,
 				   afi_t afi, bool from_dplane);
+extern void handle_recursive_segdepend(struct nhg_segment_tree_head *nhg_segdepends,
+				struct nexthop *nh, afi_t afi, int type, bool pic);
+extern void zebra_nhg_segment_depends(struct nhg_hash_entry *nhe,
+			struct nhg_segment_tree_head *nhg_segdepends);
+extern void zebra_nhg_seg_handle_uninstall(struct nhg_hash_entry *nhe);
+extern bool zebra_nhg_segdependents_is_empty(const struct nhg_hash_entry *nhe);
+extern void zebra_nhg_seg_free(struct nhg_hash_entry *nhe);
 
 #ifdef __cplusplus
 }

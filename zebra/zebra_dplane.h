@@ -938,6 +938,10 @@ uint32_t dplane_ctx_get_flags(const struct zebra_dplane_ctx *ctx);
 void dplane_ctx_set_flags(struct zebra_dplane_ctx *ctx, uint32_t flags);
 int dplane_ctx_get_old_flags(const struct zebra_dplane_ctx *ctx);
 void dplane_ctx_set_old_flags(struct zebra_dplane_ctx *ctx, uint32_t flags);
+uint32_t dplane_ctx_get_pic_context_id(const struct zebra_dplane_ctx *ctx);
+enum zebra_dplane_result dplane_pic_context_add(struct nhg_hash_entry *nhe);
+enum zebra_dplane_result dplane_pic_context_update(struct nhg_hash_entry *nhe);
+enum zebra_dplane_result dplane_pic_context_delete(struct nhg_hash_entry *nhe);
 
 #ifdef __cplusplus
 }

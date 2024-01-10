@@ -813,7 +813,7 @@ int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf)
     return 0;
 }
 
-int zebra_srv6_push_endx()
+int zebra_srv6_push_endx(void)
 {
     struct zebra_srv6 *srv6 = zebra_srv6_get_default();
     struct listnode *node, *opcodenode;

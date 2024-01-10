@@ -241,6 +241,8 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	struct zapi_sr_policy zp = {};
 	struct srte_candidate *candidate;
 	uint32_t count = 0;
+	struct srte_segment_entry *s_entry;
+	uint32_t segment_count = 0;
 
 	zp.color = policy->color;
 	zp.endpoint = policy->endpoint;
@@ -260,11 +262,24 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 		{
             continue;
 		}
-        
+
+		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))
+		{
+			continue;
+		}
+
 		if (count < candidate_group->up_cpath_num)
 		{
 			strlcpy(zp.srv6_tunnel.sidlists[count].sidlist_name, candidate->segment_list->name,
 				sizeof(zp.srv6_tunnel.sidlists[count].sidlist_name));
+			segment_count = 0;
+			RB_FOREACH (s_entry, srte_segment_entry_head, &candidate->segment_list->segments) {
+				zp.srv6_tunnel.sidlists[count].segments[segment_count].index = s_entry->index;
+				zp.srv6_tunnel.sidlists[count].segments[segment_count].sid_type = s_entry->sid_type;
+				memcpy(&zp.srv6_tunnel.sidlists[count].segments[segment_count].srv6_sid_value, &s_entry->srv6_sid_value, sizeof(struct ipaddr));
+				segment_count++;
+			}
+			zp.srv6_tunnel.sidlists[count].segment_count = segment_count;
 			zp.srv6_tunnel.sidlists[count].weight = candidate->weight;
 			count++;
 		}

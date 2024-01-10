@@ -897,6 +897,8 @@ static int zapi_nexthop_cmp_no_labels(const struct zapi_nexthop *next1,
 	switch (next1->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV6:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (next1->vrf_id < next2->vrf_id)
 			return -1;
 
@@ -999,7 +1001,7 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 			uint32_t api_flags, uint32_t api_message)
 {
 	int i, ret = 0;
-	int nh_flags = api_nh->flags;
+	uint32_t nh_flags = api_nh->flags;
 
 	stream_putl(s, api_nh->vrf_id);
 	stream_putc(s, api_nh->type);
@@ -1020,7 +1022,7 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 		SET_FLAG(nh_flags, ZAPI_NEXTHOP_FLAG_WEIGHT);
 
 	/* Note that we're only encoding a single octet */
-	stream_putc(s, nh_flags);
+	stream_putl(s, nh_flags);
 
 	switch (api_nh->type) {
 	case NEXTHOP_TYPE_BLACKHOLE:
@@ -1039,6 +1041,13 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 		stream_write(s, (uint8_t *)&api_nh->gate.ipv6,
 			     16);
 		stream_putl(s, api_nh->ifindex);
+		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		stream_put_in_addr(s, &api_nh->gate.ipv4);
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		stream_write(s, (uint8_t *)&api_nh->gate.ipv6,
+			     16);
 		break;
 	}
 
@@ -1498,7 +1507,7 @@ int zapi_nexthop_decode(struct stream *s, struct zapi_nexthop *api_nh,
 	STREAM_GETC(s, api_nh->type);
 
 	/* Note that we're only using a single octet of flags */
-	STREAM_GETC(s, api_nh->flags);
+	STREAM_GETL(s, api_nh->flags);
 
 	switch (api_nh->type) {
 	case NEXTHOP_TYPE_BLACKHOLE:
@@ -1517,6 +1526,13 @@ int zapi_nexthop_decode(struct stream *s, struct zapi_nexthop *api_nh,
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
 		STREAM_GET(&api_nh->gate.ipv6, s, 16);
 		STREAM_GETL(s, api_nh->ifindex);
+		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		STREAM_GET(&api_nh->gate.ipv4.s_addr, s,
+			   IPV4_MAX_BYTELEN);
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		STREAM_GET(&api_nh->gate.ipv6, s, 16);
 		break;
 	}
 
@@ -1952,6 +1968,8 @@ struct nexthop *nexthop_from_zapi_nexthop(const struct zapi_nexthop *znh)
 	if (!sid_zero(&znh->seg6_segs))
 		nexthop_add_srv6_seg6(n, &znh->seg6_segs, &znh->seg6_src);
 
+	memcpy(n->sidlist_name, znh->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+
 	return n;
 }
 
@@ -2113,8 +2131,6 @@ bool zapi_nexthop_update_decode(struct stream *s, struct prefix *match,
 	STREAM_GETC(s, nhr->distance);
 	STREAM_GETL(s, nhr->metric);
 	STREAM_GETC(s, nhr->nexthop_num);
-	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE))
-        return true;
 
 	for (i = 0; i < nhr->nexthop_num; i++) {
 		if (zapi_nexthop_decode(s, &(nhr->nexthops[i]), 0, 0) != 0)
@@ -3588,6 +3604,12 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 		stream_write(s, &zt->sidlists[i].sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+		stream_putl(s, zt->sidlists[i].segment_count);
+		for(uint32_t j = 0; j < zt->sidlists[i].segment_count; j++) {
+			stream_putl(s, zt->sidlists[i].segments[j].index);
+			stream_putl(s, zt->sidlists[i].segments[j].sid_type);
+			stream_put_ipaddr(s, &zt->sidlists[i].segments[j].srv6_sid_value);
+		}
 		stream_putw(s, zt->sidlists[i].weight);
 	}
 
@@ -3614,10 +3636,22 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	STREAM_GET(&zp->binding_v6sid.ipaddr_v6, s, sizeof(struct in6_addr));
 
 	STREAM_GETW(s, zp->srv6_tunnel.path_num);
-
+	char endpoint[46];
+	ipaddr2str(&zp->endpoint, endpoint, sizeof(endpoint));
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 	    STREAM_GET(&zt->sidlists[i].sidlist_name, s, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+		STREAM_GETL(s, zt->sidlists[i].segment_count);
+		for (uint32_t j = 0; j < zt->sidlists[i].segment_count; j++) {
+			STREAM_GETL(s, zt->sidlists[i].segments[j].index);
+			STREAM_GETL(s, zt->sidlists[i].segments[j].sid_type);
+			STREAM_GET_IPADDR(s, &zt->sidlists[i].segments[j].srv6_sid_value);
+			char srv6_sid_value[46];
+			ipaddr2str(&zt->sidlists[i].segments[j].srv6_sid_value, srv6_sid_value, sizeof(srv6_sid_value));
+			zlog_debug("%s: policy %s, color %d, endpoint %s, sidlist_name %s, index %d, sid_type %d, srv6_sid_value %s",
+				__func__, zp->name, zp->color, endpoint, zt->sidlists[i].sidlist_name, zt->sidlists[i].segments[j].index,
+				zt->sidlists[i].segments[j].sid_type, srv6_sid_value);
+		}
 		STREAM_GETW(s, zt->sidlists[i].weight);
 	}
 

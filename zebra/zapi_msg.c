@@ -608,6 +608,7 @@ int zsend_redistribute_route(int cmd, struct zserv *client,
 			break;
 		case NEXTHOP_TYPE_IPV4:
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 			api_nh->gate.ipv4 = nexthop->gate.ipv4;
 			api_nh->ifindex = nexthop->ifindex;
 			break;
@@ -616,6 +617,7 @@ int zsend_redistribute_route(int cmd, struct zserv *client,
 			break;
 		case NEXTHOP_TYPE_IPV6:
 		case NEXTHOP_TYPE_IPV6_IFINDEX:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			api_nh->gate.ipv6 = nexthop->gate.ipv6;
 			api_nh->ifindex = nexthop->ifindex;
 		}
@@ -1731,6 +1733,26 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 		nexthop =
 			nexthop_from_blackhole(api_nh->bh_type, api_nh->vrf_id);
 		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		if (IS_ZEBRA_DEBUG_RECV) {
+			inet_ntop(AF_INET, &api_nh->gate.ipv4, nhbuf,
+				  sizeof(nhbuf));
+			zlog_debug("%s: seg nh=%s, vrf_id=%d", __func__,
+				   nhbuf, api_nh->vrf_id);
+		}
+		nexthop = nexthop_from_ipv4_segment_list(&api_nh->gate.ipv4,
+			api_nh->vrf_id);
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		if (IS_ZEBRA_DEBUG_RECV) {
+			inet_ntop(AF_INET6, &api_nh->gate.ipv6, nhbuf,
+				  sizeof(nhbuf));
+			zlog_debug("%s: seg nh=%s, vrf_id=%d", __func__,
+				   nhbuf, api_nh->vrf_id);
+		}
+		nexthop = nexthop_from_ipv6_segment_list(&api_nh->gate.ipv6,
+			api_nh->vrf_id);
+		break;
 	}
 
 	/* Return early if we couldn't process the zapi nexthop */
@@ -1910,8 +1932,8 @@ static bool zapi_read_nexthops(struct zserv *client, struct prefix *p,
 					       false);
 			}
 
-			zlog_debug("%s: nh=%s, vrf_id=%d, label=%s, color=%d",
-				   __func__, nhbuf, api_nh->vrf_id, labelbuf, nexthop->srte_color);
+			zlog_debug("%s: nh=%s, vrf_id=%d, label=%s, color=%d, type=%d",
+				   __func__, nhbuf, api_nh->vrf_id, labelbuf, nexthop->srte_color, nexthop->type);
 		}
 
 		if (ng) {
@@ -2745,6 +2767,7 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 	struct zapi_srv6te_tunnel *zt;
 	struct zebra_sr_policy *policy = NULL;
     struct zebra_sr_policy *old_policy = NULL;
+	bool new = false;
 
 	/* Get input stream.  */
 	s = msg;
@@ -2767,6 +2790,7 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
     if (!old_policy)
 	{
         policy = zebra_sr_policy_add(zp.color, &zp.endpoint, zp.name);
+		new = true;
 	}
     else
 	{
@@ -2775,7 +2799,7 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
     
     policy->zvrf = zvrf;
 
-    zebra_srv6_policy_validate(policy, &zp.srv6_tunnel);
+    zebra_srv6_policy_validate(policy, &zp.srv6_tunnel, new);
 }
 
 static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)

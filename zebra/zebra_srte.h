@@ -41,17 +41,17 @@ enum zebra_sr_policy_update_label_mode {
 
 struct zebra_sr_policy {
 	RB_ENTRY(zebra_sr_policy) entry;
-    /* Binding SID */
+	/* Binding SID */
 	mpls_label_t binding_sid;
-    /* Binding Srv6 Sid*/
+	/* Binding Srv6 Sid*/
 	struct ipaddr binding_v6_sid;
 	uint32_t color;
 	struct ipaddr endpoint;
-    uint8_t type;
+	uint8_t type;
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
 	enum zebra_sr_policy_status status;
 	struct zapi_srte_tunnel segment_list;
-    struct zapi_srv6te_tunnel srv6_segment_list;
+	struct zapi_srv6te_tunnel srv6_segment_list;
 	struct zebra_lsp *lsp;
 	struct zebra_vrf *zvrf;
 };
@@ -68,7 +68,6 @@ struct zebra_sr_policy *zebra_sr_policy_find(uint32_t color,
 					     struct ipaddr *endpoint);
 struct zebra_sr_policy *zebra_sr_policy_find_by_name(char *name);
 struct zebra_sr_policy *zebra_sr_policy_find_by_rnh(struct rnh *rnh);
-
 int zebra_sr_policy_validate(struct zebra_sr_policy *policy,
 			     struct zapi_srte_tunnel *new_tunnel);
 int zebra_sr_policy_bsid_install(struct zebra_sr_policy *policy);
@@ -82,7 +81,7 @@ extern int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
 extern void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy);
 extern int zebra_sr_policy_notify_unknown(struct rnh *rnh,            struct zserv *client);
 extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
-                     struct zapi_srv6te_tunnel *new_tunnel);
+                     struct zapi_srv6te_tunnel *new_tunnel, bool new);
 
 #ifdef __cplusplus
 }

@@ -74,6 +74,36 @@ extern struct nhg_hash_entry *
 nhg_connected_tree_add_nhe(struct nhg_connected_tree_head *head,
 			   struct nhg_hash_entry *nhe);
 
+/* Abstraction for segment trees */
+struct nhg_segment {
+	struct nhg_segment_tree_item tree_item;
+	struct nhg_hash_entry *nhe;
+};
+
+static int nhg_segment_cmp(const struct nhg_segment *con1,
+			     const struct nhg_segment *con2)
+{
+	return (con1->nhe->id - con2->nhe->id);
+}
+
+DECLARE_RBTREE_UNIQ(nhg_segment_tree, struct nhg_segment, tree_item,
+		    nhg_segment_cmp);
+
+/* nhg segment tree direct access functions */
+extern void nhg_segment_tree_init(struct nhg_segment_tree_head *head);
+extern void nhg_segment_tree_free(struct nhg_segment_tree_head *head);
+extern bool
+nhg_segment_tree_is_empty(const struct nhg_segment_tree_head *head);
+extern struct nhg_segment *
+nhg_segment_tree_root(struct nhg_segment_tree_head *head);
+
+extern struct nhg_hash_entry *
+nhg_segment_tree_del_nhe(struct nhg_segment_tree_head *head,
+			   struct nhg_hash_entry *nhe);
+/* ADD NHE to the tree. On success, return NULL, otherwise return the NHE. */
+extern struct nhg_hash_entry *
+nhg_segment_tree_add_nhe(struct nhg_segment_tree_head *head,
+			   struct nhg_hash_entry *nhe);
 #ifdef __cplusplus
 }
 #endif

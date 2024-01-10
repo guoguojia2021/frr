@@ -823,6 +823,16 @@ static void bgp_show_nexthops_detail(struct vty *vty, struct bgp *bgp,
 		case NEXTHOP_TYPE_BLACKHOLE:
 			vty_out(vty, "  blackhole\n");
 			break;
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+			vty_out(vty, "  gate %s  segment-list\n",
+				inet_ntop(AF_INET, &nexthop->gate.ipv4, buf,
+					  sizeof(buf)));
+			break;
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+			vty_out(vty, "  gate %s  segment-list\n",
+				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+					  sizeof(buf)));
+			break;
 		default:
 			vty_out(vty, "  invalid nexthop type %u\n",
 				nexthop->type);

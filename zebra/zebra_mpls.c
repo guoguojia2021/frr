@@ -756,6 +756,8 @@ static int nhlfe_nexthop_active(struct zebra_nhlfe *nhlfe)
 		break;
 
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -1197,6 +1199,8 @@ static char *nhlfe2str(const struct zebra_nhlfe *nhlfe, char *buf, int size)
 	case NEXTHOP_TYPE_IFINDEX:
 		snprintf(buf, size, "Ifindex: %u", nexthop->ifindex);
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -1239,6 +1243,8 @@ static int nhlfe_nhop_match(struct zebra_nhlfe *nhlfe,
 		cmp = !(nhop->ifindex == ifindex);
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -1309,8 +1315,10 @@ nhlfe_alloc(struct zebra_lsp *lsp, enum lsp_types_t lsp_type,
 		nexthop->ifindex = ifindex;
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (IS_ZEBRA_DEBUG_MPLS)
-			zlog_debug("%s: invalid: blackhole nexthop", __func__);
+			zlog_debug("%s: invalid: blackhole or segment nexthop", __func__);
 
 		nexthop_free(nexthop);
 		XFREE(MTYPE_NHLFE, nhlfe);
@@ -1560,6 +1568,8 @@ static json_object *nhlfe_json(struct zebra_nhlfe *nhlfe)
 							      nexthop->vrf_id));
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -1627,6 +1637,8 @@ static void nhlfe_print(struct zebra_nhlfe *nhlfe, struct vty *vty,
 					       nexthop->vrf_id));
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 	vty_out(vty, "%s",
@@ -2876,6 +2888,8 @@ static bool ftn_update_znh(bool add_p, enum lsp_types_t type,
 			success = true;
 			break;
 		case NEXTHOP_TYPE_BLACKHOLE:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			/* Not valid */
 			continue;
 		}
@@ -3795,6 +3809,8 @@ void zebra_mpls_print_lsp_table(struct vty *vty, struct zebra_vrf *zvrf,
 						  nh_buf, sizeof(nh_buf));
 					break;
 				case NEXTHOP_TYPE_BLACKHOLE:
+				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 					break;
 				}
 
@@ -3859,6 +3875,8 @@ static char *nhlfe_config_str(const struct zebra_nhlfe *nhlfe, char *buf,
 				size);
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 

@@ -362,6 +362,17 @@ static void show_nexthop_detail_helper(struct vty *vty,
 			break;
 		}
 		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		vty_out(vty, " %pI4",
+			&nexthop->gate.ipv4);
+		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		vty_out(vty, " %s",
+			inet_ntop(AF_INET6, &nexthop->gate.ipv6,
+				  buf, sizeof(buf)));
+		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		break;
 	}
 
 	if (re->vrf_id != nexthop->vrf_id) {
@@ -386,6 +397,7 @@ static void show_nexthop_detail_helper(struct vty *vty,
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		if (nexthop->src.ipv4.s_addr) {
 			if (inet_ntop(AF_INET, &nexthop->src.ipv4,
 				      addrstr, sizeof(addrstr)))
@@ -396,6 +408,7 @@ static void show_nexthop_detail_helper(struct vty *vty,
 
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (!IPV6_ADDR_SAME(&nexthop->src.ipv6,
 				    &in6addr_any)) {
 			if (inet_ntop(AF_INET6, &nexthop->src.ipv6,
@@ -706,6 +719,18 @@ static void show_route_nexthop_helper(struct vty *vty,
 			break;
 		}
 		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		vty_out(vty, " via %pI4", &nexthop->gate.ipv4);
+		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		vty_out(vty, " color %d", nexthop->srte_color);
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		vty_out(vty, " via %s",
+			inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+				  sizeof(buf)));
+		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		vty_out(vty, " color %d", nexthop->srte_color);
+		break;
 	}
 
 	if ((re == NULL || (nexthop->vrf_id != re->vrf_id)))
@@ -723,6 +748,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		if (nexthop->src.ipv4.s_addr) {
 			if (inet_ntop(AF_INET, &nexthop->src.ipv4, buf,
 				      sizeof(buf)))
@@ -735,6 +761,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (!IPV6_ADDR_SAME(&nexthop->src.ipv6, &in6addr_any)) {
 			if (inet_ntop(AF_INET6, &nexthop->src.ipv6, buf,
 				      sizeof(buf)))
@@ -805,6 +832,7 @@ static void show_nexthop_json_helper(json_object *json_nexthop,
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		json_object_string_addf(json_nexthop, "ip", "%pI4",
 					&nexthop->gate.ipv4);
 		json_object_string_add(json_nexthop, "afi",
@@ -823,6 +851,7 @@ static void show_nexthop_json_helper(json_object *json_nexthop,
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		json_object_string_addf(json_nexthop, "ip", "%pI6",
 					&nexthop->gate.ipv6);
 		json_object_string_add(json_nexthop, "afi",
@@ -916,6 +945,7 @@ static void show_nexthop_json_helper(json_object *json_nexthop,
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		if (nexthop->src.ipv4.s_addr) {
 			if (inet_ntop(AF_INET,
 				      &nexthop->src.ipv4, buf,
@@ -927,6 +957,7 @@ static void show_nexthop_json_helper(json_object *json_nexthop,
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (!IPV6_ADDR_SAME(&nexthop->src.ipv6,
 				    &in6addr_any)) {
 			if (inet_ntop(AF_INET6,
@@ -1499,15 +1530,18 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 {
 	struct nexthop *nexthop = NULL;
 	struct nhg_connected *rb_node_dep = NULL;
+	struct nhg_segment *rb_node_segdep = NULL;
 	struct nexthop_group *backup_nhg;
 	char up_str[MONOTIME_STRLEN];
 
 	uptime2str(nhe->uptime, up_str, sizeof(up_str));
 
-	vty_out(vty, "ID: %u (%s)\n", nhe->id, zebra_route_string(nhe->type));
+	vty_out(vty, "ID: %u (%s %p)\n", nhe->id, zebra_route_string(nhe->type), nhe);
 	vty_out(vty, "     RefCnt: %u\n", nhe->refcnt);
+	vty_out(vty, "     segment_ref: %u\n", nhe->segment_ref);
 	vty_out(vty, "     Uptime: %s\n", up_str);
 	vty_out(vty, "     VRF: %s\n", vrf_id_to_name(nhe->vrf_id));
+	vty_out(vty, "     Falgs: 0x%x\n", nhe->flags);
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID)) {
 		vty_out(vty, "     Valid");
@@ -1525,6 +1559,14 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 		vty_out(vty, "     Depends:");
 		frr_each(nhg_connected_tree, &nhe->nhg_depends, rb_node_dep) {
 			vty_out(vty, " (%u)", rb_node_dep->nhe->id);
+		}
+		vty_out(vty, "\n");
+	}
+
+	if (!zebra_nhg_segdepends_is_empty(nhe)) {
+		vty_out(vty, "     SegDepends:");
+		frr_each(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_segdep) {
+			vty_out(vty, " (%u)", rb_node_segdep->nhe->id);
 		}
 		vty_out(vty, "\n");
 	}
@@ -1588,6 +1630,14 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 		}
 		vty_out(vty, "\n");
 	}
+	if (!zebra_nhg_segdependents_is_empty(nhe)) {
+		vty_out(vty, "     SegDependents:");
+		frr_each(nhg_segment_tree, &nhe->nhg_segdependents,
+			  rb_node_segdep) {
+			vty_out(vty, " (%u)", rb_node_segdep->nhe->id);
+		}
+		vty_out(vty, "\n");
+	}
 
 	if (nhe->pic_nhe) {
 		vty_out(vty, "     pic nhe:%d \n", nhe->pic_nhe->id);
@@ -1596,8 +1646,6 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 		//show_nexthop_group_out(vty, nhe->pic_nhe, false);
 		//vty_out(vty, "END \n");
 	}
-	
-
 }
 
 static int show_nexthop_group_id_cmd_helper(struct vty *vty, uint32_t id)
@@ -2301,6 +2349,7 @@ static void show_ip_route_nht_dump(struct vty *vty, struct nexthop *nexthop,
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		vty_out(vty, "      ip address: %s\n",
 			inet_ntop(AF_INET, &nexthop->gate.ipv4, buf,
 				  sizeof(buf)));
@@ -2321,6 +2370,7 @@ static void show_ip_route_nht_dump(struct vty *vty, struct nexthop *nexthop,
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		vty_out(vty, "      ip: %s\n",
 			inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
 				  sizeof(buf)));

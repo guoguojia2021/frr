@@ -9294,10 +9294,12 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 		break;
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		attr.nexthop = nexthop->ipv4;
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		attr.mp_nexthop_global = nexthop->ipv6;
 		attr.mp_nexthop_len = BGP_ATTR_NHLEN_IPV6_GLOBAL;
 		break;
@@ -11333,6 +11335,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 			for (nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next) {
 				switch (nexthop->type) {
 				case NEXTHOP_TYPE_IPV6:
+				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 					vty_out(vty, " gate %s, ",
 						inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
 							  sizeof(buf)));
@@ -11346,6 +11349,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 								   bgp->vrf_id));
 					break;
 				case NEXTHOP_TYPE_IPV4:
+				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 					vty_out(vty, " gate %s, ",
 						inet_ntop(AF_INET, &nexthop->gate.ipv4, buf,
 							  sizeof(buf)));

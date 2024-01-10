@@ -1330,6 +1330,7 @@ static void print_nh(struct nexthop *nexthop, struct vty *vty)
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		vty_out(vty, " via %pI4", &nexthop->gate.ipv4);
 		if (nexthop->ifindex)
 			vty_out(vty, ", %s",
@@ -1337,6 +1338,7 @@ static void print_nh(struct nexthop *nexthop, struct vty *vty)
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		vty_out(vty, " %s",
 			inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, BUFSIZ));
 		if (nexthop->ifindex)

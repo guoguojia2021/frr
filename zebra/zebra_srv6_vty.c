@@ -155,6 +155,7 @@ static struct seg6_sid *sid_lookup_by_vrf_action(struct srv6_locator *loc,
 	return NULL;
 }
 
+
 DEFUN (show_srv6_tunnel,
        show_srv6_tunnel_cmd,
        "show srv6 tunnel [detail]",
@@ -180,9 +181,9 @@ DEFUN (show_srv6_tunnel,
 	/* Prepare table. */
 	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
 	if (detail)
-		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|Path");
+		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|SegmentList_old|SegmentList|NheID|Path");
 	else
-		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status");
+		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|SegmentList_old|SegmentList|NheID");
 	tt->style.cell.rpad = 2;
 	tt->style.corner = '+';
 	ttable_restyle(tt);
@@ -192,14 +193,32 @@ DEFUN (show_srv6_tunnel,
 		    &zebra_sr_policy_instances) {
 		char endpoint[46];
 		char binding_sid[16] = "-";
+		char segmentlist_old[4096] = {0};
+		char segmentlist[4096] = {0};
+		strcat(segmentlist_old, "[ ");
+		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num_old; i++) {
+			char buf[80] = {0};
+			sprintf(buf, "(%s-%d-0x%x)", policy->srv6_segment_list.sidlists_old[i].sidlist_name,
+				policy->srv6_segment_list.sidlists_old[i].weight, policy->srv6_segment_list.sidlists_old[i].type);
+			strcat(segmentlist_old, buf);
+		}
+		strcat(segmentlist_old, " ]");
+
+		strcat(segmentlist, "[ ");
+		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num; i++) {
+			char buf[80] = {0};
+			sprintf(buf, "(%s-%d-0x%x)", policy->srv6_segment_list.sidlists[i].sidlist_name,
+				policy->srv6_segment_list.sidlists[i].weight, policy->srv6_segment_list.sidlists[i].type);
+			strcat(segmentlist, buf);
+		}
+		strcat(segmentlist, " ]");
 
 		ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
-		ttable_add_row(tt, "%s|%u|%s|%s|%s", endpoint, policy->color,
+		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s|%s", endpoint, policy->color,
 			       policy->name, binding_sid,
-			       policy->status == ZEBRA_SR_POLICY_UP
-				       ? "Active"
-				       : "Inactive");
+			       policy->status == ZEBRA_SR_POLICY_UP ? "Active" : "Inactive",
+				   segmentlist_old, segmentlist);
 	}
 
 	/* Dump the generated table. */
@@ -211,6 +230,7 @@ DEFUN (show_srv6_tunnel,
 
 	return CMD_SUCCESS;
 }
+
 
 DEFUN (show_srv6_locator,
        show_srv6_locator_cmd,
