@@ -880,7 +880,7 @@ bool zebra_update_pic_nhe(struct route_node *rn)
 		return false;
 	}
 
-	zebra_update_seg_pic_nhe(nh, afi);
+	//zebra_update_seg_pic_nhe(nh, afi);
 
 	SET_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE);
 	ret = nexthop_group_add_sorted_nodup(&pic_nh_lookup.nhg, nh);
