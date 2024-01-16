@@ -133,6 +133,47 @@ static void zebra_rnh_store_in_routing_table(struct rnh *rnh)
 	route_unlock_node(rn);
 }
 
+/* Clear the NEXTHOP_FLAG_RNH_FILTERED flags on all nexthops
+ */
+static void zebra_rnh_clear_nexthop_rnh_filters(struct route_entry *re)
+{
+	struct nexthop *nexthop;
+
+	if (re) {
+		for (nexthop = re->nhe->nhg.nexthop; nexthop;
+		     nexthop = nexthop->next) {
+			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_RNH_FILTERED);
+		}
+	}
+}
+
+/* Apply the NHT route-map for a client to the route (and nexthops)
+ * resolving a NH.
+ */
+static int zebra_rnh_apply_nht_rmap(afi_t afi, struct zebra_vrf *zvrf,
+				    struct route_node *prn,
+				    struct route_entry *re, int proto)
+{
+	int at_least_one = 0;
+	struct nexthop *nexthop;
+	route_map_result_t ret;
+
+	if (prn && re) {
+		for (nexthop = re->nhe->nhg.nexthop; nexthop;
+		     nexthop = nexthop->next) {
+			ret = zebra_nht_route_map_check(
+				afi, proto, &prn->p, zvrf, re, nexthop);
+			if (ret != RMAP_DENYMATCH)
+				at_least_one++; /* at least one valid NH */
+			else {
+				SET_FLAG(nexthop->flags,
+					 NEXTHOP_FLAG_RNH_FILTERED);
+			}
+		}
+	}
+	return (at_least_one);
+}
+
 void zebra_rnh_info_add(struct route_node *dest, struct rnh *pi)
 {
 	struct rnh *top;
@@ -310,15 +351,21 @@ static void zebra_delete_rnh(struct rnh *rnh)
 void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 			  vrf_id_t vrf_id)
 {
-    struct zebra_sr_policy *policy = NULL;
-    struct ipaddr ip = {0};
+	struct zebra_sr_policy *policy = NULL;
+	struct route_table *route_table;
+	struct ipaddr ip = {0};
+	struct zebra_vrf *zvrf = zebra_vrf_lookup_by_id(vrf_id);
+	struct prefix *p = &rnh->node->p;
+	struct route_node *rn;
+	int num_resolving_nh;
+
 	if (IS_ZEBRA_DEBUG_NHT) {
 		struct vrf *vrf = vrf_lookup_by_id(vrf_id);
 
 		zlog_debug("%s(%u): Client %s registers for RNH %pRN flags %u color %d",
-			   VRF_LOGNAME(vrf), vrf_id,
-			   zebra_route_string(client->proto), rnh->node,
-			   rnh->flags, rnh->srte_color);
+				VRF_LOGNAME(vrf), vrf_id,
+				zebra_route_string(client->proto), rnh->node,
+				rnh->flags, rnh->srte_color);
 	}
 	if (!listnode_lookup(rnh->client_list, client))
 		listnode_add(rnh->client_list, client);
@@ -327,11 +374,44 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 	 * We always need to respond with known information,
 	 * currently multiple daemons expect this behavior
 	 */
+	route_table = zvrf->table[family2afi(p->family)][rnh->safi];
+	if (route_table)
+		rn = route_node_match(route_table, p);
+
+	if(rn && rnh->state) {
+		zebra_rnh_clear_nexthop_rnh_filters(rnh->state);
+		num_resolving_nh = zebra_rnh_apply_nht_rmap(
+				family2afi(p->family), zvrf, rn, rnh->state, client->proto);
+		if (num_resolving_nh)
+			rnh->filtered[client->proto] = 0;
+		else
+			rnh->filtered[client->proto] = 1;
+
+		if (IS_ZEBRA_DEBUG_NHT)
+			zlog_debug(
+				"%s:%s(%u):%pRN: Notifying client %s about NH %s",
+				__func__, VRF_LOGNAME(zvrf->vrf),
+				zvrf->vrf->vrf_id, rn,
+				zebra_route_string(client->proto),
+				num_resolving_nh
+					? ""
+					: "(filtered by route-map)");
+	} else {
+		rnh->filtered[client->proto] = 0;
+		if (IS_ZEBRA_DEBUG_NHT)
+			zlog_debug(
+				"%s:%s(%u):%pRN: Notifying client %s about NH (unreachable)",
+				__func__, VRF_LOGNAME(zvrf->vrf),
+				zvrf->vrf->vrf_id, rn,
+				zebra_route_string(client->proto));
+	}
+
+
 	if (!rnh->srte_color)
 		zebra_send_rnh_update(rnh, client, vrf_id, rnh->srte_color);
 	else
 	{
-		if (!prefix2ipaddr(&rnh->node->p, &ip))
+		if (!prefix2ipaddr(p, &ip))
 		{
 			policy = zebra_sr_policy_find_by_rnh(rnh);
 			if (policy)
@@ -340,6 +420,9 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 				zebra_sr_policy_notify_unknown(rnh, client);
 		}
 	}
+	if(rnh->state)
+		zebra_rnh_clear_nexthop_rnh_filters(rnh->state);
+
 }
 
 void zebra_remove_rnh_client(struct rnh *rnh, struct zserv *client)
@@ -417,47 +500,6 @@ void zebra_deregister_rnh_pseudowire(vrf_id_t vrf_id, struct zebra_pw *pw)
 	pw->rnh = NULL;
 
 	zebra_delete_rnh(rnh);
-}
-
-/* Clear the NEXTHOP_FLAG_RNH_FILTERED flags on all nexthops
- */
-static void zebra_rnh_clear_nexthop_rnh_filters(struct route_entry *re)
-{
-	struct nexthop *nexthop;
-
-	if (re) {
-		for (nexthop = re->nhe->nhg.nexthop; nexthop;
-		     nexthop = nexthop->next) {
-			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_RNH_FILTERED);
-		}
-	}
-}
-
-/* Apply the NHT route-map for a client to the route (and nexthops)
- * resolving a NH.
- */
-static int zebra_rnh_apply_nht_rmap(afi_t afi, struct zebra_vrf *zvrf,
-				    struct route_node *prn,
-				    struct route_entry *re, int proto)
-{
-	int at_least_one = 0;
-	struct nexthop *nexthop;
-	route_map_result_t ret;
-
-	if (prn && re) {
-		for (nexthop = re->nhe->nhg.nexthop; nexthop;
-		     nexthop = nexthop->next) {
-			ret = zebra_nht_route_map_check(
-				afi, proto, &prn->p, zvrf, re, nexthop);
-			if (ret != RMAP_DENYMATCH)
-				at_least_one++; /* at least one valid NH */
-			else {
-				SET_FLAG(nexthop->flags,
-					 NEXTHOP_FLAG_RNH_FILTERED);
-			}
-		}
-	}
-	return (at_least_one);
 }
 
 /*
