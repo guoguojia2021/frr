@@ -2999,7 +2999,7 @@ static wq_item_status meta_queue_process(struct work_queue *dummy, void *data)
 	/* Ensure there's room for more dataplane updates */
 	queue_limit = dplane_get_in_queue_limit();
 	queue_len = dplane_get_in_queue_len();
-	if (queue_len > queue_limit || t_dplane) {
+	if (queue_len > queue_limit) {
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("rib queue: dplane queue len %u, limit %u, retrying",
 				   queue_len, queue_limit);
@@ -4706,6 +4706,7 @@ static int rib_process_dplane_results(struct thread *thread)
 	struct zebra_dplane_ctx *ctx;
 	struct dplane_ctx_q ctxlist;
 	bool shut_p = false;
+	uint32_t counter = 0;
 
 	/* Dequeue a list of completed updates with one lock/unlock cycle */
 
@@ -4867,12 +4868,13 @@ static int rib_process_dplane_results(struct thread *thread)
 				break;
 
 			} /* Dispatch by op code */
+			counter++;
 
 			ctx = dplane_ctx_dequeue(&ctxlist);
 		}
 
 	} while (1);
-	t_dplane = NULL;
+	dplane_sub_in_queue_len(counter);
 
 	return 0;
 }

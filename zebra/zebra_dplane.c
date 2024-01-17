@@ -57,7 +57,7 @@ static bool dplane_collect_extra_intf_info;
 /*#define DPLANE_TEST_PROVIDER 1 */
 
 /* Default value for max queued incoming updates */
-const uint32_t DPLANE_DEFAULT_MAX_QUEUED = 200;
+const uint32_t DPLANE_DEFAULT_MAX_QUEUED = 500;
 
 /* Default value for new work per cycle */
 const uint32_t DPLANE_DEFAULT_NEW_WORK = 100;
@@ -2374,6 +2374,16 @@ uint32_t dplane_get_in_queue_len(void)
 {
 	return atomic_load_explicit(&zdplane_info.dg_routes_queued,
 				    memory_order_seq_cst);
+}
+
+void dplane_sub_in_queue_len(uint32_t counter)
+{
+	if (dplane_get_in_queue_len() >= counter)
+		atomic_fetch_sub_explicit(&zdplane_info.dg_routes_queued, counter,
+					  memory_order_relaxed);
+	else
+		zlog_err("%s:error counter, dg_routes_queued:%u, counter:%u", 
+			__func__, dplane_get_in_queue_len(), counter);
 }
 
 /*
@@ -5134,6 +5144,9 @@ void dplane_provider_enqueue_to_zebra(struct zebra_dplane_ctx *ctx)
 
 	/* Zebra's api takes a list, so we need to use a temporary list */
 	TAILQ_INIT(&temp_list);
+	atomic_fetch_add_explicit(
+			&(zdplane_info.dg_routes_queued),
+			1, memory_order_seq_cst);
 
 	TAILQ_INSERT_TAIL(&temp_list, ctx, zd_q_entries);
 	(zdplane_info.dg_results_cb)(&temp_list);
@@ -5945,9 +5958,6 @@ static int dplane_thread_loop(struct thread *event)
 
 	DPLANE_UNLOCK();
 
-	atomic_fetch_sub_explicit(&zdplane_info.dg_routes_queued, counter,
-				  memory_order_relaxed);
-
 	if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
 		zlog_debug("dplane: incoming new work counter: %d", counter);
 
@@ -6074,14 +6084,15 @@ static int dplane_thread_loop(struct thread *event)
 	 * Hand lists through the api to zebra main,
 	 * to reduce the number of lock/unlock cycles
 	 */
-
 	/* Call through to zebra main */
-	(zdplane_info.dg_results_cb)(&error_list);
+	if (!TAILQ_EMPTY(&error_list))
+		(zdplane_info.dg_results_cb)(&error_list);
 
 	TAILQ_INIT(&error_list);
 
 	/* Call through to zebra main */
-	(zdplane_info.dg_results_cb)(&work_list);
+	if (!TAILQ_EMPTY(&work_list))
+		(zdplane_info.dg_results_cb)(&work_list);
 
 	TAILQ_INIT(&work_list);
 
