@@ -1022,6 +1022,7 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 	bool createdPic = false;
 	struct nhg_hash_entry *newnhe, *pic_nhe;
 	struct nexthop *nh = NULL;
+	struct nexthop *nexthop = NULL;
 	struct nhg_hash_entry *lookup_tmp;
 	bool free_flag = false;
 
@@ -1033,6 +1034,12 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 			(from_dplane ? " (from dplane)" : ""), (pic ? "true":"false"));
 
 	SET_FLAG(lookup->flags, NEXTHOP_GROUP_SEGMENTLIST);
+
+	nexthop = lookup->nhg.nexthop;
+	if (nexthop && nexthop->nh_srv6 == NULL) {
+		pic = true;
+		SET_FLAG(lookup->flags, NEXTHOP_GROUP_PIC_NHT);
+	}
 
 	if (!pic) {
 		lookup_tmp = zebra_nhe_copy_no_recurse(lookup);

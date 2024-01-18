@@ -229,12 +229,14 @@ bool static_add_nexthop_validate(const char *nh_vrf_name,
 	switch (type) {
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_SEGMENTLIST:
 		if (if_address_is_local(&ipaddr->ipaddr_v4, AF_INET,
 					vrf->vrf_id))
 			return false;
 		break;
 	case STATIC_IPV6_GATEWAY:
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_SEGMENTLIST:
 		if (if_address_is_local(&ipaddr->ipaddr_v6, AF_INET6,
 					vrf->vrf_id))
 			return false;
@@ -352,11 +354,13 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_EVPN:
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_SEGMENTLIST:
 		nh->addr.ipv4 = ipaddr->ipaddr_v4;
 		break;
 	case STATIC_IPV6_GATEWAY:
 	case STATIC_IPV6_GATEWAY_EVPN:
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_SEGMENTLIST:
 		nh->addr.ipv6 = ipaddr->ipaddr_v6;
 		break;
 	default:
@@ -390,6 +394,8 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 	switch (nh->type) {
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV6_GATEWAY:
+	case STATIC_IPV4_SEGMENTLIST:
+	case STATIC_IPV6_SEGMENTLIST:
 	case STATIC_BLACKHOLE:
 		break;
 	case STATIC_IPV4_GATEWAY_EVPN:
@@ -445,6 +451,8 @@ void static_install_nexthop(struct static_nexthop *nh)
 	switch (nh->type) {
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV6_GATEWAY:
+	case STATIC_IPV4_SEGMENTLIST:
+	case STATIC_IPV6_SEGMENTLIST:
 		if (!static_zebra_nh_update(nh))
 			static_zebra_nht_register(nh, true);
 		break;
@@ -852,12 +860,6 @@ void static_get_nh_type(enum static_nh_type stype, const char *gatestr, char *ty
 		break;
 	case STATIC_IPV4_GATEWAY:
 		strlcpy(type, "ip4", size);
-		if (gatestr) {
-			ret = str2prefix(gatestr, &nh);
-			if (ret > 0 && nh.family == AF_INET6) {
-				strlcpy(type, "ip6", size);
-			}
-		}
 		break;
 	case STATIC_IPV4_GATEWAY_IFNAME:
 	case STATIC_IPV4_GATEWAY_EVPN:
@@ -872,6 +874,18 @@ void static_get_nh_type(enum static_nh_type stype, const char *gatestr, char *ty
 	case STATIC_IPV6_GATEWAY_IFNAME:
 	case STATIC_IPV6_GATEWAY_EVPN:
 		strlcpy(type, "ip6-ifindex", size);
+		break;
+	case STATIC_IPV4_SEGMENTLIST:
+		strlcpy(type, "ip4-segment", size);
+		if (gatestr) {
+			ret = str2prefix(gatestr, &nh);
+			if (ret > 0 && nh.family == AF_INET6) {
+				strlcpy(type, "ip6-segment", size);
+			}
+		}
+		break;
+	case STATIC_IPV6_SEGMENTLIST:
+		strlcpy(type, "ip6-segment", size);
 		break;
 	};
 }
@@ -908,6 +922,12 @@ void static_get_nh_str(struct static_nexthop *nh, char *nexthop, size_t size)
 	case STATIC_IPV6_GATEWAY_EVPN:
 		snprintfrr(nexthop, size, "ip6-ifindex : %pI6 : %s",
 			   &nh->addr.ipv6, nh->ifname);
+		break;
+	case STATIC_IPV4_SEGMENTLIST:
+		snprintfrr(nexthop, size, "ip4-segment : %pI4", &nh->addr.ipv4);
+		break;
+	case STATIC_IPV6_SEGMENTLIST:
+		snprintfrr(nexthop, size, "ip6-segment : %pI6", &nh->addr.ipv6);
 		break;
 	};
 }

@@ -150,6 +150,11 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 			type = STATIC_IPV4_GATEWAY_IFNAME;
 		else
 			type = STATIC_IPV6_GATEWAY_IFNAME;
+	} else if (gate_str && color_str) {
+		if (afi == AFI_IP)
+			type = STATIC_IPV4_SEGMENTLIST;
+		else
+			type = STATIC_IPV6_SEGMENTLIST;
 	} else if (ifname)
 		type = STATIC_IFNAME;
 	else {
@@ -298,9 +303,11 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 						      NB_OP_MODIFY, "false");
 		}
 		if (type == STATIC_IPV4_GATEWAY
-		    || type == STATIC_IPV6_GATEWAY
-		    || type == STATIC_IPV4_GATEWAY_IFNAME
-		    || type == STATIC_IPV6_GATEWAY_IFNAME) {
+			|| type == STATIC_IPV6_GATEWAY
+			|| type == STATIC_IPV4_GATEWAY_IFNAME
+			|| type == STATIC_IPV6_GATEWAY_IFNAME
+			|| type == STATIC_IPV4_SEGMENTLIST
+			|| type == STATIC_IPV6_SEGMENTLIST) {
 			strlcpy(ab_xpath, xpath_nexthop, sizeof(ab_xpath));
 			strlcat(ab_xpath, FRR_STATIC_ROUTE_NH_COLOR_XPATH,
 				sizeof(ab_xpath));
@@ -1423,6 +1430,8 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 		break;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV6_GATEWAY:
+	case STATIC_IPV4_SEGMENTLIST:
+	case STATIC_IPV6_SEGMENTLIST:
 		vty_out(vty, " %s",
 			yang_dnode_get_string(nexthop, "./gateway"));
 		break;
@@ -1534,6 +1543,8 @@ int static_nexthop_cli_cmp(const struct lyd_node *dnode1,
 		break;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV6_GATEWAY:
+	case STATIC_IPV4_SEGMENTLIST:
+	case STATIC_IPV6_SEGMENTLIST:
 		yang_dnode_get_prefix(&prefix1, dnode1, "./gateway");
 		yang_dnode_get_prefix(&prefix2, dnode2, "./gateway");
 		ret = prefix_cmp(&prefix1, &prefix2);

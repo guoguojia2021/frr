@@ -78,8 +78,8 @@ int zebra_sr_policy_label_update(mpls_label_t label,
 				 enum zebra_sr_policy_update_label_mode mode);
 extern int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
                             struct zserv *client);
-extern void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy);
-extern int zebra_sr_policy_notify_unknown(struct rnh *rnh,            struct zserv *client);
+extern void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy, struct zserv *zclient);
+extern int zebra_sr_policy_notify_unknown(struct rnh *rnh, struct zserv *client);
 extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
                      struct zapi_srv6te_tunnel *new_tunnel, bool new);
 

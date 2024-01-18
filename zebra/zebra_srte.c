@@ -482,7 +482,8 @@ failure:
 	return -1;
 }
 
-void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy)
+void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy,
+	struct zserv *zclient)
 {
 	struct rnh *rnh;
 	struct prefix p = {};
@@ -519,12 +520,18 @@ void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy)
 			break;
 	if (!rnh)
 		return;
-    
+
+    if (zclient) {
+		zebra_sr_policy_notify_update_client(policy, zclient);
+	}
+
 	if (policy->status == rnh->srp_status) {
 		if (policy->status == ZEBRA_SR_POLICY_UP)
 			zebra_nhe_seg_update(policy);
+
 		return;
 	}
+
 	rnh->srp_status = policy->status;
 
 	for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
@@ -601,7 +608,7 @@ static void zebra_sr_policy_activate(struct zebra_sr_policy *policy,
 	(void)zebra_sr_policy_bsid_install(policy);
 	zsend_sr_policy_notify_status(policy->color, &policy->endpoint,
 				      policy->name, ZEBRA_SR_POLICY_UP);
-	zebra_sr_policy_notify_update(policy);
+	zebra_sr_policy_notify_update(policy, NULL);
 }
 
 static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
@@ -633,7 +640,7 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 
 	/* Handle segment-list update. */
 	if (segment_list_changed)
-		zebra_sr_policy_notify_update(policy);
+		zebra_sr_policy_notify_update(policy, NULL);
 }
 
 static bool zebra_srv6_policy_set_sidlist_type(struct zapi_srv6te_tunnel *te_tunnel,
@@ -713,7 +720,7 @@ void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 
 	/* Handle segment-list update. */
 	if (segment_list_changed)
-		zebra_sr_policy_notify_update(policy);
+		zebra_sr_policy_notify_update(policy, NULL);
 }
 
 
@@ -731,7 +738,7 @@ static void zebra_sr_policy_deactivate(struct zebra_sr_policy *policy)
 
 	zsend_sr_policy_notify_status(policy->color, &policy->endpoint,
 				      policy->name, ZEBRA_SR_POLICY_DOWN);
-	zebra_sr_policy_notify_update(policy);
+	zebra_sr_policy_notify_update(policy, NULL);
 }
 
 int zebra_sr_policy_validate(struct zebra_sr_policy *policy,

@@ -1019,6 +1019,12 @@ const char *yang_nexthop_type2str(uint32_t ntype)
 	case NEXTHOP_TYPE_BLACKHOLE:
 		return "blackhole";
 		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		return "ip4-segment";
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		return "ip6-segment";
+		break;
 	default:
 		return "unknown";
 		break;

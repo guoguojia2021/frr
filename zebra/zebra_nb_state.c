@@ -638,6 +638,10 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_lookup_entry(
 		nexthop_lookup.type = NEXTHOP_TYPE_IPV6_IFINDEX;
 	else if (strmatch(nh_type_str, "blackhole"))
 		nexthop_lookup.type = NEXTHOP_TYPE_BLACKHOLE;
+	else if (strmatch(nh_type_str, "ip4-segment"))
+		nexthop_lookup.type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
+	else if (strmatch(nh_type_str, "ip6-segment"))
+		nexthop_lookup.type = NEXTHOP_TYPE_IPV6_SEGMENTLIST;
 	else
 		/* unexpected */
 		return NULL;
@@ -646,16 +650,16 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_lookup_entry(
 	switch (nexthop_lookup.type) {
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		yang_str2ipv4(args->keys->key[1], &nexthop_lookup.gate.ipv4);
 		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		yang_str2ipv6(args->keys->key[1], &nexthop_lookup.gate.ipv6);
 		break;
 	case NEXTHOP_TYPE_IFINDEX:
 	case NEXTHOP_TYPE_BLACKHOLE:
-	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 
@@ -711,6 +715,12 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_nh_type_get_elem(
 		break;
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
 		return yang_data_new_string(args->xpath, "ip6-ifindex");
+		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		return yang_data_new_string(args->xpath, "ip4-segment");
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		return yang_data_new_string(args->xpath, "ip6-segment");
 		break;
 	default:
 		break;

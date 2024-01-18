@@ -415,7 +415,7 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 		{
 			policy = zebra_sr_policy_find_by_rnh(rnh);
 			if (policy)
-				zebra_sr_policy_notify_update(policy);
+				zebra_sr_policy_notify_update(policy, client);
 			else
 				zebra_sr_policy_notify_unknown(rnh, client);
 		}

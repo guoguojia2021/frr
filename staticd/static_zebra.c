@@ -305,6 +305,7 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 		return;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_SEGMENTLIST:
 		p.family = AF_INET;
 		p.prefixlen = IPV4_MAX_BITLEN;
 		p.u.prefix4 = nh->addr.ipv4;
@@ -312,6 +313,7 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 		break;
 	case STATIC_IPV6_GATEWAY:
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_SEGMENTLIST:
 		p.family = AF_INET6;
 		p.prefixlen = IPV6_MAX_BITLEN;
 		p.u.prefix6 = nh->addr.ipv6;
@@ -386,12 +388,14 @@ void get_static_nht_nh_rttype(struct route_node *rn, struct static_nexthop *nh, 
 		return;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_SEGMENTLIST:
 		p.family = AF_INET;
 		p.prefixlen = IPV4_MAX_BITLEN;
 		p.u.prefix4 = nh->addr.ipv4;
 		break;
 	case STATIC_IPV6_GATEWAY:
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_SEGMENTLIST:
 		p.family = AF_INET6;
 		p.prefixlen = IPV6_MAX_BITLEN;
 		p.u.prefix6 = nh->addr.ipv6;
@@ -436,6 +440,7 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 		return 0;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_SEGMENTLIST:
 		p.family = AF_INET;
 		p.prefixlen = IPV4_MAX_BITLEN;
 		p.u.prefix4 = nh->addr.ipv4;
@@ -443,6 +448,7 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 		break;
 	case STATIC_IPV6_GATEWAY:
 	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_SEGMENTLIST:
 		p.family = AF_INET6;
 		p.prefixlen = IPV6_MAX_BITLEN;
 		p.u.prefix6 = nh->addr.ipv6;
@@ -605,6 +611,18 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 			case STATIC_BLACKHOLE_REJECT:
 				api_nh->bh_type = BLACKHOLE_REJECT;
 			}
+			break;
+		case STATIC_IPV6_SEGMENTLIST:
+			if (!nh->nh_valid)
+				continue;
+			api_nh->type = NEXTHOP_TYPE_IPV6_SEGMENTLIST;
+			api_nh->gate = nh->addr;
+			break;
+		case STATIC_IPV4_SEGMENTLIST:
+			if (!nh->nh_valid)
+				continue;
+			api_nh->type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
+			api_nh->gate = nh->addr;
 			break;
 		}
 
