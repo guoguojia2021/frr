@@ -413,7 +413,7 @@ void get_static_nht_nh_rttype(struct route_node *rn, struct static_nexthop *nh, 
 	DEBUGD(&static_dbg_route,
 		" get registered nexthop(%pFX) for %pRN %d ref %u type %u", &p, rn,
 		nhtd->nh_num, nhtd->refcount, nhtd->type);
-	rttype = nhtd->type;
+	*rttype = nhtd->type;
 	return;
 }
 /*
