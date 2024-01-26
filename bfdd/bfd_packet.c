@@ -75,8 +75,7 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
     uint16_t family, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
-    uint8_t seg_num, struct in6_addr* segment_list, 
-	char *ifname, struct ipaddr *nhp);
+    uint8_t seg_num, struct in6_addr* segment_list);
 
 /* socket related prototypes */
 static void bp_set_ipopts(int sd);
@@ -158,8 +157,7 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
 
 	int seg_num;
-	struct in6_addr* segment_list;
-	struct bfd_sr_endx_info* endx_info = NULL;
+	struct in6_addr* segment_list = NULL;
 
 	if (!bvrf)
 		return -1;
@@ -167,21 +165,11 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
     seg_num = bfd->segnum;
 	if (seg_num > 0)
 	    segment_list = bfd->seg_list;
-	else
-	    return -1;
-
-	endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
-	if (!endx_info)
-	    return -1;
 
 	sd = bfd->sock;
 
-	if (seg_num > 1)
-	    segment_list++;
-
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.peer, 
-	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, 1, segment_list, 
-	   endx_info->ifname, &endx_info->nexthop) < 0)
+	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
@@ -201,8 +189,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	struct bfd_vrf_global *bvrf = bfd_vrf_look_by_session(bfd);
 
 	int seg_num;
-	struct in6_addr* segment_list;
-	struct bfd_sr_endx_info* endx_info = NULL;
+	struct in6_addr* segment_list = NULL;
 
 	if (!bvrf)
 		return -1;
@@ -210,32 +197,34 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
     seg_num = bfd->segnum;
 	if (seg_num > 0)
 	    segment_list = bfd->seg_list;
-	else
-	    return -1;
+	// else
+	//     return -1;
 
-	endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
-	if (!endx_info)
-	    return -1;
+	// endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
+	// if (!endx_info)
+	//     return -1;
     
 	// when sidlist just has one sid and the sid is endx and bfd is ipv4 ,it's not support offload
-	if (seg_num == 1 && bfd->key.family == AF_INET)
-	{
-        SET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
-	}
-	else
-	{
-        UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
-	}
-	    
+	// if (seg_num == 1 && bfd->key.family == AF_INET)
+	// {
+    //     SET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
+	// }
+	// else
+	// {
+    //     UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
+	// }
+	
 
 	sd = bfd->sock;
 
-	if (seg_num > 1)
-	    segment_list++;
+    //for compacity test, ignore first node will delete later
+	// if (seg_num > 1){
+	// 	seg_num = seg_num -1;
+	//     segment_list++;
+	// }
 
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.local, 
-	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num-1, segment_list, 
-	   endx_info->ifname, &endx_info->nexthop) < 0)
+	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &bfd->key.local, endpoint, sizeof(endpoint));
@@ -1395,15 +1384,22 @@ int bp_peer_socketv6(struct bfd_session *bs)
 int bp_peer_srh_socketv6(struct bfd_session *bs)
 {
 	int sd; //, pcount;
-	struct sockaddr_in6 sin6;
-	static int srcPort = BFD_SRCPORTINIT;
+	//struct sockaddr_in6 sin6;
+	//static int srcPort = BFD_SRCPORTINIT;
 	const char *device_to_bind = NULL;
+	int on = 1;
 
-	if (bs->key.ifname[0])
+	if (bs->key.ifname[0]){
 		device_to_bind = (const char *)bs->key.ifname;
+		zlog_debug("device_to_bind to ifname:%s", device_to_bind);
+	}
 	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH)
-	    && bs->key.vrfname[0])
+	    && bs->key.vrfname[0]){
 		device_to_bind = (const char *)bs->key.vrfname;
+		zlog_debug("device_to_bind to vrf:%s", device_to_bind);
+    }else{
+        zlog_debug("device_to_bind to NULL");
+	}
 
 	frr_with_privs(&bglobal.bfdd_privs) {
 		sd = vrf_socket(AF_INET6, SOCK_RAW, IPPROTO_RAW,
@@ -1427,30 +1423,12 @@ int bp_peer_srh_socketv6(struct bfd_session *bs)
 		return -1;
 	}
 
-	/* Find an available source port in the proper range */
-	memset(&sin6, 0, sizeof(sin6));
-	sin6.sin6_family = AF_INET6;
-#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
-	sin6.sin6_len = sizeof(sin6);
-#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
-	memcpy(&sin6.sin6_addr, &bs->key.local, sizeof(sin6.sin6_addr));
-	if (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr))
-		sin6.sin6_scope_id = bs->ifp->ifindex;
-
-	// pcount = 0;
-	// do {
-	// 	if ((++pcount) > (BFD_SRCPORTMAX - BFD_SRCPORTINIT)) {
-	// 		/* Searched all ports, none available */
-	// 		log_error("ipv6-new: failed to bind port: %s",
-	// 			  strerror(errno));
-	// 		close(sd);
-	// 		return -1;
-	// 	}
-	// 	if (srcPort >= BFD_SRCPORTMAX)
-	// 		srcPort = BFD_SRCPORTINIT;
-	// 	sin6.sin6_port = htons(srcPort++);
-	// } while (bind(sd, (struct sockaddr *)&sin6, sizeof(sin6)) < 0);
-    bs->srcport = srcPort;
+    /*manage the IP6 header all on own onwn*/
+    if (setsockopt(sd, IPPROTO_IPV6, IPV6_HDRINCL, &on, sizeof(on))){
+        zlog_err("setsockopt IPV6_HDRINCL error: %s", strerror(errno));
+		close(sd);
+		return -1;
+	}
 
 	return sd;
 }
@@ -1907,7 +1885,7 @@ static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
 		srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
 				+ sizeof(struct udphdr) 
 				+ sizeof(struct ipv6_sr_hdr) 
-				+ sizeof(struct in6_addr) * seg_num
+				+ sizeof(struct in6_addr) * (seg_num - 1)
 				+ datalen);
         srh_ip6h->ip6_nxt = IPPROTO_ROUTING;
 	}
@@ -1931,6 +1909,26 @@ static void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h,
 	int i;
 	for(i = 0;i < seg_num;i++)
 	{
+		memcpy(&srv6h->segments[i], &segment_list[seg_num-1-i], sizeof(struct in6_addr));
+	}
+}
+
+static void bp_sbfd_encap_srh_rth_red(struct ipv6_sr_hdr *srv6h, 
+    struct in6_addr* segment_list ,uint8_t seg_num)
+{
+	//caller should make sure: seg_num > 1
+    srv6h->nexthdr = IPPROTO_IPV6;
+    srv6h->hdrlen = GET_RTH_HDR_LEN(RTH_BASE_HEADER_LEN + sizeof(struct in6_addr)*(seg_num - 1));
+    srv6h->type = 4; // IPV6_SRCRT_TYPE_4
+    srv6h->segments_left = seg_num - 1; //if encap reduce mode , seg_num-1
+    srv6h->first_segment = seg_num - 2; //if encap reduce mode , seg_num-2
+    srv6h->flags = 0;
+    srv6h->tag = 0;
+
+	int i;
+	for(i = 0; i < seg_num - 1; i++)
+	{
+		//todo: double check here
 		memcpy(&srv6h->segments[i], &segment_list[seg_num-1-i], sizeof(struct in6_addr));
 	}
 }
@@ -2067,149 +2065,6 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
 
 }
 
-static int get_intf_smac(char *ifname, uint8_t *mac)
-{
-	int ret = 0;
-	int sd;
-    struct ifreq ifr;
-	struct interface *ifp = NULL;
-	struct vrf *vrf = NULL;
-
-    size_t if_name_len = strlen(ifname);
-    if (if_name_len < sizeof(ifr.ifr_name)) 
-	{
-        memcpy(ifr.ifr_name, ifname, if_name_len);
-        ifr.ifr_name[if_name_len]=0;
-    } 
-	else 
-	{
-		zlog_info("get_intf_smac: interface name is too long, name is %s. \n", ifname);
-		return -1;
-    }
-
-	ifp = if_lookup_by_name_all_vrf(ifname);
-	if (!ifp)
-	    return -1;
-
-	vrf = vrf_lookup_by_id(ifp->vrf->vrf_id);
-	if (!vrf)
-	    return -1;
-	
-	sd = vrf_socket(AF_UNIX, SOCK_DGRAM, AF_UNSPEC, vrf->vrf_id, vrf->name);
-	if (sd < 0)
-	{
-		zlog_info("get_intf_smac: socket: %s", safe_strerror(errno));
-		return -1;
-	}
-	ret = ioctl(sd, SIOCGIFHWADDR, &ifr);
-	close(sd);
-
-	if (ret < 0)
-	{
-		zlog_info("get_intf_smac: ioctl SIOCGIFHWADDR failed");
-		return -1;		
-	}
-	else
-	{
-		memcpy(mac, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
-	}
-
-    if (bglobal.debug_network)
-		zlog_debug("%02X:%02X:%02X:%02X:%02X:%02X\n", 
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    
-	return 0;
-}
-
-static int get_intf_addr(char *ifname, struct ipaddr *ipaddr, int family) 
-{
-    struct ifaddrs *ifaddr;
-	struct sockaddr_in6 *s6;
-	struct sockaddr_in *s4;
-
-    if (getifaddrs(&ifaddr) == -1) {
-        printf("get_intf_addr: getifaddrs failed\n");
-        return -1;
-    }
-    
-    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
-	{
-        if (ifa->ifa_addr == NULL)
-            continue;
-
-		if (strcmp(ifa->ifa_name, ifname) != 0)
-			continue;
-
-        if (ifa->ifa_addr->sa_family == family) {
-
-			if (family == AF_INET6) {
-				SET_IPADDR_V6(ipaddr);
-				s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-				memcpy(&ipaddr->ipaddr_v6, &s6->sin6_addr, sizeof(struct in6_addr));
-				
-				if (bglobal.debug_network)
-				{
-					char buf[INET6_ADDRSTRLEN];
-					zlog_debug("%s's ipv6 address: <%s>\n", ifa->ifa_name, ipaddr2str(ipaddr, buf, sizeof(buf)));
-				}
-				break;
-			} 
-
-			if (family == AF_INET)
-			{
-				SET_IPADDR_V4(ipaddr);
-				s4 = (struct sockaddr_in *)ifa->ifa_addr;
-				memcpy(&ipaddr->ipaddr_v4, &s4->sin_addr, sizeof(struct in_addr));
-
-				if (bglobal.debug_network)
-				{
-					char buf[INET_ADDRSTRLEN];
-					zlog_debug("%s's ipv4 address: <%s>\n", ifa->ifa_name, ipaddr2str(ipaddr, buf, sizeof(buf)));
-				}
-				break;
-			}
-        }
-    }
-    
-    freeifaddrs(ifaddr);
-    return 0;
-}
-
-static int get_nhp_mac(char* ifname, struct ipaddr *nhp, uint8_t* dmac)
-{
-	uint32_t ifindex;
-	struct ipaddr ipaddr = {0};
-	struct bfd_nd_info *nd = NULL;
-
-	ifindex = if_nametoindex(ifname);
-	if (ifindex == 0)
-	{
-		zlog_info("get_nhp_mac: if_nametoindex() failed");
-		return -1;
-	}
-
-	memcpy(&ipaddr, nhp, sizeof(struct ipaddr));
-    
-	nd = bfdd_neigh_tree_find(ifindex, &ipaddr);
-	if (!nd)
-	{
-		zlog_info("get_nhp_mac: get nd failed");
-		return -1;		
-	}
-
-	memcpy(dmac, &nd->mac, ETH_ALEN);
-
-	if (bglobal.debug_network)
-	{
-	    char ebuf[ETHER_ADDR_STRLEN];
-	    char ibuf[INET6_ADDRSTRLEN];
-		zlog_debug("%s and nexthop %s 's mac is address: %s\n", 
-		    ifname, ipaddr2str(&ipaddr, ibuf, sizeof(ibuf)), prefix_mac2str((const struct ethaddr *)dmac, ebuf, sizeof(ebuf)));
-	}
-
-	return 0;
-}
-
 static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t *dmac, uint16_t family)
 {
 	memcpy(eth->ether_shost, smac, sizeof(eth->ether_shost));
@@ -2238,82 +2093,53 @@ static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
     uint16_t family, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
-    uint8_t seg_num, struct in6_addr* segment_list, 
-	char *ifname, struct ipaddr *nhp)
+    uint8_t seg_num, struct in6_addr* segment_list)
 {
     struct msghdr msg  = {0};
     struct iovec iov;
 	int flags = 0;
 	int ret = 0;
-    
-	struct ether_header *eth;
+
 	struct ip6_hdr *srh_ip6h;
+	struct ipv6_sr_hdr *psrv6h; // srh Routing header 
     struct ip6_hdr *ip6h;
 	struct ip *iph;
 	struct udphdr *udp;
 	uint8_t *payload;
 
-	uint8_t src_mac[6];
-	uint8_t dst_mac[6];
 	struct ipaddr out_sip_addr = {0};
-	struct sockaddr_ll sadr_ll = {0};
+	struct sockaddr_in6 dst_sin6;
+
 
 	char sendbuf[BUF_SIZ];
 	memset(sendbuf, 0, sizeof(sendbuf));
 	int total_len = 0;
 
-	if (!segment_list)
-	{
-		zlog_info(
-			"sbfd segment_list is invalid , seg_num = %d .", seg_num);
-		return -1;
-	}
-
-    // get interface smac
-	if (get_intf_smac(ifname, src_mac) == -1)
-	{
-		return -1;
-	}
-
-	// get interface dmac
-    if (get_nhp_mac(ifname, nhp, dst_mac) == -1)
-	{
-		return -1;
-	}
-    
-	/* Ether Header */
-	eth = (struct ether_header *) sendbuf;
-	if (seg_num == 0 && family == AF_INET)
-	{
-        bp_sbfd_encap_ether(eth, src_mac, dst_mac, AF_INET);
-		// get interface ipaddress
-		if (get_intf_addr(ifname, &out_sip_addr, AF_INET) == -1)
-		{
-			return -1;
-		}
-	}
-	else
-	{
-		bp_sbfd_encap_ether(eth, src_mac, dst_mac, AF_INET6);
-		// get interface ipaddress
-		if (get_intf_addr(ifname, &out_sip_addr, AF_INET6) == -1)
-		{
-			return -1;
-		}
-	}
-    
-	total_len += sizeof(struct ether_header);
-
     /* SRH IPv6 Header */
 	if (seg_num > 0)
 	{
+		memcpy(&out_sip_addr.ipaddr_v6, sip, sizeof(struct in6_addr));
+
 		srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
 		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip_addr.ipaddr_v6 , &segment_list[0], seg_num, datalen, family);
 		total_len += sizeof(struct ip6_hdr);
+
+		memcpy(&dst_sin6.sin6_addr, &segment_list[0], sizeof(struct in6_addr));
+	}
+
+	//case with srh header
+	if(seg_num > 1){
+		psrv6h = (struct ipv6_sr_hdr*)(sendbuf + total_len);
+		bp_sbfd_encap_srh_rth_red(psrv6h, segment_list, seg_num);
+		total_len += sizeof(struct ipv6_sr_hdr) + sizeof(struct in6_addr) * (seg_num - 1);
 	}
 
     if (family == AF_INET6)
 	{
+		if(seg_num == 0){
+            memcpy(&dst_sin6.sin6_addr, dip, sizeof(struct in6_addr));
+		}
+
 		/* Inner IPv6 Header */
 		ip6h = (struct ip6_hdr *)(sendbuf + total_len);
 		bp_sbfd_encap_inner_ip6h(ip6h, sip , dip, datalen);
@@ -2326,6 +2152,11 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	}
 	else
 	{
+		if(seg_num == 0){
+			//should never come to here, just print a error hint
+			zlog_err("bp_raw_sbfd_red_send error, empty sidlist for ipv4 bfd");
+		}
+
 		/* Inner IPv4 Header */
 		iph = (struct ip *)(sendbuf + total_len);
 		bp_sbfd_encap_inner_iph(iph, sip , dip, datalen);
@@ -2344,18 +2175,14 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     memcpy(payload, data, datalen);
 	total_len += datalen;
 
-    /* set sadr_ll */
-	sadr_ll.sll_family=AF_PACKET;
-	sadr_ll.sll_ifindex = if_nametoindex (ifname);
-	sadr_ll.sll_halen = ETH_ALEN;
-	memcpy(sadr_ll.sll_addr, dst_mac, ETH_ALEN);
-
+    dst_sin6.sin6_family = AF_INET6;
+    
 	/* message data. */
 	iov.iov_base = (uint8_t *)sendbuf;
 	iov.iov_len = total_len;
 
-	msg.msg_name = &sadr_ll;
-	msg.msg_namelen = sizeof(sadr_ll);
+	msg.msg_name = &dst_sin6;
+	msg.msg_namelen = sizeof(struct sockaddr_in6);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
     
@@ -2363,7 +2190,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     ret = sendmsg(sd, &msg, flags);
     if (ret < 0)
     {
-		zlog_info(
+		zlog_err(
 			"sbfd send failed , ret : %d .", ret);
     }
 

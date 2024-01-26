@@ -32,7 +32,6 @@
 #include "lib/qobj.h"
 #include "lib/queue.h"
 #include "lib/vrf.h"
-#include "lib/openbsd-tree.h"
 #include "bfdctl.h"
 
 #ifdef BFD_DEBUG
@@ -373,20 +372,6 @@ struct sbfd_reflector{
 	struct in6_addr local;
 };
 
-struct bfd_nd_info {
-	RB_ENTRY(bfd_nd_info) entry;
-	char ifname[INTERFACE_NAMSIZ];
-	int ifindex;
-	struct ipaddr ipaddr;
-	struct ethaddr mac;
-	uint32_t ndm_state;
-};
-
-RB_HEAD(bfd_nd_info_head, bfd_nd_info);
-RB_PROTOTYPE(bfd_nd_info_head, bfd_nd_info, entry, bfd_nd_info_compare);
-
-extern struct bfd_nd_info_head bfd_nd_info_tree;
-
 struct bfd_sr_endx_info {
 	RB_ENTRY(bfd_sr_endx_info) entry;
 	struct in6_addr sid;
@@ -506,7 +491,7 @@ struct bfd_vrf_global {
 	int bg_mhop6;
 	int bg_echo;
 	int bg_echov6;
-	int bg_sbfd;
+	//int bg_sbfd;
 	struct vrf *vrf;
 
 	struct thread *bg_ev[6];
@@ -937,9 +922,9 @@ void ptm_sbfd_sess_up(struct bfd_session *bfd);
 void sbfd_echo_state_handler(struct bfd_session *bs, int nstate);
 void sbfd_initiator_state_handler(struct bfd_session *bs, int nstate);
 
-struct bfd_nd_info *bfdd_neigh_tree_find(int ifindex, struct ipaddr *ipaddr);
-void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struct ethaddr *mac, uint32_t ndm_state);
-void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr);
+// struct bfd_nd_info *bfdd_neigh_tree_find(int ifindex, struct ipaddr *ipaddr);
+// void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struct ethaddr *mac, uint32_t ndm_state);
+// void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr);
 
 struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid);
 void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct ipaddr *nexthop);

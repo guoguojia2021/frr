@@ -910,7 +910,6 @@ extern struct zclient_options zclient_options_default;
 #define ZEBRA_NEIGH_STATE_PERMANENT (0x80)
 #define ZEBRA_NEIGH_STATE_NONE (0x00)
 
-#define ZEBRA_NEIGH_STATE_STALE     (0x04)
 struct zapi_neigh_ip {
 	int cmd;
 	struct ipaddr ip_in;
@@ -922,24 +921,6 @@ int zclient_neigh_ip_decode(struct stream *s, struct zapi_neigh_ip *api);
 int zclient_neigh_ip_encode(struct stream *s, uint16_t cmd, union sockunion *in,
 			    union sockunion *out, struct interface *ifp,
 			    int ndm_state);
-
-struct zapi_nd_info {
-	int cmd;
-	char ifname[INTERFACE_NAMSIZ];
-	int ifindex;
-	struct ipaddr ipaddr;
-	struct ethaddr mac;
-	uint32_t ndm_state;
-};
-
-int zclient_nd_info_encode(struct stream *s,
-			    int cmd,
-			    struct interface *ifp,
-			    struct ipaddr *ipaddr,
-			    struct ethaddr *mac,
-				int ndm_state);
-
-int zclient_nd_info_decode(struct stream *s, struct zapi_nd_info *api);
 
 struct zapi_loc_sid_info {
 	struct in6_addr sid;

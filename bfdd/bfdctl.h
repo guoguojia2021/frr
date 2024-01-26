@@ -42,7 +42,7 @@ struct sockaddr_any {
 };
 
 #ifndef MAXNAMELEN
-#define MAXNAMELEN 32
+#define MAXNAMELEN 128
 #endif
 #define MAXALIASNAMELEN 256
 

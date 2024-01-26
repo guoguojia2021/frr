@@ -275,7 +275,7 @@ struct srte_segment_list {
 #define F_SEGMENT_LIST_SID_CONFLICT 0x0010
 #define F_SEGMENT_LIST_WAIT_MYSID 0x0020
 #define F_SEGMENT_LIST_SET_DB 0x0040
-
+#define F_SEGMENT_LIST_BFD_ATTACH 0x0080
 };
 RB_HEAD(srte_segment_list_head, srte_segment_list);
 RB_PROTOTYPE(srte_segment_list_head, srte_segment_list, entry,
@@ -386,6 +386,9 @@ struct srte_candidate {
 
     /*path weight*/
 	uint32_t weight;
+
+	/*todo*/
+	//bond to bfd session
 };
 
 RB_HEAD(srte_candidate_head, srte_candidate);

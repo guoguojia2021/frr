@@ -1000,38 +1000,6 @@ void zsend_nhrp_neighbor_notify(int cmd, struct interface *ifp,
 	}
 }
 
-void zsend_bfdd_neighbor_notify(int cmd, struct interface *ifp,
-				struct ipaddr *ipaddr, struct ethaddr *mac, int ndm_state)
-{
-	struct stream *s;
-	struct listnode *node, *nnode;
-	struct zserv *client;
-
-	if (IS_ZEBRA_DEBUG_PACKET)
-		zlog_debug("%s: Notifying Neighbor entry (%u)", __func__, cmd);
-    
-	if (AF_UNSPEC == ipaddr_family(ipaddr))
-	{
-		return;
-	}
-
-	if (is_zero_mac(mac))
-	{
-		zlog_debug("%s: zero mac does not need to be handled.", __func__);
-		return;		
-	}
-
-	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
-		if (client->proto != ZEBRA_ROUTE_BFD)
-		    continue;
-
-		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
-		zclient_nd_info_encode(s, cmd, ifp, ipaddr, mac, ndm_state);
-		stream_putw_at(s, 0, stream_get_endp(s));
-		zserv_send_message(client, s);
-	}
-}
-
 void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, char *ifname, struct ipaddr *nexthop)
 {
 	struct stream *s;

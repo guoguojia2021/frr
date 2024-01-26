@@ -38,7 +38,6 @@ DEFINE_MTYPE_STATIC(BFDD, BFDD_PROFILE, "long-lived profile memory");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_SESSION_OBSERVER, "Session observer");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_VRF, "BFD VRF");
 DEFINE_MTYPE_STATIC(BFDD, SBFD_REFLECTOR, "SBFD REFLECTOR");
-DEFINE_MTYPE_STATIC(BFDD, BFD_ND, "SBFD BFD_ND");
 DEFINE_MTYPE_STATIC(BFDD, BFD_SRENDX, "SBFD SR END-X info");
 
 /*
@@ -387,9 +386,11 @@ int bfd_session_enable(struct bfd_session *bs)
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) 
 		|| CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
-		psock = bp_peer_raw_eth_socket(bs);
-		if (psock == -1)
+		psock = bp_peer_srh_socketv6(bs);
+		if (psock <= 0){
+			zlog_err("bp_peer_srh_socketv6 error");
 			return 0;
+		}
 	}
 	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_IPV6) == 0)
 	{
@@ -1232,6 +1233,18 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 			return l_bfd;
 		else
 			return NULL;
+	}
+	//do some basic check
+	if(bpc->bpc_sbfd &&  bpc->seg_num == 0){
+		//echo mode requires a valid list
+		if(bpc->bpc_echo){
+		    zlog_err("session-new: error, empty sidlist for echo mode.");
+		    return NULL;
+		}else if(bpc->bpc_ipv4){
+			//sbfd: only support ipv6 when sidlist empty
+			zlog_err("session-new: error, sbfd ipv4 dst not supported with empty sidlist.");
+		    return NULL;
+		}
 	}
 
 	/* Get BFD session storage with its defaults. */
@@ -2700,8 +2713,8 @@ static int bfd_vrf_enable(struct vrf *vrf)
 			bvrf->bg_echo = bp_echo_socket(vrf);
 		if (!bvrf->bg_echov6)
 			bvrf->bg_echov6 = bp_echov6_socket(vrf);
-		if (!bvrf->bg_sbfd)
-			bvrf->bg_sbfd = bp_sbfd_socket(vrf);
+		// if (!bvrf->bg_sbfd)
+		// 	bvrf->bg_sbfd = bp_sbfd_socket(vrf);
 
 		if (!bvrf->bg_ev[0] && bvrf->bg_shop != -1)
 			thread_add_read(master, bfd_recv_cb, bvrf,
@@ -2843,62 +2856,6 @@ void sbfd_reflector_flush()
 	sbfd_discr_iterate(_sbfd_reflector_free, NULL);
 	return;
 }
-
-struct bfd_nd_info *bfdd_neigh_tree_find(int ifindex, struct ipaddr *ipaddr)
-{
-	struct bfd_nd_info search;
-
-	search.ifindex = ifindex;
-	search.ipaddr = *ipaddr;
-	return RB_FIND(bfd_nd_info_head, &bfd_nd_info_tree, &search);
-}
-
-void bfdd_neigh_tree_add(int ifindex, char *ifname, struct ipaddr *ipaddr, struct ethaddr *mac, uint32_t ndm_state)
-{
-	struct bfd_nd_info *bni;
-
-	// first to find is exist or not
-	bni = bfdd_neigh_tree_find(ifindex, ipaddr);
-	if (bni)
-	    return;
-
-	bni = XCALLOC(MTYPE_BFD_ND, sizeof(*bni));
-	bni->ifindex = ifindex;
-	strncpy(bni->ifname, ifname, INTERFACE_NAMSIZ);
-
-	bni->ipaddr = *ipaddr;
-	bni->mac = *mac;
-	bni->ndm_state = ndm_state;
-
-	RB_INSERT(bfd_nd_info_head, &bfd_nd_info_tree, bni);
-
-}
-
-void bfdd_neigh_tree_del(int ifindex, struct ipaddr *ipaddr)
-{
-	struct bfd_nd_info *bni;
-
-	bni = bfdd_neigh_tree_find(ifindex, ipaddr);
-	if (!bni)
-	    return;
-
-	RB_REMOVE(bfd_nd_info_head, &bfd_nd_info_tree, bni);
-	XFREE(MTYPE_BFD_ND, bni);
-}
-
-static inline int bfd_nd_info_compare(const struct bfd_nd_info *a,
-					 const struct bfd_nd_info *b)
-{
-	if (a->ifindex != b->ifindex)
-	{
-        return a->ifindex - b->ifindex;
-	}
-	return ipaddr_cmp(&a->ipaddr, &b->ipaddr);
-
-}
-RB_GENERATE(bfd_nd_info_head, bfd_nd_info, entry, bfd_nd_info_compare)
-
-struct bfd_nd_info_head bfd_nd_info_tree = RB_INITIALIZER(&bfd_nd_info_tree);
 
 struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid)
 {

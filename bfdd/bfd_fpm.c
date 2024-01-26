@@ -921,6 +921,40 @@ static void bfd_oscilation_start_time_update(struct bfd_session *bfd)
 	}
 }
 
+void extract_segment_from_addr_list(char * segment, int max_size, struct in6_addr seg_list[], int seg_num)
+{
+	char tmp[64];
+	int i = 0;
+
+	if(NULL == segment){
+		return;
+	}
+
+	memset(segment, 0, max_size);
+
+	do
+	{
+		if(strlen(segment) >= max_size){
+			break;
+		}
+
+		if(i >= seg_num){
+			break;
+		}
+
+		if(i > 0){
+		    strcat(segment, ",");
+		}
+
+		memset(tmp, 0, 64);
+		inet_ntop(AF_INET6, &seg_list[i], tmp, 64);
+		strcat(segment, tmp);
+		i++;
+
+	}while(true);
+
+	return;
+}
 /*
  * bfd_peer_sendmsg - Format and send a peer register/Unregister
  *                    command to Zebra to be forwarded to BFD
@@ -1010,7 +1044,9 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		data->bpc_txinterval = htonl((uint32_t)bfd->echo_xmt_TO);
 		data->bpc_recvinterval = htonl((uint32_t)bfd->echo_detect_TO / bfd->detect_mult);
 		data->discrs.remote_discr = htonl(bfd->discrs.my_discr);
-        strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
+        
+		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
+		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 	}
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
@@ -1018,7 +1054,9 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		data->src_port = htons(BFD_DEFDESTPORT);
 		data->dest_port = htons(BFD_DEF_SBFD_DEST_PORT);
 		data->bpc_type = BPC_TYPE_SBFD_INIT;
-        strncpy(data->bpc_segment, bfd->key.seglist_name, MAXNAMELEN);
+
+		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
+		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 	}
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
