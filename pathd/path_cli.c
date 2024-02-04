@@ -337,7 +337,7 @@ DEFPY_NOSH (segment_routing_srv6,
     return CMD_SUCCESS;
 }
 
-DEFPY_NOSH (segment_routing_srv6_source_address,
+DEFPY_YANG_NOSH (segment_routing_srv6_source_address,
             segment_routing_srv6_source_address_cmd,
             "encapsulation source-address X:X::X:X$addrv6",
             "Encapsulation Segment Routing SRv6\n"
@@ -349,7 +349,7 @@ DEFPY_NOSH (segment_routing_srv6_source_address,
 }
 
 
-DEFPY_NOSH (no_segment_routing_srv6_source_address,
+DEFPY_YANG_NOSH (no_segment_routing_srv6_source_address,
             no_segment_routing_srv6_source_address_cmd,
             "no encapsulation source-address X:X::X:X",
 			NO_STR
@@ -364,7 +364,7 @@ DEFPY_NOSH (no_segment_routing_srv6_source_address,
 /*
  * XPath: /frr-pathd:pathd/srte/segment-list
  */
-DEFPY_NOSH(
+DEFPY_YANG_NOSH(
       srte_segment_list,
       srte_segment_list_cmd,
       "segment-list WORD$name",
@@ -397,7 +397,7 @@ DEFPY_NOSH(
 	return ret;
 }
 
-DEFPY(srte_no_segment_list,
+DEFPY_YANG(srte_no_segment_list,
       srte_no_segment_list_cmd,
       "no segment-list WORD$name",
       NO_STR
@@ -634,7 +634,7 @@ int segment_list_has_prefix(
  * XPath: /frr-pathd:pathd/srte/segment-list/segment
  */
 /* clang-format off */
-DEFPY(srte_segment_list_segment, srte_segment_list_segment_cmd,
+DEFPY_YANG(srte_segment_list_segment, srte_segment_list_segment_cmd,
       "index (0-4294967295)$index <[mpls$has_mpls_label label (16-1048575)$label] "
       "|"
       "[nai$has_nai <"
@@ -698,7 +698,7 @@ DEFPY(srte_segment_list_segment, srte_segment_list_segment_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srv6te_segment_list_segment, srv6te_segment_list_segment_cmd,
+DEFPY_YANG(srv6te_segment_list_segment, srv6te_segment_list_segment_cmd,
       "index (0-4294967295)$index ipv6-address  X:X::X:X$ipv6_addr",
       "Index\n"
       "Index Value\n"
@@ -715,7 +715,7 @@ DEFPY(srv6te_segment_list_segment, srv6te_segment_list_segment_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_segment_list_no_segment,
+DEFPY_YANG(srte_segment_list_no_segment,
       srte_segment_list_no_segment_cmd,
       "no index (0-4294967295)$index",
       NO_STR
@@ -730,7 +730,7 @@ DEFPY(srte_segment_list_no_segment,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srv6te_segment_list_lastsid, srv6te_segment_list_lastsid_cmd,
+DEFPY_YANG(srv6te_segment_list_lastsid, srv6te_segment_list_lastsid_cmd,
       "forwarding-ignore-last-sid X:X::X:X$ipv6_addr",
       "forwarding-ignore-last-sid\n"
       "IPv6 address\n")
@@ -739,7 +739,7 @@ DEFPY(srv6te_segment_list_lastsid, srv6te_segment_list_lastsid_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(no_srv6te_segment_list_lastsid, no_srv6te_segment_list_lastsid_cmd,
+DEFPY_YANG(no_srv6te_segment_list_lastsid, no_srv6te_segment_list_lastsid_cmd,
       "no forwarding-ignore-last-sid",
 	  NO_STR
       "forwarding-ignore-last-sid\n")
@@ -748,7 +748,7 @@ DEFPY(no_srv6te_segment_list_lastsid, no_srv6te_segment_list_lastsid_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srv6te_segment_list_first_sid, srv6te_segment_list_first_sid_cmd,
+DEFPY_YANG(srv6te_segment_list_first_sid, srv6te_segment_list_first_sid_cmd,
       "forwarding-ignore-first-sid X:X::X:X$ipv6_addr",
       "forwarding-ignore-first-sid\n"
       "IPv6 address\n")
@@ -757,7 +757,7 @@ DEFPY(srv6te_segment_list_first_sid, srv6te_segment_list_first_sid_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(no_srv6te_segment_list_first_sid, no_srv6te_segment_list_first_sid_cmd,
+DEFPY_YANG(no_srv6te_segment_list_first_sid, no_srv6te_segment_list_first_sid_cmd,
       "no forwarding-ignore-first-sid",
 	  NO_STR
       "forwarding-ignore-first-sid\n")
@@ -859,7 +859,7 @@ void cli_show_srte_segment_list_first_sid(struct vty *vty, struct lyd_node *dnod
 /*
  * XPath: /frr-pathd:pathd/policy
  */
-DEFPY_NOSH(
+DEFPY_YANG_NOSH(
 	srte_policy,
 	srte_policy_cmd,
 	"policy color (0-4294967295)$num endpoint <A.B.C.D|X:X::X:X>$endpoint",
@@ -885,7 +885,7 @@ DEFPY_NOSH(
 	return ret;
 }
 
-DEFPY(srte_no_policy,
+DEFPY_YANG(srte_no_policy,
       srte_no_policy_cmd,
       "no policy color (0-4294967295)$num endpoint <A.B.C.D|X:X::X:X>$endpoint",
       NO_STR
@@ -922,7 +922,7 @@ void cli_show_srte_policy_end(struct vty *vty, const struct lyd_node *dnode)
 /*
  * XPath: /frr-pathd:pathd/srte/policy/name
  */
-DEFPY(srte_policy_name,
+DEFPY_YANG(srte_policy_name,
       srte_policy_name_cmd,
       "name WORD$name",
       "Segment Routing Policy name\n"
@@ -933,7 +933,7 @@ DEFPY(srte_policy_name,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_policy_no_name,
+DEFPY_YANG(srte_policy_no_name,
       srte_policy_no_name_cmd,
       "no name [WORD]",
       NO_STR
@@ -955,7 +955,7 @@ void cli_show_srte_policy_name(struct vty *vty, const struct lyd_node *dnode,
 /*
  * XPath: /frr-pathd:pathd/srte/policy/binding-sid
  */
-DEFPY(srte_policy_binding_sid,
+DEFPY_YANG(srte_policy_binding_sid,
       srte_policy_binding_sid_cmd,
       "binding-sid (16-1048575)$label",
       "Segment Routing Policy Binding-SID\n"
@@ -966,7 +966,7 @@ DEFPY(srte_policy_binding_sid,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_policy_binding_v6_sid,
+DEFPY_YANG(srte_policy_binding_v6_sid,
       srte_policy_binding_v6_sid_cmd,
       "binding-sid X:X::X:X$v6_sid",
       "Segment Routing Policy Binding-SID\n"
@@ -977,7 +977,7 @@ DEFPY(srte_policy_binding_v6_sid,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_policy_no_binding_sid,
+DEFPY_YANG(srte_policy_no_binding_sid,
       srte_policy_no_binding_sid_cmd,
       "no binding-sid (16-1048575)",
       NO_STR
@@ -989,7 +989,7 @@ DEFPY(srte_policy_no_binding_sid,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_policy_no_binding_v6_sid,
+DEFPY_YANG(srte_policy_no_binding_v6_sid,
       srte_policy_no_binding_v6_sid_cmd,
       "no binding-sid [X:X::X:X$v6_sid]",
       NO_STR
@@ -1018,7 +1018,7 @@ void cli_show_srte_policy_binding_v6_sid(struct vty *vty,
 /*
  * XPath: /frr-pathd:pathd/srte/policy/candidate-path
  */
-DEFPY(srte_policy_candidate_exp,
+DEFPY_YANG(srte_policy_candidate_exp,
       srte_policy_candidate_exp_cmd,
       "candidate-path preference (0-4294967295)$preference name WORD$name \
 	 explicit segment-list WORD$list_name [weight$has_weight (1-4294967295)$weight_val]",
@@ -1058,7 +1058,7 @@ DEFPY(srte_policy_candidate_exp,
 				    preference_str, name);
 }
 
-DEFPY_NOSH(
+DEFPY_YANG_NOSH(
 	srte_policy_candidate_dyn,
 	srte_policy_candidate_dyn_cmd,
 	"candidate-path preference (0-4294967295)$preference name WORD$name dynamic",
@@ -1089,7 +1089,7 @@ DEFPY_NOSH(
 	return ret;
 }
 
-DEFPY(srte_candidate_bandwidth,
+DEFPY_YANG(srte_candidate_bandwidth,
       srte_candidate_bandwidth_cmd,
       "bandwidth BANDWIDTH$value [required$required]",
       "Define a bandwidth constraint\n"
@@ -1103,7 +1103,7 @@ DEFPY(srte_candidate_bandwidth,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_candidate_no_bandwidth,
+DEFPY_YANG(srte_candidate_no_bandwidth,
       srte_candidate_no_bandwidth_cmd,
       "no bandwidth [BANDWIDTH$value] [required$required]",
       NO_STR
@@ -1116,7 +1116,7 @@ DEFPY(srte_candidate_no_bandwidth,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_candidate_affinity_filter, srte_candidate_affinity_filter_cmd,
+DEFPY_YANG(srte_candidate_affinity_filter, srte_candidate_affinity_filter_cmd,
       "affinity <exclude-any|include-any|include-all>$type BITPATTERN$value",
       "Affinity constraint\n"
       "Exclude any matching link\n"
@@ -1140,7 +1140,7 @@ DEFPY(srte_candidate_affinity_filter, srte_candidate_affinity_filter_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_candidate_no_affinity_filter, srte_candidate_no_affinity_filter_cmd,
+DEFPY_YANG(srte_candidate_no_affinity_filter, srte_candidate_no_affinity_filter_cmd,
       "no affinity <exclude-any|include-any|include-all>$type [BITPATTERN$value]",
       NO_STR
       "Affinity constraint\n"
@@ -1156,7 +1156,7 @@ DEFPY(srte_candidate_no_affinity_filter, srte_candidate_no_affinity_filter_cmd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_candidate_metric,
+DEFPY_YANG(srte_candidate_metric,
       srte_candidate_metric_cmd,
       "metric [bound$bound] <igp|te|hc|abc|lmll|cigp|cte|pigp|pte|phc|msd|pd|pdv|pl|ppd|ppdv|ppl|nap|nlp|dc|bnc>$type METRIC$value [required$required]",
       "Define a metric constraint\n"
@@ -1200,7 +1200,7 @@ DEFPY(srte_candidate_metric,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_candidate_no_metric,
+DEFPY_YANG(srte_candidate_no_metric,
       srte_candidate_no_metric_cmd,
       "no metric [bound] <igp|te|hc|abc|lmll|cigp|cte|pigp|pte|phc|msd|pd|pdv|pl|ppd|ppdv|ppl|nap|nlp|dc|bnc>$type [METRIC$value] [required$required]",
       NO_STR
@@ -1237,7 +1237,7 @@ DEFPY(srte_candidate_no_metric,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_policy_no_candidate,
+DEFPY_YANG(srte_policy_no_candidate,
       srte_policy_no_candidate_cmd,
       "no candidate-path\
 	preference (0-4294967295)$preference\
@@ -1263,7 +1263,7 @@ DEFPY(srte_policy_no_candidate,
 				    preference_str, name);
 }
 
-DEFPY(srte_candidate_objfun,
+DEFPY_YANG(srte_candidate_objfun,
       srte_candidate_objfun_cmd,
       "objective-function <mcp|mlp|mbp|mbc|mll|mcc|spt|mct|mplp|mup|mrup|mtd|mbn|mctd|msl|mss|msn>$type [required$required]",
       "Define an objective function constraint\n"
@@ -1298,7 +1298,7 @@ DEFPY(srte_candidate_objfun,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(srte_candidate_no_objfun,
+DEFPY_YANG(srte_candidate_no_objfun,
       srte_candidate_no_objfun_cmd,
       "no objective-function [<mcp|mlp|mbp|mbc|mll|mcc|spt|mct|mplp|mup|mrup|mtd|mbn|mctd|msl|mss|msn>] [required$required]",
       NO_STR

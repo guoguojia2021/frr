@@ -941,10 +941,11 @@ extern int nb_candidate_validate(struct nb_context *context,
  *    - NB_ERR for other errors.
  */
 extern int nb_candidate_commit_prepare(struct nb_context *context,
-				       struct nb_config *candidate,
-				       const char *comment,
-				       struct nb_transaction **transaction,
-				       char *errmsg, size_t errmsg_len);
+						struct nb_config *candidate,
+						const char *comment,
+						struct nb_transaction **transaction,
+						bool skip_validate,
+						char *errmsg, size_t errmsg_len);
 
 /*
  * Abort a previously created configuration transaction, releasing all resources
