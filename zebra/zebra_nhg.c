@@ -4348,9 +4348,9 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 				nhe);
 			break;
 		case ZEBRA_DPLANE_REQUEST_SUCCESS:
-			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
-			zebra_nhg_seg_handle_install(nhe);
-			zebra_nhg_handle_install(nhe, false);
+			flog_err(EC_ZEBRA_DP_INVALID_RC,
+				 "DPlane returned an invalid result code for attempt of installation of %pNG into the kernel",
+				 nhe);
 			break;
 		}
 	}
