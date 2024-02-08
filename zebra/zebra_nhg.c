@@ -4473,7 +4473,8 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 		}
 
 		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
-		if (status == ZEBRA_DPLANE_REQUEST_SUCCESS) {
+		switch (status) {
+		case ZEBRA_DPLANE_REQUEST_SUCCESS:
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_VALID);
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
@@ -4488,18 +4489,28 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 				zsend_nhg_notify(nhe->type, nhe->zapi_instance,
 						 nhe->zapi_session, nhe->id,
 						 ZAPI_NHG_INSTALLED);
-		} else {
+			break;
+		case ZEBRA_DPLANE_REQUEST_FAILURE:
+			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
 			/* If daemon nhg, send it an update */
 			if (PROTO_OWNED(nhe))
 				zsend_nhg_notify(nhe->type, nhe->zapi_instance,
 						 nhe->zapi_session, nhe->id,
 						 ZAPI_NHG_FAIL_INSTALL);
 
-			flog_err(
-				EC_ZEBRA_DP_INSTALL_FAIL,
-				"Failed to install Nexthop ID (%pNG)into the kernel",
-				nhe);
+			if (!(zebra_nhg_proto_nexthops_only() &&
+			      !PROTO_OWNED(nhe)))
+				flog_err(
+					EC_ZEBRA_DP_INSTALL_FAIL,
+					"Failed to install Nexthop (%pNG) into the kernel",
+					nhe);
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
+			break;
+		case ZEBRA_DPLANE_REQUEST_QUEUED:
+			flog_err(EC_ZEBRA_DP_INVALID_RC,
+				 "Dplane returned an invalid result code for a result from the dplane for %pNG into the kernel",
+				 nhe);
+			break;
 		}
 		break;
 
