@@ -167,6 +167,14 @@ struct nhg_hash_entry {
 #define NEXTHOP_GROUP_BSID              (1 << 15)
 #define NEXTHOP_GROUP_COLOR_ONLY        (1 << 16)
 
+/*
+ * When an interface comes up install the
+ * singleton's and schedule the NHG's that
+ * are using this nhg to be reinstalled
+ * when installation is successful.
+ */
+#define NEXTHOP_GROUP_REINSTALL (1 << 17)
+
 };
 
 /* Upper 4 bits of the NHG are reserved for indicating the NHG type */

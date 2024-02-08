@@ -4243,9 +4243,10 @@ void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe)
 	if (nhe_resolve->pic_nhe)
 		zebra_nhg_install_kernel(nhe_resolve->pic_nhe);
 
-	if (CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_VALID)
-	    && !CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_INSTALLED)
-	    && !CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_QUEUED)) {
+	if (CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_VALID) &&
+	    (!CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_INSTALLED) ||
+	     CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_REINSTALL)) &&
+	    !CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_QUEUED)) {
 		/* Change its type to us since we are installing it */
 		if (!ZEBRA_NHG_CREATED(nhe_resolve))
 			nhe_resolve->type = ZEBRA_ROUTE_NHG;
@@ -4478,6 +4479,7 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 		}
 
 		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
+		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_REINSTALL);
 		switch (status) {
 		case ZEBRA_DPLANE_REQUEST_SUCCESS:
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
@@ -5027,12 +5029,11 @@ void zebra_interface_nhg_reinstall(struct interface *ifp)
 				       &rb_node_dep->nhe->nhg_dependents,
 				       rb_node_dependent) {
 				if (IS_ZEBRA_DEBUG_NHG)
-					zlog_debug(
-						"%s dependent nhe %pNG unset installed flag",
-						__func__,
-						rb_node_dependent->nhe);
-				UNSET_FLAG(rb_node_dependent->nhe->flags,
-					   NEXTHOP_GROUP_INSTALLED);
+					zlog_debug("%s dependent nhe %pNG Setting Reinstall flag",
+						   __func__,
+						   rb_node_dependent->nhe);
+				SET_FLAG(rb_node_dependent->nhe->flags,
+					 NEXTHOP_GROUP_REINSTALL);
 			}
 		}
 	}
