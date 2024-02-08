@@ -519,7 +519,6 @@ extern int if_linkdetect(struct interface *ifp, bool detect);
 extern void if_addr_wakeup(struct interface *ifp);
 
 /* Nexthop group connected functions */
-extern bool if_nhg_dependents_is_empty(const struct interface *ifp);
 
 extern void vrf_add_update(struct vrf *vrfp);
 extern void zebra_l2_map_slave_to_bond(struct zebra_if *zif, vrf_id_t vrf);
