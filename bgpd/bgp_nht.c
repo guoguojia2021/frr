@@ -481,7 +481,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		bnc->change_flags |= BGP_NEXTHOP_METRIC_CHANGED;
 
 	if (nhr->nexthop_num != bnc->nexthop_num) {
-		if (nhr->nexthop_num == 0 || bnc->nexthop_num == 0)
+		if (nhr->nexthop_num != 0 && bnc->nexthop_num != 0)
 			bnc->change_flags |= BGP_NEXTHOP_COUNT_UNCHANGED;
         bnc->change_flags |= BGP_NEXTHOP_CHANGED;
 	}
