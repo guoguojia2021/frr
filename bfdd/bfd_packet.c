@@ -197,31 +197,8 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
     seg_num = bfd->segnum;
 	if (seg_num > 0)
 	    segment_list = bfd->seg_list;
-	// else
-	//     return -1;
-
-	// endx_info = bfdd_sr_endx_tree_find(&segment_list[0]);
-	// if (!endx_info)
-	//     return -1;
-    
-	// when sidlist just has one sid and the sid is endx and bfd is ipv4 ,it's not support offload
-	// if (seg_num == 1 && bfd->key.family == AF_INET)
-	// {
-    //     SET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
-	// }
-	// else
-	// {
-    //     UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD);
-	// }
-	
 
 	sd = bfd->sock;
-
-    //for compacity test, ignore first node will delete later
-	// if (seg_num > 1){
-	// 	seg_num = seg_num -1;
-	//     segment_list++;
-	// }
 
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.local, 
 	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)

@@ -38,7 +38,6 @@ DEFINE_MTYPE_STATIC(BFDD, BFDD_PROFILE, "long-lived profile memory");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_SESSION_OBSERVER, "Session observer");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_VRF, "BFD VRF");
 DEFINE_MTYPE_STATIC(BFDD, SBFD_REFLECTOR, "SBFD REFLECTOR");
-DEFINE_MTYPE_STATIC(BFDD, BFD_SRENDX, "SBFD SR END-X info");
 
 /*
  * Prototypes
@@ -2856,52 +2855,6 @@ void sbfd_reflector_flush()
 	sbfd_discr_iterate(_sbfd_reflector_free, NULL);
 	return;
 }
-
-struct bfd_sr_endx_info *bfdd_sr_endx_tree_find(struct in6_addr *sid)
-{
-	struct bfd_sr_endx_info search;
-	memcpy(&search.sid, sid, sizeof(struct in6_addr));
-	return RB_FIND(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, &search);
-}
-
-void bfdd_sr_endx_tree_add(struct in6_addr *sid, char *ifname, struct ipaddr *nexthop)
-{
-	struct bfd_sr_endx_info *bi;
-
-	// first to find is exist or not
-	bi = bfdd_sr_endx_tree_find(sid);
-	if (bi)
-	    return;
-
-	bi = XCALLOC(MTYPE_BFD_SRENDX, sizeof(*bi));
-	strncpy(bi->ifname, ifname, INTERFACE_NAMSIZ);
-	memcpy(&bi->sid, sid, sizeof(struct in6_addr));
-	memcpy(&bi->nexthop, nexthop, sizeof(struct ipaddr));
-
-	RB_INSERT(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, bi);
-
-}
-
-void bfdd_sr_endx_tree_del(struct in6_addr *sid)
-{
-	struct bfd_sr_endx_info *bi;
-
-	bi = bfdd_sr_endx_tree_find(sid);
-	if (!bi)
-	    return;
-
-	RB_REMOVE(bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, bi);
-	XFREE(MTYPE_BFD_SRENDX, bi);
-}
-
-static inline int bfd_sr_endx_info_compare(const struct bfd_sr_endx_info *a,
-					 const struct bfd_sr_endx_info *b)
-{
-	return memcmp((void *)&a->sid, (void *)&b->sid, sizeof(a->sid));
-}
-RB_GENERATE(bfd_sr_endx_info_head, bfd_sr_endx_info, entry, bfd_sr_endx_info_compare)
-
-struct bfd_sr_endx_info_head bfd_sr_endx_info_tree = RB_INITIALIZER(&bfd_sr_endx_info_tree);
 
 struct bfd_session_name_match_unique {
 	char *bfd_name;

@@ -992,52 +992,6 @@ static int bfdd_interface_address_update(ZAPI_CALLBACK_ARGS)
 	return 0;
 }
 
-static void bfdd_srv6_endx_info_update(struct zapi_loc_sid_info *lsinfo)
-{
-	struct bfd_sr_endx_info *bi;
-	bi = bfdd_sr_endx_tree_find(&lsinfo->sid);
-
-	if (bi)
-	{
-		strncpy(bi->ifname, lsinfo->ifname, INTERFACE_NAMSIZ);
-		bi->nexthop = lsinfo->nexthop;
-	}
-	else
-	{
-		bfdd_sr_endx_tree_add(&lsinfo->sid, lsinfo->ifname, &lsinfo->nexthop);
-	}    
-	
-}
-
-static void bfdd_srv6_endx_info_delete(struct zapi_loc_sid_info *lsinfo)
-{
-    bfdd_sr_endx_tree_del(&lsinfo->sid);
-}
-
-static void bfdd_srv6_endx_handle(ZAPI_CALLBACK_ARGS)
-{
-	struct stream *msg = zclient->ibuf;
-
-	struct zapi_loc_sid_info lsapi = {0};
-    if (zclient_loc_sid_info_decode(msg, &lsapi) == -1)
-	    return;
-
-	switch (cmd) {
-	case ZEBRA_SRV6_ENDX_SID_ADD:
-	    bfdd_srv6_endx_info_update(&lsapi);
-		break;
-	case ZEBRA_SRV6_ENDX_SID_DEL:
-		bfdd_srv6_endx_info_delete(&lsapi);
-		break;
-	default:
-		if (bglobal.debug_zebra)
-			zlog_debug("%s invalid message type %u", __func__, cmd);
-	}
-
-	return;
-
-}
-
 static int bfd_ifp_create(struct interface *ifp)
 {
 	if (bglobal.debug_zebra)
@@ -1063,8 +1017,6 @@ static zclient_handler *const bfd_handlers[] = {
 	[ZEBRA_INTERFACE_ADDRESS_ADD] = bfdd_interface_address_update,
 	[ZEBRA_INTERFACE_ADDRESS_DELETE] = bfdd_interface_address_update,
 
-	[ZEBRA_SRV6_ENDX_SID_ADD] = bfdd_srv6_endx_handle,
-	[ZEBRA_SRV6_ENDX_SID_DEL] = bfdd_srv6_endx_handle,
 };
 
 void bfdd_zclient_init(struct zebra_privs_t *bfdd_priv)

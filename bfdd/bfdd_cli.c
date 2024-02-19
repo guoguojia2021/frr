@@ -848,48 +848,6 @@ DEFPY(
 	return CMD_SUCCESS;
 }
 
-
-DEFPY(
-	bfd_sr_endx_info_show, bfd_sr_endx_info_show_cmd,
-	"show bfd sr endx infos",
-	"show\n"
-    "BFD\n"
-	"segment routing\n"
-	"END-X\n"
-    "info\n")
-{
-	struct ttable *tt;
-	char *out;
-	struct bfd_sr_endx_info *bi, *safe_entry;
-	int count = 0;
-
-	vty_out(vty, "BFD SR ENDX infos :\n");
-	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-	ttable_add_row(tt, "SID|INTERFACE|NEXTHOP");
-	ttable_rowseps(tt, 0, BOTTOM, true, '-');
-
-	RB_FOREACH_SAFE (bi, bfd_sr_endx_info_head, &bfd_sr_endx_info_tree, safe_entry)
-	{
-	    char buf1[INET6_ADDRSTRLEN];
-		char buf2[INET6_ADDRSTRLEN];
-
-    	ttable_add_row(tt, "%s|%s|%s",
-	                inet_ntop(AF_INET6, &bi->sid, buf1, sizeof(buf1)), 
-					bi->ifname,
-					ipaddr2str(&bi->nexthop, buf2, sizeof(buf2)));
-
-		count++;
-	}
-
-	out = ttable_dump(tt, "\n");
-	vty_out(vty, "%s", out);
-	vty_out(vty, " Total number : %d\n", count);
-	XFREE(MTYPE_TMP, out);
-	ttable_del(tt);
-
-	return CMD_SUCCESS;
-}
-
 void bfd_cli_peer_profile_show(struct vty *vty, const struct lyd_node *dnode,
 			       bool show_defaults)
 {
@@ -931,7 +889,6 @@ bfdd_cli_init(void)
 	install_element(BFD_NODE, &no_sbfd_reflector_all_cmd);
 	install_element(BFD_NODE, &no_sbfd_reflector_cmd);
     install_element(VIEW_NODE, &sbfd_reflector_show_info_cmd);
-	install_element(VIEW_NODE, &bfd_sr_endx_info_show_cmd);
 	
 	install_element(BFD_PEER_NODE, &bfd_peer_shutdown_cmd);
 	install_element(BFD_PEER_NODE, &bfd_peer_mult_cmd);
