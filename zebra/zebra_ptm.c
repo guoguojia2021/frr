@@ -43,7 +43,6 @@
 #include "zebra/zebra_ptm_redistribute.h"
 #include "zebra/zebra_router.h"
 #include "zebra_vrf.h"
-#include "zebra/zebra_srv6.h"
 
 /*
  * Choose the BFD implementation that we'll use.
@@ -1546,8 +1545,6 @@ void zebra_ptm_bfd_dst_replay(ZAPI_HANDLER_ARGS)
 	} else
 	{
         zclient_create_header(msgc, cmd, zvrf_id(zvrf));
-		/* when bfdd connected, push end-x*/
-		zebra_srv6_push_endx();
 	}
 		
 
