@@ -2268,19 +2268,44 @@ DEFUNSH(VTYSH_BFDD, bfd_enter, bfd_enter_cmd, "bfd", "Configure BFD peers\n")
 	return CMD_SUCCESS;
 }
 
+
 DEFUNSH(VTYSH_BFDD, bfd_peer_enter, bfd_peer_enter_cmd,
-	"peer <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname [{multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME|vrf NAME}]",
-	"Configure peer\n"
-	"IPv4 peer address\n"
-	"IPv6 peer address\n"
+	"bfd-name BFDNAME$bfdname bfd-mode bfd peer <A.B.C.D|X:X::X:X> [{multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME|vrf NAME}]",
 	"Specify bfd session name\n"
 	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"bfd mode\n"
+	"Configure peer\n"
+	"IPv4 local address\n"
+	"IPv6 local address\n"
 	"Configure multihop\n"
 	"Configure local address\n"
 	"IPv4 local address\n"
 	"IPv6 local address\n"
 	INTERFACE_STR
 	"Configure interface name to use\n"
+	"Configure VRF\n"
+	"Configure VRF name\n")	
+{
+	vty->node = BFD_PEER_NODE;
+	return CMD_SUCCESS;
+}
+
+DEFUNSH(VTYSH_BFDD, sbfd_peer_enter, sbfd_peer_enter_cmd,
+	"bfd-name BFDNAME$bfdname bfd-mode <sbfd-echo|sbfd-init> local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X [{peer <A.B.C.D|X:X::X:X>|vrf NAME}]",
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"sbfd-echo mode\n"
+	"sbfd-init mode\n"
+	"Configure local\n"
+	"IPv4 local address\n"
+	"IPv6 local address\n"
+	"Configure segment list\n"
+	"IPv6 local address\n"
+	"Configure peer address\n"
+	"IPv4 peer address\n"
+	"IPv6 peer address\n"
 	"Configure VRF\n"
 	"Configure VRF name\n")
 {
@@ -4389,6 +4414,7 @@ void vtysh_init_vty(void)
 
 	install_node(&bfd_peer_node);
 	install_element(BFD_NODE, &bfd_peer_enter_cmd);
+	install_element(BFD_NODE, &sbfd_peer_enter_cmd);
 	install_element(BFD_PEER_NODE, &vtysh_exit_bfdd_cmd);
 	install_element(BFD_PEER_NODE, &vtysh_quit_bfdd_cmd);
 	install_element(BFD_PEER_NODE, &vtysh_end_all_cmd);

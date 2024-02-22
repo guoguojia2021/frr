@@ -286,6 +286,7 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 
 	stream_putc(msg, strlen(bs->bfd_name));
 	stream_put(msg, bs->bfd_name, strlen(bs->bfd_name));
+	stream_putl(msg, bs->bfd_mode);
 
 	/*support sbfd , add color and sidlist name*/
 	stream_putl(msg, bs->key.srte_color);

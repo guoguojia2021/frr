@@ -1047,6 +1047,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
         
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
+
 	}
 
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))

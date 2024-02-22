@@ -551,6 +551,7 @@ extern bool bfd_protocol_integration_shutting_down(void);
 extern void bfd_name_register(struct bfd_session_params *bsp) ;
 
 DECLARE_HOOK(bfd_state_change_hook, (char *bfd_name, int state,int remote_cbit),(bfd_name, state, remote_cbit));
+DECLARE_HOOK(sbfd_state_change_hook, (char *bfd_name, int state,int remote_cbit),(bfd_name, state));
 
 #ifdef __cplusplus
 }

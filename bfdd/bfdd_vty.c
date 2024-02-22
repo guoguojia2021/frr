@@ -74,6 +74,22 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *vrfname);
 
 
+const char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
+    switch (mode) {
+        case BFD_MODE_TYPE_NONE:
+            return "None";
+        case BFD_MODE_TYPE_BFD:
+            return "BFD";
+        case BFD_MODE_TYPE_SBFD_ECHO:
+            return "SBFD-ECHO";
+        case BFD_MODE_TYPE_SBFD_INIT:
+            return "SBFD-INIT";
+        default:
+            return "Unknown";
+    }
+}
+
+
 /*
  * Show commands helper functions
  */
@@ -90,13 +106,16 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 		vty_out(vty, " bfd-name %s", bs->bfd_name);
 	}
 
+	vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
+
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		vty_out(vty, " multihop");
 
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
 	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
-		vty_out(vty, " (endpoint %s color %u sidlist %s)", 
-		    addr_buf, bs->key.srte_color, bs->key.seglist_name);
+       	vty_out(vty, " segment-list %s",
+			inet_ntop(bs->key.family, &bs->key.segment_list, addr_buf,
+				  sizeof(addr_buf)));
 
 	if (memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
 		vty_out(vty, " local-address %s",

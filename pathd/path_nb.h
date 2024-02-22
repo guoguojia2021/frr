@@ -125,6 +125,8 @@ int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args);
 int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args);
 
 int pathd_srte_policy_candidate_path_weight_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_candidate_path_bfd_name_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args);
 
 int pathd_srte_encap_source_address_modify(struct nb_cb_modify_args *args);
 int pathd_srte_encap_source_address_destroy(struct nb_cb_destroy_args *args);

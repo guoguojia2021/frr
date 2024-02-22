@@ -25,6 +25,7 @@
 #include "lib/srte.h"
 #include "lib/hook.h"
 #include "lib/prefix.h"
+#include "lib/bfd.h"
 
 #define PATH_SID_ERROR 1
 #define PATH_SID_NO_ERROR 0
@@ -387,8 +388,9 @@ struct srte_candidate {
     /*path weight*/
 	uint32_t weight;
 
-	/*todo*/
-	//bond to bfd session
+	/* bfd name*/
+	char bfd_name[BFD_NAME_SIZE + 1];
+	struct bfd_session_status bfd_status;
 };
 
 RB_HEAD(srte_candidate_head, srte_candidate);

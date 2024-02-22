@@ -209,10 +209,13 @@ void bfd_session_apply(struct bfd_session *bs)
 	}
 
 	/* Toggle 'passive-mode' if default value. */
-	if (bs->peer_profile.passive == false)
-		bfd_set_passive_mode(bs, bp->passive);
-	else
-		bfd_set_passive_mode(bs, bs->peer_profile.passive);
+	if (bs->bfd_mode == BFD_MODE_TYPE_BFD)
+	{
+		if (bs->peer_profile.passive == false)
+			bfd_set_passive_mode(bs, bp->passive);
+		else
+			bfd_set_passive_mode(bs, bs->peer_profile.passive);
+	}
 
 	/* Toggle 'no shutdown' if default value. */
 	if (bs->peer_profile.admin_shutdown == false)
@@ -264,8 +267,66 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 	}
 
 	key->mhop = mhop;
+	key->bfd_mode = BFD_MODE_TYPE_BFD;
 	if (ifname && ifname[0])
 		strlcpy(key->ifname, ifname, sizeof(key->ifname));
+	if (vrfname && vrfname[0] && strcmp(vrfname, VRF_DEFAULT_NAME) != 0)
+	{
+		vrf = vrf_lookup_by_name(vrfname);
+		if (vrf)
+		{
+			strlcpy(key->vrfname, vrf->name, sizeof(key->vrfname));
+			strlcpy(key->vrfaliasname, vrf->aliasName, sizeof(key->vrfaliasname));
+		}
+		else
+		{
+            strlcpy(key->vrfname, vrfname, sizeof(key->vrfname));
+			strlcpy(key->vrfaliasname, vrfname, sizeof(key->vrfaliasname));
+		}
+	}
+	else
+	{
+		strlcpy(key->vrfname, VRF_DEFAULT_NAME, sizeof(key->vrfname));
+		strlcpy(key->vrfaliasname, VRF_DEFAULT_NAME, sizeof(key->vrfaliasname));
+	}
+
+}
+
+void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
+		 struct sockaddr_any *local, struct sockaddr_any *slist, bool mhop, const char *ifname,
+		 const char *vrfname, uint32_t bfd_mode)
+{
+	memset(key, 0, sizeof(*key));
+    struct vrf *vrf = NULL;
+
+	switch (local->sa_sin.sin_family) {
+	case AF_INET:
+		key->family = AF_INET;
+		memcpy(&key->peer, &peer->sa_sin.sin_addr,
+		       sizeof(peer->sa_sin.sin_addr));
+		memcpy(&key->local, &local->sa_sin.sin_addr,
+		       sizeof(local->sa_sin.sin_addr));
+		break;
+	case AF_INET6:
+		key->family = AF_INET6;
+		memcpy(&key->peer, &peer->sa_sin6.sin6_addr,
+		       sizeof(peer->sa_sin6.sin6_addr));
+		memcpy(&key->local, &local->sa_sin6.sin6_addr,
+		       sizeof(local->sa_sin6.sin6_addr));
+		break;
+	}
+
+	memcpy(&key->segment_list, &slist->sa_sin6.sin6_addr,
+		       sizeof(slist->sa_sin6.sin6_addr));
+
+	key->mhop = mhop;
+	key->bfd_mode = bfd_mode;
+
+	if (ifname && ifname[0])
+    {
+		strlcpy(key->ifname, ifname, sizeof(key->ifname));
+	}
+			
 	if (vrfname && vrfname[0] && strcmp(vrfname, VRF_DEFAULT_NAME) != 0)
 	{
 		vrf = vrf_lookup_by_name(vrfname);
@@ -2527,6 +2588,7 @@ void bfd_shutdown(void)
 struct bfd_session_iterator {
 	int bsi_stop;
 	bool bsi_mhop;
+	uint32_t bsi_bfdmode;
 	const struct bfd_session *bsi_bs;
 };
 
@@ -2538,7 +2600,7 @@ static int _bfd_session_next(struct hash_bucket *hb, void *arg)
 	/* Previous entry signaled stop. */
 	if (bsi->bsi_stop == 1) {
 		/* Match the single/multi hop sessions. */
-		if (bs->key.mhop != bsi->bsi_mhop)
+		if ((bs->key.mhop != bsi->bsi_mhop) && (bs->key.bfd_mode != bsi->bsi_bfdmode))
 			return HASHWALK_CONTINUE;
 
 		bsi->bsi_bs = bs;
@@ -2550,7 +2612,7 @@ static int _bfd_session_next(struct hash_bucket *hb, void *arg)
 		bsi->bsi_stop = 1;
 		/* Set entry to NULL to signal end of list. */
 		bsi->bsi_bs = NULL;
-	} else if (bsi->bsi_bs == NULL && bsi->bsi_mhop == bs->key.mhop) {
+	} else if (bsi->bsi_bs == NULL && bsi->bsi_mhop == bs->key.mhop && bsi->bsi_bfdmode == bs->key.bfd_mode) {
 		/* We want the first list item. */
 		bsi->bsi_stop = 1;
 		bsi->bsi_bs = hb->data;
@@ -2566,13 +2628,14 @@ static int _bfd_session_next(struct hash_bucket *hb, void *arg)
  * `bs` might point to NULL to get the first item of the data structure.
  */
 const struct bfd_session *bfd_session_next(const struct bfd_session *bs,
-					   bool mhop)
+					   bool mhop, uint32_t bfd_mode)
 {
 	struct bfd_session_iterator bsi;
 
 	bsi.bsi_stop = 0;
 	bsi.bsi_bs = bs;
 	bsi.bsi_mhop = mhop;
+	bsi.bsi_bfdmode = bfd_mode;
 	hash_walk(bfd_key_hash, _bfd_session_next, &bsi);
 	if (bsi.bsi_stop == 0)
 		return NULL;

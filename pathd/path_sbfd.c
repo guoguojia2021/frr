@@ -1058,6 +1058,117 @@ void policy_sbfd_enabled(struct srte_policy *policy)
              (void *)policy, SBFD_FIRST_TIMEOUT, &policy->wait_sbfd_timer);
 }
 
+static int policy_sbfd_state_change(char *bfd_name, int state)
+{
+	struct srte_candidate_group *cpath_group, *safe_cg;
+	struct srte_candidate *candidate, *safe_cpath;
+	struct srte_policy *policy, *safe_policy;
+	uint32_t cpath_up_count = 0;
+	uint32_t policy_up_count = 0;
+	enum srte_policy_status old_status;
+	enum srte_policy_status new_status;
+
+	RB_FOREACH_SAFE (policy, srte_policy_head, &srte_policies, safe_policy) 
+	{
+		policy_up_count = 0;
+		old_status = policy->status;
+		RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
+		{
+			cpath_up_count = 0;
+			RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
+			{
+				if ((strcmp(bfd_name,candidate->bfd_name) != 0) || (!candidate->bfd_name[0]))
+					continue;
+				if (candidate->bfd_status.state == state)
+					continue;
+
+				candidate->bfd_status.previous_state = candidate->bfd_status.state;
+				candidate->bfd_status.state = state;
+
+				zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.",
+					__func__, candidate->preference, candidate->name,
+					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
+					candidate->status);
+
+				if (candidate->bfd_status.state == BFD_STATUS_UP) 
+				{
+					cpath_status_refresh(candidate, SRTE_DETECT_UP);
+				}
+				else 
+				{
+					cpath_status_refresh(candidate, SRTE_DETECT_DOWN);
+				}
+
+				zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.",
+					__func__, candidate->preference, candidate->name,
+					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
+					candidate->status);
+				if (candidate->status == SRTE_DETECT_UP)
+				{
+					cpath_up_count++;
+				}
+
+			}
+			if (cpath_up_count > 0)
+			{
+				cpath_group->status = SRTE_DETECT_UP;
+				cpath_group->up_cpath_num = cpath_up_count;
+				policy_up_count ++;
+			}
+			else
+			{
+				cpath_group->status = SRTE_DETECT_DOWN;
+				cpath_group->up_cpath_num = 0;
+			}
+		}
+		if (policy_up_count > 0)
+		{
+			policy->status = SRTE_POLICY_STATUS_UP;
+			policy->up_cpath_group_num = policy_up_count;
+		}
+		else
+		{
+			policy->status = SRTE_POLICY_STATUS_DOWN;
+			policy->up_cpath_group_num = 0;
+		}
+
+		new_status = policy->status;
+		if ((state == BFD_STATUS_DOWN) && (state == BFD_STATUS_ADMIN_DOWN))
+		{
+			if (old_status == SRTE_POLICY_STATUS_UP && new_status == SRTE_POLICY_STATUS_DOWN)
+			{
+				/* policy up -> down*/
+				srv6_choose_best_cpath_group(policy);
+				return 0;
+			}
+			
+			if (new_status == SRTE_POLICY_STATUS_UP)
+			{
+				/*policy update*/
+				srv6_choose_best_cpath_group(policy);
+				return 0;
+			}
+		}
+		else if (state == BFD_STATUS_UP)
+		{
+			if (new_status == SRTE_POLICY_STATUS_UP)
+			{
+				/*policy update*/
+				SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
+				srv6_choose_best_cpath_group(policy);
+				return 0;
+			}
+		}
+		else
+		{
+			zlog_warn("receive unexpected sbfd state");
+		}
+
+	}
+	
+	return 0;
+}
+
 void sr_sbfd_init()
 {
 	hook_register(pathd_candidate_removed, sbfd_pathd_candidate_removed_handler);
@@ -1067,6 +1178,7 @@ void sr_sbfd_init()
 
 	/* Initialize PATHD client functions */
 	bfd_protocol_integration_init(zclient, master);
+	hook_register(sbfd_state_change_hook, policy_sbfd_state_change);
 
     /*sbfd commands*/
     install_element(SR_POLICY_NODE, &seamless_bfd_init_enable_cmd);

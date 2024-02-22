@@ -200,6 +200,12 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 
 	sd = bfd->sock;
 
+	char local[INET6_ADDRSTRLEN];
+	char segmlist[INET6_ADDRSTRLEN];
+	inet_ntop(AF_INET6, &bfd->key.local, local, sizeof(local));
+	inet_ntop(AF_INET6,  &bfd->key.segment_list, segmlist, sizeof(segmlist));
+	zlog_debug("sbfd initiator send ,sd:%d, seg_num %d , local %s, sidlist is %s, family:%d.",sd, seg_num, local, segmlist,bfd->key.family);
+
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.local, 
 	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
 	{

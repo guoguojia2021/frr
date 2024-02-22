@@ -205,6 +205,20 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/single-hop/bfd-mode",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_bfd_mode_modify,
+				.destroy = bfdd_bfd_sessions_bfd_mode_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/single-hop/segment-list",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_segment_list_modify,
+				.destroy = bfdd_bfd_sessions_segment_list_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/single-hop/desired-echo-transmission-interval",
 			.cbs = {
 				.modify = bfdd_bfd_sessions_single_hop_desired_echo_transmission_interval_modify,
@@ -401,6 +415,20 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/bfd-mode",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_bfd_mode_modify,
+				.destroy = bfdd_bfd_sessions_bfd_mode_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/segment-list",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_segment_list_modify,
+				.destroy = bfdd_bfd_sessions_segment_list_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/minimum-ttl",
 			.cbs = {
 				.modify = bfdd_bfd_sessions_multi_hop_minimum_ttl_modify,
@@ -524,6 +552,210 @@ const struct frr_yang_module_info frr_bfdd_info = {
 		},
 		{
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/stats/echo-packet-output-count",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_echo_packet_output_count_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo",
+			.cbs = {
+				.create = bfdd_bfd_sessions_srte_sbfd_echo_create,
+				.destroy = bfdd_bfd_sessions_srte_sbfd_echo_destroy,
+				.get_next = bfdd_bfd_sessions_srte_sbfd_echo_get_next,
+				.get_keys = bfdd_bfd_sessions_srte_sbfd_echo_get_keys,
+				.lookup_entry = bfdd_bfd_sessions_srte_sbfd_echo_lookup_entry,
+				.cli_show = bfd_cli_show_multi_hop_peer, /* TODO */
+				.cli_show_end = bfd_cli_show_peer_end, /* TODO */
+			}
+		},
+        {
+            .xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/profile",
+            .cbs = {
+                .modify = bfdd_bfd_sessions_single_hop_profile_modify,
+                .destroy = bfdd_bfd_sessions_single_hop_profile_destroy,
+				.cli_show = bfd_cli_peer_profile_show,
+            }
+        },
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/detection-multiplier",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_single_hop_detection_multiplier_modify,
+				.cli_show = bfd_cli_show_mult,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/desired-transmission-interval",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_single_hop_desired_transmission_interval_modify,
+				.cli_show = bfd_cli_show_tx,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/required-receive-interval",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_single_hop_required_receive_interval_modify,
+				.cli_show = bfd_cli_show_rx,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/administrative-down",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_single_hop_administrative_down_modify,
+				.cli_show = bfd_cli_show_shutdown,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/passive-mode",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_single_hop_passive_mode_modify,
+				.cli_show = bfd_cli_show_passive,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/bfd-name",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_bfd_name_modify,
+				.destroy = dummy_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/bfd-mode",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_bfd_mode_modify,
+				.destroy = bfdd_bfd_sessions_bfd_mode_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/segment-list",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_segment_list_modify,
+				.destroy = bfdd_bfd_sessions_segment_list_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/minimum-ttl",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_multi_hop_minimum_ttl_modify,
+				.destroy = bfdd_bfd_sessions_multi_hop_minimum_ttl_destroy,
+				.cli_show = bfd_cli_show_minimum_ttl,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/local-discriminator",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_local_discriminator_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/local-state",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_local_state_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/local-diagnostic",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_local_diagnostic_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/local-multiplier",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_local_multiplier_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/remote-discriminator",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_remote_discriminator_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/remote-state",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_remote_state_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/remote-diagnostic",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_remote_diagnostic_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/remote-multiplier",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_remote_multiplier_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/negotiated-transmission-interval",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_negotiated_transmission_interval_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/negotiated-receive-interval",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_negotiated_receive_interval_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/detection-mode",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_detection_mode_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/last-down-time",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_last_down_time_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/last-up-time",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_last_up_time_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/session-down-count",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_session_down_count_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/session-up-count",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_session_up_count_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/control-packet-input-count",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_control_packet_input_count_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/control-packet-output-count",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_control_packet_output_count_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/negotiated-echo-transmission-interval",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_negotiated_echo_transmission_interval_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/echo-packet-input-count",
+			.cbs = {
+				.get_elem = bfdd_bfd_sessions_single_hop_stats_echo_packet_input_count_get_elem,
+			}
+		},
+		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/echo-packet-output-count",
 			.cbs = {
 				.get_elem = bfdd_bfd_sessions_single_hop_stats_echo_packet_output_count_get_elem,
 			}

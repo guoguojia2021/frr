@@ -431,6 +431,11 @@ module frr-bfdd {
             description "Bfd session name.";
           }
 
+          leaf bfd-mode {
+            type uint32;
+            description "Bfd session mode.";           
+          }
+
           uses session-common;
           uses session-echo;
 
@@ -468,6 +473,55 @@ module frr-bfdd {
             type string;
             default "";
             description "Bfd session name.";
+          }
+
+          leaf bfd-mode {
+            type uint32;
+            description "Bfd session mode.";           
+          }
+
+          uses session-common;
+          uses session-multi-hop;
+
+          container stats {
+            uses session-states;
+            config false;
+          }
+        }
+
+        list srte-sbfd-echo {
+          key "source-addr segment-list vrf";
+          description "List of srte sbfd echo sessions";
+
+          leaf source-addr {
+            type inet:ip-address;
+            description "Local IP address";
+          }
+
+          leaf segment-list {
+            type inet:ip-address;
+            description "segment list of sbfd session";
+          }
+
+          leaf vrf {
+            type frr-vrf:vrf-ref;
+            description "Virtual Routing Domain name";
+          }
+
+          leaf profile {
+            type profile-ref;
+            description "Override defaults with profile.";
+          }
+
+          leaf bfd-name {
+            type string;
+            default "";
+            description "Bfd session name.";           
+          }
+
+          leaf bfd-mode {
+            type uint32;
+            description "Bfd session mode.";           
           }
 
           uses session-common;

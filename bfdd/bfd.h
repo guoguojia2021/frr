@@ -181,6 +181,13 @@ enum bfd_session_flags {
     BFD_SESS_FLAG_UNSUPPORT_OFFLOAD = 1 << 15,  /* unsupport offload flag*/
 };
 
+enum bfd_mode_type {
+	BFD_MODE_TYPE_NONE = 0,
+	BFD_MODE_TYPE_BFD = 1,
+	BFD_MODE_TYPE_SBFD_ECHO = 2,
+	BFD_MODE_TYPE_SBFD_INIT = 3,
+};
+
 /*
  * BFD session hash key.
  *
@@ -198,10 +205,12 @@ struct bfd_key {
 	uint16_t mhop;
 	struct in6_addr peer;
 	struct in6_addr local;
+	struct in6_addr segment_list;
 	char ifname[MAXNAMELEN];
 	char vrfname[MAXNAMELEN];
 	char vrfaliasname[MAXALIASNAMELEN];
 	uint32_t srte_color;
+	uint32_t bfd_mode;
     char seglist_name[MAXNAMELEN];
 } __attribute__((packed));
 
@@ -333,6 +342,7 @@ struct bfd_session {
 	uint16_t hw_det_count;  /*hardware detect maybe fault counts*/
 	uint16_t hw_det_repot;  /*hardware detect fault report flag*/
  
+ 	uint32_t bfd_mode;
 	uint8_t segnum;
 	struct in6_addr seg_list[0];
 };
@@ -672,6 +682,9 @@ void bs_to_bpc(struct bfd_session *bs, struct bfd_peer_cfg *bpc);
 void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname);
+void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
+		 struct sockaddr_any *local, struct sockaddr_any *slist, bool mhop, const char *ifname,
+		 const char *vrfname, uint32_t bfd_mode);
 
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
@@ -682,7 +695,7 @@ struct bfd_session *bfd_common_session_new(uint8_t);
 struct bfd_session *bs_registrate(struct bfd_session *bs);
 void bfd_session_free(struct bfd_session *bs);
 const struct bfd_session *bfd_session_next(const struct bfd_session *bs,
-					   bool mhop);
+					   bool mhop, uint32_t bfd_mode);
 void bfd_sessions_remove_manual(void);
 void bfd_profiles_remove(void);
 

@@ -1029,6 +1029,63 @@ int pathd_srte_policy_candidate_path_segment_list_name_destroy(
 	return NB_OK;
 }
 
+static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
+{
+	struct srte_candidate *candidate = NULL;
+	struct bfd_session_params bsp;
+	memset(&bsp, 0, sizeof(struct bfd_session_params));
+	candidate = nb_running_get_entry(args->dnode, NULL, true);
+	strlcpy(candidate->bfd_name, yang_dnode_get_string(args->dnode, NULL), BFD_NAME_SIZE);
+	strlcpy(bsp.args.bfd_name,candidate->bfd_name, BFD_NAME_SIZE);
+	bfd_name_register(&bsp);
+	return NB_OK;
+}
+
+static int candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args)
+{
+	struct srte_candidate *candidate = NULL;
+
+	candidate = nb_running_unset_entry(args->dnode);
+	candidate->bfd_name[0] = 0;
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-pathd:pathd/srte/policy/candidate-path/bfd-name
+ */
+int pathd_srte_policy_candidate_path_bfd_name_modify(
+	struct nb_cb_modify_args *args)
+{
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		if (candidate_path_bfd_name_modify(args) != NB_OK)
+			return NB_ERR;
+
+		break;
+	}
+	return NB_OK;
+}
+
+int pathd_srte_policy_candidate_path_bfd_name_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	switch (args->event) {
+	case NB_EV_VALIDATE:
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		if (candidate_path_bfd_name_destroy(args) != NB_OK)
+			return NB_ERR;
+		break;
+	}
+	return NB_OK;
+}
+
 /*
  * XPath: /frr-pathd:pathd/srte/policy/candidate-path/constraints/bandwidth
  */

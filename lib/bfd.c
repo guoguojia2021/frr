@@ -32,9 +32,11 @@
 #include "table.h"
 #include "vty.h"
 #include "bfd.h"
+#include "bfdd/bfd.h"
 
 DEFINE_MTYPE_STATIC(LIB, BFD_INFO, "BFD info");
 DEFINE_HOOK(bfd_state_change_hook, (char *bfd_name, int state,int remote_cbit),(bfd_name, state, remote_cbit));
+DEFINE_HOOK(sbfd_state_change_hook, (char *bfd_name, int state),(bfd_name, state));
 
 
 /**
@@ -72,13 +74,13 @@ static const struct in6_addr i6a_zero;
 static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 					   struct prefix *sp, int *status,
 					   int *remote_cbit, uint32_t *srte_color, char *seglist_name,
-					   vrf_id_t vrf_id, char *bfd_name)
+					   vrf_id_t vrf_id, char *bfd_name, uint32_t *bfd_mode)
 {
 	unsigned int ifindex;
 	struct interface *ifp = NULL;
 	int plen;
 	int local_remote_cbit;
-	uint32_t color;
+	uint32_t color,bfdmode;
 	uint8_t seglist_name_len;
 	uint8_t bfd_name_len = 0;
 
@@ -133,6 +135,9 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 		STREAM_GET(bfd_name, s, bfd_name_len);
 		*(bfd_name+bfd_name_len) = 0;
 	}
+
+	STREAM_GETL(s, bfdmode);
+	*bfd_mode = bfdmode;
 
     /*support sbfd*/
 	STREAM_GETL(s, color);
@@ -1013,6 +1018,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	struct prefix sp;
 	char ifstr[128], cbitstr[32];
 	uint32_t srte_color = 0;
+	uint32_t bfd_mode = 0;
 	char seglist_name[64] = {0};
     char bfd_name[BFD_NAME_SIZE+1] = {0};
 
@@ -1024,7 +1030,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 		return 0;
 
 	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,  &srte_color, seglist_name,
-				vrf_id, bfd_name);
+				vrf_id, bfd_name, &bfd_mode);
 	/*
 	 * When interface lookup fails or an invalid stream is read, we must
 	 * not proceed otherwise it will trigger an assertion while checking
@@ -1066,9 +1072,19 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
     
 	if (bfd_name[0])
 	{
-		hook_call(bfd_state_change_hook, bfd_name, state, remote_cbit);
-		if (bsglobal.debugging)
-			zlog_debug("%s:   sessions updated: %s", __func__,  bfd_name);
+		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD_INIT))
+		{
+			hook_call(sbfd_state_change_hook, bfd_name, state);
+			if (bsglobal.debugging)
+				zlog_debug("%s:   sessions updated: %s", __func__,  bfd_name);
+		}
+		else
+		{
+			hook_call(bfd_state_change_hook, bfd_name, state, remote_cbit);
+			if (bsglobal.debugging)
+				zlog_debug("%s:   sessions updated: %s", __func__,  bfd_name);
+		}
+
 		return 0;
 	}
 	/* Notify all matching sessions about update. */

@@ -1021,7 +1021,7 @@ void cli_show_srte_policy_binding_v6_sid(struct vty *vty,
 DEFPY_YANG(srte_policy_candidate_exp,
       srte_policy_candidate_exp_cmd,
       "candidate-path preference (0-4294967295)$preference name WORD$name \
-	 explicit segment-list WORD$list_name [weight$has_weight (1-4294967295)$weight_val]",
+	 explicit segment-list WORD$list_name [weight$has_weight (1-4294967295)$weight_val] [bfd-name BFD$bfd_name]",
       "Segment Routing Policy Candidate Path\n"
       "Segment Routing Policy Candidate Path Preference\n"
       "Administrative Preference\n"
@@ -1031,7 +1031,9 @@ DEFPY_YANG(srte_policy_candidate_exp,
       "List of SIDs\n"
       "Name of the Segment List\n"
 	  "Set Weight of Candidate Path\n"
-	  "Weight Value\n")
+	  "Weight Value\n"
+	  "Specify bfd session name\n"
+	  "bfd session name\n")
 {
 	char xpath[XPATH_MAXLEN + XPATH_CANDIDATE_BASELEN];
 
@@ -1053,6 +1055,14 @@ DEFPY_YANG(srte_policy_candidate_exp,
 	else
 	{
         nb_cli_enqueue_change(vty, "./weight", NB_OP_MODIFY, "1");
+	}
+	if (bfd_name)
+	{
+		nb_cli_enqueue_change(vty, "./bfd-name", NB_OP_MODIFY, bfd_name);
+	}
+	else
+	{
+		nb_cli_enqueue_change(vty, "./bfd-name", NB_OP_DESTROY, NULL);
 	}
 	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s'][name='%s']",
 				    preference_str, name);
@@ -1487,6 +1497,8 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 	{
 		vty_out(vty, " segment-list %s",
 			yang_dnode_get_string(dnode, "./segment-list-name"));
+		vty_out(vty, " bfd-name %s",
+			yang_dnode_get_string(dnode, "./bfd-name"));
 		vty_out(vty, " weight %s",
 			yang_dnode_get_string(dnode, "./weight"));
 	}
