@@ -1554,11 +1554,6 @@ void zebra_ptm_bfd_dst_replay(ZAPI_HANDLER_ARGS)
 	zebra_ptm_send_clients(msgc);
 }
 
-void zebra_ptm_endx_get(ZAPI_HANDLER_ARGS)
-{
-    zebra_srv6_push_endx();
-}
-
 void zebra_ptm_sbfd_dst_register(ZAPI_HANDLER_ARGS)
 {
 	if (IS_ZEBRA_DEBUG_EVENT)

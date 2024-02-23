@@ -110,6 +110,5 @@ extern void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_s
 extern bool zebra_srv6_local_sid_get_format(struct srv6_locator *locator);
 extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, struct seg6_sid *sid);
 extern int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf);
-extern int zebra_srv6_push_endx(void);
 
 #endif /* _ZEBRA_SRV6_H */

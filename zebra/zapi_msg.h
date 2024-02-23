@@ -132,9 +132,6 @@ extern int zsend_srv6_manager_del_sid(struct zserv *client,
                               struct srv6_locator *loc,
                               struct seg6_sid *sid);
 
-extern void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, 
-                            char *ifname, struct ipaddr *nexthop);
-
 #ifdef __cplusplus
 }
 #endif

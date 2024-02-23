@@ -413,47 +413,6 @@ DEFPY_YANG(srte_no_segment_list,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(
-	srte_endx_info_show, srte_endx_info_show_cmd,
-	"show pathd sr endx infos",
-	"show\n"
-    "pathd process\n"
-	"segment routing\n"
-	"END-X\n"
-    "info\n")
-{
-	struct ttable *tt;
-	char *out;
-	struct srte_endx_info *si, *safe_entry;
-	int count = 0;
-
-	vty_out(vty, "Pathd SR ENDX infos :\n");
-	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-	ttable_add_row(tt, "SID|INTERFACE|NEXTHOP");
-	ttable_rowseps(tt, 0, BOTTOM, true, '-');
-
-	RB_FOREACH_SAFE (si, srte_endx_info_head, &srte_endx_info_tree, safe_entry)
-	{
-	    char buf1[INET6_ADDRSTRLEN];
-		char buf2[INET6_ADDRSTRLEN];
-
-    	ttable_add_row(tt, "%s|%s|%s",
-	                inet_ntop(AF_INET6, &si->sid, buf1, sizeof(buf1)), 
-					si->ifname,
-					ipaddr2str(&si->nexthop, buf2, sizeof(buf2)));
-
-		count++;
-	}
-
-	out = ttable_dump(tt, "\n");
-	vty_out(vty, "%s", out);
-	vty_out(vty, " Total number : %d\n", count);
-	XFREE(MTYPE_TMP, out);
-	ttable_del(tt);
-
-	return CMD_SUCCESS;
-}
-
 void cli_show_srte_segment_list(struct vty *vty, const struct lyd_node *dnode,
 				bool show_defaults)
 {
@@ -730,42 +689,6 @@ DEFPY_YANG(srte_segment_list_no_segment,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY_YANG(srv6te_segment_list_lastsid, srv6te_segment_list_lastsid_cmd,
-      "forwarding-ignore-last-sid X:X::X:X$ipv6_addr",
-      "forwarding-ignore-last-sid\n"
-      "IPv6 address\n")
-{
-	nb_cli_enqueue_change(vty, "./last-sid-value", NB_OP_MODIFY, ipv6_addr_str);
-	return nb_cli_apply_changes(vty, NULL);
-}
-
-DEFPY_YANG(no_srv6te_segment_list_lastsid, no_srv6te_segment_list_lastsid_cmd,
-      "no forwarding-ignore-last-sid",
-	  NO_STR
-      "forwarding-ignore-last-sid\n")
-{
-	nb_cli_enqueue_change(vty, "./last-sid-value", NB_OP_DESTROY, NULL);
-	return nb_cli_apply_changes(vty, NULL);
-}
-
-DEFPY_YANG(srv6te_segment_list_first_sid, srv6te_segment_list_first_sid_cmd,
-      "forwarding-ignore-first-sid X:X::X:X$ipv6_addr",
-      "forwarding-ignore-first-sid\n"
-      "IPv6 address\n")
-{
-	nb_cli_enqueue_change(vty, "./first-sid-value", NB_OP_MODIFY, ipv6_addr_str);
-	return nb_cli_apply_changes(vty, NULL);
-}
-
-DEFPY_YANG(no_srv6te_segment_list_first_sid, no_srv6te_segment_list_first_sid_cmd,
-      "no forwarding-ignore-first-sid",
-	  NO_STR
-      "forwarding-ignore-first-sid\n")
-{
-	nb_cli_enqueue_change(vty, "./first-sid-value", NB_OP_DESTROY, NULL);
-	return nb_cli_apply_changes(vty, NULL);
-}
-
 void cli_show_srte_segment_list_segment(struct vty *vty,
 					const struct lyd_node *dnode,
 					bool show_defaults)
@@ -830,30 +753,6 @@ void cli_show_srte_segment_list_segment(struct vty *vty,
 		}
 	}
 	vty_out(vty, "\n");
-}
-
-void cli_show_srte_segment_list_lastsid(struct vty *vty, struct lyd_node *dnode,
-					bool show_defaults)
-{
-	struct ipaddr lastsid_value = {0};
-	yang_dnode_get_ip(&lastsid_value, dnode, NULL);
-	if (!IS_IPADDR_NONE(&lastsid_value))
-	{
-		vty_out(vty, "   forwarding-ignore-last-sid %s\n",
-			yang_dnode_get_string(dnode, NULL));
-	}
-}
-
-void cli_show_srte_segment_list_first_sid(struct vty *vty, struct lyd_node *dnode,
-					bool show_defaults)
-{
-	struct ipaddr first_sid_value = {0};
-	yang_dnode_get_ip(&first_sid_value, dnode, NULL);
-	if (!IS_IPADDR_NONE(&first_sid_value))
-	{
-		vty_out(vty, "   forwarding-ignore-first-sid %s\n",
-			yang_dnode_get_string(dnode, NULL));
-	}
 }
 
 /*
@@ -1625,7 +1524,6 @@ void path_cli_init(void)
 	install_element(ENABLE_NODE, &show_srte_policy_detail_cmd);
 	install_element(ENABLE_NODE, &show_srte_filter_policy_detail_cmd);
 	install_element(ENABLE_NODE, &show_srte_policy_by_name_detail_cmd);
-    install_element(ENABLE_NODE, &srte_endx_info_show_cmd);
 	install_element(CONFIG_NODE, &segment_routing_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &sr_traffic_eng_cmd);
@@ -1639,14 +1537,6 @@ void path_cli_init(void)
 			&srv6te_segment_list_segment_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,
 			&srte_segment_list_no_segment_cmd);
-	install_element(SR_SEGMENT_LIST_NODE,
-			&srv6te_segment_list_lastsid_cmd);
-	install_element(SR_SEGMENT_LIST_NODE,
-			&no_srv6te_segment_list_lastsid_cmd);
-	install_element(SR_SEGMENT_LIST_NODE,
-			&srv6te_segment_list_first_sid_cmd);
-	install_element(SR_SEGMENT_LIST_NODE,
-			&no_srv6te_segment_list_first_sid_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_policy_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_no_policy_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_name_cmd);

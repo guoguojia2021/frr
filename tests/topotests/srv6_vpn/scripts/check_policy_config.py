@@ -5,13 +5,6 @@ import pdb
 
 luCommand(
     "pe1",
-    'vtysh -c "conf t" -c "segment-routing" -c "traffic-eng" -c "segment-list a" -c "index 1 ipv6-address 100::178" -c "index 1 ipv6-address 100::179" -c "forwarding-ignore-last-sid 100::179"',
-    ".",
-    "fail",
-    "Test of segment-list, index and f-i-l-s"
-)
-luCommand(
-    "pe1",
     'vtysh -c "show run"',
     "segment-list",
     "pass",
@@ -23,13 +16,6 @@ luCommand(
     "index",
     "pass",
     "see index in running-config"
-)
-luCommand(
-    "pe1",
-    'vtysh -c "show run"',
-    "forwarding-ignore-last-sid",
-    "pass",
-    "see f-i-l-s in running-config"
 )
 luCommand(
     "pe1",

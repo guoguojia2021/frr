@@ -629,12 +629,6 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
         zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx, sid->ifname, &sid->nexthop);
 		zebra_route_add(&result_sid, vrf, act, &ctx);
 	}
-    
-	/*send end-x info to bfdd*/
-	if (act == ZEBRA_SEG6_LOCAL_ACTION_END_X)
-	{
-		zsend_srv6_endx_sid(ZEBRA_SRV6_ENDX_SID_ADD, &result_sid, sid->ifname, &sid->nexthop);
-	}
 }
 
 void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid)
@@ -659,12 +653,6 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
 
     zebra_Db_Del_SRV6_LOCAL_SID(&result_sid, &ctx);
     zebra_route_del(&result_sid, vrf, act, &ctx);
-
-	/*send end-x info to bfdd*/
-	if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X)
-	{
-		zsend_srv6_endx_sid(ZEBRA_SRV6_ENDX_SID_DEL, &result_sid, sid->ifname, &sid->nexthop);
-	}
 }
 
 extern bool zebra_srv6_local_sid_get_format(struct srv6_locator *locator)
@@ -808,26 +796,6 @@ int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf)
             {
                 zebra_srv6_local_sid_add(locator, sid);
             }
-        }
-    }
-    return 0;
-}
-
-int zebra_srv6_push_endx(void)
-{
-    struct zebra_srv6 *srv6 = zebra_srv6_get_default();
-    struct listnode *node, *opcodenode;
-    struct srv6_locator *locator;
-    struct seg6_sid *sid;
-	struct in6_addr result_sid = {0};
-
-    for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
-        for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
-            if (sid->sidaction != ZEBRA_SEG6_LOCAL_ACTION_END_X)
-                continue;
-
-            combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
-			zsend_srv6_endx_sid(ZEBRA_SRV6_ENDX_SID_ADD, &result_sid, sid->ifname, &sid->nexthop);
         }
     }
     return 0;

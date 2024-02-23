@@ -250,12 +250,6 @@ struct srte_segment_list {
 	/* Nexthops. */
 	struct srte_segment_entry_head segments;
 
-	/*Srv6 forwarding-ignore-first-sid*/
-	struct ipaddr first_sid;
-
-	/*Srv6 forwarding-ignore-last-sid*/
-	struct ipaddr last_sid;
-
     /*sbfd session*/
     struct srte_sbfd_session_head sbfd_sessions;
 
@@ -274,8 +268,7 @@ struct srte_segment_list {
 #define F_SEGMENT_LIST_MODIFIED 0x0004
 #define F_SEGMENT_LIST_DELETED 0x0008
 #define F_SEGMENT_LIST_SID_CONFLICT 0x0010
-#define F_SEGMENT_LIST_WAIT_MYSID 0x0020
-#define F_SEGMENT_LIST_SET_DB 0x0040
+
 #define F_SEGMENT_LIST_BFD_ATTACH 0x0080
 };
 RB_HEAD(srte_segment_list_head, srte_segment_list);
@@ -529,18 +522,6 @@ struct srte_sbfd_event
 	struct srte_policy *policy;
 };
 
-struct srte_endx_info {
-	RB_ENTRY(srte_endx_info) entry;
-	struct in6_addr sid;
-	struct ipaddr nexthop;
-	char ifname[INTERFACE_NAMSIZ];
-};
-
-RB_HEAD(srte_endx_info_head, srte_endx_info);
-RB_PROTOTYPE(srte_endx_info_head, srte_endx_info, entry, srte_endx_info_compare);
-
-extern struct srte_endx_info_head srte_endx_info_tree;
-
 extern struct srte_segment_list_head srte_segment_lists;
 extern struct srte_policy_head srte_policies;
 extern struct zebra_privs_t pathd_privs;
@@ -674,9 +655,5 @@ void refcounter_decrease(struct srte_segment_list *segment_list);
 bool is_refcounter_retain(struct srte_segment_list *segment_list);
 void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate);
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta);
-
-struct srte_endx_info *srte_endx_tree_find(struct in6_addr *sid);
-void srte_endx_tree_add(struct in6_addr *sid, char *ifname, struct ipaddr *nexthop);
-void srte_endx_tree_del(struct in6_addr *sid);
 
 #endif /* _FRR_PATHD_H_ */

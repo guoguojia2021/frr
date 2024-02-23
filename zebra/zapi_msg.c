@@ -1000,26 +1000,6 @@ void zsend_nhrp_neighbor_notify(int cmd, struct interface *ifp,
 	}
 }
 
-void zsend_srv6_endx_sid(int cmd, struct in6_addr *sid, char *ifname, struct ipaddr *nexthop)
-{
-	struct stream *s;
-	struct listnode *node, *nnode;
-	struct zserv *client;
-
-	if (IS_ZEBRA_DEBUG_PACKET)
-		zlog_debug("%s: Notifying Srv6 end-x local sid (%u)", __func__, cmd);
-    
-	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
-		if (client->proto !=ZEBRA_ROUTE_SRTE)
-		    continue;
-
-		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
-		zclient_loc_sid_info_encode(s, cmd, sid, ifname, nexthop);
-		stream_putw_at(s, 0, stream_get_endp(s));
-		zserv_send_message(client, s);
-	}
-}
-
 /* Router-id is updated. Send ZEBRA_ROUTER_ID_UPDATE to client. */
 int zsend_router_id_update(struct zserv *client, afi_t afi, struct prefix *p,
 			   vrf_id_t vrf_id)
@@ -4000,8 +3980,7 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_NHRP_NEIGH_UNREGISTER] = zebra_neigh_unregister,
 	[ZEBRA_CONFIGURE_ARP] = zebra_configure_arp,
 	[ZEBRA_GRE_GET] = zebra_gre_get,
-	[ZEBRA_GRE_SOURCE_SET] = zebra_gre_source_set,
-	[ZEBRA_SRV6_ENDX_SID_GET] = zebra_ptm_endx_get
+	[ZEBRA_GRE_SOURCE_SET] = zebra_gre_source_set
 };
 
 /*

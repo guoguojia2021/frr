@@ -12,7 +12,6 @@
 #include "path_db.h"
 
 #define SRV6_SID_LIST_TABLE "SRV6_SID_LIST_TABLE"
-#define SRV6_POLICY_TABLE   "SRV6_POLICY_TABLE"
 #define TAG   "0"
 
 /* clang-format on */
@@ -185,10 +184,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     char tmpbuf[INET6_ADDRSTRLEN] = {0};
     bool first = true;
     struct srte_segment_entry *s_entry;
-    DB_FieldValue_List *pstDataLst_head = NULL;
-    DB_FieldValue_List *pstDataLst_path = NULL;
-    DB_FieldValue_List *pstDataLst_lastsid = NULL;
-    DB_FieldValue_List *pstDataLst_first_sid = NULL;
+    DB_FieldValue_List *pstDataLst = NULL;
 
     if (!g_bPathRedisInUse)
         return;
@@ -226,58 +222,19 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         }
     }
 
-    pstDataLst_path = new_Sidlist_DB_Data(key, field, value);
-    if (pstDataLst_path == NULL)
+    pstDataLst = new_Sidlist_DB_Data(key, field, value);
+    if (pstDataLst == NULL)
     {
         zlog_err("create field segment failed.");
         return;
     }
-    pstDataLst_path->next = NULL;
-    pstDataLst_head = pstDataLst_path;
+    pstDataLst->next = NULL;
 
-    if (!IS_IPADDR_NONE(&segl->last_sid))
-    {
-        /* set last sid field and value*/
-        snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s",SRV6_SID_LIST_TABLE, segl->name);
-        snprintf(field, PATH_DB_MAX_KEY_LEN, "forwarding-ignore-last-sid");
-        snprintf(value, PATH_DB_MAX_KEY_LEN, "%s",
-            inet_ntop(AF_INET6, &segl->last_sid.ipaddr_v6, tmpbuf, sizeof(tmpbuf)));
-
-        pstDataLst_lastsid = new_Sidlist_DB_Data(key, field, value);
-        if (pstDataLst_lastsid == NULL)
-        {
-            release_Sidlist_DB_Data(pstDataLst_head);
-            zlog_err("create field lastsid failed.");
-            return;
-        }
-        pstDataLst_path->next = pstDataLst_lastsid;
-        pstDataLst_path = pstDataLst_path->next;
-    }
-
-    if (!IS_IPADDR_NONE(&segl->first_sid))
-    {
-        /* set first sid field and value*/
-        snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s",SRV6_SID_LIST_TABLE, segl->name);
-        snprintf(field, PATH_DB_MAX_KEY_LEN, "forwarding-ignore-first-sid");
-        snprintf(value, PATH_DB_MAX_KEY_LEN, "%s",
-            inet_ntop(AF_INET6, &segl->first_sid.ipaddr_v6, tmpbuf, sizeof(tmpbuf)));
-
-        pstDataLst_first_sid = new_Sidlist_DB_Data(key, field, value);
-        if (pstDataLst_first_sid == NULL)
-        {
-            release_Sidlist_DB_Data(pstDataLst_head);
-            zlog_err("create field first failed.");
-            return;
-        }
-        pstDataLst_path->next = pstDataLst_first_sid;
-    }
-
-
-    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst_head, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_Db_SetKeyAndFValue error code : %d", ret);
-        release_Sidlist_DB_Data(pstDataLst_head);
+        release_Sidlist_DB_Data(pstDataLst);
         return;
     }
 
@@ -289,7 +246,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         zlog_err("redis_PublishMsg error code : %d", ret);
     }
 
-    release_Sidlist_DB_Data(pstDataLst_head);
+    release_Sidlist_DB_Data(pstDataLst);
     return;
 }
 
@@ -338,199 +295,6 @@ void sidlist_Db_DelEntry(const char *name)
 
     /*publish*/
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %s", channel);
-    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_PublishMsg error code : %d", ret);
-    }
-
-    return;
-}
-
-void sr_policy_Db_SetEntry(const struct srte_policy *policy, const struct srte_candidate_group *candidate_group)
-{
-    int ret;
-    char key[PATH_DB_MAX_KEY_LEN] = {0};
-    char field[PATH_DB_MAX_KEY_LEN] = {0};
-    char value[PATH_DB_MAX_VALUE_LEN] = {0};
-    char set_key[PATH_DB_MAX_KEY_LEN] = {0};
-    char set_value[PATH_DB_MAX_VALUE_LEN] = {0};
-    char channel[PATH_DB_MAX_KEY_LEN] = {0};
-    char dbErrMsg[100] = {0};
-
-    struct srte_candidate *candidate;
-    uint32_t count = 0;
-    DB_FieldValue_List *pstDataLst1 = NULL;
-    DB_FieldValue_List *pstDataLst2 = NULL;
-
-    char endpoint[PATH_DB_MAX_KEY_LEN] = {0};
-    char policy_id[PATH_DB_MAX_KEY_LEN] = {0};
-    ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
-    snprintf(policy_id, PATH_DB_MAX_KEY_LEN, "%s_%u", endpoint, policy->color);
-
-    if (!g_bPathRedisInUse)
-        return;
-
-    /*sadd KEY_SET*/
-    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_POLICY_TABLE);
-    snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", policy_id);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd error code : %d", ret);
-        return;
-    }
-
-    /* set segment key*/
-    snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s", SRV6_POLICY_TABLE, policy_id);
-    /* set segment field*/
-    snprintf(field, PATH_DB_MAX_KEY_LEN, "segment");
-    /* set segment value*/
-    count = 0;
-    RB_FOREACH (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths) {
-
-        if (candidate->segment_list == NULL )
-        {
-            continue;
-        }
-
-        if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
-            && candidate->status == SRTE_DETECT_DOWN)
-        {
-            continue;
-        }
-
-        if (count < candidate_group->up_cpath_num)
-        {
-            if (count == 0)
-            {
-                snprintf(value, PATH_DB_MAX_VALUE_LEN, "%s", candidate->segment_list->name);
-            }
-            else
-            {
-                char tmp_value[PATH_DB_MAX_VALUE_LEN] = {0};
-                snprintf(tmp_value, PATH_DB_MAX_VALUE_LEN, "%s", value);
-                snprintf(value, PATH_DB_MAX_VALUE_LEN, "%s,%s", tmp_value, candidate->segment_list->name);
-            }
-            count++;
-        }
-    }
-    pstDataLst1 = new_Sidlist_DB_Data(key, field, value);
-    if (pstDataLst1 == NULL)
-    {
-        zlog_err("create sr policy field segment failed.");
-        return;
-    }
-
-    /* set segment key*/
-    snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s", SRV6_POLICY_TABLE, policy_id);
-    /* set segment field*/
-    snprintf(field, PATH_DB_MAX_KEY_LEN, "weight");
-    /* set segment value*/
-    count = 0;
-    RB_FOREACH (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths) {
-
-        if (candidate->segment_list == NULL )
-        {
-            continue;
-        }
-
-        if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
-            && candidate->status == SRTE_DETECT_DOWN)
-        {
-            continue;
-        }
-
-        if (count < candidate_group->up_cpath_num)
-        {
-            if (count == 0)
-            {
-                snprintf(value, PATH_DB_MAX_VALUE_LEN, "%u", candidate->weight);
-            }
-            else
-            {
-                char tmp_value[PATH_DB_MAX_VALUE_LEN] = {0};
-                snprintf(tmp_value, PATH_DB_MAX_VALUE_LEN, "%s", value);
-                snprintf(value, PATH_DB_MAX_VALUE_LEN, "%s,%u", tmp_value, candidate->weight);
-            }
-            count++;
-        }
-    }
-    pstDataLst2 = new_Sidlist_DB_Data(key, field, value);
-    if (pstDataLst2 == NULL)
-    {
-        release_Sidlist_DB_Data(pstDataLst1);
-        zlog_err("create sr policy field segment failed.");
-        return;
-    }
-
-    pstDataLst1->next = pstDataLst2;
-    ret = g_sidlist_appdb_redis.redis_Db_SetKeyAndFValue(key, pstDataLst1, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetKeyAndFValue error code : %d", ret);
-        release_Sidlist_DB_Data(pstDataLst1);
-        return;
-    }
-
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_POLICY_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %s", channel);
-    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_PublishMsg error code : %d", ret);
-    }
-
-    release_Sidlist_DB_Data(pstDataLst1);
-    return;
-}
-
-extern void sr_policy_Db_DelEntry(const char *name)
-{
-    int ret;
-    char key[PATH_DB_MAX_KEY_LEN] = {0};
-    char set_key[PATH_DB_MAX_KEY_LEN] = {0};
-    char set_value[PATH_DB_MAX_VALUE_LEN] = {0};
-    char channel[PATH_DB_MAX_KEY_LEN] = {0};
-    char dbErrMsg[100] = {0};
-    DB_Key_List item = {0};
-
-    if (!g_bPathRedisInUse)
-        return;
-
-    /*sadd KEY_SET*/
-    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_POLICY_TABLE);
-    snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", name);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
-        return;
-    }
-    /*sadd DEL_SET*/
-    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_DEL_SET", SRV6_POLICY_TABLE);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
-        return;
-    }
-
-    /* del key*/
-    snprintf(key, PATH_DB_MAX_KEY_LEN, "%s:%s", SRV6_POLICY_TABLE, name);
-    item.next = NULL;
-    item.key = key;
-
-    ret = g_sidlist_appdb_redis.redis_Db_DelKeyLst(&item, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_DelKeyLst error code : %d", ret);
-        return;
-    }
-
-    /*publish*/
-    snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_POLICY_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)

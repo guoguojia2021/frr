@@ -40,7 +40,6 @@ DEFINE_MTYPE_STATIC(PATHD, PATH_SEGMENT_LIST, "Segment List");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SR_POLICY, "SR Policy");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SR_CANDIDATE, "SR Policy candidate path");
 DEFINE_MTYPE_STATIC(PATHD, PATH_SR_CANDIDATE_GROUP, "SR Policy candidate group");
-DEFINE_MTYPE_STATIC(PATHD, PATH_SRENDX, "Pathd SR END-X info");
 
 DEFINE_HOOK(pathd_candidate_created, (struct srte_candidate * candidate),
 	    (candidate));
@@ -128,54 +127,6 @@ static inline int srte_sbfd_session_compare(const struct srte_sbfd_session *a,
 RB_GENERATE(srte_sbfd_session_head, srte_sbfd_session, entry,
 	    srte_sbfd_session_compare)
 
-/* Generate rb-tree of endx */
-struct srte_endx_info *srte_endx_tree_find(struct in6_addr *sid)
-{
-	struct srte_endx_info search;
-	memcpy(&search.sid, sid, sizeof(struct in6_addr));
-	return RB_FIND(srte_endx_info_head, &srte_endx_info_tree, &search);
-}
-
-void srte_endx_tree_add(struct in6_addr *sid, char *ifname, struct ipaddr *nexthop)
-{
-	struct srte_endx_info *info;
-
-	// first to find is exist or not
-	info = srte_endx_tree_find(sid);
-	if (info)
-	    return;
-
-	info = XCALLOC(MTYPE_PATH_SRENDX, sizeof(*info));
-	strncpy(info->ifname, ifname, INTERFACE_NAMSIZ);
-	memcpy(&info->sid, sid, sizeof(struct in6_addr));
-	memcpy(&info->nexthop, nexthop, sizeof(struct ipaddr));
-
-	RB_INSERT(srte_endx_info_head, &srte_endx_info_tree, info);
-
-}
-
-void srte_endx_tree_del(struct in6_addr *sid)
-{
-	struct srte_endx_info *info;
-
-	info = srte_endx_tree_find(sid);
-	if (!info)
-	    return;
-
-	RB_REMOVE(srte_endx_info_head, &srte_endx_info_tree, info);
-	XFREE(MTYPE_PATH_SRENDX, info);
-}
-
-static inline int srte_endx_info_compare(const struct srte_endx_info *a,
-					 const struct srte_endx_info *b)
-{
-	return memcmp((void *)&a->sid, (void *)&b->sid, sizeof(a->sid));
-}
-RB_GENERATE(srte_endx_info_head, srte_endx_info, entry, srte_endx_info_compare)
-
-struct srte_endx_info_head srte_endx_info_tree = RB_INITIALIZER(&srte_endx_info_tree);
-
-
 /**
  * Adds a segment list to pathd.
  *
@@ -190,8 +141,6 @@ struct srte_segment_list *srte_segment_list_add(const char *name)
 	strlcpy(segment_list->name, name, sizeof(segment_list->name));
 	RB_INIT(srte_segment_entry_head, &segment_list->segments);
 	RB_INIT(srte_sbfd_session_head, &segment_list->sbfd_sessions);
-	segment_list->first_sid.ipa_type = IPADDR_NONE;
-	segment_list->last_sid.ipa_type = IPADDR_NONE;
 	refcounter_init(segment_list);
 
 	RB_INSERT(srte_segment_list_head, &srte_segment_lists, segment_list);
@@ -223,7 +172,6 @@ void srte_segment_list_del(struct srte_segment_list *segment_list)
 	}
     /* operate APPDB */
 	sidlist_Db_DelEntry(segment_list->name);
-    UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_SET_DB);
 
 	RB_REMOVE(srte_segment_list_head, &srte_segment_lists, segment_list);
 	XFREE(MTYPE_PATH_SEGMENT_LIST, segment_list);
@@ -667,20 +615,14 @@ static void cpath_status_del_bfd_handle(struct srte_candidate *candidate)
 		// down -> none
 		candidate->status=SRTE_DETECT_NONE;
 		upcounter_increase(candidate->segment_list);
-		sidlist_Db_SetEntry(candidate->segment_list);	
-		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB);
+		sidlist_Db_SetEntry(candidate->segment_list);
 		break;
 	case SRTE_DETECT_UP:
 		// up->none, do nothing
 		candidate->status=SRTE_DETECT_NONE;
+		break;
 	case SRTE_DETECT_NONE:
 		// none -> none do nothing
-		if (!CHECK_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB) 
-		    && !CHECK_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_WAIT_MYSID))
-		{
-			sidlist_Db_SetEntry(candidate->segment_list);	
-			SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB);            
-		}
 		break;
 	default:
 		break;
@@ -745,41 +687,18 @@ void srte_apply_changes(void)
 			continue;
 		}
 		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW)
-		    || CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED)
-			|| CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_WAIT_MYSID)) {
+		    || CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED)) {
 			/* operate APPDB */
-			if (!RB_EMPTY(srte_segment_entry_head, &segment_list->segments) 
-			    || !IS_IPADDR_NONE(&segment_list->first_sid))
+			if (!RB_EMPTY(srte_segment_entry_head, &segment_list->segments))
 			{
 				/*when sidlist be used by policy and sidlist status is not down ,then set APPDB*/
 				if (is_refcounter_retain(segment_list) && segment_list->upcount > 0)
 				{
-					if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_WAIT_MYSID))
-					{
-						struct srte_endx_info *info;
-
-						// first to find is exist or not
-						info = srte_endx_tree_find(&segment_list->first_sid.ipaddr_v6);
-						if (info)
-						{
-                            UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_WAIT_MYSID);
-							sidlist_Db_SetEntry(segment_list);
-							SET_FLAG(segment_list->flags, F_SEGMENT_LIST_SET_DB);
-						}
-					}
-					else
-					{
-                        sidlist_Db_SetEntry(segment_list);
-						SET_FLAG(segment_list->flags, F_SEGMENT_LIST_SET_DB);
-					}
+                    sidlist_Db_SetEntry(segment_list);
 				}
 				else
 				{
-					if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_SET_DB))
-					{
-						sidlist_Db_DelEntry(segment_list->name);
-						UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_SET_DB);
-					}
+					sidlist_Db_DelEntry(segment_list->name);
 				}
 			}
 		}
@@ -1985,7 +1904,6 @@ static void cpath_status_up_handle(struct srte_candidate *candidate)
 		candidate->status=SRTE_DETECT_UP;
 		upcounter_increase(candidate->segment_list);
 		sidlist_Db_SetEntry(candidate->segment_list);
-		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB);
 		break;
 	case SRTE_DETECT_NONE:
 		// none -> up
@@ -2015,7 +1933,6 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 		if (candidate->segment_list->upcount == 0)
 		{
 			sidlist_Db_DelEntry(candidate->segment_list->name);
-			UNSET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_SET_DB);
 		}
 		break;
 	default:

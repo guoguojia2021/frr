@@ -111,16 +111,6 @@ int pathd_srte_segment_list_segment_v6_sid_value_modify(
 int pathd_srte_segment_list_segment_v6_sid_value_destroy(
 	struct nb_cb_destroy_args *args);
 
-int pathd_srte_segment_list_last_sid_modify(
-	struct nb_cb_modify_args *args);
-int pathd_srte_segment_list_last_sid_destroy(
-	struct nb_cb_modify_args *args);
-
-int pathd_srte_segment_list_first_sid_modify(
-	struct nb_cb_modify_args *args);
-int pathd_srte_segment_list_first_sid_destroy(
-	struct nb_cb_modify_args *args);
-
 int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args);
 int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args);
 
@@ -151,10 +141,6 @@ void cli_show_srte_segment_list_end(struct vty *vty,
 				    const struct lyd_node *dnode);
 void cli_show_srte_segment_list_segment(struct vty *vty,
 					const struct lyd_node *dnode,
-					bool show_defaults);
-void cli_show_srte_segment_list_lastsid(struct vty *vty, struct lyd_node *dnode,
-					bool show_defaults);
-void cli_show_srte_segment_list_first_sid(struct vty *vty, struct lyd_node *dnode,
 					bool show_defaults);
 void cli_show_srte_policy(struct vty *vty, const struct lyd_node *dnode,
 			  bool show_defaults);
