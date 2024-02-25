@@ -1396,10 +1396,13 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 	{
 		vty_out(vty, " segment-list %s",
 			yang_dnode_get_string(dnode, "./segment-list-name"));
-		vty_out(vty, " bfd-name %s",
-			yang_dnode_get_string(dnode, "./bfd-name"));
 		vty_out(vty, " weight %s",
 			yang_dnode_get_string(dnode, "./weight"));
+		if (yang_dnode_exists(dnode, "./bfd-name"))
+		{
+			vty_out(vty, " bfd-name %s",
+				yang_dnode_get_string(dnode, "./bfd-name"));
+		}
 	}
 	vty_out(vty, "\n");
 
