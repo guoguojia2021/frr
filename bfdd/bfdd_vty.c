@@ -113,9 +113,20 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
 	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
-       	vty_out(vty, " segment-list %s",
-			inet_ntop(bs->key.family, &bs->key.segment_list, addr_buf,
-				  sizeof(addr_buf)));
+	{
+		if (bs->bfd_name[0])
+		{
+			vty_out(vty, " segment-list %s",
+				inet_ntop(AF_INET6, &bs->key.segment_list, addr_buf,
+					sizeof(addr_buf)));
+		}
+		else
+		{
+			vty_out(vty, " (endpoint %s color %u sidlist %s)", 
+						addr_buf, bs->key.srte_color, bs->key.seglist_name);
+
+		}
+	}
 
 	if (memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
 		vty_out(vty, " local-address %s",

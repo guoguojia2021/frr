@@ -148,8 +148,6 @@ DEFPY_YANG_NOSH(
             local_address_str,
 			segment_list_str);
 
-	vty_out(vty,"%% path:%s\n",xpath);
-
 	if (vrf)
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
 	else
@@ -365,9 +363,21 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 			       bool mhop)
 {
 	const char *vrf = yang_dnode_get_string(dnode, "./vrf");
+	const uint32_t bfd_mode = yang_dnode_get_uint32(dnode, "./bfd-mode");
 
-	vty_out(vty, " peer %s",
-		yang_dnode_get_string(dnode, "./dest-addr"));
+    if (bfd_mode == BFD_MODE_TYPE_BFD)
+	{
+		vty_out(vty, " peer %s",
+			yang_dnode_get_string(dnode, "./dest-addr"));
+	}
+	else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO)
+	{
+		vty_out(vty, " peer %s",
+			yang_dnode_get_string(dnode, "./source-addr"));
+		vty_out(vty, " segment-list %s",
+			yang_dnode_get_string(dnode, "./segment-list"));
+	}
+
 	
 	if (yang_dnode_exists(dnode, "./bfd-name"))
 	    vty_out(vty, " bfd-name %s", yang_dnode_get_string(dnode, "./bfd-name"));
