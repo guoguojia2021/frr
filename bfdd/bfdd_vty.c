@@ -106,8 +106,6 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 		vty_out(vty, " bfd-name %s", bs->bfd_name);
 	}
 
-	vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
-
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		vty_out(vty, " multihop");
 
@@ -116,6 +114,7 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 	{
 		if (bs->bfd_name[0])
 		{
+			vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
 			vty_out(vty, " segment-list %s",
 				inet_ntop(AF_INET6, &bs->key.segment_list, addr_buf,
 					sizeof(addr_buf)));
