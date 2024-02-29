@@ -919,8 +919,11 @@ static int candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args)
 {
 	struct srte_candidate *candidate = NULL;
 
-	candidate = nb_running_unset_entry(args->dnode);
-	candidate->bfd_name[0] = 0;
+	candidate = nb_running_get_entry(args->dnode, NULL, true);
+	if(candidate && candidate->bfd_name[0]){
+	    candidate->bfd_name[0] = 0;
+	}
+
 	return NB_OK;
 }
 
