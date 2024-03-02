@@ -536,7 +536,11 @@ DEFUN (no_srv6_locator_sid,
 
 DEFPY (locator_prefix,
 		locator_prefix_cmd,
-		"opcode WORD <end | end-dt46 vrf VIEWVRFNAME | end-dt4 vrf VIEWVRFNAME | end-dt6 vrf VIEWVRFNAME | end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp>",
+		"opcode WORD \
+		 <end | end-dt46 vrf VIEWVRFNAME | end-dt4 vrf VIEWVRFNAME | end-dt6 vrf VIEWVRFNAME | \
+		 end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp | \
+		 end-next-csid | end-dt46-usid vrf VIEWVRFNAME | end-dt4-usid vrf VIEWVRFNAME | \
+		 end-dt6-usid vrf VIEWVRFNAME | end-x-next-csid interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp>",
 		"Configure SRv6 locator prefix\n"
 		"Specify SRv6 locator hex opcode\n"
 		"Apply the code to an End SID\n"
@@ -550,6 +554,22 @@ DEFPY (locator_prefix,
 		"vrf\n"
 		"vrf\n"
 		"Apply the code to an End.X SID\n"
+		"Select an interface to configure\n"
+		"Interface's name\n"
+		"Nexthop\n"
+		"Nexthop IP address\n"
+		"Nexthop IPv6 address\n"
+		"Apply the code to an End with NEXT-CSID\n"
+		"Apply the code to an End.DT46 USID\n"
+		"vrf\n"
+		"vrf\n"
+		"Apply the code to an End.DT4 USID\n"
+		"vrf\n"
+		"vrf\n"
+		"Apply the code to an End.DT6 USID\n"
+		"vrf\n"
+		"vrf\n"
+		"Apply the code to an End.x with NEXT-CSID\n"
 		"Select an interface to configure\n"
 		"Interface's name\n"
 		"Nexthop\n"
@@ -607,6 +627,38 @@ DEFPY (locator_prefix,
 			return CMD_WARNING;
 		}
 	}
+	else if (argv_find(argv, argc, "end-next-csid", &idx))
+		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UN;
+	else if (argv_find(argv, argc, "end-dt46-usid", &idx))
+	{
+		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UDT46;
+		vrfName = argv[idx + 2]->arg;
+	}
+	else if (argv_find(argv, argc, "end-dt4-usid", &idx))
+	{
+		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UDT4;
+		vrfName = argv[idx + 2]->arg;
+	}
+	else if (argv_find(argv, argc, "end-dt6-usid", &idx))
+	{
+		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UDT6;
+		vrfName = argv[idx + 2]->arg;
+	}
+	else if (argv_find(argv, argc, "end-x-next-csid", &idx))
+	{
+		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UA;
+		nhpstr = argv[idx + 4]->arg;
+		vrfName = VRF_DEFAULT_NAME;
+		ifName = argv[idx + 2]->arg;
+		if (inet_pton(AF_INET, nhpstr, &nexthop.ipaddr_v4) == 1)
+			nexthop.ipa_type = IPADDR_V4;
+		else if (inet_pton(AF_INET6, nhpstr, &nexthop.ipaddr_v6) == 1)
+			nexthop.ipa_type = IPADDR_V6;
+		else {
+			vty_out(vty, "%% Malformed address\n");
+			return CMD_WARNING;
+		}
+	}
 	prefix = argv[1]->arg;
 	ret = str2prefix_ipv6(prefix, &ipv6prefix);
 	apply_mask_ipv6(&ipv6prefix);
@@ -620,9 +672,10 @@ DEFPY (locator_prefix,
 			return CMD_WARNING;
 		}
 	}
-	if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
+	if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X || sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA) {
 		for (ALL_LIST_ELEMENTS(locator->sids, sidnode, sidnnode, sid_end_x)) {
-			if (strcmp(sid_end_x->ifname, ifName) == 0 && sid_end_x->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
+			if (strcmp(sid_end_x->ifname, ifName) == 0 && (sid_end_x->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X 
+			    || sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA)) {
 				vty_out(vty, "End-x %s is already exist,please delete it first. \n", ifName);
 				return CMD_WARNING;
 			}
@@ -759,6 +812,33 @@ static int zebra_sr_config(struct vty *vty)
                 else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X)
                 {
 				    vty_out(vty, " end-x");
+                    vty_out(vty, " interface %s", sid->ifname);
+					if (sid->nexthop.ipa_type == IPADDR_V4)
+						inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, buf, sizeof(buf));
+					else if (sid->nexthop.ipa_type == IPADDR_V6)
+						inet_ntop(AF_INET6, &sid->nexthop.ipaddr_v6, buf, sizeof(buf));
+					vty_out(vty, " nexthop %s", buf);
+                }
+				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UN)
+						vty_out(vty, " end-next-csid");
+                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT4)
+                {
+				    vty_out(vty, " end-dt4-usid");
+                    vty_out(vty, " vrf %s", sid->vrfName);
+                }
+                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT6)
+                {
+				    vty_out(vty, " end-dt6-usid");
+                    vty_out(vty, " vrf %s", sid->vrfName);
+                }
+                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT46)
+                {
+				    vty_out(vty, " end-dt46-usid");
+                    vty_out(vty, " vrf %s", sid->vrfName);
+                }
+                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA)
+                {
+				    vty_out(vty, " end-x-next-csid");
                     vty_out(vty, " interface %s", sid->ifname);
 					if (sid->nexthop.ipa_type == IPADDR_V4)
 						inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, buf, sizeof(buf));
