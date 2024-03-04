@@ -272,8 +272,11 @@ module frr-pathd {
               "The name of the Segment List to use as LSP.";
           }
           leaf bfd-name {
-            type string;
-            description "Bfd session name associated with this route";
+            type string {
+              length "1..254";
+            }
+            description
+              "Bfd session name associated with this route";
           }
           container constraints {
             when "../type = 'dynamic'";

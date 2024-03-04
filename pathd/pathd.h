@@ -318,9 +318,13 @@ struct srte_lsp {
 struct srte_candidate {
 	RB_ENTRY(srte_candidate) entry;
 	RB_ENTRY(srte_candidate) perf_entry;
+	RB_ENTRY(srte_candidate) bfd_entry;
 
 	/* Backpointer to SR Policy */
 	struct srte_policy *policy;
+
+    /* Backpointer to candidate group */
+	struct srte_candidate_group *group;
 
 	/* The LSP associated with this candidate path. */
 	struct srte_lsp *lsp;
@@ -383,7 +387,7 @@ struct srte_candidate {
 
 	/* bfd name*/
 	char bfd_name[BFD_NAME_SIZE + 1];
-	struct bfd_session_status bfd_status;
+
 };
 
 RB_HEAD(srte_candidate_head, srte_candidate);
@@ -391,6 +395,10 @@ RB_PROTOTYPE(srte_candidate_head, srte_candidate, entry, srte_candidate_compare)
 
 RB_HEAD(srte_candidate_pref_head, srte_candidate);
 RB_PROTOTYPE(srte_candidate_pref_head, srte_candidate, perf_entry, srte_candidate_compare)
+
+RB_HEAD(srte_candidate_bfd_head, srte_candidate);
+RB_PROTOTYPE(srte_candidate_bfd_head, srte_candidate, bfd_entry, srte_candidate_compare)
+
 struct srte_candidate_group {
 	RB_ENTRY(srte_candidate_group) entry;
 	/* Backpointer to SR Policy */
@@ -409,10 +417,27 @@ struct srte_candidate_group {
 	uint32_t flags;
 #define F_CPATH_GROUP_BEST 0x0001
 #define F_CPATH_GROUP_MODIFIED 0x0002
+#define F_CPATH_GROUP_STATE_CHANGE 0x0004
 };
 
 RB_HEAD(srte_candidate_group_head, srte_candidate_group);
 RB_PROTOTYPE(srte_candidate_group_head, srte_candidate_group, entry, srte_candidate_group_compare)
+
+struct srte_candidate_bfd_group {
+	RB_ENTRY(srte_candidate_bfd_group) entry;
+
+	/* Candidate Paths bond to this bfd session*/
+	struct srte_candidate_bfd_head candidate_paths;
+
+	uint32_t cpath_num;
+
+	enum detection_status status;
+
+	char bfd_name[BFD_NAME_SIZE + 1];
+};
+
+RB_HEAD(srte_candidate_bfd_group_head, srte_candidate_bfd_group);
+RB_PROTOTYPE(srte_candidate_bfd_group_head, srte_candidate_bfd_group, entry, srte_candidate_bfd_group_compare)
 
 struct sbfd_session_config {
 	/** Control Plane Independent. */
@@ -525,6 +550,7 @@ struct srte_sbfd_event
 extern struct srte_segment_list_head srte_segment_lists;
 extern struct srte_policy_head srte_policies;
 extern struct zebra_privs_t pathd_privs;
+extern struct srte_candidate_bfd_group_head sbfd_groups;
 
 /* master thread, defined in path_main.c */
 extern struct thread_master *master;
@@ -598,6 +624,12 @@ struct srte_candidate *srte_candidate_find(struct srte_policy *policy,
 					   uint32_t preference, const char *name);
 struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *policy,
 					   uint32_t preference);
+
+struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_name, 
+                        struct srte_candidate *candidate);
+void srte_candidate_bfd_group_del(const char *bfd_name, 
+                        struct srte_candidate *candidate);
+
 struct srte_segment_entry *
 srte_segment_entry_find(struct srte_segment_list *segment_list, uint32_t index);
 void srte_candidate_status_update(struct srte_candidate *candidate, int status);

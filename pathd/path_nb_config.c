@@ -909,8 +909,22 @@ static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
 	struct bfd_session_params bsp;
 	memset(&bsp, 0, sizeof(struct bfd_session_params));
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
+
+	if(candidate && candidate->policy && CHECK_FLAG(candidate->policy->flags, F_POLICY_CONF_BFD)){
+		flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
+					"can't bind cpath to bfd_name, policy sbfd already enbled");
+        return NB_ERR;
+	}
+
 	strlcpy(candidate->bfd_name, yang_dnode_get_string(args->dnode, NULL), BFD_NAME_SIZE);
 	strlcpy(bsp.args.bfd_name,candidate->bfd_name, BFD_NAME_SIZE);
+	if(srte_candidate_bfd_group_add(candidate->bfd_name, candidate) == NULL)
+	{
+		flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
+				"can't add sbfd group:%s for candidate!", candidate->bfd_name);
+		return NB_ERR;
+	}
+
 	bfd_name_register(&bsp);
 	return NB_OK;
 }
@@ -921,6 +935,7 @@ static int candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args)
 
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
 	if(candidate && candidate->bfd_name[0]){
+	    srte_candidate_bfd_group_del(candidate->bfd_name, candidate);
 	    candidate->bfd_name[0] = 0;
 	}
 

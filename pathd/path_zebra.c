@@ -254,7 +254,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 			continue;
 		}
 
-		if (count < candidate_group->up_cpath_num)
+		if (count < ZEBRA_SID_LIST_MAX_NUM)
 		{
 			strlcpy(zp.srv6_tunnel.sidlists[count].sidlist_name, candidate->segment_list->name,
 				sizeof(zp.srv6_tunnel.sidlists[count].sidlist_name));
