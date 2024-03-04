@@ -1463,6 +1463,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 				continue;
 			bgp_process_nexthop_change(bnc, path);
 		}
+		bgp_process(bgp_path, dest, path, afi, safi);
 	} else {
 		LIST_FOREACH (path, &(bnc->paths), te_nh_thread) {
 			if (!(path->type == ZEBRA_ROUTE_BGP
