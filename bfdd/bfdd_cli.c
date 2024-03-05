@@ -130,7 +130,7 @@ DEFPY_YANG_NOSH(
 	int ret, slen;
 	int idx_bfd = 3;
 	char value[32];
-	char xpath[XPATH_MAXLEN], xpath_bfdname[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32];
+	char xpath[XPATH_MAXLEN], xpath_sl[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32];
 	char xpath_segment[XPATH_MAXLEN + 32];
 	if (!bfdname) {
 		vty_out(vty,"%% bfd name is required\n");
@@ -144,9 +144,9 @@ DEFPY_YANG_NOSH(
 	}
 	
 	slen = snprintf(xpath, sizeof(xpath),
-			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][segment-list='%s']",
+			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][bfd-name='%s']",
             local_address_str,
-			segment_list_str);
+			bfdname);
 
 	if (vrf)
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
@@ -156,8 +156,8 @@ DEFPY_YANG_NOSH(
 
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
-	snprintf(xpath_bfdname, sizeof(xpath_bfdname), "%s/bfd-name", xpath);
-	nb_cli_enqueue_change(vty, xpath_bfdname, NB_OP_MODIFY, bfdname);
+	snprintf(xpath_sl, sizeof(xpath_sl), "%s/segment-list", xpath);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, segment_list_str);
 	
 	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
 	snprintf(value, sizeof(value), "%ld", BFD_MODE_TYPE_SBFD_ECHO);

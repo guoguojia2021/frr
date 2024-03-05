@@ -614,7 +614,7 @@ const struct frr_yang_module_info frr_bfdd_info = {
 		{
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/bfd-name",
 			.cbs = {
-				.modify = bfdd_bfd_sessions_bfd_name_modify,
+				.modify = dummy_modify,
 				.destroy = dummy_destroy,
 			}
 		},

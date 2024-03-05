@@ -116,7 +116,7 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 		{
 			vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
 			vty_out(vty, " segment-list %s",
-				inet_ntop(AF_INET6, &bs->key.segment_list, addr_buf,
+				inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf,
 					sizeof(addr_buf)));
 		}
 		else

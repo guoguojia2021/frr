@@ -60,15 +60,11 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 				struct bfd_key *bk)
 {
-	const char *ifname = NULL, *vrfname = NULL;
-	struct sockaddr_any psa, lsa, slist;
-	uint32_t bfd_mode;
+	const char *ifname = NULL, *vrfname = NULL, *bfdname = NULL;
+	struct sockaddr_any psa, lsa;
 
 	/* Required source parameter. */
 	strtosa(yang_dnode_get_string(dnode, "./source-addr"), &lsa);
-
-	/* Required segment-list parameter. */
-	strtosa(yang_dnode_get_string(dnode, "./segment-list"), &slist);
 
 	/* Get optional destination address. */
 	memset(&psa, 0, sizeof(psa));
@@ -84,10 +80,12 @@ static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 			ifname = NULL;
 	}
 
-	bfd_mode = yang_dnode_get_uint32(dnode, "./bfd-mode");
+	if (yang_dnode_exists(dnode, "./bfd-name")){
+	    bfdname = yang_dnode_get_string(dnode, "./bfd-name");
+	}
 
 	/* Generate the corresponding key. */
-	gen_sbfd_key(bk, &psa, &lsa, &slist, mhop, ifname, vrfname, bfd_mode);
+	gen_sbfd_key(bk, &psa, &lsa, mhop, ifname, vrfname, bfdname);
 }
 
 struct session_iter {
@@ -114,7 +112,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 {
 	const struct lyd_node *sess_dnode;
 	struct session_iter iter;
-	struct bfd_session *bs,*l_bfd;
+	struct bfd_session *bs;
 	const char *dest;
 	const char *ifname;
 	const char *vrfname;
@@ -122,6 +120,8 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 	struct prefix p;
 	const char * bfd_name = NULL;
 	uint8_t segnum = 1;
+	struct sockaddr_any slist;
+
 	switch (args->event) {
 	case NB_EV_VALIDATE:
 		yang_dnode_get_prefix(&p, args->dnode, "./dest-addr");
@@ -203,7 +203,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 			bfd_session_get_key(mhop, args->dnode, &bs->key);
 			strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
 			bs->bfd_mode = bfd_mode;
-			
+
 			/* Set configuration flags. */
 			bs->refcount = 1;
 			SET_FLAG(bs->flags, BFD_SESS_FLAG_CONFIG);
@@ -230,6 +230,14 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 				break;
 			}
 
+			if (!yang_dnode_exists(args->dnode, "./segment-list")){
+				//currenty segment-list should not be null 
+				snprintf(
+					args->errmsg, args->errmsg_len,
+					"segment-list should not be null");
+				return NB_ERR_RESOURCE;
+			}
+
 			bfd_name = yang_dnode_get_string(args->dnode, "./bfd-name");
 			bs = bfd_common_session_new(segnum);
 			if (bs == NULL) {
@@ -243,9 +251,10 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 			strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
 			bs->bfd_mode = bfd_mode;
 			bs->segnum = segnum;
-			            
-			memcpy(&bs->seg_list[0], &bs->key.segment_list , sizeof(struct in6_addr));
-			
+
+			strtosa(yang_dnode_get_string(args->dnode, "./segment-list"), &slist);
+			memcpy(&bs->seg_list[0], &slist.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+
 			/* Set configuration flags. */
 			bs->refcount = 1;
 			SET_FLAG(bs->flags, BFD_SESS_FLAG_CONFIG);
@@ -307,8 +316,12 @@ static int bfd_session_destroy(enum nb_event event,
 
 	switch (event) {
 	case NB_EV_VALIDATE:
-	    bk.bfd_mode = bfd_mode;
-		bfd_session_get_key(mhop, dnode, &bk);
+		if(bfd_mode == BFD_MODE_TYPE_BFD){
+		    bfd_session_get_key(mhop, dnode, &bk);
+		}else{
+			sbfd_session_get_key(mhop, dnode, &bk);
+		}
+
 		if (bfd_key_lookup(bk) == NULL)
 			return NB_ERR_INCONSISTENCY;
 		break;

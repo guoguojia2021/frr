@@ -490,7 +490,7 @@ module frr-bfdd {
         }
 
         list srte-sbfd-echo {
-          key "source-addr segment-list vrf";
+          key "source-addr bfd-name vrf";
           description "List of srte sbfd echo sessions";
 
           leaf source-addr {
@@ -498,9 +498,10 @@ module frr-bfdd {
             description "Local IP address";
           }
 
-          leaf segment-list {
-            type inet:ip-address;
-            description "segment list of sbfd session";
+          leaf bfd-name {
+            type string;
+            default "";
+            description "Bfd session name.";           
           }
 
           leaf vrf {
@@ -513,10 +514,9 @@ module frr-bfdd {
             description "Override defaults with profile.";
           }
 
-          leaf bfd-name {
-            type string;
-            default "";
-            description "Bfd session name.";           
+          leaf segment-list {
+            type inet:ip-address;
+            description "segment list of sbfd session";
           }
 
           leaf bfd-mode {

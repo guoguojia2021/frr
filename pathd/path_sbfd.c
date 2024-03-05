@@ -1067,7 +1067,7 @@ static int policy_sbfd_state_change(char *bfd_name, int state)
 	struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
-	zlog_err( "bfd:%s update state to:%d", bfd_name, state);
+	zlog_err( "bfd:%s update state to:%s", bfd_name, bfd_get_status_str(state));
 	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
 
 	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);

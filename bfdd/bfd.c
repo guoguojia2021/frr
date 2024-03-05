@@ -267,7 +267,7 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 	}
 
 	key->mhop = mhop;
-	key->bfd_mode = BFD_MODE_TYPE_BFD;
+
 	if (ifname && ifname[0])
 		strlcpy(key->ifname, ifname, sizeof(key->ifname));
 	if (vrfname && vrfname[0] && strcmp(vrfname, VRF_DEFAULT_NAME) != 0)
@@ -293,8 +293,8 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 }
 
 void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
-		 struct sockaddr_any *local, struct sockaddr_any *slist, bool mhop, const char *ifname,
-		 const char *vrfname, uint32_t bfd_mode)
+		 struct sockaddr_any *local, bool mhop, const char *ifname,
+		 const char *vrfname, const char *bfdname)
 {
 	memset(key, 0, sizeof(*key));
     struct vrf *vrf = NULL;
@@ -316,11 +316,7 @@ void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		break;
 	}
 
-	memcpy(&key->segment_list, &slist->sa_sin6.sin6_addr,
-		       sizeof(slist->sa_sin6.sin6_addr));
-
 	key->mhop = mhop;
-	key->bfd_mode = bfd_mode;
 
 	if (ifname && ifname[0])
     {
@@ -345,6 +341,11 @@ void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 	{
 		strlcpy(key->vrfname, VRF_DEFAULT_NAME, sizeof(key->vrfname));
 		strlcpy(key->vrfaliasname, VRF_DEFAULT_NAME, sizeof(key->vrfaliasname));
+	}
+
+	if (bfdname && bfdname[0])
+	{
+		strlcpy(key->bfdname, bfdname, sizeof(key->bfdname));
 	}
 
 }
@@ -2332,6 +2333,9 @@ static bool bfd_key_hash_cmp(const void *n1, const void *n2)
 	if (memcmp(bs1->key.vrfname, bs2->key.vrfname,
 		   sizeof(bs1->key.vrfname)))
 		return false;
+	if (memcmp(bs1->key.bfdname, bs2->key.bfdname,
+		   sizeof(bs1->key.bfdname)))
+		return false;
 
 	/*
 	 * Local address is optional and can be empty.
@@ -2600,7 +2604,7 @@ static int _bfd_session_next(struct hash_bucket *hb, void *arg)
 	/* Previous entry signaled stop. */
 	if (bsi->bsi_stop == 1) {
 		/* Match the single/multi hop sessions. */
-		if ((bs->key.mhop != bsi->bsi_mhop) && (bs->key.bfd_mode != bsi->bsi_bfdmode))
+		if ((bs->key.mhop != bsi->bsi_mhop) && (bs->bfd_mode != bsi->bsi_bfdmode))
 			return HASHWALK_CONTINUE;
 
 		bsi->bsi_bs = bs;
@@ -2612,7 +2616,7 @@ static int _bfd_session_next(struct hash_bucket *hb, void *arg)
 		bsi->bsi_stop = 1;
 		/* Set entry to NULL to signal end of list. */
 		bsi->bsi_bs = NULL;
-	} else if (bsi->bsi_bs == NULL && bsi->bsi_mhop == bs->key.mhop && bsi->bsi_bfdmode == bs->key.bfd_mode) {
+	} else if (bsi->bsi_bs == NULL && bsi->bsi_mhop == bs->key.mhop && bsi->bsi_bfdmode == bs->bfd_mode) {
 		/* We want the first list item. */
 		bsi->bsi_stop = 1;
 		bsi->bsi_bs = hb->data;

@@ -205,13 +205,12 @@ struct bfd_key {
 	uint16_t mhop;
 	struct in6_addr peer;
 	struct in6_addr local;
-	struct in6_addr segment_list;
 	char ifname[MAXNAMELEN];
 	char vrfname[MAXNAMELEN];
 	char vrfaliasname[MAXALIASNAMELEN];
 	uint32_t srte_color;
-	uint32_t bfd_mode;
-    char seglist_name[MAXNAMELEN];
+	char seglist_name[MAXNAMELEN];
+	char bfdname[MAXNAMELEN];
 } __attribute__((packed));
 
 struct bfd_session_stats {
@@ -683,8 +682,8 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname);
 void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
-		 struct sockaddr_any *local, struct sockaddr_any *slist, bool mhop, const char *ifname,
-		 const char *vrfname, uint32_t bfd_mode);
+		 struct sockaddr_any *local, bool mhop, const char *ifname,
+		 const char *vrfname, const char *bfdname);
 
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
