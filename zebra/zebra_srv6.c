@@ -699,7 +699,8 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 	uint16_t sid_masklen = 0;
 	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
 
-	sid_masklen = locator->block_bits_length + locator->node_bits_length + locator->function_bits_length;
+    
+	sid_masklen = (locator->format == SRV6_FORMAT_F1) ? 128 : locator->block_bits_length + locator->node_bits_length + locator->function_bits_length;
 	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
 	// addr_msb
 	//uint32_t addr_0 = result_sid.s6_addr32[0];

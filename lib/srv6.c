@@ -184,9 +184,21 @@ void combine_sid(struct srv6_locator *locator, struct in6_addr *sid_addr, struct
 	uint8_t totalbit = 0;
 	uint8_t funbit = 0;
 	locatorbit = (locator->block_bits_length + locator->node_bits_length) / 8;
-	/* sidbit = 16 - locatorbit; */
-	totalbit = (locator->block_bits_length + locator->node_bits_length + locator->function_bits_length + locator->argument_bits_length) / 8;
-	funbit = (locator->function_bits_length + locator->argument_bits_length) / 8;
+
+	if (locator->format == SRV6_FORMAT_F1)
+	{
+		/* LBL:40 LNL:24 FL:16 AL:8, funbit = 128-LB-LNL */
+		totalbit = 16; 
+		funbit = 8;
+	}
+	/* SRV6_FORMAT_USID_3216 */
+	else 
+	{
+		/* sidbit = 16 - locatorbit; */
+		totalbit = (locator->block_bits_length + locator->node_bits_length + locator->function_bits_length + locator->argument_bits_length) / 8;
+		funbit = (locator->function_bits_length + locator->argument_bits_length) / 8;
+	}
+	
 	for (idx = 0; idx < locatorbit; idx++) {
 		result_addr->s6_addr[idx] = locator->prefix.prefix.s6_addr[idx];
 	}
