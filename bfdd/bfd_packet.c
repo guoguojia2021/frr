@@ -2086,7 +2086,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 
 	struct ipaddr out_sip_addr = {0};
 	struct sockaddr_in6 dst_sin6;
-
+	char buf_addr[INET6_ADDRSTRLEN] = {0};
 
 	char sendbuf[BUF_SIZ];
 	memset(sendbuf, 0, sizeof(sendbuf));
@@ -2162,13 +2162,16 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	msg.msg_namelen = sizeof(struct sockaddr_in6);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-    
+
 	/* sendmsg */
     ret = sendmsg(sd, &msg, flags);
     if (ret < 0)
     {
+		inet_ntop(AF_INET6, &dst_sin6.sin6_addr, buf_addr, INET6_ADDRSTRLEN);
 		zlog_err(
-			"sbfd send failed , ret : %d .", ret);
+			"sbfd send to:%s failed , ret:%d, errno:%s", buf_addr, ret, safe_strerror(errno));
+
+		return ret;
     }
 
     return 0;

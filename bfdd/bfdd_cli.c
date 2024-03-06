@@ -280,9 +280,9 @@ DEFPY_YANG(
 	char source_str[INET6_ADDRSTRLEN + 32];
 
 	slen = snprintf(xpath, sizeof(xpath),
-			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][segment-list='%s']",
+			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][bfd-name='%s']",
             local_address_str,
-			segment_list_str);
+			bfdname);
 
 	if (vrf)
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
