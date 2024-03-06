@@ -1060,6 +1060,8 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 	}
 
+	strncpy(data->bfd_name, bfd->bfd_name, MAXNAMELEN);
+
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
     hdr->msg_len = htons(msg_len);
     stream_forward_endp(msg, msg_len);
