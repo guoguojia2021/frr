@@ -3268,6 +3268,7 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
     STREAM_GETC(s, loc->node_bits_length);
     STREAM_GETC(s, loc->function_bits_length);
     STREAM_GETC(s, loc->argument_bits_length);
+	STREAM_GETL(s, loc->format);
 
     if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0)
     {
@@ -3384,6 +3385,7 @@ static int bgp_zebra_process_srv6_locator_add(ZAPI_CALLBACK_ARGS)
 		loctmp->node_bits_length = loc->node_bits_length;
 		loctmp->function_bits_length = loc->function_bits_length;
 		loctmp->argument_bits_length = loc->argument_bits_length;
+		loctmp->format = loc->format;
 		srv6_locator_del(loc);
 	}
 

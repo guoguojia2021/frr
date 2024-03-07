@@ -1154,6 +1154,7 @@ int zapi_srv6_locator_encode(struct stream *s, const struct srv6_locator *l)
     stream_putc(s, l->node_bits_length);
     stream_putc(s, l->function_bits_length);
     stream_putc(s, l->argument_bits_length);
+	stream_putl(s, l->format);
 	return 0;
 }
 
@@ -1173,6 +1174,7 @@ int zapi_srv6_locator_decode(struct stream *s, struct srv6_locator *l)
     STREAM_GETC(s, l->node_bits_length);
     STREAM_GETC(s, l->function_bits_length);
     STREAM_GETC(s, l->argument_bits_length);
+	STREAM_GETL(s, l->format);
 	return 0;
 
 stream_failure:
@@ -1193,6 +1195,7 @@ int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
     stream_putc(s, loc->node_bits_length);
     stream_putc(s, loc->function_bits_length);
     stream_putc(s, loc->argument_bits_length);
+	stream_putl(s, loc->format);
     
     stream_putl(s, loc->sids->count);
     for (ALL_LIST_ELEMENTS_RO(loc->sids, node, sidtmp)) {
