@@ -908,7 +908,7 @@ void HandleUnaryCommit(
 	case frr::CommitRequest::ALL:
 		grpc_debug("`-> Performing ALL");
 		ret = nb_candidate_commit(&context, candidate->config, true,
-					  comment.c_str(), &transaction_id,
+					  comment.c_str(), &transaction_id, false,
 					  errmsg, sizeof(errmsg));
 		break;
 	}

@@ -135,7 +135,7 @@ static void static_startup(void)
 	ret = cmd_execute(vty, "end", NULL, 0);
 	assert(!ret);
 
-	nb_cli_pending_commit_check(vty);
+	nb_cli_pending_commit_check(vty, false);
 
 	frr_pthread_init();
 

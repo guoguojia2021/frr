@@ -1031,7 +1031,7 @@ extern void nb_candidate_commit_apply(struct nb_transaction *transaction,
 extern int nb_candidate_commit(struct nb_context *context,
 			       struct nb_config *candidate,
 			       bool save_transaction, const char *comment,
-			       uint32_t *transaction_id, char *errmsg,
+			       uint32_t *transaction_id, bool skip, char *errmsg,
 			       size_t errmsg_len);
 
 /*

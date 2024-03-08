@@ -141,7 +141,7 @@ extern void nb_cli_show_dnode_cmds(struct vty *vty,
  *    CMD_SUCCESS on success (or no pending), CMD_WARNING_CONFIG_FAILED
  *    otherwise.
  */
-extern int nb_cli_pending_commit_check(struct vty *vty);
+extern int nb_cli_pending_commit_check(struct vty *vty, bool skip);
 
 /* Prototypes of internal functions. */
 extern void nb_cli_show_config_prepare(struct nb_config *config,

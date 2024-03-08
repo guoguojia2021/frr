@@ -924,14 +924,14 @@ void nb_candidate_commit_apply(struct nb_transaction *transaction,
 
 int nb_candidate_commit(struct nb_context *context, struct nb_config *candidate,
 			bool save_transaction, const char *comment,
-			uint32_t *transaction_id, char *errmsg,
+			uint32_t *transaction_id, bool skip, char *errmsg,
 			size_t errmsg_len)
 {
 	struct nb_transaction *transaction = NULL;
 	int ret;
 
 	ret = nb_candidate_commit_prepare(context, candidate, comment,
-					  &transaction, true, errmsg, errmsg_len);
+					  &transaction, skip, errmsg, errmsg_len);
 	/*
 	 * Apply the changes if the preparation phase succeeded. Otherwise abort
 	 * the transaction.

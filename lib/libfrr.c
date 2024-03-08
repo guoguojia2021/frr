@@ -989,7 +989,7 @@ static int frr_config_read_in(struct thread *t)
 
 		context.client = NB_CLIENT_CLI;
 		ret = nb_candidate_commit(&context, vty_shared_candidate_config,
-					  true, "Read configuration file", NULL,
+					  true, "Read configuration file", NULL, false,
 					  errmsg, sizeof(errmsg));
 		if (ret != NB_OK && ret != NB_ERR_NO_CHANGES)
 			zlog_err(

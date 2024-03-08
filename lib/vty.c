@@ -2323,7 +2323,7 @@ static void vty_read_file(struct nb_config *config, FILE *confp)
 		context.client = NB_CLIENT_CLI;
 		context.user = vty;
 		ret = nb_candidate_commit(&context, vty->candidate_config, true,
-					  "Read configuration file", NULL,
+					  "Read configuration file", NULL, false,
 					  errmsg, sizeof(errmsg));
 		if (ret != NB_OK && ret != NB_ERR_NO_CHANGES)
 			zlog_err(
@@ -2579,7 +2579,7 @@ int vty_config_node_exit(struct vty *vty)
 	vty->xpath_index = 0;
 
 	/* Perform any pending commits. */
-	(void)nb_cli_pending_commit_check(vty);
+	(void)nb_cli_pending_commit_check(vty, false);
 
 	/* Check if there's a pending confirmed commit. */
 	if (vty->t_confirmed_commit_timeout) {

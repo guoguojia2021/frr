@@ -53,7 +53,7 @@ static void vty_show_nb_errors(struct vty *vty, int error, const char *errmsg)
 		vty_out(vty, "Error description: %s\n", errmsg);
 }
 
-static int nb_cli_classic_commit(struct vty *vty)
+static int nb_cli_classic_commit(struct vty *vty, bool skip)
 {
 	struct nb_context context = {};
 	char errmsg[BUFSIZ] = {0};
@@ -62,7 +62,7 @@ static int nb_cli_classic_commit(struct vty *vty)
 	context.client = NB_CLIENT_CLI;
 	context.user = vty;
 	ret = nb_candidate_commit(&context, vty->candidate_config, true, NULL,
-				  NULL, errmsg, sizeof(errmsg));
+				  NULL, skip, errmsg, sizeof(errmsg));
 	switch (ret) {
 	case NB_OK:
 		/* Successful commit. Print warnings (if any). */
@@ -95,12 +95,12 @@ static void nb_cli_pending_commit_clear(struct vty *vty)
 	vty->pending_cmds_bufpos = 0;
 }
 
-int nb_cli_pending_commit_check(struct vty *vty)
+int nb_cli_pending_commit_check(struct vty *vty, bool skip)
 {
 	int ret = CMD_SUCCESS;
 
 	if (vty->pending_commit) {
-		ret = nb_cli_classic_commit(vty);
+		ret = nb_cli_classic_commit(vty, skip);
 		nb_cli_pending_commit_clear(vty);
 	}
 
@@ -153,7 +153,7 @@ void nb_cli_enqueue_change(struct vty *vty, const char *xpath,
 
 static int nb_cli_apply_changes_internal(struct vty *vty,
 					 const char *xpath_base,
-					 bool clear_pending)
+					 bool clear_pending, bool skip)
 {
 	bool error = false;
 
@@ -243,11 +243,11 @@ static int nb_cli_apply_changes_internal(struct vty *vty,
 	if (frr_get_cli_mode() == FRR_CLI_CLASSIC) {
 		if (clear_pending) {
 			if (vty->pending_commit)
-				return nb_cli_pending_commit_check(vty);
+				return nb_cli_pending_commit_check(vty, skip);
 		} else if (vty->pending_allowed)
 			return nb_cli_schedule_command(vty);
 		assert(!vty->pending_commit);
-		return nb_cli_classic_commit(vty);
+		return nb_cli_classic_commit(vty, skip);
 	}
 
 	return CMD_SUCCESS;
@@ -265,7 +265,22 @@ int nb_cli_apply_changes(struct vty *vty, const char *xpath_base_fmt, ...)
 		vsnprintf(xpath_base, sizeof(xpath_base), xpath_base_fmt, ap);
 		va_end(ap);
 	}
-	return nb_cli_apply_changes_internal(vty, xpath_base, false);
+	return nb_cli_apply_changes_internal(vty, xpath_base, false, false);
+}
+
+int nb_cli_apply_changes_skip_check_validate(struct vty *vty, const char *xpath_base_fmt, ...)
+{
+	char xpath_base[XPATH_MAXLEN] = {};
+
+	/* Parse the base XPath format string. */
+	if (xpath_base_fmt) {
+		va_list ap;
+
+		va_start(ap, xpath_base_fmt);
+		vsnprintf(xpath_base, sizeof(xpath_base), xpath_base_fmt, ap);
+		va_end(ap);
+	}
+	return nb_cli_apply_changes_internal(vty, xpath_base, false, true);
 }
 
 int nb_cli_apply_changes_clear_pending(struct vty *vty,
@@ -281,7 +296,7 @@ int nb_cli_apply_changes_clear_pending(struct vty *vty,
 		vsnprintf(xpath_base, sizeof(xpath_base), xpath_base_fmt, ap);
 		va_end(ap);
 	}
-	return nb_cli_apply_changes_internal(vty, xpath_base, true);
+	return nb_cli_apply_changes_internal(vty, xpath_base, true, false);
 }
 
 int nb_cli_rpc(struct vty *vty, const char *xpath, struct list *input,
@@ -330,7 +345,7 @@ int nb_cli_confirmed_commit_rollback(struct vty *vty)
 	ret = nb_candidate_commit(
 		&context, vty->confirmed_commit_rollback, true,
 		"Rollback to previous configuration - confirmed commit has timed out",
-		&transaction_id, errmsg, sizeof(errmsg));
+		&transaction_id, false, errmsg, sizeof(errmsg));
 	if (ret == NB_OK) {
 		vty_out(vty,
 			"Rollback performed successfully (Transaction ID #%u).\n",
@@ -412,7 +427,7 @@ static int nb_cli_commit(struct vty *vty, bool force,
 	context.client = NB_CLIENT_CLI;
 	context.user = vty;
 	ret = nb_candidate_commit(&context, vty->candidate_config, true,
-				  comment, &transaction_id, errmsg,
+				  comment, &transaction_id, false, errmsg,
 				  sizeof(errmsg));
 
 	/* Map northbound return code to CLI return code. */
@@ -1724,7 +1739,7 @@ static int nb_cli_rollback_configuration(struct vty *vty,
 	context.client = NB_CLIENT_CLI;
 	context.user = vty;
 	ret = nb_candidate_commit(&context, candidate, true, comment, NULL,
-				  errmsg, sizeof(errmsg));
+				  false, errmsg, sizeof(errmsg));
 	nb_config_free(candidate);
 	switch (ret) {
 	case NB_OK:
