@@ -2072,8 +2072,9 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list)
 {
-    struct msghdr msg  = {0};
-    struct iovec iov;
+	static uint8_t sendbuf[BUF_SIZ];
+	struct msghdr msg  = {0};
+	struct iovec iov;
 	int flags = 0;
 	int ret = 0;
 
@@ -2088,7 +2089,6 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	struct sockaddr_in6 dst_sin6;
 	char buf_addr[INET6_ADDRSTRLEN] = {0};
 
-	char sendbuf[BUF_SIZ];
 	memset(sendbuf, 0, sizeof(sendbuf));
 	int total_len = 0;
 
