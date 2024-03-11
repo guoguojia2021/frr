@@ -63,7 +63,7 @@ from lib.ospf import (
     verify_ospf_interface,
 )
 
-pytestmark = [pytest.mark.ospfd, pytest.mark.staticd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.ospfd, pytest.mark.staticd]
 
 
 # Global variables
