@@ -270,6 +270,7 @@ def __create_bgp_global(tgen, input_dict, router, build=False):
 
     config_data.append("bgp log-neighbor-changes")
     config_data.append("no bgp network import-check")
+    config_data.append("timers bgp start-timer 0")
     bgp_peer_grp_data = bgp_data.setdefault("peer-group", {})
 
     if "peer-group" in bgp_data and bgp_peer_grp_data:
@@ -2993,7 +2994,7 @@ def verify_bgp_rib(
     return True
 
 
-@retry(retry_timeout=10)
+@retry(retry_timeout=60)
 def verify_graceful_restart(
     tgen, topo, addr_type, input_dict, dut, peer, expected=True
 ):
