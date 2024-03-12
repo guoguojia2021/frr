@@ -78,6 +78,9 @@ static void sigint(void)
 {
 	zlog_notice("Terminating on signal");
 
+	static_zebra_register_neigh(VRF_DEFAULT, AFI_IP, false);
+	static_zebra_register_neigh(VRF_DEFAULT, AFI_IP6, false);
+
 	static_vrf_terminate();
 
 	frr_fini();

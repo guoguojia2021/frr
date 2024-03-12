@@ -4047,20 +4047,25 @@ static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 		/* copy LLADDR information */
 		l2_len = RTA_PAYLOAD(tb[NDA_LLADDR]);
 	}
+	union sockunion link_layer_ipv4;
+#if 0   /*Alibaba*/
 	if (l2_len == IPV4_MAX_BYTELEN || l2_len == 0) {
-		union sockunion link_layer_ipv4;
-
 		if (l2_len) {
 			sockunion_family(&link_layer_ipv4) = AF_INET;
 			memcpy((void *)sockunion_get_addr(&link_layer_ipv4),
-			       RTA_DATA(tb[NDA_LLADDR]), l2_len);
+			       &mac, l2_len);
 		} else
 			sockunion_family(&link_layer_ipv4) = AF_UNSPEC;
-		zsend_nhrp_neighbor_notify(
-			cmd, ifp, &ip,
-			netlink_nbr_entry_state_to_zclient(ndm->ndm_state),
-			&link_layer_ipv4);
+		
+		zsend_nhrp_neighbor_notify(cmd, ifp, &ip, ndm->ndm_state,&link_layer_ipv4);
 	}
+#else
+	if (l2_len == ETH_ALEN) {
+		zsend_neighbor_notify(cmd, ifp, &ip, ndm->ndm_state);
+	}else if (l2_len == 0){
+		zsend_neighbor_notify(cmd, ifp, &ip, ndm->ndm_state);
+	}
+#endif
 
 	if (h->nlmsg_type == RTM_GETNEIGH)
 		return 0;

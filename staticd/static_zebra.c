@@ -44,6 +44,9 @@
 #include "static_vty.h"
 #include "static_debug.h"
 
+#define IN6_IS_ADDR_LINKLOCAL(a)        \
+       (((a)->s6_addr[0] == 0xfe) && (((a)->s6_addr[1] & 0xc0) == 0x80))
+
 /* Zebra structure to hold current status. */
 struct zclient *zclient;
 static struct hash *static_nht_hash;
@@ -136,9 +139,29 @@ static int route_notify_owner(ZAPI_CALLBACK_ARGS)
 
 	return 0;
 }
+void static_zebra_register_neigh(vrf_id_t vrf_id, afi_t afi, bool reg)
+{
+	struct stream *s;
+
+	if (!zclient || zclient->sock < 0)
+		return;
+
+	s = zclient->obuf;
+	stream_reset(s);
+
+	zclient_create_header(s, reg ? ZEBRA_NHRP_NEIGH_REGISTER :
+			      ZEBRA_NHRP_NEIGH_UNREGISTER,
+			      vrf_id);
+	stream_putw(s, afi);
+	stream_putw_at(s, 0, stream_get_endp(s));
+	zclient_send_message(zclient);
+}
+
 static void zebra_connected(struct zclient *zclient)
 {
 	zclient_send_reg_requests(zclient, VRF_DEFAULT);
+	static_zebra_register_neigh(VRF_DEFAULT, AFI_IP, true);
+	static_zebra_register_neigh(VRF_DEFAULT, AFI_IP6, true);
 }
 
 struct static_nht_data {
@@ -167,6 +190,89 @@ static_nexthop_is_local(vrf_id_t vrfid, struct prefix *addr, int family)
 	}
 	return false;
 }
+static void static_gateway_update_nh(struct interface *ifp, 
+				     struct route_node *rn,
+				     struct static_path *pn,
+				     struct static_nexthop *nh,
+				     struct static_vrf *svrf, safi_t safi, bool add)
+{
+	ifindex_t tmp = 0;
+	if(add)
+	    tmp = ifp->ifindex;
+	else
+	    tmp = IFINDEX_INTERNAL;
+	
+	if (nh->ifindex != tmp){
+		nh->ifindex = tmp;
+		static_install_path(pn);
+	}
+}
+
+
+static int static_neighbor_operation(ZAPI_CALLBACK_ARGS)
+{
+	union sockunion addr = {};
+	struct interface *ifp;
+	struct zapi_neigh_ip api = {};
+	struct route_table *stable;
+	struct route_node *rn;
+	struct static_nexthop *nh;
+	struct static_path *pn;
+	struct vrf *vrf;
+	struct static_route_info *si;
+	safi_t safi;
+	afi_t  afi; 
+	bool add;
+
+	zclient_neigh_ip_decode(zclient->ibuf, &api);
+	if (api.ip_in.ipa_type != IPADDR_V6)
+	{
+		return;
+	}
+
+	ifp = if_lookup_by_index(api.index, vrf_id);
+	if (!ifp)
+		return;
+	
+	sockunion_family(&addr) = api.ip_in.ipa_type;
+	memcpy((uint8_t *)sockunion_get_addr(&addr), &api.ip_in.ip.addr,
+	       family2addrsize(api.ip_in.ipa_type));
+	
+	if (!IN6_IS_ADDR_LINKLOCAL(&addr.sin6.sin6_addr))
+		return 0;
+
+	afi  =  AFI_IP6;
+	safi =  SAFI_UNICAST;
+
+	if (api.ndm_state == NUD_FAILED || api.ndm_state == NUD_INCOMPLETE ) {
+		add = false;
+	}else {
+		add = true;
+	}
+
+	RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name) {
+		struct static_vrf *svrf;
+		svrf = vrf->info;
+		stable = static_vrf_static_table(afi, safi, svrf);
+		if (!stable)
+			continue;
+		for (rn = route_top(stable); rn; rn = srcdest_route_next(rn)) {
+			si = static_route_info_from_rnode(rn);
+			if (!si)
+				continue;
+			frr_each(static_path_list, &si->path_list, pn) {
+				frr_each(static_nexthop_list,
+					  &pn->nexthop_list, nh) {
+						if(nh->type == STATIC_IPV6_GATEWAY_IFNAME)
+							if (memcmp(&addr.sin6.sin6_addr, &nh->addr.ipv6, 16) == 0)
+					        		static_gateway_update_nh(ifp, rn,pn, nh, svrf,safi,add);
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 {
 	struct static_nht_data *nhtd, lookup;

@@ -26,6 +26,7 @@ extern "C" {
 extern struct thread_master *master;
 
 extern void static_zebra_nht_register(struct static_nexthop *nh, bool reg);
+extern void static_zebra_register_neigh(vrf_id_t vrf_id, afi_t afi, bool reg);
 
 extern void static_zebra_route_add(struct static_path *pn, bool install, bool set_etag);
 extern void get_static_nht_nh_rttype(struct route_node *rn, 

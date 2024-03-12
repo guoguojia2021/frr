@@ -992,8 +992,10 @@ void zsend_nhrp_neighbor_notify(int cmd, struct interface *ifp,
 	       family2addrsize(sockunion_family(&ip)));
 
 	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
+		if(client->redist_default != ZEBRA_ROUTE_NHRP)
+			continue;
 		if (!vrf_bitmap_check(client->nhrp_neighinfo[afi],
-				      ifp->vrf->vrf_id))
+							ifp->vrf->vrf_id))
 			continue;
 
 		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
@@ -1003,6 +1005,43 @@ void zsend_nhrp_neighbor_notify(int cmd, struct interface *ifp,
 		zserv_send_message(client, s);
 	}
 }
+
+void zsend_neighbor_notify(int cmd, struct interface *ifp,
+				struct ipaddr *ipaddr, int ndm_state)
+{
+	struct stream *s;
+	struct listnode *node, *nnode;
+	struct zserv *client;
+	afi_t afi;
+	union sockunion ip;
+
+	if (IS_ZEBRA_DEBUG_PACKET)
+		zlog_debug("%s: Notifying Neighbor entry (%u)", __func__, cmd);
+
+	sockunion_family(&ip) = ipaddr_family(ipaddr);
+	afi = family2afi(sockunion_family(&ip));
+	memcpy((char *)sockunion_get_addr(&ip), &ipaddr->ip.addr,
+	       family2addrsize(sockunion_family(&ip)));
+
+	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
+		if(client->redist_default == ZEBRA_ROUTE_NHRP)
+			continue;
+		if (!vrf_bitmap_check(client->nhrp_neighinfo[afi], ifp->vrf->vrf_id))
+			continue;
+
+		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+		zclient_create_header(s, cmd, ifp->vrf->vrf_id);
+		stream_putc(s, sockunion_family(&ip));
+		stream_write(s, sockunion_get_addr(&ip), sockunion_get_addrlen(&ip));
+		stream_putc(s, AF_UNSPEC);
+		stream_putl(s, ifp->ifindex);
+		stream_putl(s, ndm_state);
+
+		stream_putw_at(s, 0, stream_get_endp(s));
+		zserv_send_message(client, s);
+	}
+}
+
 
 /* Router-id is updated. Send ZEBRA_ROUTER_ID_UPDATE to client. */
 int zsend_router_id_update(struct zserv *client, afi_t afi, struct prefix *p,
