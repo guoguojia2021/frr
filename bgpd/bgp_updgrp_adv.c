@@ -808,6 +808,7 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 	struct bgp *bgp;
 	struct attr attr = { 0 };
 	struct attr *new_attr = &attr;
+	struct aspath *aspath;
 	struct prefix p;
 	struct peer *from;
 	struct bgp_dest *dest;
@@ -837,6 +838,7 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 	assert(attr.aspath);
 
 	attr.local_pref = bgp->default_local_pref;
+	aspath = attr.aspath;
 	attr.med = 0;
 	attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC);
 
@@ -979,7 +981,7 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 		}
 	}
 
-	aspath_unintern(&attr.aspath);
+	aspath_unintern(&aspath);
 }
 
 /*
