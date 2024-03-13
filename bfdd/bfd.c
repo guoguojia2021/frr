@@ -858,7 +858,8 @@ int bfd_xmtdel_delay_cb(struct thread *t)
 {
 	struct bfd_session *bs = THREAD_ARG(t);
 
-	bfd_xmttimer_delete(bs);
+	if (bs->ses_state == PTM_BFD_UP && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS)))
+		bfd_xmttimer_delete(bs);
 	bfd_echo_xmttimer_delete(bs);
     bs->xmttimer_delay = NULL;
 

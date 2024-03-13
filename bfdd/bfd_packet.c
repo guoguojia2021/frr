@@ -912,24 +912,27 @@ int bfd_recv_cb(struct thread *t)
 		/* Disable pooling. */
 		bfd->polling = 0;
 
-        /* get current bfd param */
-        cur_xmt_TO = bfd->xmt_TO;
+		/* get current bfd param */
+		cur_xmt_TO = bfd->xmt_TO;
 		cur_detect_TO = bfd->detect_TO;
 		cur_detect_mult = bfd->detect_mult;
 		
 		/* Handle poll finalization. */
 		bs_final_handler(bfd);
-        /*try to send to hwbfd*/
-        bfd_fpm_peer_sendmsg(bfd, true);
-        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
-        {
-            bfd_recvtimer_delete(bfd);
-        }
-        
-		/* if bfd config interval is not changed , frr stop xmttimer_ev*/
-		if (!bfd_config_timers_changed(bfd, cur_xmt_TO, cur_detect_TO, cur_detect_mult))
+		/*try to send to hwbfd*/
+		if (bfd->ses_state == PTM_BFD_UP)
 		{
-			bfd_stop_xmt_delay_timer(bfd);
+			bfd_fpm_peer_sendmsg(bfd, true);
+			if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+			{
+				bfd_recvtimer_delete(bfd);
+			}
+			
+			/* if bfd config interval is not changed , frr stop xmttimer_ev*/
+			if (!bfd_config_timers_changed(bfd, cur_xmt_TO, cur_detect_TO, cur_detect_mult))
+			{
+				bfd_stop_xmt_delay_timer(bfd);
+			}
 		}
 	} else {
 		/* Received a packet, lets update the receive timer. */
@@ -964,8 +967,8 @@ int bfd_recv_cb(struct thread *t)
 	 * RFC 5880, Section 6.5.
 	 */
 	if (BFD_GETPBIT(cp->flags)) {
-        /* get current bfd param */
-        cur_xmt_TO = bfd->xmt_TO;
+		/* get current bfd param */
+		cur_xmt_TO = bfd->xmt_TO;
 		cur_detect_TO = bfd->detect_TO;
 		cur_detect_mult = bfd->detect_mult;
 
@@ -974,17 +977,20 @@ int bfd_recv_cb(struct thread *t)
 
 		/* Send the control packet with the final bit immediately. */
 		ptm_bfd_snd(bfd, 1);
-        /*try to send to hwbfd*/
-        bfd_fpm_peer_sendmsg(bfd, true);
-        if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
-        {
-            bfd_recvtimer_delete(bfd);
-        }
-
-		/* if bfd config interval is not changed , frr stop xmttimer_ev*/
-		if (!bfd_config_timers_changed(bfd, cur_xmt_TO, cur_detect_TO, cur_detect_mult))
+		if (bfd->ses_state == PTM_BFD_UP)
 		{
-			bfd_stop_xmt_delay_timer(bfd);
+			/*try to send to hwbfd*/
+			bfd_fpm_peer_sendmsg(bfd, true);
+			if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+			{
+				bfd_recvtimer_delete(bfd);
+			}
+
+			/* if bfd config interval is not changed , frr stop xmttimer_ev*/
+			if (!bfd_config_timers_changed(bfd, cur_xmt_TO, cur_detect_TO, cur_detect_mult))
+			{
+				bfd_stop_xmt_delay_timer(bfd);
+			}
 		}
 	}
 
