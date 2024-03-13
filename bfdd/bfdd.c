@@ -334,6 +334,7 @@ static void bg_init(void)
 	       sizeof(bfdd_privs));
 
     bglobal.bfd_soft_stop_serv = 0;
+    bglobal.debug_peer_event = true;
 }
 
 int main(int argc, char *argv[])

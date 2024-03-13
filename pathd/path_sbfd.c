@@ -109,6 +109,37 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 	}
 }
 
+static void sbfd_refresh_policy_group_state(struct srte_candidate_group * group)
+{
+	// struct srte_candidate_group *cpath_group, *safe_cg;
+	struct srte_candidate *candidate, *safe_cpath;
+	uint32_t cpath_up_count = 0;
+
+	RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &group->candidate_paths, safe_cpath)
+	{
+		if (!candidate->segment_list)
+		{
+			continue;
+		}
+
+		if (candidate->status != SRTE_DETECT_DOWN)
+		{
+			cpath_up_count++;
+		}
+	}
+
+	if (cpath_up_count > 0)
+	{
+		group->status = SRTE_DETECT_UP;
+		group->up_cpath_num = cpath_up_count;
+	}
+	else
+	{
+		group->status = SRTE_DETECT_DOWN;
+		group->up_cpath_num = 0;
+	}
+}
+
 static int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
 {   
 	/*sidlist down -> up*/
@@ -1067,7 +1098,7 @@ static int policy_sbfd_state_change(char *bfd_name, int state)
 	struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
-	zlog_err( "bfd:%s update state to:%s", bfd_name, bfd_get_status_str(state));
+	zlog_warn( "bfd:%s update state to:%s", bfd_name, bfd_get_status_str(state));
 	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
 
 	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
@@ -1080,11 +1111,12 @@ static int policy_sbfd_state_change(char *bfd_name, int state)
 		if(candidate->status == new_status)
 		    continue;
 
-        zlog_err( "cpath:%s state update:%d -> %d", candidate->name, candidate->status, new_status);
+        zlog_info( "cpath:%s state update:%d -> %d", candidate->name, candidate->status, new_status);
 		cpath_status_refresh(candidate, new_status);
 		//mark cpath group as changed
 		SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);
 
+		sbfd_refresh_policy_group_state(candidate->group);
 		//simplely assume that different cpath bind to different bfd_name
 		//so a policy can bind to a bfd_name only once, we can directly update policy best cpath here
 		srv6_choose_best_cpath_group(candidate->policy);

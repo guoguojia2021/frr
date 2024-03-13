@@ -433,7 +433,7 @@ int bfd_session_enable(struct bfd_session *bs)
 	/* Sanity check: don't leak open sockets. */
 	if (bs->sock != -1) {
 		if (bglobal.debug_peer_event)
-			zlog_debug("session-enable: previous socket open");
+			zlog_warn("session-enable: previous socket open");
 
 		close(bs->sock);
 		bs->sock = -1;
@@ -456,14 +456,18 @@ int bfd_session_enable(struct bfd_session *bs)
 	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_IPV6) == 0)
 	{
 		psock = bp_peer_socket(bs);
-		if (psock == -1)
+		if (psock == -1){
+			zlog_err("bp_peer_socket error");
 			return 0;
+		}
 	}
 	else
 	{
 		psock = bp_peer_socketv6(bs);
-		if (psock == -1)
+		if (psock == -1){
+			zlog_err("bp_peer_socketv6 error");
 			return 0;
+		}
 	}
 
 	/*
@@ -768,7 +772,7 @@ void ptm_sbfd_sess_up(struct bfd_session *bfd)
 	if (old_state != bfd->ses_state) {
 		bfd->stats.session_up++;
 		if (bglobal.debug_peer_event)
-			zlog_debug("state-change: [%s] %s -> %s",
+			zlog_info("state-change: [%s] %s -> %s",
 				   bs_to_string(bfd), state_list[old_state].str,
 				   state_list[bfd->ses_state].str);
 	}
@@ -795,7 +799,7 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	if (old_state != bfd->ses_state) {
 		bfd->stats.session_down++;
 		if (bglobal.debug_peer_event)
-			zlog_debug("state-change: [%s] %s -> %s reason:%s",
+			zlog_warn("state-change: [%s] %s -> %s reason:%s",
 				   bs_to_string(bfd), state_list[old_state].str,
 				   state_list[bfd->ses_state].str,
 				   get_diag_str(bfd->local_diag));
@@ -1436,7 +1440,7 @@ struct bfd_session *bs_registrate(struct bfd_session *bfd)
 		bs_observer_add(bfd);
 
 	if (bglobal.debug_peer_event)
-		zlog_debug("session-new: %s", bs_to_string(bfd));
+		zlog_info("session-new: %s", bs_to_string(bfd));
 
 	control_notify_config(BCM_NOTIFY_CONFIG_ADD, bfd);
 
@@ -1460,7 +1464,7 @@ int ptm_bfd_sess_del(struct bfd_peer_cfg *bpc)
 	}
 
 	if (bglobal.debug_peer_event)
-		zlog_debug("session-delete: %s", bs_to_string(bs));
+		zlog_info("session-delete: %s", bs_to_string(bs));
 
 	control_notify_config(BCM_NOTIFY_CONFIG_DELETE, bs);
 
@@ -1559,7 +1563,7 @@ static void sbfd_down_handler(struct bfd_session *bs, int nstate)
 
 	default:
 		if (bglobal.debug_peer_event)
-			zlog_debug("state-change: unhandled sbfd state: %d",
+			zlog_err("state-change: unhandled sbfd state: %d",
 				   nstate);
 		break;
 	}
@@ -2197,6 +2201,9 @@ const char *bs_to_string(const struct bfd_session *bs)
 	if (bs->key.seglist_name[0])
 		pos += snprintf(buf + pos, sizeof(buf) - pos, " sidlist_name:%s",
 				bs->key.seglist_name);
+	if (bs->bfd_name[0])
+		pos += snprintf(buf + pos, sizeof(buf) - pos, " bfd_name:%s",
+				bs->bfd_name);
 
 	(void)pos;
 

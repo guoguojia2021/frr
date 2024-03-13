@@ -194,7 +194,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 		/* show each cpath*/
 
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
-			char binging_bfd[10] = "-";
+			char binding_bfd[10] = "-";
 			bool has_bfd = false;
 
 			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
@@ -204,12 +204,17 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 				has_bfd = true;
 				if (policy->bfd_config->is_echo)
 				{
-					snprintf(binging_bfd, sizeof(binging_bfd), "sbfd echo");
+					snprintf(binding_bfd, sizeof(binding_bfd), "sbfd echo");
 				}
 				else
 				{
-					snprintf(binging_bfd, sizeof(binging_bfd), "sbfd");
+					snprintf(binding_bfd, sizeof(binding_bfd), "sbfd");
 				}
+			}
+
+			if(candidate->bfd_name[0]){
+				has_bfd = true;
+				snprintf(binding_bfd, sizeof(binding_bfd), "sbfd echo");
 			}
 
 			vty_out(vty,
@@ -218,8 +223,8 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 				"explicit",
 				candidate->segment_list ? candidate->segment_list->name : "-",
 				candidate->weight,
-				binging_bfd,
-				has_bfd ? (candidate->status == SRTE_DETECT_UP ? "UP" : "DOWN") : "UP");
+				binding_bfd,
+				has_bfd ? (candidate->status == SRTE_DETECT_UP ? "UP" : (candidate->status == SRTE_DETECT_NONE ?"NONE": "DOWN")) : "UP");
 		}
 	}
 	vty_out(vty, "\n");

@@ -88,6 +88,7 @@ typedef struct bfd_msg_notify_t_
     uint64_t sendCount;
     uint32_t remote_discr;
     char bpc_peer[INET6_ADDRSTRLEN];
+    char bfd_name[MAXNAMELEN + 1];
 } bfd_msg_notify_t;
 
 /* Zebra header size. */

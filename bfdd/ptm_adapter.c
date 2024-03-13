@@ -145,7 +145,7 @@ static void debug_printbpc(const struct bfd_peer_cfg *bpc, const char *fmt, ...)
 static void _ptm_bfd_session_del(struct bfd_session *bs, uint8_t diag)
 {
 	if (bglobal.debug_peer_event)
-		zlog_debug("session-delete: %s", bs_to_string(bs));
+		zlog_info("session-delete: %s", bs_to_string(bs));
 
 	/* Change state and notify peer. */
 	bs->ses_state = PTM_BFD_DOWN;

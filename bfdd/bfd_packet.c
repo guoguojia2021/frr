@@ -173,8 +173,8 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
-		zlog_info(
-			"sbfd initiator send failed , sr policy color is %d , endpoint is %s, sidlist is %s.", 
+		zlog_debug(
+			"sbfd initiator send failed , sr policy color: %d , endpoint: %s, sidlist: %s.", 
 			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
         return -1;
 	}
@@ -205,8 +205,8 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	{
 		char endpoint[INET6_ADDRSTRLEN];
 		inet_ntop(AF_INET6, &bfd->key.local, endpoint, sizeof(endpoint));
-		zlog_info(
-			"sbfd initiator send failed , sr policy color is %d , endpoint is %s, sidlist is %s.", 
+		zlog_debug(
+			"sbfd echo send failed , sr policy color: %d , endpoint: %s, sidlist: %s", 
 			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
         return -1;
 	}

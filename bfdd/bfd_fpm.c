@@ -473,10 +473,11 @@ static int bfpm_read_cb(struct thread *thread)
     data.recvCount = stream_getq(ibuf);
     data.sendCount = stream_getq(ibuf);
     STREAM_GETL(ibuf, data.remote_discr);
-    STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN);    
+    STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN); 
+    STREAM_GET(data.bfd_name, ibuf, MAXNAMELEN + 1); 
 
-    zlog_info("read from bfdsyncd : ver:%8u, type:%8u,msglen:%16u, peer:%s, remote_discr:%u", 
-        hdr.version, hdr.msg_type, hdr.msg_len, data.bpc_peer, data.remote_discr);
+    zlog_info("read from bfdsyncd, bfd:%s, ver:%d, type:%d, msglen:%d, peer:%s, remote_discr:%u", 
+        data.bfd_name, hdr.version, hdr.msg_type, hdr.msg_len, data.bpc_peer, data.remote_discr);
     strtosa(data.bpc_peer, &peer);
     bs = bfd_find_disc(&peer, data.remote_discr);
     if (hdr.msg_type == BFD_NOTIFY_DOWN)

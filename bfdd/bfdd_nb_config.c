@@ -359,6 +359,9 @@ static int bfd_session_destroy(enum nb_event event,
 		if (bs->refcount > 0)
 			break;
 
+		if (bglobal.debug_peer_event)
+		    zlog_info("bfd_session_destroy: %s", bs_to_string(bs));
+
 		bfd_session_free(bs);
 		break;
 

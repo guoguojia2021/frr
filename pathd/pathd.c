@@ -390,8 +390,6 @@ void srte_policy_del(struct srte_policy *policy)
     // del sbfd config
 	path_delete_sbfd_config(policy);
 
-	// path_zebra_delete_sr_policy(policy);
-
 	path_zebra_delete_srv6_policy(policy);
 
 	// path_zebra_release_label(policy->binding_sid);
@@ -586,18 +584,16 @@ srte_policy_best_candidate_group(const struct srte_policy *policy)
 	struct srte_candidate_group *cpath_group;
 	struct srte_candidate *candidate;
 
-	if (policy->status != SRTE_POLICY_STATUS_UP)
-	{
-		return NULL;
-	}
+	// if (policy->status != SRTE_POLICY_STATUS_UP)
+	// {
+	// 	return NULL;
+	// }
 
 	RB_FOREACH_REVERSE (cpath_group, srte_candidate_group_head,
 			    &policy->candidate_groups) {
 		/* search for highest preference with existing segment list */
-		RB_FOREACH (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths) {
-			if(candidate->status != SRTE_DETECT_DOWN){
-				return cpath_group;
-			}
+		if (cpath_group->status == SRTE_DETECT_UP && cpath_group->up_cpath_num > 0){
+			return cpath_group;
 		}
 	}
 
@@ -858,9 +854,11 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 	old_best_cpath_group = policy->best_candidate_group;
 	new_best_cpath_group = srte_policy_best_candidate_group(policy);
 
+    policy->status = new_best_cpath_group?SRTE_POLICY_STATUS_UP: SRTE_POLICY_STATUS_DOWN;
+
 	if (new_best_cpath_group != old_best_cpath_group) {
-		zlog_debug(
-			"SR-TE(%s, %u): best candidate changed from cp:%u to cp:%u",
+		zlog_info(
+			"SR-TE(%s, %u): best cpath group changed: %u -> %u",
 			endpoint, policy->color,
 			old_best_cpath_group ? old_best_cpath_group->preference : 0,
 			new_best_cpath_group ? new_best_cpath_group->preference : 0);
@@ -893,7 +891,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		bool state_changed = is_candidate_group_state_changed(new_best_cpath_group);
 
 		if (config_changed || state_changed || CHECK_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE)) {
-			zlog_debug("SR-TE(%s, %u): best cpg:%u changed.",
+			zlog_info("SR-TE(%s, %u): best cpg:%u changed.",
 				   endpoint, policy->color,
 				   new_best_cpath_group->preference);
 
@@ -904,7 +902,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		}
 		else
 		{
-			zlog_debug("SR-TE(%s, %u): best cpg:%u needn't to change.",
+			zlog_info("SR-TE(%s, %u): best cpg:%u needn't to change.",
 				   endpoint, policy->color,
 				   new_best_cpath_group->preference);
 		}
@@ -1620,7 +1618,7 @@ void srte_candidate_status_update(struct srte_candidate *candidate, int status)
 		case SRTE_POLICY_STATUS_DOWN:
 			return;
 		default:
-			zlog_debug("SR-TE(%s, %u): policy is DOWN", endpoint,
+			zlog_info("SR-TE(%s, %u): policy is DOWN", endpoint,
 				   policy->color);
 			policy->status = SRTE_POLICY_STATUS_DOWN;
 			break;
