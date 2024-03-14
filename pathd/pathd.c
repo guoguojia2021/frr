@@ -902,7 +902,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		}
 		else
 		{
-			zlog_info("SR-TE(%s, %u): best cpg:%u needn't to change.",
+			zlog_debug("SR-TE(%s, %u): best cpg:%u needn't to change.",
 				   endpoint, policy->color,
 				   new_best_cpath_group->preference);
 		}
@@ -1138,7 +1138,12 @@ void srte_candidate_del(struct srte_candidate *candidate)
 			    cpath_group);
 			XFREE(MTYPE_PATH_SR_CANDIDATE_GROUP, cpath_group);
 		}
-	}	
+	}
+
+	if(candidate && candidate->bfd_name[0]){
+		srte_candidate_bfd_group_del(candidate->bfd_name, candidate);
+		candidate->bfd_name[0] = 0;
+	}
 
 	// XFREE(MTYPE_PATH_SR_CANDIDATE, candidate->lsp);
 	XFREE(MTYPE_PATH_SR_CANDIDATE, candidate);

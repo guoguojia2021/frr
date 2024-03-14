@@ -165,7 +165,7 @@ static int path_zebra_router_id_update(ZAPI_CALLBACK_ARGS)
 			  vrf_id, pref.family);
 		return 0;
 	}
-	zlog_info("%s Router Id updated for VRF %u: %s", family, vrf_id, buf);
+	zlog_debug("%s Router Id updated for VRF %u: %s", family, vrf_id, buf);
 	return 0;
 }
 
