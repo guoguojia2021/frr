@@ -49,6 +49,9 @@
 #define LOCAL_INTF_STR "Configure local interface name to use\n"
 #define VRF_STR "Configure VRF\n"
 #define VRF_NAME_STR "Configure VRF name\n"
+#define IPV4_ADDRESS 4
+#define IPV6_ADDRESS 6
+#define INVALID_IP   0 
 
 /*
  * Prototypes.
@@ -109,78 +112,15 @@ void bfd_cli_show_header_end(struct vty *vty, const struct lyd_node *dnode
 }
 
 DEFPY_YANG_NOSH(
-	sbfd_peer_enter, sbfd_peer_enter_cmd,
-	"bfd-name BFDNAME$bfdname bfd-mode <sbfd-echo|sbfd-init> local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X [{peer <A.B.C.D|X:X::X:X>|vrf NAME}]",
-	"Specify bfd session name\n"
-	"bfd session name\n"
-	"Specify bfd session mode\n"
-	"sbfd-echo mode\n"
-	"sbfd-init mode\n"
-	LOCAL_STR
-	LOCAL_IPV4_STR
-	LOCAL_IPV6_STR
-	"Configure segment-list address\n"
-	"segment-list address\n"
-	PEER_STR
-	PEER_IPV4_STR
-	PEER_IPV6_STR
-	VRF_STR
-	VRF_NAME_STR)
-{
-	int ret, slen;
-	int idx_bfd = 3;
-	char value[32];
-	char xpath[XPATH_MAXLEN], xpath_sl[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32];
-	char xpath_segment[XPATH_MAXLEN + 32];
-	if (!bfdname) {
-		vty_out(vty,"%% bfd name is required\n");
-			return CMD_WARNING_CONFIG_FAILED;
-	}
-
-    if (strcmp(argv[idx_bfd]->arg, "sbfd-echo"))
-	{
-		vty_out(vty,"%% sbfd only support sbfd-echo mode\n");
-		return CMD_WARNING_CONFIG_FAILED;
-	}
-	
-	slen = snprintf(xpath, sizeof(xpath),
-			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][bfd-name='%s']",
-            local_address_str,
-			bfdname);
-
-	if (vrf)
-		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
-	else
-		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
-			 VRF_DEFAULT_NAME);
-
-	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
-
-	snprintf(xpath_sl, sizeof(xpath_sl), "%s/segment-list", xpath);
-	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, segment_list_str);
-	
-	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
-	snprintf(value, sizeof(value), "%ld", BFD_MODE_TYPE_SBFD_ECHO);
-	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
-
-	/* Apply settings immediately. */
-	ret = nb_cli_apply_changes(vty, NULL);
-	if (ret == CMD_SUCCESS)
-		VTY_PUSH_XPATH(BFD_PEER_NODE, xpath);
-
-	return ret;
-}
-
-DEFPY_YANG_NOSH(
 	bfd_peer_enter, bfd_peer_enter_cmd,
-	"bfd-name BFDNAME$bfdname bfd-mode bfd peer <A.B.C.D|X:X::X:X> [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
-	"Specify bfd session name\n"
-	"bfd session name\n"
-	"Specify bfd session mode\n"
-	"bfd mode\n"
+	"peer  <A.B.C.D|X:X::X:X>  bfd-name WORD$bfdname bfd-mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"Enable bfd mode\n"
 	MHOP_STR
 	LOCAL_STR
 	LOCAL_IPV4_STR
@@ -191,9 +131,9 @@ DEFPY_YANG_NOSH(
 	VRF_NAME_STR)
 {
 	int ret, slen;
-	char value[32];
 	char source_str[INET6_ADDRSTRLEN + 32];
-	char xpath[XPATH_MAXLEN], xpath_srcaddr[XPATH_MAXLEN + 32], xpath_bfdname[XPATH_MAXLEN + 32], xpath_bfdmode[XPATH_MAXLEN + 32];
+	char value[32];
+	char xpath[XPATH_MAXLEN], xpath_srcaddr[XPATH_MAXLEN + 32], xpath_bfdname[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32];
 	if (!bfdname) {
 		vty_out(vty,"%% bfd name is required\n");
 			return CMD_WARNING_CONFIG_FAILED;
@@ -235,7 +175,7 @@ DEFPY_YANG_NOSH(
 
 	snprintf(xpath_bfdname, sizeof(xpath_bfdname), "%s/bfd-name", xpath);
 	nb_cli_enqueue_change(vty, xpath_bfdname, NB_OP_MODIFY, bfdname);
-
+	
 	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
 	snprintf(value, sizeof(value), "%ld", BFD_MODE_TYPE_BFD);
 	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
@@ -256,57 +196,16 @@ DEFPY_YANG_NOSH(
 }
 
 DEFPY_YANG(
-	sbfd_no_peer, sbfd_no_peer_cmd,
-	"no bfd-name BFDNAME$bfdname bfd-mode <sbfd-echo|sbfd-init> local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X [{peer <A.B.C.D|X:X::X:X>|vrf NAME}]",
-	NO_STR
-	"Specify bfd session name\n"
-	"bfd session name\n"
-	"Specify bfd session mode\n"
-	"sbfd-echo mode\n"
-	"sbfd-init mode\n"
-	LOCAL_STR
-	LOCAL_IPV4_STR
-	LOCAL_IPV6_STR
-	"Configure segment-list address\n"
-	"segment-list address\n"
-	PEER_STR
-	PEER_IPV4_STR
-	PEER_IPV6_STR
-	VRF_STR
-	VRF_NAME_STR)
-{
-	int slen;
-	char xpath[XPATH_MAXLEN];
-	char source_str[INET6_ADDRSTRLEN + 32];
-
-	slen = snprintf(xpath, sizeof(xpath),
-			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][bfd-name='%s']",
-            local_address_str,
-			bfdname);
-
-	if (vrf)
-		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
-	else
-		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
-			 VRF_DEFAULT_NAME);
-
-	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
-
-	/* Apply settings immediatly. */
-	return nb_cli_apply_changes(vty, NULL);
-}
-
-DEFPY_YANG(
 	bfd_no_peer, bfd_no_peer_cmd,
-	"no bfd-name BFDNAME$bfdname bfd-mode bfd peer <A.B.C.D|X:X::X:X> [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
+	"no peer <A.B.C.D|X:X::X:X>  bfd-name NAME$bfdname bfd-mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	NO_STR
-	"Specify bfd session name\n"
-	"bfd session name\n"
-	"Specify bfd session mode\n"
-	"bfd mode\n"
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"Enable bfd mode\n"
 	MHOP_STR
 	LOCAL_STR
 	LOCAL_IPV4_STR
@@ -358,60 +257,362 @@ DEFPY_YANG(
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+int determine_ip_version(const char *ip) 
+{
+    struct in_addr inaddr4; 
+    struct in6_addr inaddr6; 
+
+    if (inet_pton(AF_INET, ip, &inaddr4) == 1) 
+		return IPV4_ADDRESS;
+    if (inet_pton(AF_INET6, ip, &inaddr6) == 1) 
+		return IPV6_ADDRESS;
+
+    return INVALID_IP; 
+}
+
+DEFPY_YANG_NOSH(
+	sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
+	"peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	PEER_STR
+	PEER_IPV4_STR
+	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"Enable sbfd-echo mode\n"
+	LOCAL_STR
+	LOCAL_IPV4_STR
+	LOCAL_IPV6_STR
+	"Configure bfd session segment list\n"
+	"Configure dest-ipv6 address\n"
+	"Configure bfd session source-ipv6 address\n"
+	"Configure source-ipv6 address\n"
+	VRF_STR
+	VRF_NAME_STR)
+{
+	int ret, slen	;
+	char value[32];
+	char xpath[XPATH_MAXLEN], xpath_sl[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32];
+	
+	if (!bfdname) {
+		vty_out(vty,"%% ERROR: bfd name is required\n");
+			return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	if (strcmp(peer_str, local_address_str))
+	{
+		vty_out(vty,"%% ERROR: peer and local-address must be the same in sbfd-echo mode\n");
+        return CMD_WARNING_CONFIG_FAILED;
+	}
+	
+	slen = snprintf(xpath, sizeof(xpath),
+			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][bfd-name='%s']",
+            local_address_str,
+			bfdname);
+
+	if (vrf)
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
+	else
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
+			 VRF_DEFAULT_NAME);
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+
+	snprintf(xpath_sl, sizeof(xpath_sl), "%s/segment-list", xpath);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, segment_list_str);
+
+	snprintf(xpath_sl, sizeof(xpath_sl), "%s/source-ipv6", xpath);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, source_ipv6_str);
+
+	snprintf(xpath_sl, sizeof(xpath_sl), "%s/dest-addr", xpath);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, peer_str);
+
+	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
+	snprintf(value, sizeof(value), "%d", BFD_MODE_TYPE_SBFD_ECHO);
+	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
+
+	/* Apply settings immediately. */
+	ret = nb_cli_apply_changes(vty, NULL);
+	if (ret == CMD_SUCCESS)
+		VTY_PUSH_XPATH(BFD_PEER_NODE, xpath);
+
+	return ret;
+}
+
+DEFPY_YANG(
+	sbfd_echo_no_peer, sbfd_echo_no_peer_cmd,
+	"no peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	NO_STR
+	PEER_STR
+	PEER_IPV4_STR
+	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"Enable sbfd-echo mode\n"
+	LOCAL_STR
+	LOCAL_IPV4_STR
+	LOCAL_IPV6_STR
+	"Configure bfd session segment list\n"
+	"Configure dest-ipv6 address\n"
+	"Configure bfd session source-ipv6 address\n"
+	"Configure source-ipv6 address\n"
+	VRF_STR
+	VRF_NAME_STR)
+{
+	int slen;
+	char xpath[XPATH_MAXLEN];
+
+	slen = snprintf(xpath, sizeof(xpath),
+			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo[source-addr='%s'][bfd-name='%s']",
+            local_address_str,
+			bfdname);
+
+	if (vrf)
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
+	else
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
+			 VRF_DEFAULT_NAME);
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+
+	/* Apply settings immediatly. */
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+
+DEFPY_YANG_NOSH(
+	sbfd_init_peer_enter, sbfd_init_peer_enter_cmd,
+	"peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-init local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
+	PEER_STR
+	PEER_IPV4_STR
+	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"Enable sbfd-echo mode\n"
+	LOCAL_STR
+	LOCAL_IPV4_STR
+	LOCAL_IPV6_STR
+	"Configure bfd session segment list\n"
+	"Configure dest-ipv6 address\n"
+	"Configure bfd session source-ipv6 address\n"
+	"Configure source-ipv6 address\n"
+	"Configure bfd session remote discriminator\n"
+	"Configure remote discriminator\n"
+	VRF_STR
+	VRF_NAME_STR)
+{
+	int ret, slen, peer_ver, local_ver;
+	char value[32];
+	char xpath[XPATH_MAXLEN], xpath_sl[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32],xpath_rd[XPATH_MAXLEN + 32];
+	
+	if (!bfdname) {
+		vty_out(vty,"%% ERROR: bfd name is required\n");
+			return CMD_WARNING_CONFIG_FAILED;
+	}
+	
+	peer_ver = determine_ip_version(peer_str);
+	if (peer_ver == INVALID_IP)
+	{
+		vty_out(vty,"%% ERROR: peer is invalid address\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	local_ver = determine_ip_version(local_address_str);
+	if (local_ver == INVALID_IP)
+	{
+		vty_out(vty,"%% ERROR: local_address is invalid address\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	if (peer_ver != local_ver)
+	{
+		vty_out(vty,"%% ERROR: peer and local_address are not the same ip version\n");
+        return CMD_WARNING_CONFIG_FAILED;
+	}
+	
+	slen = snprintf(xpath, sizeof(xpath),
+			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init[source-addr='%s'][dest-addr='%s'][bfd-name='%s']",
+            local_address_str,
+			peer_str,
+			bfdname);
+
+	if (vrf)
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
+	else
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
+			 VRF_DEFAULT_NAME);
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+
+	snprintf(xpath_sl, sizeof(xpath_sl), "%s/segment-list", xpath);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, segment_list_str);
+
+	snprintf(xpath_sl, sizeof(xpath_sl), "%s/source-ipv6", xpath);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, source_ipv6_str);
+
+	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
+	snprintf(value, sizeof(value), "%d", BFD_MODE_TYPE_SBFD_INIT);
+	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
+
+	snprintf(xpath_rd, sizeof(xpath_rd), "%s/remote-discr", xpath);
+	nb_cli_enqueue_change(vty, xpath_rd, NB_OP_MODIFY, discr_str);
+
+	/* Apply settings immediately. */
+	ret = nb_cli_apply_changes(vty, NULL);
+	if (ret == CMD_SUCCESS)
+		VTY_PUSH_XPATH(BFD_PEER_NODE, xpath);
+
+	return ret;
+}
+
+DEFPY_YANG(
+	sbfd_init_no_peer, sbfd_init_no_peer_cmd,
+	"no peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-init local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
+	NO_STR
+	PEER_STR
+	PEER_IPV4_STR
+	PEER_IPV6_STR
+	"Specify bfd session name\n"
+	"bfd session name\n"
+	"Specify bfd session mode\n"
+	"Enable sbfd-echo mode\n"
+	LOCAL_STR
+	LOCAL_IPV4_STR
+	LOCAL_IPV6_STR
+	"Configure bfd session segment list\n"
+	"Configure dest-ipv6 address\n"
+	"Configure bfd session source-ipv6 address\n"
+	"Configure source-ipv6 address\n"
+	"Configure bfd session remote discriminator\n"
+	"Configure remote discriminator\n"
+	VRF_STR
+	VRF_NAME_STR)
+{
+	int slen;
+	char xpath[XPATH_MAXLEN];
+
+	slen = snprintf(xpath, sizeof(xpath),
+			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init[source-addr='%s'][dest-addr='%s'][bfd-name='%s']",
+            local_address_str,
+			peer_str,
+			bfdname);
+
+	if (vrf)
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']", vrf);
+	else
+		slen += snprintf(xpath + slen, sizeof(xpath) - slen, "[vrf='%s']",
+			 VRF_DEFAULT_NAME);
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+
+	/* Apply settings immediatly. */
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+static char *_bfd_cli_bfd_mode_type_to_string(enum bfd_mode_type mode) {
+    switch (mode) {
+        case BFD_MODE_TYPE_NONE:
+            return "None";
+        case BFD_MODE_TYPE_BFD:
+            return "bfd";
+        case BFD_MODE_TYPE_SBFD_ECHO:
+            return "sbfd-echo";
+        case BFD_MODE_TYPE_SBFD_INIT:
+            return "sbfd-init";
+        default:
+            return "Unknown";
+    }
+}
+
 static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 			       bool show_defaults __attribute__((__unused__)),
-			       bool mhop)
+			       bool mhop, uint32_t bfd_mode)
 {
 	const char *vrf = yang_dnode_get_string(dnode, "vrf");
-	const uint32_t bfd_mode = yang_dnode_get_uint32(dnode, "bfd-mode");
 
-    if (bfd_mode == BFD_MODE_TYPE_BFD)
-	{
-		vty_out(vty, " peer %s",
-			yang_dnode_get_string(dnode, "dest-addr"));
-	}
-	else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO)
-	{
-		vty_out(vty, " peer %s",
-			yang_dnode_get_string(dnode, "source-addr"));
-		vty_out(vty, " segment-list %s",
-			yang_dnode_get_string(dnode, "segment-list"));
-	}
 
-	
+	vty_out(vty, " peer %s",
+		yang_dnode_get_string(dnode, "dest-addr"));
+		
 	if (yang_dnode_exists(dnode, "bfd-name"))
 	    vty_out(vty, " bfd-name %s", yang_dnode_get_string(dnode, "bfd-name"));
 
-	if (mhop)
-		vty_out(vty, " multihop");
+	if (yang_dnode_exists(dnode, "bfd-mode"))
+	    vty_out(vty, " bfd-mode %s", _bfd_cli_bfd_mode_type_to_string(yang_dnode_get_uint32(dnode, "bfd-mode")));
 
-	if (yang_dnode_exists(dnode, "source-addr"))
-		vty_out(vty, " local-address %s",
-			yang_dnode_get_string(dnode, "source-addr"));
 
-	if (strcmp(vrf, VRF_DEFAULT_NAME))
-		vty_out(vty, " vrf %s", vrf);
+	if (bfd_mode == BFD_MODE_TYPE_BFD)
+	{
+		if (mhop)
+			vty_out(vty, " multihop");
 
-	if (!mhop) {
-		const char *ifname =
-			yang_dnode_get_string(dnode, "interface");
-		if (strcmp(ifname, "*"))
-			vty_out(vty, " interface %s", ifname);
+		if (yang_dnode_exists(dnode, "source-addr"))
+			vty_out(vty, " local-address %s",
+				yang_dnode_get_string(dnode, "source-addr"));
+
+		if (strcmp(vrf, VRF_DEFAULT_NAME))
+			vty_out(vty, " vrf %s", vrf);
+
+		if (!mhop) {
+			const char *ifname =
+				yang_dnode_get_string(dnode, "interface");
+			if (strcmp(ifname, "*"))
+				vty_out(vty, " interface %s", ifname);
+		}
+		vty_out(vty, "\n");
 	}
+	else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+	{
+		if (yang_dnode_exists(dnode, "source-addr"))
+			vty_out(vty, " local-address %s",
+				yang_dnode_get_string(dnode, "source-addr"));
 
-	vty_out(vty, "\n");
+		if (yang_dnode_exists(dnode, "segment-list"))
+			vty_out(vty, " segment-list %s",
+				yang_dnode_get_string(dnode, "segment-list"));
+
+		if (yang_dnode_exists(dnode, "source-ipv6"))
+			vty_out(vty, " source-ipv6 %s",
+				yang_dnode_get_string(dnode, "source-ipv6"));
+
+		if (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+		{
+			if (yang_dnode_exists(dnode, "remote-discr"))
+				vty_out(vty, " remote-discr %u",
+					yang_dnode_get_uint32(dnode, "remote-discr"));
+		}
+
+		if (strcmp(vrf, VRF_DEFAULT_NAME))
+			vty_out(vty, " vrf %s", vrf);
+
+		vty_out(vty, "\n");
+	}	
 }
 
 void bfd_cli_show_single_hop_peer(struct vty *vty, const struct lyd_node *dnode,
 				  bool show_defaults)
 {
-	_bfd_cli_show_peer(vty, dnode, show_defaults, false);
+	_bfd_cli_show_peer(vty, dnode, show_defaults, false, BFD_MODE_TYPE_BFD);
 }
 
 void bfd_cli_show_multi_hop_peer(struct vty *vty, const struct lyd_node *dnode,
 				 bool show_defaults)
 {
-	_bfd_cli_show_peer(vty, dnode, show_defaults, true);
+	_bfd_cli_show_peer(vty, dnode, show_defaults, true, BFD_MODE_TYPE_BFD);
+}
+
+void bfd_cli_show_sbfd_echo_peer(struct vty *vty, const struct lyd_node *dnode,
+				  bool show_defaults)
+{
+	_bfd_cli_show_peer(vty, dnode, show_defaults, false, BFD_MODE_TYPE_SBFD_ECHO);
+}
+
+void bfd_cli_show_sbfd_init_peer(struct vty *vty, const struct lyd_node *dnode,
+				 bool show_defaults)
+{
+	_bfd_cli_show_peer(vty, dnode, show_defaults, true, BFD_MODE_TYPE_SBFD_INIT);
 }
 
 void bfd_cli_show_peer_end(struct vty *vty, const struct lyd_node *dnode
@@ -524,7 +725,7 @@ DEFPY_YANG(
 	nb_cli_enqueue_change(vty, "./required-receive-interval", NB_OP_MODIFY,
 			      value);
 
-	return nb_cli_apply_changes(vty, NULL);
+return nb_cli_apply_changes(vty, NULL);
 }
 
 void bfd_cli_show_rx(struct vty *vty, const struct lyd_node *dnode,
@@ -1011,8 +1212,11 @@ bfdd_cli_init(void)
 	install_element(BFD_NODE, &bfd_peer_enter_cmd);
 	install_element(BFD_NODE, &bfd_no_peer_cmd);
 
-	install_element(BFD_NODE, &sbfd_peer_enter_cmd);
-	install_element(BFD_NODE, &sbfd_no_peer_cmd);
+	install_element(BFD_NODE, &sbfd_echo_peer_enter_cmd);
+	install_element(BFD_NODE, &sbfd_echo_no_peer_cmd);
+
+	install_element(BFD_NODE, &sbfd_init_peer_enter_cmd);
+	install_element(BFD_NODE, &sbfd_init_no_peer_cmd);
 
 	install_element(BFD_NODE, &sbfd_reflector_cmd);
 	install_element(BFD_NODE, &no_sbfd_reflector_all_cmd);

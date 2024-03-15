@@ -73,7 +73,7 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
     uint8_t seg_num, struct in6_addr* segment_list);
 
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
-    uint16_t family, struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t family, struct in6_addr* out_sip, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list);
 
@@ -168,7 +168,7 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 
 	sd = bfd->sock;
 
-    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.peer, 
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local, &bfd->key.peer, 
 	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
@@ -200,7 +200,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 
 	sd = bfd->sock;
 
-    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->key.local , &bfd->key.local, 
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local , &bfd->key.peer, 
 	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
 	{
 		char endpoint[INET6_ADDRSTRLEN];
@@ -2074,7 +2074,7 @@ static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t
  * @return int 
  */
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
-    uint16_t family, struct in6_addr* sip , struct in6_addr* dip,
+    uint16_t family, struct in6_addr* out_sip, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list)
 {
@@ -2101,7 +2101,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     /* SRH IPv6 Header */
 	if (seg_num > 0)
 	{
-		memcpy(&out_sip_addr.ipaddr_v6, sip, sizeof(struct in6_addr));
+		memcpy(&out_sip_addr.ipaddr_v6, out_sip, sizeof(struct in6_addr));
 
 		srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
 		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip_addr.ipaddr_v6 , &segment_list[0], seg_num, datalen, family);

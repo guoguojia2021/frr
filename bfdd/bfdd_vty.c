@@ -51,7 +51,7 @@ static int bfd_configure_peer(struct bfd_peer_cfg *bpc, bool mhop,
 			      const struct sockaddr_any *peer,
 			      const struct sockaddr_any *local,
 			      const char *ifname, const char *vrfname,
-			      char *ebuf, size_t ebuflen);
+				  const char *bfdname,char *ebuf, size_t ebuflen);
 
 static void _display_peer_header(struct vty *vty, struct bfd_session *bs);
 static struct json_object *__display_peer_json(struct bfd_session *bs);
@@ -71,19 +71,19 @@ static struct bfd_session *
 _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *label, const char *peer_str,
 		    const char *local_str, const char *ifname,
-		    const char *vrfname);
+		    const char *vrfname,const char *bfdname);
 
 
-const char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
+static char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
         case BFD_MODE_TYPE_NONE:
             return "None";
         case BFD_MODE_TYPE_BFD:
-            return "BFD";
+            return "bfd";
         case BFD_MODE_TYPE_SBFD_ECHO:
-            return "SBFD-ECHO";
+            return "sbfd-echo";
         case BFD_MODE_TYPE_SBFD_INIT:
-            return "SBFD-INIT";
+            return "sbfd-init";
         default:
             return "Unknown";
     }
@@ -109,14 +109,25 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		vty_out(vty, " multihop");
 
+	if (bs->bfd_mode == BFD_MODE_TYPE_BFD || bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+		vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
+
+
+	if (memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
+		vty_out(vty, " local-address %s",
+			inet_ntop(bs->key.family, &bs->key.local, addr_buf,
+				  sizeof(addr_buf)));
+
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
 	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
 		if (bs->bfd_name[0])
 		{
-			vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
 			vty_out(vty, " segment-list %s",
 				inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf,
+					sizeof(addr_buf)));
+			vty_out(vty, " source-ipv6 %s",
+				inet_ntop(AF_INET6, &bs->out_sip6, addr_buf,
 					sizeof(addr_buf)));
 		}
 		else
@@ -126,11 +137,6 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 
 		}
 	}
-
-	if (memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
-		vty_out(vty, " local-address %s",
-			inet_ntop(bs->key.family, &bs->key.local, addr_buf,
-				  sizeof(addr_buf)));
 
 	if (bs->key.vrfaliasname[0])
 		vty_out(vty, " vrf %s", bs->key.vrfaliasname);
@@ -706,7 +712,7 @@ static struct bfd_session *
 _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *label, const char *peer_str,
 		    const char *local_str, const char *ifname,
-		    const char *vrfname)
+		    const char *vrfname,const char *bfdname)
 {
 	int idx;
 	bool mhop;
@@ -744,7 +750,7 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
             tmpName = vrf->name;
 		}
 
-		if (bfd_configure_peer(&bpc, mhop, &psa, lsap, ifname, tmpName,
+		if (bfd_configure_peer(&bpc, mhop, &psa, lsap, ifname, tmpName, bfdname,
 				       errormsg, sizeof(errormsg))
 		    != 0) {
 			vty_out(vty, "%% Invalid peer configuration: %s\n",
@@ -798,10 +804,12 @@ DEFPY(bfd_show_peers, bfd_show_peers_cmd, "show bfd [vrf NAME] peers [json]",
 }
 
 DEFPY(bfd_show_peer, bfd_show_peer_cmd,
-      "show bfd [vrf NAME$vrf_name] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> [json]",
+      "show bfd [vrf NAME$vrf_name|bfd-name BFDNAME$bfdname] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> [json]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
+	  "Specify bfd session name\n"
+	  "bfd session name\n"
       "BFD peers status\n"
       "Peer label\n" PEER_IPV4_STR PEER_IPV6_STR MHOP_STR LOCAL_STR
 	      LOCAL_IPV4_STR LOCAL_IPV6_STR INTERFACE_STR LOCAL_INTF_STR JSON_STR)
@@ -810,7 +818,7 @@ DEFPY(bfd_show_peer, bfd_show_peer_cmd,
 
 	/* Look up the BFD peer. */
 	bs = _find_peer_or_error(vty, argc, argv, label, peer_str, local_str,
-				 ifname, vrf_name);
+				 ifname, vrf_name, bfdname);
 	if (bs == NULL)
 		return CMD_WARNING_CONFIG_FAILED;
 
@@ -825,10 +833,12 @@ DEFPY(bfd_show_peer, bfd_show_peer_cmd,
 }
 
 DEFPY(bfd_show_peer_counters, bfd_show_peer_counters_cmd,
-      "show bfd [vrf NAME$vrf_name] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> counters [json]",
+      "show bfd [vrf NAME$vrf_name|bfd-name BFDNAME$bfdname] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> counters [json]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
+	  "Specify bfd session name\n"
+	  "bfd session name\n"
       "BFD peers status\n"
       "Peer label\n"
       PEER_IPV4_STR
@@ -846,7 +856,7 @@ DEFPY(bfd_show_peer_counters, bfd_show_peer_counters_cmd,
 
 	/* Look up the BFD peer. */
 	bs = _find_peer_or_error(vty, argc, argv, label, peer_str, local_str,
-				 ifname, vrf_name);
+				 ifname, vrf_name, bfdname);
 	if (bs == NULL)
 		return CMD_WARNING_CONFIG_FAILED;
 
@@ -879,10 +889,12 @@ DEFPY(bfd_show_peers_counters, bfd_show_peers_counters_cmd,
 }
 
 DEFPY(bfd_clear_peer_counters, bfd_clear_peer_counters_cmd,
-      "clear bfd [vrf <NAME$vrfname>] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> counters",
+      "clear bfd [vrf NAME$vrfname|bfd-name BFDNAME$bfdname] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> counters",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
+	  "Specify bfd session name\n"
+	  "bfd session name\n"
       "BFD peers status\n"
       "Peer label\n"
       PEER_IPV4_STR
@@ -899,7 +911,7 @@ DEFPY(bfd_clear_peer_counters, bfd_clear_peer_counters_cmd,
 
 	/* Look up the BFD peer. */
 	bs = _find_peer_or_error(vty, argc, argv, label, peer_str, local_str,
-				ifname, vrfname);
+				ifname, vrfname,bfdname);
 	if (bs == NULL)
 		return CMD_WARNING_CONFIG_FAILED;
 
@@ -1024,7 +1036,7 @@ static int bfd_configure_peer(struct bfd_peer_cfg *bpc, bool mhop,
 			      const struct sockaddr_any *peer,
 			      const struct sockaddr_any *local,
 			      const char *ifname, const char *vrfname,
-			      char *ebuf, size_t ebuflen)
+				  const char *bfdname, char *ebuf, size_t ebuflen)
 {
 	memset(bpc, 0, sizeof(*bpc));
 
@@ -1080,7 +1092,7 @@ static int bfd_configure_peer(struct bfd_peer_cfg *bpc, bool mhop,
 	if (ifname) {
 		bpc->bpc_has_localif = true;
 		if (strlcpy(bpc->bpc_localif, ifname, sizeof(bpc->bpc_localif))
-		    > sizeof(bpc->bpc_localif)) {
+		    > MAXNAMELEN) {
 			snprintf(ebuf, ebuflen, "interface name too long");
 			return -1;
 		}
@@ -1090,15 +1102,23 @@ static int bfd_configure_peer(struct bfd_peer_cfg *bpc, bool mhop,
 	if (vrfname) {
 		bpc->bpc_has_vrfname = true;
 		if (strlcpy(bpc->bpc_vrfname, vrfname, sizeof(bpc->bpc_vrfname))
-		    > sizeof(bpc->bpc_vrfname)) {
+		    > MAXNAMELEN) {
 			snprintf(ebuf, ebuflen, "vrf name too long");
 			return -1;
 		}
 	} else {
 		bpc->bpc_has_vrfname = true;
-		strlcpy(bpc->bpc_vrfname, VRF_DEFAULT_NAME, sizeof(bpc->bpc_vrfname));
+		strlcpy(bpc->bpc_vrfname, VRF_DEFAULT_NAME, MAXNAMELEN);
 	}
 
+	/* Handle bfd-name. */
+	if (bfdname) {
+		if (strlcpy(bpc->bfd_name, bfdname, sizeof(bpc->bfd_name))
+		    > BFD_NAME_SIZE) {
+			snprintf(ebuf, ebuflen, "bfd name too long");
+			return -1;
+		}
+	} 
 	return 0;
 }
 

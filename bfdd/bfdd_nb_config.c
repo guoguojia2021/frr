@@ -65,24 +65,14 @@ static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 
 	/* Required source parameter. */
 	strtosa(yang_dnode_get_string(dnode, "source-addr"), &lsa);
-
-	/* Get optional destination address. */
-	memset(&psa, 0, sizeof(psa));
-	if (yang_dnode_exists(dnode, "dest-addr"))
-		strtosa(yang_dnode_get_string(dnode, "dest-addr"), &psa);
+	
+	strtosa(yang_dnode_get_string(dnode, "dest-addr"), &psa);
+		
+	if (yang_dnode_exists(dnode, "bfd-name"))
+	    bfdname = yang_dnode_get_string(dnode, "bfd-name");
 
 	if (yang_dnode_exists(dnode, "vrf"))
 		vrfname = yang_dnode_get_string(dnode, "vrf");
-
-	if (!mhop) {
-		ifname = yang_dnode_get_string(dnode, "interface");
-		if (strcmp(ifname, "*") == 0)
-			ifname = NULL;
-	}
-
-	if (yang_dnode_exists(dnode, "bfd-name")){
-	    bfdname = yang_dnode_get_string(dnode, "bfd-name");
-	}
 
 	/* Generate the corresponding key. */
 	gen_sbfd_key(bk, &psa, &lsa, mhop, ifname, vrfname, bfdname);
@@ -108,7 +98,7 @@ static int session_iter_cb(const struct lyd_node *dnode, void *arg)
 	return YANG_ITER_CONTINUE;
 }
 
-static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_t bfd_mode)
+static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_t bfd_mode)
 {
 	const struct lyd_node *sess_dnode;
 	struct session_iter iter;
@@ -120,7 +110,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 	struct prefix p;
 	const char * bfd_name = NULL;
 	uint8_t segnum = 1;
-	struct sockaddr_any slist;
+	struct sockaddr_any slist, out_sip6;
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
@@ -231,7 +221,7 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 			args->resource->ptr = bs;
 			break;
 		}
-		else if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD_INIT))
+		else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
 		{
 			sbfd_session_get_key(mhop, args->dnode, &bk);
 			bs = bfd_key_lookup(bk);
@@ -254,6 +244,23 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 				return NB_ERR_RESOURCE;
 			}
 
+			if (!yang_dnode_exists(args->dnode, "source-ipv6")){ 
+				snprintf(
+					args->errmsg, args->errmsg_len,
+					"source_ipv6 should not be null");
+				return NB_ERR_RESOURCE;
+			}
+
+			if (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+			{
+				if (!yang_dnode_exists(args->dnode, "remote-discr")){ 
+					snprintf(
+						args->errmsg, args->errmsg_len,
+						"remote-discr should not be null");
+					return NB_ERR_RESOURCE;
+				}				
+			} 
+
 			bfd_name = yang_dnode_get_string(args->dnode, "bfd-name");
 
 			bs = bfd_common_session_new(segnum);
@@ -271,6 +278,14 @@ static int bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_
 
 			strtosa(yang_dnode_get_string(args->dnode, "./segment-list"), &slist);
 			memcpy(&bs->seg_list[0], &slist.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+
+			strtosa(yang_dnode_get_string(args->dnode, "./source-ipv6"), &out_sip6);
+			memcpy(&bs->out_sip6, &out_sip6.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+
+			if (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+			{
+				bs->discrs.remote_discr = yang_dnode_get_uint32(args->dnode, "./remote-discr");
+			}
 
 			/* Set configuration flags. */
 			bs->refcount = 1;
@@ -1016,21 +1031,6 @@ int bfdd_bfd_sessions_bfd_mode_destroy(
 }
 
 /*
- * XPath: /frr-bfdd:bfdd/bfd/sessions/single-hop/segment-list
- */
-int bfdd_bfd_sessions_segment_list_modify(
-	struct nb_cb_modify_args *args)
-{
-	return NB_OK;
-}
-
-int bfdd_bfd_sessions_segment_list_destroy(
-	struct nb_cb_modify_args *args)
-{
-	return NB_OK;
-}
-
-/*
  * XPath: /frr-bfdd:bfdd/bfd/sessions/single-hop/echo-mode
  */
 int bfdd_bfd_sessions_single_hop_echo_mode_modify(
@@ -1148,19 +1148,6 @@ int bfdd_bfd_sessions_multi_hop_destroy(struct nb_cb_destroy_args *args)
 }
 
 /*
- * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo
- */
-int bfdd_bfd_sessions_srte_sbfd_echo_create(struct nb_cb_create_args *args)
-{
-	return bfd_session_create(args, true, BFD_MODE_TYPE_SBFD_ECHO);
-}
-
-int bfdd_bfd_sessions_srte_sbfd_echo_destroy(struct nb_cb_destroy_args *args)
-{
-	return bfd_session_destroy(args->event, args->dnode, true, BFD_MODE_TYPE_SBFD_ECHO);
-}
-
-/*
  * XPath: /frr-bfdd:bfdd/bfd/sessions/multi-hop/minimum-ttl
  */
 int bfdd_bfd_sessions_multi_hop_minimum_ttl_modify(
@@ -1210,3 +1197,91 @@ int bfdd_bfd_sessions_multi_hop_minimum_ttl_destroy(
 
 	return NB_OK;
 }
+
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo
+ */
+int bfdd_bfd_sessions_srte_sbfd_echo_create(struct nb_cb_create_args *args)
+{
+	return bfd_session_create(args, false, BFD_MODE_TYPE_SBFD_ECHO);
+}
+
+int bfdd_bfd_sessions_srte_sbfd_echo_destroy(struct nb_cb_destroy_args *args)
+{
+	return bfd_session_destroy(args->event, args->dnode, false, BFD_MODE_TYPE_SBFD_ECHO);
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/segment-list
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init/segment-list
+ */
+int bfdd_bfd_sessions_segment_list_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+int bfdd_bfd_sessions_segment_list_destroy(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/dest-addr
+ */
+int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/source-ipv6
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init/source-ipv6
+ */
+int bfdd_bfd_sessions_srte_sbfd_source_ipv6_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+int bfdd_bfd_sessions_srte_sbfd_source_ipv6_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init
+ */
+int bfdd_bfd_sessions_srte_sbfd_init_create(struct nb_cb_create_args *args)
+{
+	return bfd_session_create(args, false, BFD_MODE_TYPE_SBFD_INIT);
+}
+
+int bfdd_bfd_sessions_srte_sbfd_init_destroy(struct nb_cb_destroy_args *args)
+{
+	return bfd_session_destroy(args->event, args->dnode, false, BFD_MODE_TYPE_SBFD_INIT);
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init/remote-discr
+ */
+int bfdd_bfd_sessions_srte_sbfd_init_remote_discr_modify(struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+int bfdd_bfd_sessions_srte_sbfd_init_remote_discr_destroy(struct nb_cb_destroy_args *args)
+{
+	return NB_OK;
+}
+
+

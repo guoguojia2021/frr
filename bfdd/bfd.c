@@ -367,7 +367,7 @@ struct bfd_session *bs_peer_find(struct bfd_peer_cfg *bpc)
 
 	/* Otherwise fallback to peer/local hash lookup. */
     gen_bfd_common_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop, 
-	    bpc->bpc_localif, bpc->bpc_vrfname, bpc->srte_color, bpc->seglist_name);
+	    bpc->bpc_localif, bpc->bpc_vrfname, bpc->srte_color, bpc->seglist_name, bpc->bfd_name);
 
 	return bfd_key_lookup(key);
 }
@@ -582,7 +582,8 @@ void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo)
  */
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
-		 const char *vrfname, uint32_t srte_color, const char *seglist_name)
+		 const char *vrfname, uint32_t srte_color, const char *seglist_name,
+		 const char *bfdname)
 {
 	memset(key, 0, sizeof(*key));
 
@@ -615,6 +616,9 @@ void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 
 	if (seglist_name && seglist_name[0])
 		strlcpy(key->seglist_name, seglist_name, sizeof(key->seglist_name));
+	
+	if (bfdname && bfdname[0])
+		strlcpy(key->bfdname, bfdname, sizeof(key->bfdname));
 }
 
 static void ptm_bfd_echo_xmt_TO(struct bfd_session *bfd)

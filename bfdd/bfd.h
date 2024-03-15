@@ -343,6 +343,7 @@ struct bfd_session {
  
  	uint32_t bfd_mode;
 	uint8_t segnum;
+	struct in6_addr out_sip6;
 	struct in6_addr seg_list[0];
 };
 #define BFD_HWFLAG_SENDCREATE         (1 << 0)
@@ -687,7 +688,8 @@ void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
-		 const char *vrfname, uint32_t srte_color, const char *seglist_name);
+		 const char *vrfname, uint32_t srte_color, const char *seglist_name,
+		 const char *bfdname);
 
 struct bfd_session *bfd_session_new(void);
 struct bfd_session *bfd_common_session_new(uint8_t);
