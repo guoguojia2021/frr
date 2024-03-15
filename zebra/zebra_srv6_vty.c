@@ -47,6 +47,7 @@
 #include "zebra/zebra_srv6_vty_clippy.c"
 #endif
 
+#define SRV6_LOCATOR_SID_COUNT_MAX 50
 static int zebra_sr_config(struct vty *vty);
 
 static struct cmd_node sr_node = {
@@ -666,6 +667,12 @@ DEFPY (locator_prefix,
 		vty_out(vty, "Malformed IPv6 prefix\n");
 		return CMD_WARNING_CONFIG_FAILED;
 	}
+
+	if (locator->sids->count >= SRV6_LOCATOR_SID_COUNT_MAX) {
+		vty_out(vty, "One locator only can config %d sids. \n", SRV6_LOCATOR_SID_COUNT_MAX);
+		return CMD_WARNING;
+	}
+
 	for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
 		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
 			vty_out(vty, "Prefix %s is already exist,please delete it first. \n", argv[1]->arg);
@@ -710,6 +717,7 @@ DEFPY (locator_prefix,
 	}
 
 	listnode_add(locator->sids, sid);
+
 	zebra_srv6_local_sid_add(locator, sid);
 
 	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
