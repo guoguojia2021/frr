@@ -133,7 +133,8 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 		else
 		{
 			vty_out(vty, " (endpoint %s color %u sidlist %s)", 
-						addr_buf, bs->key.srte_color, bs->key.seglist_name);
+				inet_ntop(bs->key.family, &bs->key.peer, addr_buf, 
+					sizeof(addr_buf)), bs->key.srte_color, bs->key.seglist_name);
 
 		}
 	}
