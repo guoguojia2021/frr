@@ -184,8 +184,6 @@ void srte_segment_list_del(struct srte_segment_list *segment_list)
 		sbfd_sess_uninstall(sbs->session);
 		srte_sbfd_session_del(sbs);
 	}
-    /* operate APPDB */
-	sidlist_Db_DelEntry(segment_list->name);
 
 	RB_REMOVE(srte_segment_list_head, &srte_segment_lists, segment_list);
 	XFREE(MTYPE_PATH_SEGMENT_LIST, segment_list);
@@ -627,8 +625,6 @@ static void cpath_status_del_bfd_handle(struct srte_candidate *candidate)
 	case SRTE_DETECT_DOWN:
 		// down -> none
 		candidate->status=SRTE_DETECT_NONE;
-		upcounter_increase(candidate->segment_list);
-		sidlist_Db_SetEntry(candidate->segment_list);
 		break;
 	case SRTE_DETECT_UP:
 		// up->none, do nothing
@@ -696,27 +692,38 @@ void srte_apply_changes(void)
 	RB_FOREACH_SAFE (segment_list, srte_segment_list_head,
 			 &srte_segment_lists, safe_sl) {
 		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_DELETED)) {
+
+			/*delete sidlist only when it is installed*/
+			if (segment_list->installed)
+				sidlist_Db_DelEntry(segment_list);
+
 			srte_segment_list_del(segment_list);
 			continue;
 		}
+
+		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_REF)){
+
+			/*only install sidlist when it is refed by policy*/
+			if (is_refcounter_retain(segment_list) && !segment_list->installed)
+				sidlist_Db_SetEntry(segment_list);
+			else if(!is_refcounter_retain(segment_list))
+				sidlist_Db_DelEntry(segment_list);
+		}
+
 		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW)
 		    || CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED)) {
 			/* operate APPDB */
 			if (!RB_EMPTY(srte_segment_entry_head, &segment_list->segments))
 			{
-				/*when sidlist be used by policy and sidlist status is not down ,then set APPDB*/
-				if (is_refcounter_retain(segment_list) && segment_list->upcount > 0)
-				{
-                    sidlist_Db_SetEntry(segment_list);
-				}
-				else
-				{
-					sidlist_Db_DelEntry(segment_list->name);
-				}
+				/*update sidlist only when it is installed*/
+				if (segment_list->installed)
+				    sidlist_Db_SetEntry(segment_list);
 			}
 		}
+
 		UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW);
 		UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+		UNSET_FLAG(segment_list->flags, F_SEGMENT_LIST_REF);
 	}
 }
 
@@ -1966,22 +1973,6 @@ bool is_refcounter_retain(struct srte_segment_list *segment_list)
 	return false;
 }
 
-void upcounter_increase(struct srte_segment_list *segment_list)
-{
-    if(segment_list)
-	{
-        segment_list->upcount++;
-	}
-}
-
-void upcounter_decrease(struct srte_segment_list *segment_list)
-{
-    if(segment_list && segment_list->upcount > 0)
-	{
-        segment_list->upcount--;
-	}
-}
-
 void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate)
 {
 	if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD))
@@ -2001,8 +1992,6 @@ static void cpath_status_up_handle(struct srte_candidate *candidate)
 	case SRTE_DETECT_DOWN:
 		// down -> up
 		candidate->status=SRTE_DETECT_UP;
-		upcounter_increase(candidate->segment_list);
-		sidlist_Db_SetEntry(candidate->segment_list);
 		break;
 	case SRTE_DETECT_NONE:
 		// none -> up
@@ -2028,11 +2017,6 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 	case SRTE_DETECT_UP:
 		// up->down
 		candidate->status=SRTE_DETECT_DOWN;
-		upcounter_decrease(candidate->segment_list);
-		if (candidate->segment_list->upcount == 0)
-		{
-			sidlist_Db_DelEntry(candidate->segment_list->name);
-		}
 		break;
 	default:
 		break;

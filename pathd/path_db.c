@@ -246,11 +246,12 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         zlog_err("redis_PublishMsg error code : %d", ret);
     }
 
+    segl->installed = true;
     release_Sidlist_DB_Data(pstDataLst);
     return;
 }
 
-void sidlist_Db_DelEntry(const char *name)
+void sidlist_Db_DelEntry(struct srte_segment_list *segl)
 {
     int ret;
     char key[PATH_DB_MAX_KEY_LEN] = {0};
@@ -259,6 +260,7 @@ void sidlist_Db_DelEntry(const char *name)
     char channel[PATH_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
     DB_Key_List item = {0};
+    const char *name = segl->name;
 
     if (!g_bPathRedisInUse)
         return;
@@ -301,6 +303,8 @@ void sidlist_Db_DelEntry(const char *name)
     {
         zlog_err("redis_PublishMsg error code : %d", ret);
     }
+
+    segl->installed = false;
 
     return;
 }

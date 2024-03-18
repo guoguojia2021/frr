@@ -541,11 +541,13 @@ int pathd_srte_policy_candidate_path_destroy(struct nb_cb_destroy_args *args)
 		return NB_OK;
 
 	candidate = nb_running_unset_entry(args->dnode);
-	refcounter_decrease(candidate->segment_list);
-	if (candidate->status != SRTE_DETECT_DOWN)
-	    upcounter_decrease(candidate->segment_list);
+	if(candidate->segment_list){
+		refcounter_decrease(candidate->segment_list);
+		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
+		candidate->segment_list = NULL;
+	}
+
 	SET_FLAG(candidate->flags, F_CANDIDATE_DELETED);
-	SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
 
 	return NB_OK;
 }
@@ -859,21 +861,18 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 		sbfd_candidate_seglist_disable(candidate);
 
 		refcounter_decrease(candidate->segment_list);
-		if (candidate->status != SRTE_DETECT_DOWN)
-			upcounter_decrease(candidate->segment_list);
-		
-		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
+		candidate->segment_list = NULL;
 	}
 
     /* new sidlist */
 	candidate->segment_list = srte_segment_list_find(segment_list_name);
 	refcounter_increase(candidate->segment_list);
-	if (candidate->status != SRTE_DETECT_DOWN)
-	    upcounter_increase(candidate->segment_list);
+
 	candidate->lsp->segment_list = candidate->segment_list;
 	assert(candidate->segment_list);
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
-	SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+	SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
 
 	sbfd_update_flag_one_policy(candidate->policy, SBFD_MODIFIED);
 
@@ -893,13 +892,12 @@ int pathd_srte_policy_candidate_path_segment_list_name_destroy(
 	if (candidate->segment_list)
 	{
 		sbfd_candidate_seglist_disable(candidate);
+		refcounter_decrease(candidate->segment_list);
+		candidate->segment_list = NULL;
+		candidate->lsp->segment_list = NULL;
 	}
-    
-	refcounter_decrease(candidate->segment_list);
-	candidate->segment_list = NULL;
-	candidate->lsp->segment_list = NULL;
-	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 
+	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 	return NB_OK;
 }
 

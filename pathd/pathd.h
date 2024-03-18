@@ -260,7 +260,10 @@ struct srte_segment_list {
     uint16_t refcount;
 
     /* path up count */
-    uint16_t upcount;
+    //uint16_t upcount;
+
+    /* is current sidlist installed to db */
+    bool installed;
 
 	/* Status flags. */
 	uint16_t flags;
@@ -268,6 +271,7 @@ struct srte_segment_list {
 #define F_SEGMENT_LIST_MODIFIED 0x0004
 #define F_SEGMENT_LIST_DELETED 0x0008
 #define F_SEGMENT_LIST_SID_CONFLICT 0x0010
+#define F_SEGMENT_LIST_REF 0x0020
 
 #define F_SEGMENT_LIST_BFD_ATTACH 0x0080
 };

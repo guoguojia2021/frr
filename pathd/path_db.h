@@ -15,7 +15,7 @@ extern void path_db_init(void);
 
 extern void sidlist_Db_SetEntry(struct srte_segment_list *segl);
 
-extern void sidlist_Db_DelEntry(const char *name);
+extern void sidlist_Db_DelEntry(struct srte_segment_list *segl);
 
 #endif /* _PATH_DB_H */
 
