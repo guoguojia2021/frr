@@ -94,11 +94,33 @@ static inline int srte_candidate_compare(const struct srte_candidate *a,
 	return strcmp(a->name, b->name);
 
 }
+
+static inline int srte_policy_candidate_compare(const struct srte_candidate *a,
+					 const struct srte_candidate *b)
+{
+	int ret = 0;
+	if (a->preference != b->preference)
+	{
+        return a->preference - b->preference;
+	}
+
+	ret = strcmp(a->name, b->name);
+	if(ret) return ret;
+
+	if(a->policy->color != b->policy->color)
+	{
+		return a->policy->color - b->policy->color;
+	}
+
+	ret = memcmp(&a->policy->endpoint, &b->policy->endpoint, sizeof(struct ipaddr));
+	return ret;
+}
+
 RB_GENERATE(srte_candidate_head, srte_candidate, entry, srte_candidate_compare)
 
 RB_GENERATE(srte_candidate_pref_head, srte_candidate, perf_entry, srte_candidate_compare)
 
-RB_GENERATE(srte_candidate_bfd_head, srte_candidate, bfd_entry, srte_candidate_compare)
+RB_GENERATE(srte_candidate_bfd_head, srte_candidate, bfd_entry, srte_policy_candidate_compare)
 
 /* Generate rb-tree of Candidate Group instances. */
 static inline int srte_candidate_group_compare(const struct srte_candidate_group *a,

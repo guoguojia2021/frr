@@ -401,7 +401,7 @@ RB_HEAD(srte_candidate_pref_head, srte_candidate);
 RB_PROTOTYPE(srte_candidate_pref_head, srte_candidate, perf_entry, srte_candidate_compare)
 
 RB_HEAD(srte_candidate_bfd_head, srte_candidate);
-RB_PROTOTYPE(srte_candidate_bfd_head, srte_candidate, bfd_entry, srte_candidate_compare)
+RB_PROTOTYPE(srte_candidate_bfd_head, srte_candidate, bfd_entry, srte_policy_candidate_compare)
 
 struct srte_candidate_group {
 	RB_ENTRY(srte_candidate_group) entry;
