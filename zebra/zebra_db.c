@@ -370,16 +370,6 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
         return;
     }
 
-    /*sadd KEY_SET*/
-    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);
-    snprintf(set_value, ZEBRA_DB_MAX_VALUE_LEN, "%s", my_local_sid);
-    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd error code : %d", ret);
-        return;
-    }
-
     /* block len */
     snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "block_len");
@@ -500,6 +490,16 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
         return;
     }
 
+    /*sadd KEY_SET*/
+    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);
+    snprintf(set_value, ZEBRA_DB_MAX_VALUE_LEN, "%s", my_local_sid);
+    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd error code : %d", ret);
+        return;
+    }
+
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %d", channel);
     ret = g_zebra_redis_appdb.redis_PublishMsg(channel, "G", REDIS_APP_DB);
@@ -537,25 +537,6 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
     p.u.prefix6 = *result_sid;
     prefix2str(&p, my_local_sid, ZEBRA_DB_MAX_SID_LEN);
 
-    /*sadd KEY_SET*/
-    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);
-    snprintf(set_value, ZEBRA_DB_MAX_VALUE_LEN, "%s", my_local_sid);
-    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
-        return;
-    }
-
-    /*sadd DEL_SET*/
-    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_DEL_SET", SRV6_MY_SID_TABLE);
-    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
-        return;
-    }
-
     /* del key*/
     snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     item.next = NULL;
@@ -565,6 +546,25 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
     if (ret)
     {
         zlog_err("redis_Db_DelKeyLst error code : %d", ret);
+        return;
+    }
+
+    /*sadd DEL_SET*/
+    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_DEL_SET", SRV6_MY_SID_TABLE);
+    snprintf(set_value, ZEBRA_DB_MAX_VALUE_LEN, "%s", my_local_sid);
+    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
+        return;
+    }
+
+    /*sadd KEY_SET*/
+    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);
+    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
         return;
     }
 
