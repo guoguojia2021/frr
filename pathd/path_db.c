@@ -189,16 +189,6 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     if (!g_bPathRedisInUse)
         return;
 
-    /*sadd KEY_SET*/
-    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET",SRV6_SID_LIST_TABLE);
-    snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", segl->name);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd error code : %d", ret);
-        return;
-    }
-
     /* set segment key and field*/
     snprintf(key, PATH_DB_MAX_KEY_LEN, "_%s:%s",SRV6_SID_LIST_TABLE, segl->name);
     snprintf(field, PATH_DB_MAX_KEY_LEN, "path");
@@ -238,6 +228,16 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
         return;
     }
 
+    /*sadd KEY_SET*/
+    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET",SRV6_SID_LIST_TABLE);
+    snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", segl->name);
+    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd error code : %d", ret);
+        return;
+    }
+
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
@@ -265,24 +265,6 @@ void sidlist_Db_DelEntry(struct srte_segment_list *segl)
     if (!g_bPathRedisInUse)
         return;
 
-    /*sadd KEY_SET*/
-    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET",SRV6_SID_LIST_TABLE);
-    snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", name);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
-        return;
-    }
-    /*sadd DEL_SET*/
-    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_DEL_SET",SRV6_SID_LIST_TABLE);
-    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
-    if (ret)
-    {
-        zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
-        return;
-    }
-
     /* del key*/
     snprintf(key, PATH_DB_MAX_KEY_LEN, "SRV6_SID_LIST_TABLE:%s", name);
     item.next = NULL;
@@ -292,6 +274,25 @@ void sidlist_Db_DelEntry(struct srte_segment_list *segl)
     if (ret)
     {
         zlog_err("redis_Db_DelKeyLst error code : %d", ret);
+        return;
+    }
+
+    /*sadd DEL_SET*/
+    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_DEL_SET",SRV6_SID_LIST_TABLE);
+    snprintf(set_value, PATH_DB_MAX_VALUE_LEN, "%s", name);
+    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
+        return;
+    }
+
+    /*sadd KEY_SET*/
+    snprintf(set_key, PATH_DB_MAX_KEY_LEN, "%s_KEY_SET",SRV6_SID_LIST_TABLE);
+    ret = g_sidlist_appdb_redis.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
         return;
     }
 
