@@ -3532,7 +3532,7 @@ int zapi_sr_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp)
 
 	zclient_create_header(s, cmd, VRF_DEFAULT);
 	stream_putl(s, zp->color);
-	stream_put_ipaddr(s, &zp->endpoint);
+	stream_put_prefix(s, &zp->endpoint);
 	stream_write(s, &zp->name, SRTE_POLICY_NAME_MAX_LENGTH);
 
 	stream_putc(s, zt->type);
@@ -3563,7 +3563,7 @@ int zapi_sr_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	struct zapi_srte_tunnel *zt = &zp->segment_list;
 
 	STREAM_GETL(s, zp->color);
-	STREAM_GET_IPADDR(s, &zp->endpoint);
+	STREAM_GET_PREFIX6(s, &zp->endpoint);
 	STREAM_GET(&zp->name, s, SRTE_POLICY_NAME_MAX_LENGTH);
 
 	/* segment list of active candidate path */
@@ -3594,7 +3594,7 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 
 	zclient_create_header(s, cmd, VRF_DEFAULT);
 	stream_putl(s, zp->color);
-	stream_put_ipaddr(s, &zp->endpoint);
+	stream_put_prefix(s, &zp->endpoint);
 	stream_write(s, &zp->name, SRTE_POLICY_NAME_MAX_LENGTH);
     
 	stream_putc(s, zp->tunnel_type);
@@ -3630,7 +3630,8 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	zt = &zp->srv6_tunnel;
 
 	STREAM_GETL(s, zp->color);
-	STREAM_GET_IPADDR(s, &zp->endpoint);
+	zp->endpoint.family = AF_INET6;
+	stream_get_prefix6(s, &zp->endpoint);
 	STREAM_GET(&zp->name, s, SRTE_POLICY_NAME_MAX_LENGTH);
 
 	/* segment list of active candidate path */
@@ -3639,8 +3640,8 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	STREAM_GET(&zp->binding_v6sid.ipaddr_v6, s, sizeof(struct in6_addr));
 
 	STREAM_GETW(s, zp->srv6_tunnel.path_num);
-	char endpoint[46];
-	ipaddr2str(&zp->endpoint, endpoint, sizeof(endpoint));
+	char endpoint[60];
+	prefix2str(&zp->endpoint, endpoint, sizeof(endpoint));
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 	    STREAM_GET(&zt->sidlists[i].sidlist_name, s, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
@@ -3670,7 +3671,7 @@ int zapi_sr_policy_notify_status_decode(struct stream *s,
 	memset(zp, 0, sizeof(*zp));
 
 	STREAM_GETL(s, zp->color);
-	STREAM_GET_IPADDR(s, &zp->endpoint);
+	STREAM_GET_PREFIX6(s, &zp->endpoint);
 	STREAM_GET(&zp->name, s, SRTE_POLICY_NAME_MAX_LENGTH);
 	STREAM_GETL(s, zp->status);
 

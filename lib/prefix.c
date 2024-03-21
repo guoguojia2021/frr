@@ -906,6 +906,27 @@ int str2prefix(const char *str, struct prefix *p)
 
 	return 0;
 }
+void addr2prefix(struct ipaddr *ipaddr, struct prefix *prefix)
+{
+	if (!ipaddr || !prefix)
+		return;
+	switch (ipaddr->ipa_type) {
+	case IPADDR_V4:
+		prefix->family = AF_INET;
+		prefix->prefixlen = IPV4_MAX_BITLEN;
+		prefix->u.prefix4 = ipaddr->ipaddr_v4;
+		break;
+	case IPADDR_V6:
+		prefix->family = AF_INET6;
+		prefix->prefixlen = IPV6_MAX_BITLEN;
+		prefix->u.prefix6 = ipaddr->ipaddr_v6;
+		break;
+	default:
+		memset(prefix, 0, sizeof(*prefix));
+		zlog_warn("%s: unknown address family %d", __func__, ipaddr->ipa_type);
+		break;
+	}
+}
 
 static const char *prefixevpn_ead2str(const struct prefix_evpn *p, char *str,
 				      int size)
@@ -1071,9 +1092,8 @@ const char *prefix2str(union prefixconstptr pu, char *str, int size)
 	return str;
 }
 
-int prefix2ipaddr(union prefixconstptr pu, struct ipaddr *ip)
+int prefix2ipaddr(struct prefix *p, struct ipaddr *ip)
 {
-    const struct prefix *p = pu.p;
     memset(ip, 0, sizeof(struct ipaddr));
 
     if (p->family == AF_INET) {

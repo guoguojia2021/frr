@@ -22,6 +22,7 @@
 
 #ifndef _FRR_SRTE_H
 #define _FRR_SRTE_H
+#include <prefix.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,17 +32,18 @@ extern "C" {
 #define SRTE_SEGMENTLIST_NAME_MAX_LENGTH 64
 
 enum zebra_sr_policy_status {
-    ZEBRA_SR_POLICY_DOWN = 0,
+	ZEBRA_SR_POLICY_INIT = 0,
+    ZEBRA_SR_POLICY_DOWN,
     ZEBRA_SR_POLICY_UP,
 };
 
-static inline int sr_policy_compare(const struct ipaddr *a_endpoint,
-				    const struct ipaddr *b_endpoint,
+static inline int sr_policy_compare(const struct prefix *a_endpoint,
+				    const struct prefix *b_endpoint,
 				    uint32_t a_color, uint32_t b_color)
 {
 	int ret;
 
-	ret = ipaddr_cmp(a_endpoint, b_endpoint);
+	ret = prefix_cmp(a_endpoint, b_endpoint);
 	if (ret < 0)
 		return -1;
 	if (ret > 0)

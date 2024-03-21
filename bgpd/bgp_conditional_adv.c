@@ -83,7 +83,7 @@ static void bgp_conditional_adv_routes(struct peer *peer, afi_t afi,
 	struct peer_af *paf;
 	const struct prefix *dest_p;
 	struct update_subgroup *subgrp;
-	struct attr advmap_attr = {0}, attr = {0};
+	struct attr advmap_attr = {0};
 	struct bgp_path_info_extra path_extra = {0};
 	route_map_result_t ret;
 

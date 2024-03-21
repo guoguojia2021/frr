@@ -345,13 +345,13 @@ int pathd_srte_policy_create(struct nb_cb_create_args *args)
 {
 	struct srte_policy *policy;
 	uint32_t color;
-	struct ipaddr endpoint;
+	struct prefix endpoint;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
 	color = yang_dnode_get_uint32(args->dnode, "color");
-	yang_dnode_get_ip(&endpoint, args->dnode, "endpoint");
+	yang_dnode_get_prefix(&endpoint, args->dnode, "endpoint");
 	policy = srte_policy_add(color, &endpoint, SRTE_ORIGIN_LOCAL, NULL);
 
 	nb_running_set_entry(args->dnode, policy);

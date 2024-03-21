@@ -75,6 +75,7 @@ extern bool rnh_nexthop_valid(const struct route_entry *re,
 /* UI control to avoid notifications if backup nexthop status changes */
 void rnh_set_hide_backups(bool hide_p);
 bool rnh_get_hide_backups(void);
+void zebra_evaluate_rnh_by_srte(afi_t afi, struct rnh *rnh);
 
 #ifdef __cplusplus
 }

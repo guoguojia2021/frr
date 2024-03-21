@@ -156,43 +156,39 @@ static struct seg6_sid *sid_lookup_by_vrf_action(struct srv6_locator *loc,
 	return NULL;
 }
 
-
-DEFUN (show_srv6_tunnel,
-       show_srv6_tunnel_cmd,
-       "show srv6 tunnel [detail]",
-       SHOW_STR
-       "Segment Routing SRv6\n"
-       "tunnel info\n"
-       "Show a detailed summary\n")
+const char *policystatus2str(enum zebra_sr_policy_status status)
 {
-	struct ttable *tt;
-	//struct srte_policy *policy;
-	char *table;
-    struct zebra_sr_policy *policy;
-    bool detail = false;
-
-    if (argc == 1 && argv[0]->arg && strmatch(argv[0]->text, "detail"))
-		detail = true;
-
-	if (RB_EMPTY(zebra_sr_policy_instance_head, &zebra_sr_policy_instances)) {
-		vty_out(vty, "No SR Tunnel to display.\n\n");
-		return CMD_SUCCESS;
+	switch (status) {
+	case ZEBRA_SR_POLICY_UP:
+		return "Active";
+	case ZEBRA_SR_POLICY_DOWN:
+		return "Inactive";
+	case ZEBRA_SR_POLICY_INIT:
+		return "Init";
+	default:
+		break;
 	}
+	return NULL;
+}
 
-	/* Prepare table. */
-	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-	if (detail)
-		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|SegmentList_old|SegmentList|NheID|Path");
-	else
-		ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|SegmentList_old|SegmentList|NheID");
-	tt->style.cell.rpad = 2;
-	tt->style.corner = '+';
-	ttable_restyle(tt);
-	ttable_rowseps(tt, 0, BOTTOM, true, '-');
+static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
+{
+	struct zebra_sr_policy *policy;
+	struct route_node *rn;
+	struct ttable *tt;
+	struct zebra_sr_policy_show_para *para = arg;
+	struct srte_table_key *srte_key_table = NULL;
+	srte_key_table = hb->data;
+	if (!srte_key_table || !srte_key_table->table) {
+		return 0;
+	}
+	tt = para->tt;
 
-	RB_FOREACH (policy, zebra_sr_policy_instance_head,
-		    &zebra_sr_policy_instances) {
-		char endpoint[46];
+	for (rn = route_top(srte_key_table->table); rn; rn = route_next(rn)) {
+		policy = rn->info;
+		if (!policy)
+			continue;
+		char endpoint[60];
 		char binding_sid[16] = "-";
 		char segmentlist_old[4096] = {0};
 		char segmentlist[4096] = {0};
@@ -213,15 +209,43 @@ DEFUN (show_srv6_tunnel,
 			strcat(segmentlist, buf);
 		}
 		strcat(segmentlist, " ]");
-
-		ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+		inet_ntop(rn->p.family, &rn->p.u.prefix, endpoint, 60);
 
 		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s|%s", endpoint, policy->color,
 			       policy->name, binding_sid,
-			       policy->status == ZEBRA_SR_POLICY_UP ? "Active" : "Inactive",
+			       policystatus2str(policy->status),
 				   segmentlist_old, segmentlist);
 	}
 
+	
+	return 0;
+}
+
+
+DEFUN (show_srv6_tunnel,
+       show_srv6_tunnel_cmd,
+       "show srv6 tunnel [detail]",
+       SHOW_STR
+       "Segment Routing SRv6\n"
+       "tunnel info\n"
+       "Show a detailed summary\n")
+{
+	struct ttable *tt;
+	//struct srte_policy *policy;
+	char *table;
+	struct zebra_sr_policy_show_para para = {0};
+
+	/* Prepare table. */
+	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
+	ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|SegmentList_old|SegmentList");
+	tt->style.cell.rpad = 2;
+	tt->style.corner = '+';
+	ttable_restyle(tt);
+	ttable_rowseps(tt, 0, BOTTOM, true, '-');
+	para.vty = vty;
+	para.tt = tt;
+	hash_walk(srte_table_hash, zebra_show_sr_policy_walk, &para);
+	
 	/* Dump the generated table. */
 	table = ttable_dump(tt, "\n");
 	vty_out(vty, "%s\n", table);
@@ -590,8 +614,6 @@ DEFPY (locator_prefix,
 	struct listnode *client_node;
 	char *ifName = NULL;
 	struct ipaddr nexthop = {0};
-	struct interface *ifp = NULL;
-	struct vrf *vrf = NULL;
 	char *nhpstr = NULL;
 	struct listnode *sidnode, *sidnnode;
 	struct seg6_sid *sid_end_x = NULL;

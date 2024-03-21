@@ -178,7 +178,10 @@ module frr-pathd {
             "Color of the SR Policy.";
         }
         leaf endpoint {
-          type inet:ip-address;
+          type union {
+              type inet:ip-prefix;
+              type inet:ip-address;
+          }
           description
             "Indication for the endpoint of the SR Policy.";
         }

@@ -487,7 +487,7 @@ struct srte_policy {
 	uint32_t color;
 
 	/* Endpoint */
-	struct ipaddr endpoint;
+	struct prefix endpoint;
 
 	/* Name */
 	char name[64];
@@ -576,11 +576,11 @@ int srte_segment_entry_set_nai(struct srte_segment_entry *segment,
 void srte_segment_set_local_modification(struct srte_segment_list *s_list,
 					 struct srte_segment_entry *s_entry,
 					 uint32_t ted_sid);
-struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
+struct srte_policy *srte_policy_add(uint32_t color, struct prefix *endpoint,
 				    enum srte_protocol_origin origin,
 				    const char *originator);
 void srte_policy_del(struct srte_policy *policy);
-struct srte_policy *srte_policy_find(uint32_t color, struct ipaddr *endpoint);
+struct srte_policy *srte_policy_find(uint32_t color, struct prefix *endpoint);
 struct srte_policy *srte_policy_find_by_name(const char *name);
 int srte_policy_update_ted_sid(void);
 void srte_policy_update_binding_sid(struct srte_policy *policy,

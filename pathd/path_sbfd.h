@@ -39,7 +39,7 @@ void srte_policy_sbfd_each_seglist_del_then_apply(struct srte_policy *policy);
 struct srte_sbfd_session *srte_sbfd_session_add(struct srte_segment_list *segment_list, struct srte_policy *policy);
 void srte_sbfd_session_del(struct srte_sbfd_session *sbs);
 struct srte_sbfd_session *srte_sbfd_session_find(struct srte_segment_list *segment_list, 
-    uint32_t color, struct ipaddr *endpoint);
+    uint32_t color, struct prefix *endpoint);
 
 void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 				      const struct bfd_session_status *bss,

@@ -3014,17 +3014,19 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	 * the corresponding SR policy object.
 	 */
 	if (nexthop->srte_color) {
-		struct ipaddr endpoint = {0};
+		struct prefix endpoint = {0};
 		struct zebra_sr_policy *policy;
 
 		switch (afi) {
 		case AFI_IP:
-			endpoint.ipa_type = IPADDR_V4;
-			endpoint.ipaddr_v4 = *ipv4;
+			endpoint.family = AF_INET;
+			endpoint.prefixlen = IPV4_MAX_BITLEN;
+			endpoint.u.prefix4 = *ipv4;
 			break;
 		case AFI_IP6:
-			endpoint.ipa_type = IPADDR_V6;
-			endpoint.ipaddr_v6 = nexthop->gate.ipv6;
+			endpoint.family = AF_INET6;
+			endpoint.prefixlen = IPV6_MAX_BITLEN;
+			endpoint.u.prefix6 = nexthop->gate.ipv6;
 			break;
 		default:
 			flog_err(EC_LIB_DEVELOPMENT,
@@ -3033,7 +3035,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			exit(1);
 		}
 
-		policy = zebra_sr_policy_find(nexthop->srte_color, &endpoint);
+		policy = zebra_sr_policy_lookup_by_prefix(&endpoint, nexthop->srte_color);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 			if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
 			{
@@ -3376,17 +3378,19 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	 * the corresponding SR policy object.
 	 */
 	if (nexthop->srte_color) {
-		struct ipaddr endpoint = {0};
+		struct prefix endpoint = {0};
 		struct zebra_sr_policy *policy;
 
 		switch (afi) {
 		case AFI_IP:
-			endpoint.ipa_type = IPADDR_V4;
-			endpoint.ipaddr_v4 = *ipv4;
+			endpoint.family = AF_INET;
+			endpoint.prefixlen = IPV4_MAX_BITLEN;
+			endpoint.u.prefix4 = *ipv4;
 			break;
 		case AFI_IP6:
-			endpoint.ipa_type = IPADDR_V6;
-			endpoint.ipaddr_v6 = nexthop->gate.ipv6;
+			endpoint.family = AF_INET6;
+			endpoint.prefixlen = IPV6_MAX_BITLEN;
+			endpoint.u.prefix6 = nexthop->gate.ipv6;
 			break;
 		default:
 			flog_err(EC_LIB_DEVELOPMENT,
@@ -3395,7 +3399,7 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 			exit(1);
 		}
 
-		policy = zebra_sr_policy_find(nexthop->srte_color, &endpoint);
+		policy = zebra_sr_policy_lookup_by_prefix(&endpoint, nexthop->srte_color);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 
 			resolved = 0;

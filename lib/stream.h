@@ -229,6 +229,7 @@ extern float stream_getf(struct stream *);
 extern double stream_getd(struct stream *);
 extern int stream_putf(struct stream *, float);
 extern int stream_putd(struct stream *, double);
+extern bool stream_get_prefix6(struct stream *s, struct prefix *p);
 
 #undef stream_read
 #undef stream_write
@@ -468,6 +469,12 @@ static inline uint8_t *ptr_get_be16(uint8_t *ptr, uint16_t *out)
 		if (!stream_get_ipaddr((S), (P)))                              \
 			goto stream_failure;                                   \
 	} while (0)
+
+#define STREAM_GET_PREFIX6(S, P)                                                \
+		do {																   \
+			if (!stream_get_prefix6((S), (P)))							   \
+				goto stream_failure;								   \
+		} while (0)
 
 #define STREAM_GET(P, STR, SIZE)                                               \
 	do {                                                                   \

@@ -11389,7 +11389,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
                 vty_out(vty, "      Relay-Nexthop(tunnel):");
     			if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
     				vty_out(vty, " srv6-tunnel:%s|%u(endpoint|color), ", 
-    						inet_ntop(bnc->prefix.family, &bnc->prefix.u.prefix, buf, sizeof(buf)),
+    						inet_ntop(bnc->resolve_prefix.family, &bnc->resolve_prefix.u.prefix, buf, sizeof(buf)),
     						bnc->srte_color);
                 vty_out(vty, "\n");
             }

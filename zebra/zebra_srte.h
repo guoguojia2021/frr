@@ -25,6 +25,7 @@
 
 #include "lib/zclient.h"
 #include "lib/srte.h"
+#include "lib/table.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,13 +41,12 @@ enum zebra_sr_policy_update_label_mode {
 #define ZEBRA_SR_POLICY_TYPE_SRV6     2
 
 struct zebra_sr_policy {
-	RB_ENTRY(zebra_sr_policy) entry;
 	/* Binding SID */
 	mpls_label_t binding_sid;
 	/* Binding Srv6 Sid*/
 	struct ipaddr binding_v6_sid;
 	uint32_t color;
-	struct ipaddr endpoint;
+	//struct ipaddr endpoint;
 	uint8_t type;
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
 	enum zebra_sr_policy_status status;
@@ -54,12 +54,31 @@ struct zebra_sr_policy {
 	struct zapi_srv6te_tunnel srv6_segment_list;
 	struct zebra_lsp *lsp;
 	struct zebra_vrf *zvrf;
+	struct route_node *node;
+	/*
+	 * The list of nht prefixes that have ended up
+	 * depending on this policy.
+	 */
+	struct rnh_list_head nht;
 };
+#if 0
 RB_HEAD(zebra_sr_policy_instance_head, zebra_sr_policy);
 RB_PROTOTYPE(zebra_sr_policy_instance_head, zebra_sr_policy, entry,
 	     zebra_sr_policy_instance_compare)
 
 extern struct zebra_sr_policy_instance_head zebra_sr_policy_instances;
+#endif
+struct srte_table_key {
+	afi_t afi;
+	uint32_t color;
+	struct route_table *table;
+};
+struct zebra_sr_policy_label_para {
+	mpls_label_t label;
+	enum zebra_sr_policy_update_label_mode mode;
+};
+
+extern struct hash *srte_table_hash;
 
 struct zebra_sr_policy *
 zebra_sr_policy_add(uint32_t color, struct ipaddr *endpoint, char *name);
@@ -76,12 +95,24 @@ void zebra_sr_policy_bsid_uninstall(struct zebra_sr_policy *policy,
 void zebra_srte_init(void);
 int zebra_sr_policy_label_update(mpls_label_t label,
 				 enum zebra_sr_policy_update_label_mode mode);
-extern int zebra_sr_policy_notify_update_client(struct zebra_sr_policy *policy,
+extern int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy *policy,
                             struct zserv *client);
-extern void zebra_sr_policy_notify_update(struct zebra_sr_policy *policy, struct zserv *zclient);
+extern void zebra_sr_policy_notify_update(struct rnh *rnh, struct zebra_sr_policy *policy, struct zserv *zclient);
 extern int zebra_sr_policy_notify_unknown(struct rnh *rnh, struct zserv *client);
 extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
                      struct zapi_srv6te_tunnel *new_tunnel, bool new);
+
+extern struct zebra_sr_policy *zebra_sr_policy_add_by_prefix(struct prefix *p, uint32_t color, char *name);
+
+extern struct zebra_sr_policy *zebra_sr_policy_lookup_by_prefix(struct prefix *p, uint32_t color);
+extern struct zebra_sr_policy *zebra_sr_policy_match_by_prefix(struct prefix *p, uint32_t color, struct route_node **prn);
+
+extern void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy);
+extern void *srte_table_alloc(void *arg);
+extern void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, bool rt_delete);
+extern int zebra_sr_policy_label_update_walk(struct hash_bucket *hb, void *arg);
+extern void zebra_free_sr_table(struct route_table *table);
+extern struct route_table *zebra_srte_table_create(afi_t afi, uint32_t color);
 
 #ifdef __cplusplus
 }

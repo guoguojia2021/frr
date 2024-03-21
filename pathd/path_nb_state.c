@@ -86,7 +86,7 @@ int pathd_srte_policy_get_keys(struct nb_cb_get_keys_args *args)
 	args->keys->num = 2;
 	snprintf(args->keys->key[0], sizeof(args->keys->key[0]), "%u",
 		 policy->color);
-	ipaddr2str(&policy->endpoint, args->keys->key[1],
+	prefix2str(&policy->endpoint, args->keys->key[1],
 		   sizeof(args->keys->key[1]));
 
 	return NB_OK;
@@ -95,10 +95,10 @@ int pathd_srte_policy_get_keys(struct nb_cb_get_keys_args *args)
 const void *pathd_srte_policy_lookup_entry(struct nb_cb_lookup_entry_args *args)
 {
 	uint32_t color;
-	struct ipaddr endpoint;
+	struct prefix endpoint;
 
 	color = yang_str2uint32(args->keys->key[0]);
-	yang_str2ip(args->keys->key[1], &endpoint);
+	yang_str2prefix(args->keys->key[1], &endpoint);
 
 	return srte_policy_find(color, &endpoint);
 }

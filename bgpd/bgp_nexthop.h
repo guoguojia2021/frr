@@ -106,6 +106,7 @@ struct bgp_nexthop_cache {
 
 	uint32_t srte_color;
 	struct prefix prefix;
+	struct prefix resolve_prefix;
 	void *nht_info; /* In BGP, peer session */
 	LIST_HEAD(path_list, bgp_path_info) paths;
 	unsigned int path_count;

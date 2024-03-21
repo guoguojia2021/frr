@@ -493,10 +493,11 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		if (!bnc->is_evpn_gwip_nexthop)
 			bnc->flags |= BGP_NEXTHOP_VALID;
-        if (nhr->type == ZEBRA_ROUTE_SRTE)
-            SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
-        else
-            UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
+		if (nhr->type == ZEBRA_ROUTE_SRTE) 
+			SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
+		else
+			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
+		bnc->resolve_prefix = nhr->prefix;
 		bnc->metric = nhr->metric;
 		bnc->nexthop_num = nhr->nexthop_num;
 

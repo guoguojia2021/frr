@@ -1256,6 +1256,8 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 		if (!srte_color && (!exist || flag_changed))
 			zebra_evaluate_rnh(zvrf, family2afi(p.family), 1, &p,
 					   safi);
+		if (srte_color)
+			zebra_evaluate_rnh_by_srte(family2afi(p.family), rnh);
 
 		zebra_add_rnh_client(rnh, client, zvrf_id(zvrf));
 	}
@@ -2671,9 +2673,9 @@ static void zread_sr_policy_set(ZAPI_HANDLER_ARGS)
 	if (!mpls_enabled)
 		return;
 
-	policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
+	policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
 	if (!policy)
-		policy = zebra_sr_policy_add(zp.color, &zp.endpoint, zp.name);
+		policy = zebra_sr_policy_add_by_prefix(&zp.endpoint, zp.color, zp.name);
 	/* TODO: per-VRF list of SR-TE policies. */
 	policy->zvrf = zvrf;
 
@@ -2698,14 +2700,14 @@ static void zread_sr_policy_delete(ZAPI_HANDLER_ARGS)
 	if (!mpls_enabled)
 		return;
 
-	policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
+	policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
 	if (!policy) {
 		if (IS_ZEBRA_DEBUG_RECV)
 			zlog_debug("%s: Unable to find SR-TE policy", __func__);
 		return;
 	}
 
-	zebra_sr_policy_del(policy);
+	zebra_sr_policy_delete_by_prefix(policy);
 }
 
 static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
@@ -2734,15 +2736,16 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 		return;
 	}
     
-    old_policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
+    old_policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
     if (!old_policy)
 	{
-        policy = zebra_sr_policy_add(zp.color, &zp.endpoint, zp.name);
+        policy = zebra_sr_policy_add_by_prefix(&zp.endpoint, zp.color, zp.name);
 		new = true;
 	}
     else
 	{
         policy = old_policy;
+		policy->status = ZEBRA_SR_POLICY_UP;
 	}
     
     policy->zvrf = zvrf;
@@ -2765,13 +2768,13 @@ static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 				   __func__);
 		return;
 	}
-    policy = zebra_sr_policy_find(zp.color, &zp.endpoint);
+    policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
 	if (!policy)
 		return;
-    zebra_sr_policy_del(policy);
+    zebra_sr_policy_delete_by_prefix(policy);
 }
 
-int zsend_sr_policy_notify_status(uint32_t color, struct ipaddr *endpoint,
+int zsend_sr_policy_notify_status(uint32_t color, struct route_node *rn,
 				  char *name, int status)
 {
 	struct zserv *client;
@@ -2798,7 +2801,7 @@ int zsend_sr_policy_notify_status(uint32_t color, struct ipaddr *endpoint,
 
 	zclient_create_header(s, ZEBRA_SR_POLICY_NOTIFY_STATUS, VRF_DEFAULT);
 	stream_putl(s, color);
-	stream_put_ipaddr(s, endpoint);
+	stream_put_prefix(s, &rn->p);
 	stream_write(s, name, SRTE_POLICY_NAME_MAX_LENGTH);
 	stream_putl(s, status);
 

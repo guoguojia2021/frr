@@ -19,6 +19,10 @@
 
 #ifndef _ZEBRA_SRV6_VTY_H
 #define _ZEBRA_SRV6_VTY_H
+struct zebra_sr_policy_show_para {
+	struct vty *vty;
+	struct ttable *tt;
+};
 
 extern void zebra_srv6_vty_init(void);
 

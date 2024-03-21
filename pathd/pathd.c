@@ -157,7 +157,10 @@ struct srte_policy_head srte_policies = RB_INITIALIZER(&srte_policies);
 static inline int srte_sbfd_session_compare(const struct srte_sbfd_session *a,
 					     const struct srte_sbfd_session *b)
 {
-	return sr_policy_compare(&a->policy_endpoint, &b->policy_endpoint,
+	struct prefix endpointa, endpointb;
+	addr2prefix(&a->policy_endpoint, &endpointa);
+	addr2prefix(&b->policy_endpoint, &endpointb);
+	return sr_policy_compare(&endpointa, &endpointb,
 	    a->policy_color, b->policy_color);
 }
 RB_GENERATE(srte_sbfd_session_head, srte_sbfd_session, entry,
@@ -372,7 +375,7 @@ void srte_segment_set_local_modification(struct srte_segment_list *s_list,
  * @param endpoint The IP address of the policy endpoint
  * @return The created policy
  */
-struct srte_policy *srte_policy_add(uint32_t color, struct ipaddr *endpoint,
+struct srte_policy *srte_policy_add(uint32_t color, struct prefix *endpoint,
 				    enum srte_protocol_origin origin,
 				    const char *originator)
 {
@@ -434,7 +437,7 @@ void srte_policy_del(struct srte_policy *policy)
  * @param endpoint The endpoint of the policy to look for
  * @return The policy if found, NULL otherwise
  */
-struct srte_policy *srte_policy_find(uint32_t color, struct ipaddr *endpoint)
+struct srte_policy *srte_policy_find(uint32_t color, struct prefix *endpoint)
 {
 	struct srte_policy search;
 
@@ -766,7 +769,7 @@ void srte_policy_apply_changes(struct srte_policy *policy)
 	struct srte_candidate *new_best_candidate;
 	char endpoint[46];
 
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	/* Get old and new best candidate path. */
 	old_best_candidate = policy->best_candidate;
@@ -877,7 +880,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 	struct srte_candidate_group *new_best_cpath_group;
 	char endpoint[46];
 
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	/* Get old and new best candidate path. */
 	old_best_cpath_group = policy->best_candidate_group;
@@ -1193,7 +1196,7 @@ void srte_candidate_set_bandwidth(struct srte_candidate *candidate,
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
 
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug(
 		"SR-TE(%s, %u): candidate %s %sconfig bandwidth set to %f B/s",
 		endpoint, policy->color, candidate->name,
@@ -1220,7 +1223,7 @@ void srte_lsp_set_bandwidth(struct srte_lsp *lsp, float bandwidth,
 	struct srte_candidate *candidate = lsp->candidate;
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug("SR-TE(%s, %u): candidate %s %slsp bandwidth set to %f B/s",
 		   endpoint, policy->color, candidate->name,
 		   required ? "required" : "", bandwidth);
@@ -1240,7 +1243,7 @@ void srte_candidate_unset_bandwidth(struct srte_candidate *candidate)
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug("SR-TE(%s, %u): candidate %s config bandwidth unset",
 		   endpoint, policy->color, candidate->name);
 	UNSET_FLAG(candidate->flags, F_CANDIDATE_HAS_BANDWIDTH);
@@ -1262,7 +1265,7 @@ void srte_lsp_unset_bandwidth(struct srte_lsp *lsp)
 	struct srte_candidate *candidate = lsp->candidate;
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug("SR-TE(%s, %u): candidate %s lsp bandwidth unset", endpoint,
 		   policy->color, candidate->name);
 	UNSET_FLAG(lsp->flags, F_CANDIDATE_HAS_BANDWIDTH);
@@ -1290,7 +1293,7 @@ void srte_candidate_set_metric(struct srte_candidate *candidate,
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug(
 		"SR-TE(%s, %u): candidate %s %sconfig metric %s (%u) set to %f (is-bound: %s; is_computed: %s)",
 		endpoint, policy->color, candidate->name,
@@ -1324,7 +1327,7 @@ void srte_lsp_set_metric(struct srte_lsp *lsp,
 	struct srte_candidate *candidate = lsp->candidate;
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug(
 		"SR-TE(%s, %u): candidate %s %slsp metric %s (%u) set to %f (is-bound: %s; is_computed: %s)",
 		endpoint, policy->color, candidate->name,
@@ -1359,7 +1362,7 @@ void srte_candidate_unset_metric(struct srte_candidate *candidate,
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug("SR-TE(%s, %u): candidate %s config metric %s (%u) unset",
 		   endpoint, policy->color, candidate->name,
 		   srte_candidate_metric_name(type), type);
@@ -1383,7 +1386,7 @@ void srte_lsp_unset_metric(struct srte_lsp *lsp,
 	struct srte_candidate *candidate = lsp->candidate;
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug("SR-TE(%s, %u): candidate %s lsp metric %s (%u) unset",
 		   endpoint, policy->color, candidate->name,
 		   srte_candidate_metric_name(type), type);
@@ -1411,7 +1414,7 @@ void srte_candidate_set_objfun(struct srte_candidate *candidate, bool required,
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	candidate->objfun = type;
 	SET_FLAG(candidate->flags, F_CANDIDATE_HAS_OBJFUN);
@@ -1431,7 +1434,7 @@ void srte_candidate_unset_objfun(struct srte_candidate *candidate)
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	UNSET_FLAG(candidate->flags, F_CANDIDATE_HAS_OBJFUN);
 	UNSET_FLAG(candidate->flags, F_CANDIDATE_REQUIRED_OBJFUN);
@@ -1483,7 +1486,7 @@ void srte_candidate_set_affinity_filter(struct srte_candidate *candidate,
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	assert(type > AFFINITY_FILTER_UNDEFINED);
 	assert(type <= MAX_AFFINITY_FILTER_TYPE);
@@ -1508,7 +1511,7 @@ void srte_candidate_unset_affinity_filter(struct srte_candidate *candidate,
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	assert(type > AFFINITY_FILTER_UNDEFINED);
 	assert(type <= MAX_AFFINITY_FILTER_TYPE);
@@ -1637,7 +1640,7 @@ void srte_candidate_status_update(struct srte_candidate *candidate, int status)
 {
 	struct srte_policy *policy = candidate->policy;
 	char endpoint[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	zlog_debug("SR-TE(%s, %u): zebra updated status to %d", endpoint,
 		   policy->color, status);
 	switch (status) {

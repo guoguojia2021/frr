@@ -2125,12 +2125,13 @@ DEFUNSH(VTYSH_PATHD, srte_segment_list, srte_segment_list_cmd,
 }
 
 DEFUNSH(VTYSH_PATHD, srte_policy, srte_policy_cmd,
-	"policy color (0-4294967295) endpoint <A.B.C.D|X:X::X:X>",
+	"policy color (0-4294967295) endpoint <A.B.C.D|X:X::X:X|X:X::X:X/M>",
 	"Segment Routing Policy\n"
 	"SR Policy color\n"
 	"SR Policy color value\n"
 	"SR Policy endpoint\n"
 	"SR Policy endpoint IPv4 address\n"
+	"SR Policy endpoint IPv6 address\n"
 	"SR Policy endpoint IPv6 address\n")
 {
 	vty->node = SR_POLICY_NODE;

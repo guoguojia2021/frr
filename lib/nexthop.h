@@ -270,6 +270,9 @@ extern struct nexthop *nexthop_dup_no_context(const struct nexthop *nexthop, str
  */
 int nexthop_str2backups(const char *str, int *num_backups,
 			uint8_t *backups);
+extern void nexthop_copy_no_context(struct nexthop *copy,
+					 const struct nexthop *nexthop,
+					 struct nexthop *rparent);
 
 #ifdef _FRR_ATTRIBUTE_PRINTFRR
 #pragma FRR printfrr_ext "%pNH"  (struct nexthop *)

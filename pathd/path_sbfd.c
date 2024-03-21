@@ -235,16 +235,16 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	struct srte_segment_list *segl = arg;
 	struct srte_policy *policy = NULL;
 	struct srte_sbfd_event *sbfd_event;
-	struct ipaddr endpoint;
+	struct prefix endpoint;
 	memset(&endpoint, 0, sizeof(struct ipaddr));
 
 	zlog_debug("%s:  vrf %s(%u) bfd state %s -> %s",
 			__func__, bfd_sess_vrf(bsp), bfd_sess_vrf_id(bsp),
 			bfd_get_status_str(bss->previous_state),
 			bfd_get_status_str(bss->state));
-
-	endpoint.ipa_type = IPADDR_V6;
-	memcpy(&endpoint.ipaddr_v6, sbfd_sess_get_srpolicy_endpoint(bsp), sizeof(struct in6_addr));
+	endpoint.family = AF_INET6;
+	endpoint.prefixlen = IPV6_MAX_BITLEN;
+	endpoint.u.prefix6 = bsp->args.sr_endpoint;
 	policy = srte_policy_find(sbfd_sess_get_srpolicy_color(bsp), &endpoint);
     if (!policy)
 	{
@@ -295,8 +295,8 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 
 	bfd_sess_set_remote_discr(sbs->session, policy->bfd_config->remote_disc);
 
-    // set policy info
-    sbfd_sess_set_srpolicy_info(sbs->session, policy->color, &policy->endpoint.ipaddr_v6);
+	// set policy info
+	sbfd_sess_set_srpolicy_info(sbs->session, policy->color, &policy->endpoint.u.prefix6);
 
     // get all seg
 	RB_FOREACH (s_entry, srte_segment_entry_head, &segl->segments) 
@@ -337,7 +337,7 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 		bfd_sess_set_ipv6_addrs(
 			sbs->session,
 			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6,
-			&policy->endpoint.ipaddr_v6);
+			&policy->endpoint.u.prefix6);
 	}
 
 
@@ -533,7 +533,7 @@ srte_sbfd_session_add(struct srte_segment_list *segment_list, struct srte_policy
 
 	sbs = XCALLOC(MTYPE_PATH_SEGMENT_LIST_SBFD_CONFIG, sizeof(*sbs));
 	sbs->policy_color = policy->color;
-	sbs->policy_endpoint = policy->endpoint;
+	prefix2ipaddr(&policy->endpoint, &sbs->policy_endpoint);
 	sbs->segment_list = segment_list;
 	sbs->session = bfd_sess_new(sbfd_seglist_status_update, segment_list);
 
@@ -562,12 +562,12 @@ void srte_sbfd_session_del(struct srte_sbfd_session *sbs)
  * @return The segment list entry if found, NULL otherwise.
  */
 struct srte_sbfd_session *srte_sbfd_session_find(struct srte_segment_list *segment_list, 
-    uint32_t color, struct ipaddr *endpoint)
+    uint32_t color, struct prefix *endpoint)
 {
 	struct srte_sbfd_session search;
 
 	search.policy_color = color;
-	search.policy_endpoint = *endpoint;
+	prefix2ipaddr(endpoint, &search.policy_endpoint);
 
 	return RB_FIND(srte_sbfd_session_head, &segment_list->sbfd_sessions,
 		       &search);

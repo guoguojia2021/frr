@@ -237,7 +237,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 	zp.binding_v6sid = policy->binding_v6_sid;
 
 	char endpoint[46], binding_sid[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
 	RB_FOREACH (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths) {
@@ -285,6 +285,9 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 
     zp.srv6_tunnel.path_num = count;
 
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
+
 	zlog_info("notify policy set to zebra, color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
 		zp.color, endpoint, zp.name[0] ? "-":zp.name,
 		zp.tunnel_type, zp.srv6_tunnel.path_num,
@@ -310,8 +313,8 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 	zp.srv6_tunnel.path_num = 0;
 	//policy->status = SRTE_POLICY_STATUS_DOWN;
 
-    char endpoint[46], binding_sid[46];
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+    char endpoint[60], binding_sid[46];
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
 	zlog_info("notify policy del to zebra, color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",

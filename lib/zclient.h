@@ -682,7 +682,7 @@ struct zapi_srv6te_tunnel {
 
 struct zapi_sr_policy {
 	uint32_t color;
-	struct ipaddr endpoint;
+	struct prefix endpoint;
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
 	enum zapi_srte_tunnel_type tunnel_type;  //sr-mpls. or srv6
 	struct zapi_srte_tunnel segment_list;

@@ -140,7 +140,7 @@ DEFPY(show_srte_policy,
 		char endpoint[46];
 		char binding_sid[16] = "-";
 
-		ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+		prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 		if (policy->binding_sid != MPLS_LABEL_NONE)
 			snprintf(binding_sid, sizeof(binding_sid), "%u",
 				 policy->binding_sid);
@@ -169,7 +169,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 	char endpoint[46];
 	char binding_sid[46] = "-";
 
-	ipaddr2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	if (policy->binding_sid != MPLS_LABEL_NONE)
 		snprintf(binding_sid, sizeof(binding_sid), "%u",
 				policy->binding_sid);
@@ -270,8 +270,8 @@ DEFPY(show_srte_filter_policy_detail,
 {
 	struct srte_policy *policy;
 
-	struct ipaddr endpoint;
-	(void)str2ipaddr(addr_str, &endpoint);
+	struct prefix endpoint;
+	(void)str2prefix(addr_str, &endpoint);
 
     policy = srte_policy_find(num, &endpoint);
 
@@ -768,12 +768,13 @@ void cli_show_srte_segment_list_segment(struct vty *vty,
 DEFPY_YANG_NOSH(
 	srte_policy,
 	srte_policy_cmd,
-	"policy color (0-4294967295)$num endpoint <A.B.C.D|X:X::X:X>$endpoint",
+	"policy color (0-4294967295)$num endpoint <A.B.C.D|X:X::X:X|X:X::X:X/M>$endpoint",
 	"Segment Routing Policy\n"
 	"SR Policy color\n"
 	"SR Policy color value\n"
 	"SR Policy endpoint\n"
 	"SR Policy endpoint IPv4 address\n"
+	"SR Policy endpoint IPv6 address\n"
 	"SR Policy endpoint IPv6 address\n")
 {
 	char xpath[XPATH_POLICY_BASELEN];
@@ -781,7 +782,7 @@ DEFPY_YANG_NOSH(
 
 	snprintf(xpath, sizeof(xpath),
 		 "/frr-pathd:pathd/srte/policy[color='%s'][endpoint='%s']",
-		 num_str, endpoint_str);
+		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
 	ret = nb_cli_apply_changes_skip_check_validate(vty, NULL);
@@ -793,20 +794,21 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(srte_no_policy,
       srte_no_policy_cmd,
-      "no policy color (0-4294967295)$num endpoint <A.B.C.D|X:X::X:X>$endpoint",
+      "no policy color (0-4294967295)$num endpoint <A.B.C.D|X:X::X:X|X:X::X:X/M>$endpoint",
       NO_STR
       "Segment Routing Policy\n"
       "SR Policy color\n"
       "SR Policy color value\n"
       "SR Policy endpoint\n"
       "SR Policy endpoint IPv4 address\n"
+      "SR Policy endpoint IPv6 address\n"
       "SR Policy endpoint IPv6 address\n")
 {
 	char xpath[XPATH_POLICY_BASELEN];
 
 	snprintf(xpath, sizeof(xpath),
 		 "/frr-pathd:pathd/srte/policy[color='%s'][endpoint='%s']",
-		 num_str, endpoint_str);
+		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
 
 	return nb_cli_apply_changes(vty, NULL);

@@ -403,28 +403,6 @@ static int zebra_srv6_manager_get_locator_all(struct zserv *client,
 }
 
 /**
- * Core function, release no longer used srv6-locator chunks
- *
- * @param proto Daemon protocol of client, to identify the owner
- * @param instance Instance, to identify the owner
- * @param session_id Zclient session ID, to identify the zclient session
- * @param locator_name SRv6-locator name, to identify the actual locator
- * @return 0 on success, -1 otherwise
- */
-static int zebra_srv6_manager_release_locator_sid(struct zserv *client,
-						    const char *locator_name,
-						    vrf_id_t vrf_id)
-{
-	if (vrf_id != VRF_DEFAULT) {
-		zlog_err("SRv6 locator doesn't support vrf");
-		return -1;
-	}
-
-	return release_srv6_locator_chunk(client->proto, client->instance,
-					  client->session_id, locator_name);
-}
-
-/**
  * Release srv6-locator chunks from a client.
  *
  * Called on client disconnection or reconnection. It only releases chunks
