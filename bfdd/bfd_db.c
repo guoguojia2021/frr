@@ -91,8 +91,8 @@ void bfd_Db_GetSessStatus(struct bfd_session *bs)
     if (!bs->counterOid)
     {
         snprintf(keyType, BFD_DB_MAX_KEY_LEN, "COUNTERS_BFD_SESSION_NAME_MAP");
-        snprintf(field, BFD_DB_MAX_KEY_LEN, "%s|%u", inet_ntop(bs->key.family, &bs->key.peer, tmpbuf,
-              sizeof(tmpbuf)), bs->discrs.my_discr);
+        snprintf(field, BFD_DB_MAX_KEY_LEN, "%s|%u|%s", inet_ntop(bs->key.family, &bs->key.peer, tmpbuf,
+              sizeof(tmpbuf)), bs->discrs.my_discr, bs->key.bfdname[0] ? bs->key.bfdname : "none");
         g_bfdcounter_redis.redis_Db_HGetKeyAndValueNoCursor(keyType, field, result, BFD_DB_MAX_VALUE_LEN, dbErrMsg, sizeof(dbErrMsg), &ret, REDIS_COUNTER_DB);
         /* oid:0x45000000001185 */
         sscanf(result, "oid:%llx", &bs->counterOid);
