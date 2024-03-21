@@ -451,7 +451,8 @@ void bgp_delete_connected_nexthop(afi_t afi, struct peer *peer)
 }
 
 static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
-				       struct zapi_route *nhr)
+				       struct zapi_route *nhr,
+				       bool import_check)
 {
 	struct nexthop *nexthop;
 	struct nexthop *oldnh;
@@ -485,8 +486,21 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 			bnc->change_flags |= BGP_NEXTHOP_COUNT_UNCHANGED;
         bnc->change_flags |= BGP_NEXTHOP_CHANGED;
 	}
+	if (import_check && (nhr->type == ZEBRA_ROUTE_BGP ||
+				 !prefix_same(&bnc->prefix, &nhr->prefix))) {
+		SET_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED);
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_VALID);
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_LABELED_VALID);
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_EVPN_INCOMPLETE);
 
-	if (nhr->nexthop_num) {
+		bnc_nexthop_free(bnc);
+		bnc->nexthop = NULL;
+
+		if (BGP_DEBUG(nht, NHT))
+			zlog_debug(
+				"%s: Import Check does not resolve to the same prefix for %pFX received %pFX or matching route is BGP",
+				__func__, &bnc->prefix, &nhr->prefix);
+	}else if (nhr->nexthop_num) {
 		/* notify bgp fsm if nbr ip goes from invalid->valid */
 		if (!bnc->nexthop_num)
 			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_PEER_NOTIFIED);
@@ -828,34 +842,25 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 				"parse nexthop update(%pFX(%u)(%s)): bnc info not found for nexthop cache",
 				&nhr.prefix, nhr.srte_color, bgp->name_pretty);
 	} else
-		bgp_process_nexthop_update(bnc_nhc, &nhr);
+		bgp_process_nexthop_update(bnc_nhc, &nhr, false);
+
+	tree = &bgp->condition_track_table[afi];
+	bnc_cond = bnc_find(tree, &match, 0);
+	if (bnc_cond) {
+		bgp_process_cond_nexthop_update(bnc_cond, &nhr);
+	}
 
 	tree = &bgp->import_check_table[afi];
-
 	bnc_import = bnc_find(tree, &match, nhr.srte_color);
 	if (!bnc_import) {
 		if (BGP_DEBUG(nht, NHT))
 			zlog_debug(
 				"parse nexthop update(%pFX(%u)(%s)): bnc info not found for import check",
 				&nhr.prefix, nhr.srte_color, bgp->name_pretty);
-		return;
 	} else {
-		if (nhr.type == ZEBRA_ROUTE_BGP
-		    || !prefix_same(&bnc_import->prefix, &nhr.prefix)) {
-			if (BGP_DEBUG(nht, NHT))
-				zlog_debug(
-					"%s: Import Check does not resolve to the same prefix for %pFX received %pFX",
-					__func__, &bnc_import->prefix, &nhr.prefix);
-			return;
-		}
-		bgp_process_nexthop_update(bnc_import, &nhr);
+		bgp_process_nexthop_update(bnc_import, &nhr, true);
 	}
 
-	tree = &bgp->condition_track_table[afi];
-	bnc_cond = bnc_find(tree, &match, nhr.srte_color);
-	if (bnc_cond && bnc_cond->srte_color == 0) {
-		bgp_process_cond_nexthop_update(bnc_cond, &nhr);
-	}
 #if 0
 	/*
 	 * HACK: if any BGP route is dependant on an SR-policy that doesn't
