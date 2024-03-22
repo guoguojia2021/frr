@@ -1416,13 +1416,11 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				tag = mpinfo_cp->attr->tag;
 			}
 		}
-        if (mpinfo->te_nexthop && CHECK_FLAG(mpinfo->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-        {
-            if (mpinfo->attr->srv6_vpn || mpinfo->attr->srv6_l3vpn) {
-                SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
-                api_nh->srte_color = mpinfo->te_nexthop->srte_color;
-            }
-        }
+		if (mpinfo->te_nexthop && CHECK_FLAG(mpinfo->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+		{
+			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
+			api_nh->srte_color = mpinfo->te_nexthop->srte_color;
+		}
 		BGP_ORIGINAL_UPDATE(bgp_orig, mpinfo, bgp);
 
 		if (nh_family == AF_INET) {

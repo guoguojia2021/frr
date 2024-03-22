@@ -269,7 +269,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		}
 	}
 #if 1
-	if (srte_color != 0 && isServiceRoute)
+	if (srte_color != 0)
 	{
 		te_bnc = bnc_find(tree, &p, srte_color);
 		if (!te_bnc) {
