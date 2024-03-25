@@ -4195,6 +4195,40 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 	}
 }
 
+
+void zebra_nhg_seg_policy_to_vpn(struct nhg_hash_entry *nhe)
+{
+	struct nhg_segment *rb_node_dep = NULL;
+	int ret = 0;
+	zlog_info("%s: nhe->id %d, flags %d", __func__, nhe->id, nhe->flags);
+	/* Make sure all depends are installed/queued */
+	frr_each(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
+		SET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN);
+		UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
+		zebra_nhg_seg_policy_to_vpn(rb_node_dep->nhe);
+	}
+
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID)
+		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)
+		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)) {
+		ret = dplane_nexthop_add(nhe);
+		switch (ret) {
+		case ZEBRA_DPLANE_REQUEST_QUEUED:
+			SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
+			break;
+		case ZEBRA_DPLANE_REQUEST_FAILURE:
+			flog_err(
+				EC_ZEBRA_DP_INSTALL_FAIL,
+				"Failed to install Nexthop ID (%u) into the kernel",
+				nhe->id);
+			break;
+		case ZEBRA_DPLANE_REQUEST_SUCCESS:
+			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
+			break;
+		}
+	}
+}
+
 void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe)
 {
 	int ret = 0;

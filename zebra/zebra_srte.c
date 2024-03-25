@@ -450,7 +450,10 @@ static void zebra_nhg_seg_update_nhe(struct nhg_hash_entry *nhe,
 static void zebra_nhg_install_nhe(struct nhg_hash_entry *nhe)
 {
 	UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
-	zebra_nhg_seg_install_kernel(nhe);
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN))
+		zebra_nhg_seg_policy_to_vpn(nhe);
+	else
+		zebra_nhg_seg_install_kernel(nhe);
 }
 
 static void zebra_nhe_seg_update(struct zebra_sr_policy *policy)
@@ -489,6 +492,9 @@ static void zebra_srv6_policy_down_update_pic_nhe(struct zebra_sr_policy *policy
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 		zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
 			picnhe->id, picnhe->flags);
+
+	SET_FLAG(picnhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN);
+	zebra_nhg_install_nhe(picnhe);
 
 	UNSET_FLAG(picnhe->flags, NEXTHOP_GROUP_VALID);
 

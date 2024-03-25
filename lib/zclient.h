@@ -572,6 +572,7 @@ struct zapi_route {
  * kernel for some reason (e.g. route-map, etc)
  */
 #define ZEBRA_FLAG_KERNEL_BYPASS      0x1000
+#define ZEBRA_FLAG_POLICY_TO_VPN      0x2000
 
 	/* The older XXX_MESSAGE flags live here */
 	uint32_t message;

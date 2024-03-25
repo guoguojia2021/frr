@@ -2609,10 +2609,11 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 			}
 
 			if (IS_ZEBRA_DEBUG_KERNEL)
-				zlog_debug("%s: ID (%u): %pNHv(%d) vrf %s(%u) sidlist_name %s fpm %s",
+				zlog_debug("%s: ID (%u): %pNHv(%d) vrf %s(%u) sidlist_name %s fpm %s flag %d",
 						__func__, id, nh, nh->ifindex,
 						vrf_id_to_name(nh->vrf_id),
-						nh->vrf_id, nh->sidlist_name, fpm ? "true":"false");
+						nh->vrf_id, nh->sidlist_name, fpm ? "true":"false",
+						flag);
 
 			if (!nh->ifindex && !fpm) {
 				flog_err(
@@ -2796,16 +2797,22 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 
 					if (!nest)
 						return 0;
+					if (CHECK_FLAG(flag, ZEBRA_FLAG_POLICY_TO_VPN)) {
+						tun_len = fill_seg6ipt_encap_private(tun_buf,
+								sizeof(tun_buf), &segs,
+								&nh->seg6_src, NULL);
+					} else {
+						tun_len = fill_seg6ipt_encap_private(tun_buf,
+								sizeof(tun_buf), &segs,
+								&nh->seg6_src, nh->sidlist_name);
+					}
 
-					tun_len = fill_seg6ipt_encap_private(tun_buf,
-						    sizeof(tun_buf), &segs,
-						    &nh->seg6_src, nh->sidlist_name);
 					if (tun_len < 0)
 						return 0;
 
 					if (IS_ZEBRA_DEBUG_KERNEL)
-						zlog_debug("%s: id %d src %pI6 segment:%s", __func__, id,
-							&nh->seg6_src, nh->sidlist_name);
+						zlog_debug("%s: id %d src %pI6 segment %s flag %d", __func__, id,
+							&nh->seg6_src, nh->sidlist_name, flag);
 
 					if (!nl_attr_put(&req->n, buflen,
 							 SEG6_IPTUNNEL_SRH,
