@@ -3171,8 +3171,11 @@ dplane_route_update_internal(struct route_node *rn,
 			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)
 			|| (nexthop->srte_color && re->type == ZEBRA_ROUTE_STATIC)) {
 				SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
-				dplane_ctx_set_flags(ctx, flags);
-			}
+		}
+		if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
+			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
+		}
+		dplane_ctx_set_flags(ctx, flags);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.
 		 */
@@ -3185,8 +3188,11 @@ dplane_route_update_internal(struct route_node *rn,
 			if ((old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 				|| CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
 					SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
-					dplane_ctx_set_old_flags(ctx, old_flags);
-				}
+			}
+			if (CHECK_FLAG(old_re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
+				SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
+			}
+			dplane_ctx_set_flags(ctx, old_flags);
 			ctx->zd_is_update = true;
 
 			old_re->dplane_sequence =
