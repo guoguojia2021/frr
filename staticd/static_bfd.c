@@ -69,7 +69,7 @@ static void static_bfd_state_change_process(char *bfd_name,int state, struct sta
 						continue;
 				nh->bfd_status.previous_state = nh->bfd_status.state;
 				nh->bfd_status.state = state;
-				if (nh->bfd_status.state == BFD_STATUS_UP) {
+				if (nh->bfd_status.state == BFD_STATUS_UP || nh->bfd_status.state == BFD_STATUS_DEL) {
 					static_install_path(pn);
 				}else {
 					static_uninstall_path(pn);

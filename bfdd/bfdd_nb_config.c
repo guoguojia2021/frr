@@ -377,6 +377,10 @@ static int bfd_session_destroy(enum nb_event event,
 		if (bglobal.debug_peer_event)
 		    zlog_info("bfd_session_destroy: %s", bs_to_string(bs));
 
+		if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD_INIT){
+			ptm_bfd_notify(bs, PTM_BFD_DEL);
+		}
+
 		bfd_session_free(bs);
 		break;
 

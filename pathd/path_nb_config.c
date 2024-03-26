@@ -914,6 +914,12 @@ static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
         return NB_ERR;
 	}
 
+	//already bind to a bfd, del and rebind
+	if(candidate && candidate->bfd_name[0]){
+	    srte_candidate_bfd_group_del(candidate->bfd_name, candidate);
+	    candidate->bfd_name[0] = 0;
+	}
+
 	strlcpy(candidate->bfd_name, yang_dnode_get_string(args->dnode, NULL), BFD_NAME_SIZE);
 	strlcpy(bsp.args.bfd_name,candidate->bfd_name, BFD_NAME_SIZE);
 	bsp.args.family = AF_INET6;
@@ -925,6 +931,7 @@ static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
 		return NB_ERR;
 	}
 
+	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 	bfd_name_register(&bsp);
 	return NB_OK;
 }
@@ -939,6 +946,7 @@ static int candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args)
 	    candidate->bfd_name[0] = 0;
 	}
 
+	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 	return NB_OK;
 }
 

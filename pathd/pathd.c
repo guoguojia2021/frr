@@ -1582,8 +1582,9 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_na
 
 	//add and return
 	RB_INSERT(srte_candidate_bfd_head, &group->candidate_paths, candidate);
-	group->cpath_num += 1;
 
+	group->cpath_num += 1;
+	candidate->status = group->status;
 }
 
 void srte_candidate_bfd_group_del(const char *bfd_name, struct srte_candidate *candidate)
@@ -2038,6 +2039,7 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 		// down -> down, do nothing		
 		break;
 	case SRTE_DETECT_NONE:
+		candidate->status=SRTE_DETECT_DOWN;
 		// none -> down
 	case SRTE_DETECT_UP:
 		// up->down
@@ -2057,6 +2059,9 @@ void cpath_status_refresh(struct srte_candidate *candidate, enum detection_statu
 		break;
 	case SRTE_DETECT_UP:
 		cpath_status_up_handle(candidate);
+		break;
+	case SRTE_DETECT_NONE:
+		candidate->status = SRTE_DETECT_NONE;
 		break;
 	default:
 		break;

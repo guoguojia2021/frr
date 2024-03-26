@@ -44,6 +44,7 @@ extern "C" {
 #define BFD_STATUS_DOWN       (1 << 1) /* BFD session status is down */
 #define BFD_STATUS_UP         (1 << 2) /* BFD session status is up */
 #define BFD_STATUS_ADMIN_DOWN (1 << 3) /* BFD session is admin down */
+#define BFD_STATUS_DEL        (1 << 4) /* BFD session is deleted, reserved for sbfd*/
 
 #define BFD_PROFILE_NAME_LEN 64
 #define BFD_NAME_SIZE 255

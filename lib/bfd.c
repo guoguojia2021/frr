@@ -174,6 +174,8 @@ const char *bfd_get_status_str(int status)
 		return "Up";
 	case BFD_STATUS_ADMIN_DOWN:
 		return "Admin Down";
+	case BFD_STATUS_DEL:
+		return "Del";
 	case BFD_STATUS_UNKNOWN:
 	default:
 		return "Unknown";

@@ -1094,7 +1094,7 @@ void policy_sbfd_enabled(struct srte_policy *policy)
 static int policy_sbfd_state_change(char *bfd_name, int state)
 {
 	struct srte_candidate *candidate;
-	enum detection_status new_status = (state == BFD_STATUS_UP?SRTE_DETECT_UP: SRTE_DETECT_DOWN);
+	enum detection_status new_status = (state == BFD_STATUS_UP?SRTE_DETECT_UP: (state == BFD_STATUS_DOWN?SRTE_DETECT_DOWN: SRTE_DETECT_NONE));
 	struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
@@ -1105,6 +1105,8 @@ static int policy_sbfd_state_change(char *bfd_name, int state)
 	if(!group){
 		return 0;
 	}
+
+	group->status = new_status;
 
 	RB_FOREACH (candidate, srte_candidate_bfd_head, &group->candidate_paths) 
 	{
