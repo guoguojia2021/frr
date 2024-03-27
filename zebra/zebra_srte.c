@@ -648,8 +648,6 @@ void zebra_sr_policy_notify_update(struct rnh *rnh, struct zebra_sr_policy *poli
 	struct listnode *node;
 	struct zserv *client;
 
-	if (policy->status == ZEBRA_SR_POLICY_UP)
-		zebra_nhe_seg_update(policy);
 	if (zclient) {
 		zebra_sr_policy_notify_update_client(rnh, policy, zclient);
 	}
@@ -832,16 +830,18 @@ void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 
 		new_tunnel->path_num_old = policy->srv6_segment_list.path_num;
 		segment_list_changed = zebra_srv6_policy_check_update(new_tunnel);
+
+		policy->srv6_segment_list = *new_tunnel;
+		policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
+
+		if (segment_list_changed)
+			zebra_nhe_seg_update(policy);
+		return;
 	}
-	else
-		segment_list_changed = true;
 
-    policy->srv6_segment_list = *new_tunnel;
-    policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
-
-	/* Handle segment-list update. */
-	if (segment_list_changed)
-		zebra_srte_evaluate_rn_nexthops(policy, false);
+	policy->srv6_segment_list = *new_tunnel;
+	policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
+	zebra_srte_evaluate_rn_nexthops(policy, false);
 }
 
 
