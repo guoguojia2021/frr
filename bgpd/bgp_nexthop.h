@@ -111,6 +111,9 @@ struct bgp_nexthop_cache {
 	LIST_HEAD(path_list, bgp_path_info) paths;
 	unsigned int path_count;
 
+	LIST_HEAD(backup_path_list, bgp_path_info) backup_paths;
+	unsigned int backup_path_count;
+
     /*add for condition track route*/
 	LIST_HEAD(filter_list, bgp_filter) peer_filters;
 	unsigned int peerfilters_count;

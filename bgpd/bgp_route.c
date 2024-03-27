@@ -284,7 +284,8 @@ static void bgp_path_info_free(struct bgp_path_info *path)
 	bgp_attr_unintern(&path->attr);
 
 	bgp_unlink_nexthop(path);
-    bgp_unlink_te_nexthop(path);
+	bgp_unlink_te_nexthop(path);
+	bgp_unlink_tebk_nexthop(path);
 	bgp_path_info_extra_free(&path->extra);
 	bgp_path_info_mpath_free(&path->mpath);
 	if (path->net)
@@ -11397,17 +11398,27 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 						nexthop->type);
 				}
 			}
-            vty_out(vty, "\n");
-            if (path->te_nexthop)
-            {
-                bnc = path->te_nexthop;
-                vty_out(vty, "      Relay-Nexthop(tunnel):");
-    			if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
-    				vty_out(vty, " srv6-tunnel:%s|%u(endpoint|color), ", 
-    						inet_ntop(bnc->resolve_prefix.family, &bnc->resolve_prefix.u.prefix, buf, sizeof(buf)),
-    						bnc->srte_color);
-                vty_out(vty, "\n");
-            }
+			vty_out(vty, "\n");
+			if (path->te_nexthop)
+			{
+				bnc = path->te_nexthop;
+				vty_out(vty, "      Relay-Nexthop(tunnel):");
+				if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
+					vty_out(vty, " srv6-tunnel:%s|%u(endpoint|color), ", 
+							inet_ntop(bnc->resolve_prefix.family, &bnc->resolve_prefix.u.prefix, buf, sizeof(buf)),
+							bnc->srte_color);
+				vty_out(vty, "\n");
+			}
+			if (path->te_backup_nexthop)
+			{
+				bnc = path->te_backup_nexthop;
+				vty_out(vty, "      Relay-Nexthop(backup-tunnel):");
+				if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
+					vty_out(vty, " srv6-tunnel:%s|%u(endpoint|color), ", 
+							inet_ntop(bnc->resolve_prefix.family, &bnc->resolve_prefix.u.prefix, buf, sizeof(buf)),
+							bnc->srte_color);
+				vty_out(vty, "\n");
+			}
 		}
 	}
 

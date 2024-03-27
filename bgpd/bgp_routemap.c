@@ -2745,13 +2745,14 @@ static const struct route_map_rule_cmd route_set_ecommunity_nt_cmd = {
 	route_set_ecommunity_free,
 };
 
-const void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint32_t *backup_color)
+void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint32_t *backup_color)
 {
 	uint32_t aux_color = 0;
+	uint32_t sla_color = 0;
+	uint32_t pri_color = 0;
 	uint8_t *p;
 	uint32_t c = 0;
-	*color = 0;
-	*backup_color = 0;
+
 	if (!ecom || !ecom->size)
 		return;
 	/* If the value already exists in the structure return 0.  */
@@ -2763,9 +2764,14 @@ const void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uin
 		    p[1] == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
 		    *backup_color = aux_color;
 			ptr_get_be32((const uint8_t *)&p[4], &aux_color);
+			if (aux_color > pri_color) {
+				sla_color = pri_color;
+				pri_color = aux_color;
+			}
 		}
 	}
-	*color = aux_color;
+	*color = pri_color;
+	*backup_color = sla_color;
 	return;
 }
 

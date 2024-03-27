@@ -255,8 +255,11 @@ struct bgp_path_info {
 	/* For nexthop linked list */
 	LIST_ENTRY(bgp_path_info) nh_thread;
 
-    /* For tunnel nexthop linked list */
-    LIST_ENTRY(bgp_path_info) te_nh_thread;
+	/* For tunnel nexthop linked list */
+	LIST_ENTRY(bgp_path_info) te_nh_thread;
+
+	/* For tunnel nexthop linked list */
+	LIST_ENTRY(bgp_path_info) tebk_nh_thread;
 
 	/* Back pointer to the prefix node */
 	struct bgp_dest *net;
@@ -266,6 +269,9 @@ struct bgp_path_info {
 
     /* Back pointer to the tunnel nexthop structure */
     struct bgp_nexthop_cache *te_nexthop;
+
+	/* Back pointer to the backup tunnel nexthop structure */
+    struct bgp_nexthop_cache *te_backup_nexthop;
 
 	/* Peer structure.  */
 	struct peer *peer;

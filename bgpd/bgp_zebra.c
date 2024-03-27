@@ -1421,6 +1421,11 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
 			api_nh->srte_color = mpinfo->te_nexthop->srte_color;
 		}
+		else if (mpinfo->te_backup_nexthop && CHECK_FLAG(mpinfo->te_backup_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+		{
+			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
+			api_nh->srte_color = mpinfo->te_backup_nexthop->srte_color;
+		}
 		BGP_ORIGINAL_UPDATE(bgp_orig, mpinfo, bgp);
 
 		if (nh_family == AF_INET) {
