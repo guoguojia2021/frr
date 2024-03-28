@@ -60,9 +60,7 @@ static void _display_peer_json(struct vty *vty, struct bfd_session *bs);
 static void _display_peer(struct vty *vty, struct bfd_session *bs);
 static void _display_all_peers(struct vty *vty, char *vrfname, bool use_json);
 static void _display_peer_iter(struct hash_bucket *hb, void *arg);
-static void _display_peer_iter_bfdname(struct hash_bucket *hb, void *arg);
 static void _display_peer_json_iter(struct hash_bucket *hb, void *arg);
-static void _display_peer_json_iter_bfdname(struct hash_bucket *hb, void *arg);
 static void _display_peer_counter(struct vty *vty, struct bfd_session *bs);
 static struct json_object *__display_peer_counters_json(struct bfd_session *bs);
 static void _display_peer_counters_json(struct vty *vty, struct bfd_session *bs);
@@ -74,7 +72,14 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *label, const char *peer_str,
 		    const char *local_str, const char *ifname,
 		    const char *vrfname);
-
+static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg);
+static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg);
+static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json);
+static void _display_bfd_counters_by_bfdname_iter(struct hash_bucket *hb, void *arg);
+static void _display_bfd_counters_json_by_bfdname_iter(struct hash_bucket *hb, void *arg);
+static void _display_bfd_counters_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json);
+static void _clear_bfd_counters_by_bfdname(char *vrfname, char *bfdname);
+static void _clear_peer_counter(struct bfd_session *bs);
 
 static char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
@@ -415,7 +420,7 @@ static void _display_peer_iter(struct hash_bucket *hb, void *arg)
 	_display_peer(vty, bs);
 }
 
-static void _display_peer_iter_bfdname(struct hash_bucket *hb, void *arg)
+static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg)
 {
 	struct bfd_vrf_tuple *bvt = (struct bfd_vrf_tuple *)arg;
 	struct vty *vty;
@@ -487,7 +492,7 @@ static void _display_peer_json_iter(struct hash_bucket *hb, void *arg)
 	json_object_array_add(jo, jon);
 }
 
-static void _display_peer_json_iter_bfdname(struct hash_bucket *hb, void *arg)
+static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg)
 {
 	struct bfd_vrf_tuple *bvt = (struct bfd_vrf_tuple *)arg;
 	struct json_object *jo, *jon = NULL;
@@ -519,7 +524,7 @@ static void _display_peer_json_iter_bfdname(struct hash_bucket *hb, void *arg)
 }
 
 
-static void _display_peers_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json)
+static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json)
 {
 	struct json_object *jo;
 	struct bfd_vrf_tuple bvt = {0};
@@ -530,13 +535,13 @@ static void _display_peers_by_bfdname(struct vty *vty, char *vrfname, char *bfdn
 	if (!use_json) {
 		bvt.vty = vty;
 		vty_out(vty, "BFD Peers:\n");
-		bfd_id_iterate(_display_peer_iter_bfdname, &bvt);
+		bfd_id_iterate(_display_bfd_by_bfdname_iter, &bvt);
 		return;
 	}
 
 	jo = json_object_new_array();
 	bvt.jo = jo;
-	bfd_id_iterate(_display_peer_json_iter_bfdname, &bvt);
+	bfd_id_iterate(_display_bfd_by_bfdname_json_iter, &bvt);
 
 	vty_json(vty, jo);
 }
@@ -694,6 +699,122 @@ static void _display_peers_counter(struct vty *vty, char *vrfname, bool use_json
 	bfd_id_iterate(_display_peer_counter_json_iter, &bvt);
 
 	vty_json(vty, jo);
+}
+
+static void _display_bfd_counters_by_bfdname_iter(struct hash_bucket *hb, void *arg)
+{
+	struct bfd_vrf_tuple *bvt = arg;
+	struct vty *vty;
+	struct bfd_session *bs = hb->data;
+
+	if (!bvt)
+		return;
+	vty = bvt->vty;
+
+	if (bvt->vrfname) {
+		if ((!bs->key.vrfname[0] ||
+		    !strmatch(bs->key.vrfname, bvt->vrfname)) &&
+		    (!bs->key.vrfaliasname[0] ||
+		    !strmatch(bs->key.vrfaliasname, bvt->vrfname)))
+			return;
+	}
+
+	if (bvt->bfdname){
+		if (!bs->key.bfdname[0] ||
+		    !strmatch(bs->key.bfdname, bvt->bfdname))
+			return;
+	}
+
+	_display_peer_counter(vty, bs);
+}
+
+static void _display_bfd_counters_json_by_bfdname_iter(struct hash_bucket *hb, void *arg)
+{
+	struct json_object *jo, *jon = NULL;
+	struct bfd_session *bs = hb->data;
+	struct bfd_vrf_tuple *bvt = arg;
+
+	if (!bvt)
+		return;
+	jo  = bvt->jo;
+
+	if (bvt->vrfname) {
+		if (!bs->key.vrfname[0] ||
+		    !strmatch(bs->key.vrfname, bvt->vrfname))
+			return;
+	}
+
+    if (bvt->bfdname){
+		if (!bs->key.bfdname[0] ||
+		    !strmatch(bs->key.bfdname, bvt->bfdname))
+			return;
+	}
+
+	jon = __display_peer_counters_json(bs);
+	if (jon == NULL) {
+		zlog_warn("%s: not enough memory", __func__);
+		return;
+	}
+
+	json_object_array_add(jo, jon);
+}
+
+static void _display_bfd_counters_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json)
+{
+	struct json_object *jo;
+	struct bfd_vrf_tuple bvt = {0};
+
+	bvt.vrfname = vrfname;
+	bvt.bfdname = bfdname;
+
+	if (!use_json) {
+		bvt.vty = vty;
+		vty_out(vty, "BFD Peers:\n");
+		bfd_id_iterate(_display_bfd_counters_by_bfdname_iter, &bvt);
+		return;
+	}
+
+	jo = json_object_new_array();
+	bvt.jo = jo;
+	bfd_id_iterate(_display_bfd_counters_json_by_bfdname_iter, &bvt);
+
+	vty_json(vty, jo);
+}
+
+static void _clear_bfd_counters_by_bfdname_iter(struct hash_bucket *hb, void *arg)
+{
+	struct bfd_vrf_tuple *bvt = arg;
+	struct bfd_session *bs = hb->data;
+
+	if (!bvt)
+		return;
+
+	if (bvt->vrfname) {
+		if ((!bs->key.vrfname[0] ||
+		    !strmatch(bs->key.vrfname, bvt->vrfname)) &&
+		    (!bs->key.vrfaliasname[0] ||
+		    !strmatch(bs->key.vrfaliasname, bvt->vrfname)))
+			return;
+	}
+
+	if (bvt->bfdname){
+		if (!bs->key.bfdname[0] ||
+		    !strmatch(bs->key.bfdname, bvt->bfdname))
+			return;
+	}
+
+	_clear_peer_counter(bs);
+}
+
+static void _clear_bfd_counters_by_bfdname(char *vrfname, char *bfdname)
+{
+	struct bfd_vrf_tuple bvt = {0};
+
+	bvt.vrfname = vrfname;
+	bvt.bfdname = bfdname;
+
+	bfd_id_iterate(_clear_bfd_counters_by_bfdname_iter, &bvt);
+	return;
 }
 
 static void _clear_peer_counter(struct bfd_session *bs)
@@ -871,7 +992,7 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 /*
  * Show commands.
  */
-DEFPY(bfd_show_peer_by_bfdname,bfd_show_peer_by_bfdname_cmd,
+DEFPY(bfd_show_by_bfdname, bfd_show_by_bfdname_cmd,
       "show bfd [vrf NAME$vrf_name] bfd-name BFDNAME$bfdname [json]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
@@ -880,7 +1001,36 @@ DEFPY(bfd_show_peer_by_bfdname,bfd_show_peer_by_bfdname_cmd,
 	  "bfd session name\n"
 	  JSON_STR)
 {
-	_display_peers_by_bfdname(vty, vrf_name, bfdname, use_json(argc, argv));
+	_display_bfd_by_bfdname(vty, vrf_name, bfdname, use_json(argc, argv));
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(bfd_show_counters_by_bfdname, bfd_show_counters_by_bfdname_cmd,
+      "show bfd [vrf NAME$vrf_name] bfd-name BFDNAME$bfdname counters [json]",
+      SHOW_STR
+      "Bidirection Forwarding Detection\n"
+      VRF_CMD_HELP_STR
+	  "Specify bfd session name\n"
+	  "bfd session name\n"
+      "Show BFD peer counters information\n"
+      JSON_STR)
+{
+	_display_bfd_counters_by_bfdname(vty, vrf_name, bfdname, use_json(argc, argv));
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(bfd_clear_counters_by_bfdname, bfd_clear_counters_by_bfdname_cmd,
+      "clear bfd [vrf NAME$vrfname] bfd-name BFDNAME$bfdname counters",
+      CLEAR_STR
+      "Bidirection Forwarding Detection\n"
+      VRF_CMD_HELP_STR
+	  "Specify bfd session name\n"
+	  "bfd session name\n"
+	  "clear BFD peer counters information\n")
+{
+    _clear_bfd_counters_by_bfdname(vrfname, bfdname);
 
 	return CMD_SUCCESS;
 }
@@ -985,7 +1135,7 @@ DEFPY(bfd_show_peers_counters, bfd_show_peers_counters_cmd,
 
 DEFPY(bfd_clear_peer_counters, bfd_clear_peer_counters_cmd,
       "clear bfd [vrf NAME$vrfname] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> counters",
-      SHOW_STR
+      CLEAR_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
       "BFD peers status\n"
@@ -1305,7 +1455,9 @@ void bfdd_vty_init(void)
 	install_element(ENABLE_NODE, &bfd_show_peer_counters_cmd);
 	install_element(ENABLE_NODE, &bfd_clear_peer_counters_cmd);
 	install_element(ENABLE_NODE, &bfd_show_peers_cmd);
-	install_element(ENABLE_NODE, &bfd_show_peer_by_bfdname_cmd);	
+	install_element(ENABLE_NODE, &bfd_show_by_bfdname_cmd);	
+	install_element(ENABLE_NODE, &bfd_show_counters_by_bfdname_cmd);
+	install_element(ENABLE_NODE, &bfd_clear_counters_by_bfdname_cmd);
 	install_element(ENABLE_NODE, &bfd_show_peer_cmd);
 	install_element(ENABLE_NODE, &bfd_show_peers_brief_cmd);
 	install_element(ENABLE_NODE, &show_bfd_distributed_cmd);
