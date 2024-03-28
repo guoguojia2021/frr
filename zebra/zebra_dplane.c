@@ -3157,8 +3157,8 @@ dplane_route_update_internal(struct route_node *rn,
 	int ret = EINVAL;
 	struct zebra_dplane_ctx *ctx = NULL;
 	struct nexthop *nexthop, *old_nexthop;
-	uint32_t flags = re->flags;
-	uint32_t old_flags = old_re->flags;
+	uint32_t flags = 0;
+	uint32_t old_flags = 0;
 
 	/* Obtain context block */
 	ctx = dplane_ctx_alloc();
@@ -3167,6 +3167,7 @@ dplane_route_update_internal(struct route_node *rn,
 	ret = dplane_ctx_route_init(ctx, op, rn, re);
 	if (ret == AOK) {
 		nexthop = re->nhe->nhg.nexthop;
+		flags = re->flags;
 		if ((nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)
 			|| (nexthop->srte_color && re->type == ZEBRA_ROUTE_STATIC)) {
@@ -3183,6 +3184,7 @@ dplane_route_update_internal(struct route_node *rn,
 		if ((op == DPLANE_OP_ROUTE_UPDATE) &&
 		    old_re && (old_re != re)) {
 			old_nexthop = old_re->nhe->nhg.nexthop;
+			old_flags = old_re->flags;
 			/* Assign ZEBRA_FLAG_KERNEL_BYPASS to dplane route info */
 			if ((old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 				|| CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
