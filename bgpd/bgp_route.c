@@ -683,6 +683,8 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	bool new_proxy;
 	bool new_origin, exist_origin;
 	struct bgp_path_info *bpi_ultimate;
+	struct peer * new_peer = NULL;
+	struct peer * exist_peer = NULL;
 
 	*paths_eq = 0;
 
@@ -720,6 +722,17 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	newattr = new->attr;
 	existattr = exist->attr;
 
+	if ((BGP_ROUTE_IMPORTED == new->sub_type) && new->extra && new->extra->parent) {
+		new_peer = ((struct bgp_path_info *)new->extra->parent)->peer;
+	} else {
+		new_peer = new->peer;
+	}
+
+	if ((BGP_ROUTE_IMPORTED == exist->sub_type) && exist->extra && exist->extra->parent) {
+		exist_peer = ((struct bgp_path_info *)exist->extra->parent)->peer;
+	} else {
+		exist_peer = exist->peer;
+	}
 	/* A BGP speaker that has advertised the "Long-lived Graceful Restart
 	 * Capability" to a neighbor MUST perform the following upon receiving
 	 * a route from that neighbor with the "LLGR_STALE" community, or upon
@@ -1128,8 +1141,10 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	}
 
 	/* 7. Peer type check. */
-	new_sort = new->peer->sort;
-	exist_sort = exist->peer->sort;
+	/* For the imported route, should get sub_type from it's parent,
+	 * because the sub_type will be always BGP_PEER_IBGP if we don't do this. */
+	new_sort = new_peer->sort;
+	exist_sort = exist_peer->sort;
 
 	if (new_sort == BGP_PEER_EBGP
 	    && (exist_sort == BGP_PEER_IBGP || exist_sort == BGP_PEER_CONFED)) {
@@ -1184,8 +1199,8 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	   pair (newm, existm) with the cluster list length. Prefer the
 	   path with smaller cluster list length.                       */
 	if (newm == existm) {
-		if (peer_sort_lookup(new->peer) == BGP_PEER_IBGP
-		    && peer_sort_lookup(exist->peer) == BGP_PEER_IBGP
+		if (peer_sort_lookup(new_peer) == BGP_PEER_IBGP
+		    && peer_sort_lookup(exist_peer) == BGP_PEER_IBGP
 		    && (mpath_cfg == NULL
 			|| CHECK_FLAG(
 				   mpath_cfg->ibgp_flags,
@@ -1281,7 +1296,7 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 				zlog_debug(
 					"%s: %s and %s are equal via multipath-relax",
 					pfx_buf, new_buf, exist_buf);
-		} else if (new->peer->sort == BGP_PEER_IBGP) {
+		} else if (new_peer->sort == BGP_PEER_IBGP) {
 			if (aspath_cmp(new->attr->aspath,
 				       exist->attr->aspath)) {
 				*paths_eq = 1;
@@ -1291,7 +1306,7 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 						"%s: %s and %s are equal via matching aspaths",
 						pfx_buf, new_buf, exist_buf);
 			}
-		} else if (new->peer->as == exist->peer->as) {
+		} else if (new_peer->as == exist_peer->as) {
 			*paths_eq = 1;
 
 			if (debug)
@@ -1442,16 +1457,16 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	}
 
 	/* locally configured routes to advertise do not have su_remote */
-	if (new->peer->su_remote == NULL) {
+	if (new_peer->su_remote == NULL) {
 		*reason = bgp_path_selection_local_configured;
 		return 0;
 	}
-	if (exist->peer->su_remote == NULL) {
+	if (exist_peer->su_remote == NULL) {
 		*reason = bgp_path_selection_local_configured;
 		return 1;
 	}
 
-	ret = sockunion_cmp(new->peer->su_remote, exist->peer->su_remote);
+	ret = sockunion_cmp(new_peer->su_remote, exist_peer->su_remote);
 
 	if (ret == 1) {
 		*reason = bgp_path_selection_neighbor_ip;

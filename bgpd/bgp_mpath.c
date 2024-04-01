@@ -561,6 +561,7 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 	int mpath_changed, debug;
 	bool all_paths_lb;
 	char path_buf[PATH_ADDPATH_STR_BUFFER];
+	bgp_peer_sort_t new_best_sort;
 
 	mpath_changed = 0;
 	maxpaths = multipath_num;
@@ -576,7 +577,14 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 		mpath_count++;
 		if (new_best != old_best)
 			bgp_path_info_mpath_dequeue(new_best);
-		maxpaths = (new_best->peer->sort == BGP_PEER_IBGP)
+		/* For the imported route, should get sub_type from it's parent,
+		 * because the sub_type will be always BGP_PEER_IBGP if we don't do this. */
+		if ((BGP_ROUTE_IMPORTED == new_best->sub_type) && new_best->extra && new_best->extra->parent) {
+			new_best_sort = ((struct bgp_path_info *)new_best->extra->parent)->peer->sort;
+		} else {
+			new_best_sort = new_best->peer->sort;
+		}
+		maxpaths = (new_best_sort == BGP_PEER_IBGP)
 				   ? mpath_cfg->maxpaths_ibgp
 				   : mpath_cfg->maxpaths_ebgp;
 	}
