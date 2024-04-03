@@ -2895,6 +2895,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	struct in_addr local_ipv4;
 	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
+	struct route_node *prn = NULL;
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	if ((nexthop->type == NEXTHOP_TYPE_IPV4)
@@ -3035,7 +3036,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			exit(1);
 		}
 
-		policy = zebra_sr_policy_lookup_by_prefix(&endpoint, nexthop->srte_color);
+		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color, &prn);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 			if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
 			{
@@ -3317,6 +3318,7 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
 	uint32_t path_num = 0;
+	struct route_node *prn = NULL;
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	nexthop->ifindex = 0;
@@ -3399,7 +3401,7 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 			exit(1);
 		}
 
-		policy = zebra_sr_policy_lookup_by_prefix(&endpoint, nexthop->srte_color);
+		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color, &prn);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 
 			resolved = 0;
