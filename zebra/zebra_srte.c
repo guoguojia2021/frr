@@ -249,11 +249,6 @@ void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy)
 	zebra_free_sr_table(table);
 }
 
-struct zebra_sr_policy *zebra_sr_policy_find_by_rnh(struct rnh *rnh)
-{
-    return zebra_sr_policy_lookup_by_prefix(&rnh->node->p, rnh->srte_color);
-}
-
 static struct nhg_hash_entry *zebra_srv6_find_pic_nhe_by_policy(struct zebra_sr_policy *policy)
 {
 	vrf_id_t vrf_id = 0;

@@ -386,9 +386,7 @@ static void zebra_delete_rnh(struct rnh *rnh)
 void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 			  vrf_id_t vrf_id)
 {
-	struct zebra_sr_policy *policy = NULL;
 	struct route_table *route_table;
-	struct ipaddr ip = {0};
 	struct zebra_vrf *zvrf = zebra_vrf_lookup_by_id(vrf_id);
 	struct prefix *p = &rnh->node->p;
 	struct route_node *rn = NULL;
@@ -446,17 +444,11 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 		zebra_send_rnh_update(rnh, client, vrf_id, rnh->srte_color);
 	else
 	{
-		if (!prefix2ipaddr(p, &ip))
-		{
-			policy = zebra_sr_policy_find_by_rnh(rnh);
-			if (policy) {
-				rnh->policy = policy;
-				rnh->srp_status = policy->status;
-				zebra_sr_policy_notify_update(rnh, policy, client);
-			}
-			else
-				zebra_sr_policy_notify_unknown(rnh, client);
+		if (rnh->policy && rnh->srp_status == ZEBRA_SR_POLICY_UP) {
+			zebra_sr_policy_notify_update(rnh, rnh->policy, client);
 		}
+		else
+			zebra_sr_policy_notify_unknown(rnh, client);
 	}
 	if(rnh->state)
 		zebra_rnh_clear_nexthop_rnh_filters(rnh->state);
@@ -867,6 +859,7 @@ static void zebra_rnh_eval_nexthop_entry_srte(afi_t afi,
 			memset(&rnh->resolved_route, 0, sizeof(struct prefix));
 			rnh->resolved_route.family = family;
 		}
+		rnh->srp_status = policy->status;
 		state_changed = 1;
 	} else if (rnh->srp_status != policy->status) {
 		rnh->srp_status = policy->status;
