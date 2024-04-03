@@ -900,6 +900,10 @@ bool zebra_update_pic_nhe(struct route_node *rn)
 
 	frr_each_safe(nhg_connected_tree, &picnhe->nhg_dependents, rb_node_dep) {
 		//zebra_nhg_set_invalid(rb_node_dep->nhe);
+		if (ZEBRA_DEBUG_DPLANE_DETAILED)
+			zlog_debug(
+				"%s: pic_nhe %ul become invaild during route %pRN deleted, update pic_nh dependents %ul",
+				__func__, picnhe->id, rn, rb_node_dep->nhe->id);
 		UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
 		zebra_nhg_install_kernel(rb_node_dep->nhe);
 	}
