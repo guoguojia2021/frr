@@ -844,8 +844,7 @@ static void zebra_rnh_eval_nexthop_entry_srte(afi_t afi,
 	 * the resolving route has some change (e.g., metric), there is a state
 	 * change.
 	 */
-	if (rnh->policy)
-		zebra_rnh_remove_from_srte_table(rnh);
+
 	if (!prefix_same(&rnh->resolved_route, prn ? &prn->p : NULL)) {
 		if (prn)
 			prefix_copy(&rnh->resolved_route, &prn->p);
@@ -861,13 +860,15 @@ static void zebra_rnh_eval_nexthop_entry_srte(afi_t afi,
 		}
 		rnh->srp_status = policy->status;
 		state_changed = 1;
-	} else if (rnh->srp_status != policy->status) {
+	} else if (rnh->srp_status != policy->status || rnh->policy != policy) {
 		rnh->srp_status = policy->status;
 		state_changed = 1;
 	}
-	zebra_rnh_store_in_srte_table(rnh);
 
 	if (state_changed) {
+		if (rnh->policy)
+			zebra_rnh_remove_from_srte_table(rnh);
+		zebra_rnh_store_in_srte_table(rnh);
 		zebra_sr_policy_notify_update(rnh, policy, NULL);
 	}
 }
