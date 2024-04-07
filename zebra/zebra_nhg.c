@@ -1008,6 +1008,109 @@ static void zebra_nhe_seg_debug_info(struct nhg_hash_entry *nhe)
 		}
 	}
 }
+
+static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop, struct route_node **prn)
+{
+
+	struct prefix endpoint = {0};
+	struct zebra_sr_policy *policy;
+	afi_t afi = AFI_IP;
+	struct route_node *node = NULL;
+
+	if (nexthop == NULL)
+		return NULL;
+
+	if (nexthop->srte_color == 0)
+		return NULL;
+
+	switch (nexthop->type) {
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		afi = AFI_IP;
+		break;
+
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		afi = AFI_IP6;
+		break;
+	default:
+		flog_err(EC_LIB_DEVELOPMENT,
+				"%s: error route type: %u", __func__, nexthop->type);
+		return NULL;
+	}
+
+	switch (afi) {
+	case AFI_IP:
+		endpoint.family = AF_INET;
+		endpoint.prefixlen = IPV4_MAX_BITLEN;
+		endpoint.u.prefix4 = nexthop->gate.ipv4;
+		break;
+	case AFI_IP6:
+		endpoint.family = AF_INET6;
+		endpoint.prefixlen = IPV6_MAX_BITLEN;
+		endpoint.u.prefix6 = nexthop->gate.ipv6;
+		break;
+	default:
+		return NULL;
+	}
+	policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color, &node);
+	if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
+		*prn = node;
+		return policy;
+	}
+	else
+		return NULL;
+}
+
+void zebra_nhe_change_gateway_address(struct nexthop *nexthop)
+{
+	struct zebra_sr_policy *policy;
+	uint8_t family;
+	struct route_node *prn = NULL;
+	char buf[INET6_ADDRSTRLEN];
+
+	if (nexthop == NULL)
+		return;
+
+	if (nexthop->srte_color == 0)
+		return NULL;
+
+	policy = zebra_sr_policy_match_by_nexthop(nexthop, &prn);
+
+	if (policy == NULL)
+		return;
+
+	if (prn)
+		family = prn->p.family;
+	else
+		return;
+
+	if (IS_ZEBRA_DEBUG_NHG_DETAIL) {
+		if (family == AF_INET)
+			zlog_debug("%s: %pRN color %d gate %s prefixlen %d",
+				__func__, prn, nexthop->srte_color,
+				inet_ntop(AF_INET, &nexthop->gate.ipv4, buf, sizeof(buf)),
+				prn->p.prefixlen);
+		else if (family == AF_INET6)
+			zlog_debug("%s: %pRN color %d gate %s",
+				__func__, prn, nexthop->srte_color,
+				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, sizeof(buf)),
+				prn->p.prefixlen);
+	}
+
+	if (family == AF_INET && prn->p.prefixlen == IPV4_MAX_BITLEN)
+		return;
+	if (family == AF_INET6 && prn->p.prefixlen == IPV6_MAX_BITLEN)
+		return;
+
+	if (family == AF_INET) {
+		memcpy(&nexthop->gate.ipv4, &prn->p.u.prefix4, sizeof(struct in_addr));
+	}
+	else if (family == AF_INET6) {
+		memcpy(&nexthop->gate.ipv6, &prn->p.u.prefix6, sizeof(struct in6_addr));
+	}
+
+	return;
+}
+
 /*
  * Lookup an nhe in the global hash, using data from another nhe. If 'lookup'
  * has an id value, that's used. Create a new global/shared nhe if not found.
@@ -2895,7 +2998,6 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	struct in_addr local_ipv4;
 	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
-	struct route_node *prn = NULL;
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	if ((nexthop->type == NEXTHOP_TYPE_IPV4)
@@ -3015,28 +3117,10 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	 * the corresponding SR policy object.
 	 */
 	if (nexthop->srte_color) {
-		struct prefix endpoint = {0};
 		struct zebra_sr_policy *policy;
+		struct route_node *prn = NULL;
+		policy = zebra_sr_policy_match_by_nexthop(nexthop, &prn);
 
-		switch (afi) {
-		case AFI_IP:
-			endpoint.family = AF_INET;
-			endpoint.prefixlen = IPV4_MAX_BITLEN;
-			endpoint.u.prefix4 = *ipv4;
-			break;
-		case AFI_IP6:
-			endpoint.family = AF_INET6;
-			endpoint.prefixlen = IPV6_MAX_BITLEN;
-			endpoint.u.prefix6 = nexthop->gate.ipv6;
-			break;
-		default:
-			flog_err(EC_LIB_DEVELOPMENT,
-				 "%s: unknown address-family: %u", __func__,
-				 afi);
-			exit(1);
-		}
-
-		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color, &prn);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 			if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
 			{
@@ -3318,7 +3402,6 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
 	uint32_t path_num = 0;
-	struct route_node *prn = NULL;
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	nexthop->ifindex = 0;
@@ -3380,28 +3463,11 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	 * the corresponding SR policy object.
 	 */
 	if (nexthop->srte_color) {
-		struct prefix endpoint = {0};
+
 		struct zebra_sr_policy *policy;
+		struct route_node *prn = NULL;
 
-		switch (afi) {
-		case AFI_IP:
-			endpoint.family = AF_INET;
-			endpoint.prefixlen = IPV4_MAX_BITLEN;
-			endpoint.u.prefix4 = *ipv4;
-			break;
-		case AFI_IP6:
-			endpoint.family = AF_INET6;
-			endpoint.prefixlen = IPV6_MAX_BITLEN;
-			endpoint.u.prefix6 = nexthop->gate.ipv6;
-			break;
-		default:
-			flog_err(EC_LIB_DEVELOPMENT,
-				 "%s: unknown address-family: %u", __func__,
-				 afi);
-			exit(1);
-		}
-
-		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color, &prn);
+		policy = zebra_sr_policy_match_by_nexthop(nexthop, &prn);
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 
 			resolved = 0;
