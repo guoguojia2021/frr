@@ -1766,13 +1766,6 @@ static struct bmp *bmp_open(struct bmp_targets *bt, int bmp_sock)
 	enum filter_type ret;
 	char buf[SU_ADDRSTRLEN];
 	struct bmp *bmp;
-	afi_t tmp_afi;
-	safi_t tmp_safi;
-	struct peer *peer = NULL;
-	struct listnode *node = NULL;
-	struct listnode *nnode = NULL;
-	struct listnode *lnbgp, *lnpeer;
-	struct bgp *bgp;
 
 	sumem = sockunion_getpeername(bmp_sock);
 	if (!sumem) {
@@ -1839,35 +1832,6 @@ static struct bmp *bmp_open(struct bmp_targets *bt, int bmp_sock)
 			bmp_wrerr);
 	thread_add_read(bm->master, bmp_read, bmp, bmp_sock, &bmp->t_read);
 	bmp_send_initiation(bmp);
-
-    if (is_gbmp_en())
-	{
-		for (ALL_LIST_ELEMENTS_RO(bm->bgp, lnbgp, bgp)) {
-			for (ALL_LIST_ELEMENTS_RO(bgp->peer, lnpeer, peer)) {
-				FOREACH_AFI_SAFI (tmp_afi, tmp_safi) {
-					if (!bt->afimon[tmp_afi][tmp_safi])
-						continue;
-
-					if (!peer->afc[tmp_afi][tmp_safi])
-						continue;
-					ret = peer_clear_soft(peer, tmp_afi, tmp_safi, BGP_CLEAR_SOFT_BOTH);
-			    }
-			}
-		}
-	}
-	else
-	{
-		for (ALL_LIST_ELEMENTS(bt->bgp->peer, node, nnode, peer)) {
-			FOREACH_AFI_SAFI (tmp_afi, tmp_safi) {
-				if (!bt->afimon[tmp_afi][tmp_safi])
-					continue;
-
-				if (!peer->afc[tmp_afi][tmp_safi])
-					continue;
-				ret = peer_clear_soft(peer, tmp_afi, tmp_safi, BGP_CLEAR_SOFT_BOTH);
-			}
-		}
-	}
 
 	return bmp;
 }
