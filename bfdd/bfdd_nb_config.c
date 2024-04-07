@@ -153,19 +153,13 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
-		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)){
-			if (!yang_dnode_exists(args->dnode, "bfd-name")){
-				snprintf(args->errmsg, args->errmsg_len,
-					"For SBFD you must specify a bfd-name");
+		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)) {
+			if(bfd_session_get_by_name(yang_dnode_get_string(args->dnode, "bfd-name"))) {
+				snprintf(
+					args->errmsg, args->errmsg_len,
+					"bfd name already exist.");
 				return NB_ERR_VALIDATION;
 			}
-
-			if (!yang_dnode_exists(args->dnode, "segment-list")){
-				snprintf(args->errmsg, args->errmsg_len,
-					"For SBFD you must specify a segment-list");
-				return NB_ERR_VALIDATION;
-			}
-
 			return NB_OK;
 		}
 
