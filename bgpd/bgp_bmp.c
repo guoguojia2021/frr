@@ -201,6 +201,16 @@ static int bmp_qhash_cmp(const struct bmp_queue_entry *a,
 	else if (b->afi == AFI_L2VPN && b->safi == SAFI_EVPN)
 		return -1;
 
+	if (a->afi == b->afi && a->safi == SAFI_MPLS_VPN &&
+		b->safi == SAFI_MPLS_VPN) {
+		ret = prefix_cmp(&a->rd, &b->rd);
+		if (ret)
+			return ret;
+	} else if (a->safi == SAFI_MPLS_VPN)
+		return 1;
+	else if (b->safi == SAFI_MPLS_VPN)
+		return -1;
+
 	ret = prefix_cmp(&a->p, &b->p);
 	if (ret)
 		return ret;
@@ -219,7 +229,8 @@ static uint32_t bmp_qhash_hkey(const struct bmp_queue_entry *e)
 		    offsetof(struct bmp_queue_entry, refcount)
 			    - offsetof(struct bmp_queue_entry, peerid),
 		    key);
-	if (e->afi == AFI_L2VPN && e->safi == SAFI_EVPN)
+	if ((e->afi == AFI_L2VPN && e->safi == SAFI_EVPN)
+		|| (e->safi == SAFI_MPLS_VPN))
 		key = jhash(&e->rd,
 			    offsetof(struct bmp_queue_entry, rd)
 				    - offsetof(struct bmp_queue_entry, refcount)
@@ -1582,7 +1593,7 @@ static void bmp_process_one(struct bmp_targets *bt, struct bgp *bgp, afi_t afi,
 	bqeref.safi = safi;
 	bqeref.vrf_id = bgp->vrf_id;
 
-	if (afi == AFI_L2VPN && safi == SAFI_EVPN && bn->pdest)
+	if (((afi == AFI_L2VPN && safi == SAFI_EVPN) || (safi == SAFI_MPLS_VPN)) && bn->pdest)
 		prefix_copy(&bqeref.rd,
 			    (struct prefix_rd *)bgp_dest_get_prefix(bn->pdest));
     if (is_gbmp_en())
