@@ -1326,7 +1326,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			bgp_process_nexthop_change(bnc, path);
 		}
 	} else {
-		LIST_FOREACH (path, &(bnc->paths), tebk_nh_thread) {
+		LIST_FOREACH (path, &(bnc->paths), te_nh_thread) {
 			if (!(path->type == ZEBRA_ROUTE_BGP
 				&& ((path->sub_type == BGP_ROUTE_NORMAL)
 				|| (path->sub_type == BGP_ROUTE_STATIC)
