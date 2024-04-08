@@ -244,6 +244,12 @@ DEFUN (show_srv6_tunnel,
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
 	para.vty = vty;
 	para.tt = tt;
+
+	if (srv6_policy_te2be)
+		vty_out(vty, " SRv6 support TE2BE\n");
+	else
+		vty_out(vty, " SRv6 not support TE2BE\n");
+
 	hash_walk(srte_table_hash, zebra_show_sr_policy_walk, &para);
 	
 	/* Dump the generated table. */

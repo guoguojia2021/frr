@@ -87,6 +87,8 @@ bool v6_rr_semantics = false;
 
 bool fpm_pic_nexthop = true;
 
+bool srv6_policy_te2be = false;
+
 /* Receive buffer size for kernel control sockets */
 #ifdef HAVE_NETLINK
 uint32_t rcvbufsize = 8388608;

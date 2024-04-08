@@ -488,8 +488,10 @@ static void zebra_srv6_policy_down_update_pic_nhe(struct zebra_sr_policy *policy
 		zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
 			picnhe->id, picnhe->flags);
 
-	SET_FLAG(picnhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN);
-	zebra_nhg_install_nhe(picnhe);
+	if (srv6_policy_te2be) {
+		SET_FLAG(picnhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN);
+		zebra_nhg_install_nhe(picnhe);
+	}
 
 	UNSET_FLAG(picnhe->flags, NEXTHOP_GROUP_VALID);
 
