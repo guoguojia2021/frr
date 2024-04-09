@@ -1004,8 +1004,8 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 
 	bs->timers.desired_min_tx = BFD_DEFDESIREDMINTX;
 	bs->timers.required_min_rx = BFD_DEFREQUIREDMINRX;
-	bs->timers.desired_min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
-	bs->timers.required_min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
+	bs->timers.desired_min_echo_tx = BFD_DEFDESIREDMINTX;
+	bs->timers.required_min_echo_rx = BFD_DEFREQUIREDMINRX;
 	bs->detect_mult = BFD_DEFDETECTMULT;
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
 	bs->ses_state = PTM_BFD_DOWN;
