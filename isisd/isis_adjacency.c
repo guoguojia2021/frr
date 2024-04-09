@@ -369,12 +369,15 @@ void isis_adj_state_change(struct isis_adjacency **padj,
 				 * purposes */
 				adj->last_flap = time(NULL);
 				adj->flaps++;
-			} else if (old_state == ISIS_ADJ_UP) {
-				circuit->adj_state_changes++;
+			} else {
+				if (old_state == ISIS_ADJ_UP) {
+					circuit->adj_state_changes++;
 
-				circuit->upadjcount[level - 1]--;
-				if (circuit->upadjcount[level - 1] == 0)
-					isis_tx_queue_clean(circuit->tx_queue);
+					circuit->upadjcount[level - 1]--;
+					if (circuit->upadjcount[level - 1] == 0)
+						isis_tx_queue_clean(
+							circuit->tx_queue);
+				}
 
 				if (new_state == ISIS_ADJ_DOWN) {
 					listnode_delete(
@@ -420,10 +423,13 @@ void isis_adj_state_change(struct isis_adjacency **padj,
 							 circuit, 0,
 							 &circuit->t_send_csnp[1]);
 				}
-			} else if (old_state == ISIS_ADJ_UP) {
-				circuit->upadjcount[level - 1]--;
-				if (circuit->upadjcount[level - 1] == 0)
-					isis_tx_queue_clean(circuit->tx_queue);
+			} else {
+				if (old_state == ISIS_ADJ_UP) {
+					circuit->upadjcount[level - 1]--;
+					if (circuit->upadjcount[level - 1] == 0)
+						isis_tx_queue_clean(
+							circuit->tx_queue);
+				}
 
 				if (new_state == ISIS_ADJ_DOWN) {
 					if (adj->circuit->u.p2p.neighbor == adj)
