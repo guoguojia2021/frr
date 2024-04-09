@@ -2094,7 +2094,7 @@ static int send_hello_cb(struct thread *thread)
 		circuit->u.p2p.t_send_p2p_hello = NULL;
 		send_hello(circuit, 1);
 		send_hello_sched(circuit, ISIS_LEVEL1,
-				 1000 * circuit->hello_interval[1]);
+				 1000 * circuit->hello_interval[0]);
 		return ISIS_OK;
 	}
 
