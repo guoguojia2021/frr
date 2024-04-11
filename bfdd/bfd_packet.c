@@ -46,6 +46,7 @@
 #define BUF_SIZ 1024
 #define ACCEPT_LOCAL_PATH "/proc/sys/net/ipv4/conf/all/accept_local"
 
+#define SOCK_OPT_PRIO_HIGH 6
 /*
  * Prototypes
  */
@@ -1198,6 +1199,15 @@ static void bp_bind_ip(int sd, uint16_t port)
 		zlog_fatal("bind-ip: bind: %s", strerror(errno));
 }
 
+void bp_set_prio(int sd, int value)
+{
+	int priority = value;
+
+	if (setsockopt(sd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority)) < 0) {
+		zlog_warn("set_prio: setsockopt(SO_PRIORITY, %d): %s", value, strerror(errno));
+	}
+}
+
 int bp_udp_shop(const struct vrf *vrf)
 {
 	int sd;
@@ -1267,6 +1277,8 @@ int bp_peer_socket(struct bfd_session *bs)
 		return -1;
 	}
 
+	bp_set_prio(sd, SOCK_OPT_PRIO_HIGH);
+
 	/* Find an available source port in the proper range */
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -1335,6 +1347,8 @@ int bp_peer_socketv6(struct bfd_session *bs)
 		close(sd);
 		return -1;
 	}
+
+	bp_set_prio(sd, SOCK_OPT_PRIO_HIGH);
 
 	/* Find an available source port in the proper range */
 	memset(&sin6, 0, sizeof(sin6));
@@ -1430,6 +1444,8 @@ int bp_peer_raw_eth_socket(struct bfd_session *bs)
 			  strerror(errno));
 		return -1;
 	}
+
+	bp_set_prio(sd, SOCK_OPT_PRIO_HIGH);
 
 	return sd;
 }
@@ -1597,6 +1613,7 @@ int bp_echo_socket(const struct vrf *vrf)
 
 	bp_set_ipopts(s);
 	bp_bind_ip(s, BFD_DEF_ECHO_PORT);
+	bp_set_prio(s, SOCK_OPT_PRIO_HIGH);
 
 	//enable accept_local
     linux_ipv4_accept_all_enable(ACCEPT_LOCAL_PATH);
@@ -1623,6 +1640,7 @@ int bp_echov6_socket(const struct vrf *vrf)
 
 	bp_set_ipv6opts(s);
 	bp_bind_ipv6(s, BFD_DEF_ECHO_PORT);
+	bp_set_prio(s, SOCK_OPT_PRIO_HIGH);
 
 	return s;
 }
@@ -1816,7 +1834,9 @@ int bp_sbfd_socket(const struct vrf *vrf)
 
 		return -1;
 	}
-	
+
+	bp_set_prio(s, SOCK_OPT_PRIO_HIGH);
+
 	return s;
 }
 

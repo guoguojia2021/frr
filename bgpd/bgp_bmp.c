@@ -2255,6 +2255,7 @@ static void bmp_active_connect(struct bmp_active *ba)
 	char buf[SU_ADDRSTRLEN];
     int ret = 0;
     struct vrf *vrf;
+    int priority = 1; //map to qdisc queue 2
 
 	for (; ba->addrpos < ba->addrtotal; ba->addrpos++) {
         if (ba->vrfname)
@@ -2282,7 +2283,12 @@ static void bmp_active_connect(struct bmp_active *ba)
     			continue;
             }
     	}
-		
+
+		ret = setsockopt(ba->socket, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
+		if (ret < 0) {
+			zlog_warn("bmp[%s]: failed to set sock prio", ba->hostname);
+		}
+
 		set_nonblocking(ba->socket);
 		res = sockunion_connect(ba->socket, &ba->addrs[ba->addrpos],
 				      htons(ba->port), 0);

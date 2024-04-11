@@ -595,6 +595,7 @@ int bp_set_ttl(int sd, uint8_t value);
 int bp_set_tosv6(int sd, uint8_t value);
 int bp_set_tos(int sd, uint8_t value);
 int bp_bind_dev(int sd, const char *dev);
+void bp_set_prio(int sd, int value);
 
 int bp_udp_shop(const struct vrf *vrf);
 int bp_udp_mhop(const struct vrf *vrf);
