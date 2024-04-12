@@ -51,6 +51,7 @@
 #include "bgpd/bgp_updgrp.h"
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_trace.h"
+#include "bgpd/bgp_network.h"
 
 static void bmp_close(struct bmp *bmp);
 static struct bmp_bgp *bmp_bgp_find(struct bgp *bgp);
@@ -2288,6 +2289,8 @@ static void bmp_active_connect(struct bmp_active *ba)
 		if (ret < 0) {
 			zlog_warn("bmp[%s]: failed to set sock prio", ba->hostname);
 		}
+
+		setsockopt_so_sendbuf(ba->socket, BGP_SOCKET_SNDBUF_SIZE);
 
 		set_nonblocking(ba->socket);
 		res = sockunion_connect(ba->socket, &ba->addrs[ba->addrpos],
