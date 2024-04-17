@@ -215,7 +215,8 @@ void zebra_free_sr_table(struct route_table *table)
 		zlog_err("error sr-te table node!");
 		return;
 	}
-	if (route_table_count(table) == 1 && rnh_list_count(&policyRoot->nht) == 0)
+	if (route_table_count(table) == 1 && rnh_list_count(&policyRoot->nht) == 0
+		&& policyRoot->status == ZEBRA_SR_POLICY_INIT)
 	{
 		rnh_list_fini(&policyRoot->nht);
 		rn->info = NULL;
