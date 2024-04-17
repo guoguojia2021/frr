@@ -135,10 +135,10 @@ struct zebra_sr_policy *zebra_sr_policy_add_by_prefix(struct prefix *p, uint32_t
 		policy->node = rn;
 		policy->color = color;
 		strlcpy(policy->name, name, sizeof(policy->name));
-		policy->status = ZEBRA_SR_POLICY_UP;
 		rnh_list_init(&policy->nht);
 		rn->info = policy;
-	} 
+	}
+	policy->status = ZEBRA_SR_POLICY_UP;
 
 	route_unlock_node(rn);
 	return policy;
