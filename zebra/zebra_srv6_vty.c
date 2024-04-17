@@ -156,14 +156,17 @@ static struct seg6_sid *sid_lookup_by_vrf_action(struct srv6_locator *loc,
 	return NULL;
 }
 
-const char *policystatus2str(enum zebra_sr_policy_status status)
+const char *policystatus2str(enum zebra_sr_policy_status status, struct zebra_sr_policy_show_para *para)
 {
 	switch (status) {
 	case ZEBRA_SR_POLICY_UP:
+		para->active_count++;
 		return "Active";
 	case ZEBRA_SR_POLICY_DOWN:
+		para->inactive_count++;
 		return "Inactive";
 	case ZEBRA_SR_POLICY_INIT:
+		para->init_count++;
 		return "Init";
 	default:
 		break;
@@ -213,7 +216,7 @@ static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
 
 		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s|%s", endpoint, policy->color,
 			       policy->name, binding_sid,
-			       policystatus2str(policy->status),
+			       policystatus2str(policy->status, para),
 				   segmentlist_old, segmentlist);
 	}
 
@@ -255,6 +258,10 @@ DEFUN (show_srv6_tunnel,
 	/* Dump the generated table. */
 	table = ttable_dump(tt, "\n");
 	vty_out(vty, "%s\n", table);
+
+	vty_out(vty, "Init count :%d    Active count :%d    Inactive count :%d\n", 
+		para.init_count, para.active_count, para.inactive_count);
+
 	XFREE(MTYPE_TMP, table);
 
 	ttable_del(tt);

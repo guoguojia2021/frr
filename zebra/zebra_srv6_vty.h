@@ -22,6 +22,9 @@
 struct zebra_sr_policy_show_para {
 	struct vty *vty;
 	struct ttable *tt;
+	int init_count;
+	int active_count;
+	int inactive_count;
 };
 
 extern void zebra_srv6_vty_init(void);
