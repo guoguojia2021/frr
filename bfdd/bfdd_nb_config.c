@@ -1281,6 +1281,15 @@ int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_destroy(
 }
 
 /*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/echo-mode
+ */
+int bfdd_bfd_sessions_srte_sbfd_echo_mode_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+/*
  * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/source-ipv6
  * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init/source-ipv6
  */

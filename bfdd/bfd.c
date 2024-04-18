@@ -92,8 +92,8 @@ static void bfd_profile_set_default(struct bfd_profile *bp)
 	bp->echo_mode = false;
 	bp->passive = false;
 	bp->minimum_ttl = BFD_DEF_MHOP_TTL;
-	bp->min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
-	bp->min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
+	bp->min_echo_rx = BFD_DEFREQUIREDMINRX;
+	bp->min_echo_tx = BFD_DEFDESIREDMINTX;
 	bp->min_rx = BFD_DEFREQUIREDMINRX;
 	bp->min_tx = BFD_DEFDESIREDMINTX;
 }
@@ -183,13 +183,13 @@ void bfd_session_apply(struct bfd_session *bs)
 	/* We can only apply echo options on single hop sessions. */
 	if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH)) {
 		/* Configure echo timers if they were default. */
-		if (bs->peer_profile.min_echo_rx == BFD_DEF_REQ_MIN_ECHO_RX)
+		if (bs->peer_profile.min_echo_rx == BFD_DEFREQUIREDMINRX)
 			bs->timers.required_min_echo_rx = bp->min_echo_rx;
 		else
 			bs->timers.required_min_echo_rx =
 				bs->peer_profile.min_echo_rx;
 
-		if (bs->peer_profile.min_echo_tx == BFD_DEF_DES_MIN_ECHO_TX)
+		if (bs->peer_profile.min_echo_tx == BFD_DEFDESIREDMINTX)
 			bs->timers.desired_min_echo_tx = bp->min_echo_tx;
 		else
 			bs->timers.desired_min_echo_tx =
@@ -971,8 +971,8 @@ struct bfd_session *bfd_session_new(void)
 
 	bs->timers.desired_min_tx = BFD_DEFDESIREDMINTX;
 	bs->timers.required_min_rx = BFD_DEFREQUIREDMINRX;
-	bs->timers.required_min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
-	bs->timers.desired_min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
+	bs->timers.required_min_echo_rx = BFD_DEFREQUIREDMINRX;
+	bs->timers.desired_min_echo_tx = BFD_DEFREQUIREDMINRX;
 	bs->detect_mult = BFD_DEFDETECTMULT;
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
 	bs->ses_state = PTM_BFD_DOWN;

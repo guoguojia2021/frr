@@ -135,8 +135,8 @@ static int parse_list(struct json_object *jo, enum peer_list_type plt,
 		bpc.bpc_detectmultiplier = BFD_DEFDETECTMULT;
 		bpc.bpc_recvinterval = BFD_DEFREQUIREDMINRX;
 		bpc.bpc_txinterval = BFD_DEFDESIREDMINTX;
-		bpc.bpc_echorecvinterval = BFD_DEF_REQ_MIN_ECHO_RX;
-		bpc.bpc_echotxinterval = BFD_DEF_DES_MIN_ECHO_TX;
+		bpc.bpc_echorecvinterval = BFD_DEFREQUIREDMINRX;
+		bpc.bpc_echotxinterval = BFD_DEFDESIREDMINTX;
 
 		switch (plt) {
 		case PLT_IPV4:

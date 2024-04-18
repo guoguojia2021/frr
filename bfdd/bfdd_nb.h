@@ -130,6 +130,7 @@ int bfdd_bfd_sessions_multi_hop_destroy(struct nb_cb_destroy_args *args);
 int bfdd_bfd_sessions_srte_sbfd_echo_create(struct nb_cb_create_args *args);
 int bfdd_bfd_sessions_srte_sbfd_echo_destroy(struct nb_cb_destroy_args *args);
 int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_modify(struct nb_cb_modify_args *args);
+int bfdd_bfd_sessions_srte_sbfd_echo_mode_modify(struct nb_cb_modify_args *args);
 int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_destroy(struct nb_cb_destroy_args *args);
 int bfdd_bfd_sessions_srte_sbfd_source_ipv6_modify(struct nb_cb_modify_args *args);
 int bfdd_bfd_sessions_srte_sbfd_source_ipv6_destroy(struct nb_cb_destroy_args *args);

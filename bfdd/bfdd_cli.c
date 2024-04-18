@@ -63,6 +63,12 @@ bfd_cli_is_single_hop(struct vty *vty)
 }
 
 static bool
+bfd_cli_is_sbfd_echo(struct vty *vty)
+{
+	return strstr(VTY_CURR_XPATH, "/srte-sbfd-echo") != NULL;
+}
+
+static bool
 bfd_cli_is_profile(struct vty *vty)
 {
 	return strstr(VTY_CURR_XPATH, "/bfd/profile") != NULL;
@@ -794,8 +800,8 @@ DEFPY_YANG(
 {
 	char value[32];
 
-	if (!bfd_cli_is_profile(vty) && !bfd_cli_is_single_hop(vty)) {
-		vty_out(vty, "%% Echo mode is only available for single hop sessions.\n");
+	if (!bfd_cli_is_profile(vty) && !bfd_cli_is_single_hop(vty) && !bfd_cli_is_sbfd_echo(vty)) {
+		vty_out(vty, "%% Echo mode is only available for single hop or sbfd echo sessions.\n");
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
@@ -817,8 +823,8 @@ DEFPY_YANG(
 {
 	char value[32];
 
-	if (!bfd_cli_is_profile(vty) && !bfd_cli_is_single_hop(vty)) {
-		vty_out(vty, "%% Echo mode is only available for single hop sessions.\n");
+	if (!bfd_cli_is_profile(vty) && !bfd_cli_is_single_hop(vty) && !bfd_cli_is_sbfd_echo(vty)) {
+		vty_out(vty, "%% Echo mode is only available for single hop or sbfd echo sessions.\n");
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
@@ -847,8 +853,8 @@ DEFPY_YANG(
 {
 	char value[32];
 
-	if (!bfd_cli_is_profile(vty) && !bfd_cli_is_single_hop(vty)) {
-		vty_out(vty, "%% Echo mode is only available for single hop sessions.\n");
+	if (!bfd_cli_is_profile(vty) && !bfd_cli_is_single_hop(vty) && !bfd_cli_is_sbfd_echo(vty)) {
+		vty_out(vty, "%% Echo mode is only available for single hop or sbfd echo sessions.\n");
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 

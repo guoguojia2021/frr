@@ -209,14 +209,14 @@ module frr-bfdd {
     leaf desired-echo-transmission-interval {
       type uint32;
       units microseconds;
-      default 50000;
+      default 300000;
       description "Minimum desired echo packet transmission interval";
     }
 
     leaf required-echo-receive-interval {
       type uint32;
       units microseconds;
-      default 50000;
+      default 300000;
       description "Minimum required echo packet receive interval";
     }
   }
@@ -536,6 +536,7 @@ module frr-bfdd {
 
           uses session-common;
           uses session-multi-hop;
+          uses session-echo;
 
           container stats {
             uses session-states;
