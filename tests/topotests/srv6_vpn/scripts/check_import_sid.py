@@ -15,6 +15,8 @@ if c > 0:
 else:
     d = r
 
+luCommand("pe1", 'vtysh -c "show ip  bgp  vrf PUBLIC-TC0 ipv4 neighbors 192.168.1.2"', "Established", "wait", "neighbors establish", 30)
+
 luCommand(
     "ce1",
     'vtysh -c "sharp install routes 10.0.0.0 nexthop 99.0.0.1 {}"'.format(num),
