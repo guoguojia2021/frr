@@ -171,14 +171,51 @@ void zebra_srv6_locator_delete(struct srv6_locator *locator)
 
 	for (ALL_LIST_ELEMENTS(locator->sids, n, nnode, sid))
 	{
-		for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-			client_node, client)) {
+		if (locator->compress == true)
+		{
+			if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN)
+			{
+				locator->block_bits_length = 32;
+				locator->node_bits_length = 16;
+				locator->function_bits_length = 0;
+			}
+			else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA)
+			{
+				locator->block_bits_length = 32;
+				locator->node_bits_length = 16;
+				locator->function_bits_length = 16;
+			}
+			else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA)
+			{
+				locator->block_bits_length = 32;
+				locator->node_bits_length = 0;
+				locator->function_bits_length = 16;
+			}
 
-			zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
+				client_node, client)) {
+
+				zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+			}
+			zebra_srv6_local_sid_del(locator, sid);
+			listnode_delete(locator->sids, sid);
+			srv6_locator_sid_free(sid);
+
+			locator->block_bits_length = 32;
+			locator->node_bits_length = 16;
+			locator->function_bits_length = 16;
 		}
-		zebra_srv6_local_sid_del(locator, sid);
-		listnode_delete(locator->sids, sid);
-		srv6_locator_sid_free(sid);
+		else
+		{
+			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
+				client_node, client)) {
+
+				zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+			}
+			zebra_srv6_local_sid_del(locator, sid);
+			listnode_delete(locator->sids, sid);
+			srv6_locator_sid_free(sid);
+		}
 	}
 
 	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client))
@@ -580,6 +617,55 @@ int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 		   0, false);
     return 0;
 
+}
+
+void zebra_srv6_local_sid_add_new(struct srv6_locator *locator, struct seg6_sid *sid)
+{
+	enum seg6local_action_t act;
+	struct seg6local_context ctx = {};
+	struct in6_addr result_sid = {0};
+	struct vrf *vrf;
+
+    combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+
+	vrf = vrf_lookup_by_name(sid->vrfName);
+	if (!vrf)
+		return;
+
+	ctx.table = vrf->data.l.table_id;
+	act = sid->sidaction;
+    ctx.block_bits_length = locator->block_bits_length;
+    ctx.node_bits_length = locator->node_bits_length;
+    ctx.function_bits_length = locator->function_bits_length;
+    ctx.argument_bits_length = locator->argument_bits_length;
+    strncpy(ctx.vrfName, sid->vrfName, VRF_ALIASNAMESIZ + 1);
+
+    if (CHECK_FLAG(vrf->status, VRF_ACTIVE)) {
+        zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx, sid->ifname, &sid->nexthop);
+	}
+}
+
+void zebra_srv6_local_sid_del_new(struct srv6_locator *locator, struct seg6_sid *sid)
+{
+	enum seg6local_action_t act;
+	struct seg6local_context ctx = {};
+	struct in6_addr result_sid = {0};
+	struct vrf *vrf;
+
+	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+
+	vrf = vrf_lookup_by_name(sid->vrfName);
+	if (!vrf)
+		return;
+
+	ctx.table = vrf->data.l.table_id;
+	ctx.block_bits_length = locator->block_bits_length;
+	ctx.node_bits_length = locator->node_bits_length;
+	ctx.function_bits_length = locator->function_bits_length;
+	ctx.argument_bits_length = locator->argument_bits_length;
+	act = sid->sidaction;
+
+    zebra_Db_Del_SRV6_LOCAL_SID(&result_sid, &ctx);
 }
 
 void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid)

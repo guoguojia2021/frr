@@ -1635,6 +1635,27 @@ DEFUNSH(VTYSH_ZEBRA, srv6_locator_sid,
 	return CMD_SUCCESS;
 }
 
+DEFUNSH (VTYSH_ZEBRA, srv6_compress_locator_sid,
+        srv6_compress_locator_cmd,
+        "locator WORD prefix X:X::X:X/M$prefix compress-16 next \
+         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-64)$func_bit_len]",
+        "Segment Routing SRv6 locator\n"
+        "Specify locator-name\n"
+        "Configure SRv6 locator prefix\n"
+        "Specify SRv6 locator prefix\n"
+		"Configure SRv6 micro-sid\n"
+		"Specify SRv6 micro-sid flavor\n"
+        "Configure SRv6 locator block length in bits\n"
+        "Specify SRv6 locator block length in bits\n"
+        "Configure SRv6 locator node length in bits\n"
+        "Specify SRv6 locator node length in bits\n"
+        "Configure SRv6 locator function length in bits\n"
+        "Specify SRv6 locator function length in bits\n")
+{
+	vty->node = SRV6_LOC_NODE;
+	return CMD_SUCCESS;
+}
+
 #ifdef HAVE_BGPD
 DEFUNSH(VTYSH_BGPD, router_bgp, router_bgp_cmd,
 	"router bgp [(1-4294967295) [<view|vrf> WORD]]",
@@ -4615,6 +4636,7 @@ void vtysh_init_vty(void)
 
 	install_node(&srv6_locs_node);
 	install_element(SRV6_LOCS_NODE, &srv6_locator_cmd);
+	install_element(SRV6_LOCS_NODE, &srv6_compress_locator_cmd);
 	install_element(SRV6_LOCS_NODE, &exit_srv6_locs_config_cmd);
 	install_element(SRV6_LOCS_NODE, &vtysh_end_all_cmd);
 

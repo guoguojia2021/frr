@@ -74,6 +74,13 @@ enum seg6local_action_t {
 	ZEBRA_SEG6_LOCAL_ACTION_END_UA       = 23,
 };
 
+enum seg6local_sid_type_t {
+	ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT   = 0,
+	ZEBRA_SEG6_LOCAL_SID_TYPE_UA        = 1,
+	ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA      = 2,
+	ZEBRA_SEG6_LOCAL_SID_TYPE_UN      = 3,
+};
+
 struct seg6_segs {
 	size_t num_segs;
 	struct in6_addr segs[256];
@@ -123,6 +130,7 @@ struct srv6_locator {
 	uint32_t session_id;
 
 	enum srv6_format format;
+	bool compress;
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(srv6_locator);
@@ -156,6 +164,7 @@ struct seg6_sid {
     char sidstr[PREFIX_STRLEN];
 	char ifname[INTERFACE_NAMSIZ];
 	struct ipaddr nexthop;
+	enum seg6local_sid_type_t sidtype;
 };
 
 struct seg6_sid_msg {
