@@ -34,6 +34,7 @@ import sys
 import json
 import pytest
 import functools
+import pdb
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, "../"))
@@ -89,9 +90,9 @@ def test_bgp_as_wide_bgp_identifier():
         return topotest.json_cmp(output, expected)
 
     def _bgp_failed(router):
-        output = json.loads(router.vtysh_cmd("show ip bgp neighbor 192.168.255.1 json"))
+        output = json.loads(router.vtysh_cmd("show ip bgp neighbor 192.168.255.3 json"))
         expected = {
-            "192.168.255.1": {
+            "192.168.255.3": {
                 "lastNotificationReason": "OPEN Message Error/Bad BGP Identifier"
             }
         }
@@ -102,9 +103,8 @@ def test_bgp_as_wide_bgp_identifier():
 
     assert result is None, 'Failed to converge: "{}"'.format(tgen.gears["r1"])
 
-    test_func = functools.partial(_bgp_failed, tgen.gears["r3"])
+    test_func = functools.partial(_bgp_failed, tgen.gears["r2"])
     success, result = topotest.run_and_expect(test_func, None, count=260, wait=0.5)
-
     assert result is None, 'Bad BGP Identifier notification not sent: "{}"'.format(
         tgen.gears["r3"]
     )

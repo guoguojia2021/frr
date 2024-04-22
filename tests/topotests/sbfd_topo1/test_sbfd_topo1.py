@@ -32,6 +32,7 @@ import pytest
 import json
 import re
 import time
+import pdb
 from functools import partial
 
 # Save the Current Working Directory to find configuration files.
@@ -55,7 +56,7 @@ test_sbfd_topo1.py:
  +----+----+        +----+----+ 
  
 """
-pytestmark = [pytest.mark.esr]
+#pytestmark = [pytest.mark.esr]
 
 def show_policy_check(router, policy, sta_policy, pref, sta_pref, cpath, sta_cpath):
     output = router.cmd("vtysh -c 'show sr-te policy name {} detail'".format(policy))
@@ -187,7 +188,6 @@ def test_sbfd_config_check():
 
     logger.info('waiting 5 sec ... for sbfd up')
     time.sleep(5)
-    
     show_bfd_check(r1, 'SL1', 'up', 'echo')
     show_policy_check(r1, 'POLICY01', 'Active', '100', 'UP', 'CP1', 'UP')
 

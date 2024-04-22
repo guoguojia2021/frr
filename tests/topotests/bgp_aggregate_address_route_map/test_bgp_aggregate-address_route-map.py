@@ -39,6 +39,7 @@ import sys
 import json
 import pytest
 import functools
+import pdb
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, "../"))
@@ -88,7 +89,7 @@ def test_bgp_maximum_prefix_invalid():
         pytest.skip(tgen.errors)
 
     router = tgen.gears["r2"]
-
+    topotest.sleep(30, "Wait for BGP UP")
     def _bgp_converge(router):
         output = json.loads(router.vtysh_cmd("show ip bgp neighbor 192.168.255.1 json"))
         expected = {
