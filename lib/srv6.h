@@ -78,7 +78,7 @@ enum seg6local_sid_type_t {
 	ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT   = 0,
 	ZEBRA_SEG6_LOCAL_SID_TYPE_UA        = 1,
 	ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA      = 2,
-	ZEBRA_SEG6_LOCAL_SID_TYPE_UN      = 3,
+	ZEBRA_SEG6_LOCAL_SID_TYPE_UN        = 3,
 };
 
 struct seg6_segs {
