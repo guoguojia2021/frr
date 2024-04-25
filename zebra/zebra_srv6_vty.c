@@ -758,7 +758,7 @@ DEFPY (locator_prefix,
 	struct listnode *node = NULL;
 	enum seg6local_action_t sidaction = ZEBRA_SEG6_LOCAL_ACTION_UNSPEC;
 	int idx = 0;
-	char *vrfName = NULL;
+	char *vrfName = VRF_DEFAULT_NAME;
 	char *prefix = NULL;
 	int ret = 0;
 	struct prefix_ipv6 ipv6prefix = {0};
@@ -791,7 +791,6 @@ DEFPY (locator_prefix,
 	{
 		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_X;
 		nhpstr = argv[idx + 4]->arg;
-		vrfName = VRF_DEFAULT_NAME;
 		ifName = argv[idx + 2]->arg;
 		if (inet_pton(AF_INET, nhpstr, &nexthop.ipaddr_v4) == 1)
 			nexthop.ipa_type = IPADDR_V4;
@@ -806,7 +805,6 @@ DEFPY (locator_prefix,
 	{
 		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UA;
 		nhpstr = argv[idx + 4]->arg;
-		vrfName = VRF_DEFAULT_NAME;
 		ifName = argv[idx + 2]->arg;
 		if (inet_pton(AF_INET, nhpstr, &nexthop.ipaddr_v4) == 1)
 			nexthop.ipa_type = IPADDR_V4;
@@ -836,16 +834,7 @@ DEFPY (locator_prefix,
 			return CMD_WARNING;
 		}
 	}
-	if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X || sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA) {
-		for (ALL_LIST_ELEMENTS(locator->sids, sidnode, sidnnode, sid_end_x)) {
-			if (strcmp(sid_end_x->ifname, ifName) == 0 && (sid_end_x->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X 
-			    || sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA)) {
-				vty_out(vty, "End-x %s is already exist,please delete it first. \n", ifName);
-				return CMD_WARNING;
-			}
-		}
-	}
-	else {
+	if (strcmp(vrfName, VRF_DEFAULT_NAME) != 0) {
 		sid = sid_lookup_by_vrf_action(locator, vrfName, sidaction);
 		if (sid) {
 			vty_out(vty, "VRF %s is already exist,please delete it first. \n",vrfName);
