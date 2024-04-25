@@ -813,7 +813,8 @@ extern void bgp_notify_conditional_adv_scanner(struct update_subgroup *subgrp);
 extern void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 					       struct bgp_path_info *selected,
 					       struct bgp_dest *dest,
-					       uint32_t addpath_tx_id);
+					       uint32_t addpath_tx_id,
+					       uint32_t wait_addpath_tx_id);
 
 extern announce_chk_status subgroup_announce_check(struct bgp_dest *dest,
 				    struct bgp_path_info *pi,
@@ -825,7 +826,8 @@ extern void subgroup_announce_action (struct update_subgroup *subgrp,
 				struct bgp_path_info *pi,
 				int adv_2nd,
 				uint32_t addpath_tx_id,
-				struct attr *post_attr);
+				struct attr *post_attr,
+				uint32_t wait_addpath_tx_id);
 
 extern void bgp_peer_clear_node_queue_drain_immediate(struct peer *peer);
 extern void bgp_process_queues_drain_immediate(void);

@@ -74,7 +74,7 @@ static int bgp_adj_out_compare(const struct bgp_adj_out *o1,
 }
 RB_GENERATE(bgp_adj_out_rb, bgp_adj_out, adj_entry, bgp_adj_out_compare);
 
-static inline struct bgp_adj_out *adj_lookup(struct bgp_dest *dest,
+struct bgp_adj_out *adj_lookup(struct bgp_dest *dest,
 					     struct update_subgroup *subgrp,
 					     uint32_t addpath_tx_id)
 {
@@ -130,7 +130,7 @@ static void subgrp_withdraw_stale_addpath(struct updwalk_context *ctx,
 			if (!pi) {
 				subgroup_process_announce_selected(
 					subgrp, NULL, ctx->dest,
-					adj->addpath_tx_id);
+					adj->addpath_tx_id, IDALLOC_INVALID);
 			}
 		}
 	}
@@ -146,6 +146,7 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 	struct peer *peer;
 	struct bgp_adj_out *adj, *adj_next;
 	bool addpath_capable;
+	uint32_t wait_addpath_tx_id = IDALLOC_INVALID;
 
 	afi = UPDGRP_AFI(updgrp);
 	safi = UPDGRP_SAFI(updgrp);
@@ -167,21 +168,6 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 		if (!subgrp->t_coalesce) {
 			/* An update-group that uses addpath */
 			if (addpath_capable) {
-				subgrp_withdraw_stale_addpath(ctx, subgrp);
-
-				for (pi = bgp_dest_get_bgp_path_info(ctx->dest);
-				     pi; pi = pi->next) {
-					/* Skip the bestpath for now */
-					if (pi == ctx->pi)
-						continue;
-
-					subgroup_process_announce_selected(
-						subgrp, pi, ctx->dest,
-						bgp_addpath_id_for_peer(
-							peer, afi, safi,
-							&pi->tx_addpath));
-				}
-
 				/* Process the bestpath last so the "show [ip]
 				 * bgp neighbor x.x.x.x advertised"
 				 * output shows the attributes from the bestpath
@@ -191,7 +177,28 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 						subgrp, ctx->pi, ctx->dest,
 						bgp_addpath_id_for_peer(
 							peer, afi, safi,
-							&ctx->pi->tx_addpath));
+							&ctx->pi->tx_addpath), IDALLOC_INVALID);
+				subgrp_withdraw_stale_addpath(ctx, subgrp);
+
+				for (pi = bgp_dest_get_bgp_path_info(ctx->dest);
+				     pi; pi = pi->next) {
+					/* Skip the bestpath for now */
+					if (pi == ctx->pi)
+						continue;
+
+					adj = adj_lookup(
+					ctx->dest, subgrp,bgp_addpath_id_for_peer(peer, afi, safi, &ctx->pi->tx_addpath));
+					if ((adj != NULL ) && (adj->adv == NULL)  && (CHECK_FLAG(adj->adv->flags, ADV_IN_QUEUE))) {
+						wait_addpath_tx_id = bgp_addpath_id_for_peer(peer, afi, safi, &ctx->pi->tx_addpath);
+					}
+
+					subgroup_process_announce_selected(
+						subgrp, pi, ctx->dest,
+						bgp_addpath_id_for_peer(
+							peer, afi, safi,
+							&pi->tx_addpath), wait_addpath_tx_id);
+				}
+
 			}
 
 			/* An update-group that does not use addpath */
@@ -201,7 +208,7 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 						subgrp, ctx->pi, ctx->dest,
 						bgp_addpath_id_for_peer(
 							peer, afi, safi,
-							&ctx->pi->tx_addpath));
+							&ctx->pi->tx_addpath), IDALLOC_INVALID);
 				} else {
 					/* Find the addpath_tx_id of the path we
 					 * had advertised and
@@ -213,7 +220,8 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 							subgroup_process_announce_selected(
 								subgrp, NULL,
 								ctx->dest,
-								adj->addpath_tx_id);
+								adj->addpath_tx_id,
+								IDALLOC_INVALID);
 						}
 					}
 				}
@@ -556,7 +564,7 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 	adv->baa = bgp_advertise_intern(subgrp->hash, attr);
 	adv->adj = adj;
 	adj->attr_hash = attr_hash;
-
+	SET_FLAG(adv->flags, ADV_IN_QUEUE);
 	/* Add new advertisement to advertisement attribute list. */
 	bgp_advertise_add(adv->baa, adv);
 
@@ -595,7 +603,8 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
  */
 void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 				struct update_subgroup *subgrp, char withdraw,
-				uint32_t addpath_tx_id)
+				uint32_t addpath_tx_id,
+				uint32_t wait_addpath_tx_id)
 {
 	struct bgp_adj_out *adj;
 	struct bgp_advertise *adv;
@@ -624,7 +633,9 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 			adj->adv = bgp_advertise_new();
 			adv = adj->adv;
 			adv->dest = dest;
+			adv->wait_addpath_tx_id = wait_addpath_tx_id;
 			adv->adj = adj;
+			SET_FLAG(adv->flags, ADV_IN_QUEUE);
 
 			/* Note if we need to trigger a packet write */
 			trigger_write =
@@ -710,11 +721,11 @@ void subgroup_announce_table(struct update_subgroup *subgrp,
 			if (addpath_capable	&& bgp_addpath_tx_path(peer->addpath_type[afi][safi], ri))
 				subgroup_announce_action(subgrp, dest, ri, 0,
 							 bgp_addpath_id_for_peer(peer, afi, safi,
-										 &ri->tx_addpath), NULL);
+										 &ri->tx_addpath), NULL, IDALLOC_INVALID);
 			else if (CHECK_FLAG(ri->flags, BGP_PATH_SELECTED))
 				subgroup_announce_action(subgrp, dest, ri, 1,
 							 bgp_addpath_id_for_peer(peer, afi, safi,
-										 &ri->tx_addpath), NULL);
+										 &ri->tx_addpath), NULL, IDALLOC_INVALID);
 		}
 	}
 	UNSET_FLAG(subgrp->sflags, SUBGRP_STATUS_TABLE_REPARSING);

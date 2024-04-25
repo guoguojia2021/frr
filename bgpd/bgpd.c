@@ -2212,7 +2212,7 @@ static void peer_group2peer_config_copy_af(struct peer_group *group,
 
 	if (peer->addpath_type[afi][safi] == BGP_ADDPATH_NONE) {
 		peer->addpath_type[afi][safi] = conf->addpath_type[afi][safi];
-		bgp_addpath_type_changed(conf->bgp);
+		//bgp_addpath_type_changed(conf->bgp);
 	}
 }
 
@@ -3474,7 +3474,7 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 	bgp->lb_handling = BGP_LINK_BW_ECMP;
 	bgp->reject_as_sets = false;
 	bgp->condition_check_period = DEFAULT_CONDITIONAL_ROUTES_POLL_TIME;
-	bgp_addpath_init_bgp_data(&bgp->tx_addpath);
+	bgp_addpath_init_bgp_data(bgp);
 	bgp->fast_convergence = false;
 	bgp->as = *as;
 	bgp->llgr_stale_time = BGP_DEFAULT_LLGR_STALE_TIME;
@@ -4073,6 +4073,7 @@ void bgp_free(struct bgp *bgp)
 	struct bgp_table *table;
 	struct bgp_dest *dest;
 	struct bgp_rmap *rmap;
+	enum bgp_addpath_strat type = 0;
 	struct bgp_filter *filter;
 	int i;
     struct vrf *vrf;
@@ -4105,6 +4106,10 @@ void bgp_free(struct bgp *bgp)
 			bgp_table_finish(&bgp->rib[afi][safi]);
 		rmap = &bgp->table_map[afi][safi];
 		XFREE(MTYPE_ROUTE_MAP_NAME, rmap->name);
+		/*addpath allocators fini*/
+		for (type=0; type<BGP_ADDPATH_MAX; type++) {
+			bgp_addpath_flush_type(bgp, afi, safi,type);
+		}
 	}
 
 	/* Free filter related memory.  */

@@ -51,6 +51,9 @@ struct bgp_advertise {
 
 	/* BGP info.  */
 	struct bgp_path_info *pathi;
+	uint8_t flags;
+	#define  ADV_IN_QUEUE 0x01
+	uint32_t wait_addpath_tx_id;
 };
 
 DECLARE_DLIST(bgp_advertise_attr_fifo, struct bgp_advertise, item);

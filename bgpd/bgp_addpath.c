@@ -23,6 +23,7 @@
 
 #include "bgp_addpath.h"
 #include "bgp_route.h"
+#include "bgp_updgrp.h"
 
 static const struct bgp_addpath_strategy_names strat_names[BGP_ADDPATH_MAX] = {
 	{
@@ -74,7 +75,7 @@ bool bgp_addpath_is_addpath_used(struct bgp_addpath_bgp_data *d, afi_t afi,
 /*
  * Initialize the BGP instance level data for addpath.
  */
-void bgp_addpath_init_bgp_data(struct bgp_addpath_bgp_data *d)
+void bgp_addpath_init_bgp_data(struct bgp *bgp)
 {
 	safi_t safi;
 	afi_t afi;
@@ -82,10 +83,10 @@ void bgp_addpath_init_bgp_data(struct bgp_addpath_bgp_data *d)
 
 	FOREACH_AFI_SAFI (afi, safi) {
 		for (i = 0; i < BGP_ADDPATH_MAX; i++) {
-			d->id_allocators[afi][safi][i] = NULL;
-			d->peercount[afi][safi][i] = 0;
+			bgp->tx_addpath.peercount[afi][safi][i] = 0;
+			bgp_addpath_populate_type(bgp, afi, safi,i);
 		}
-		d->total_peercount[afi][safi] = 0;
+		bgp->tx_addpath.total_peercount[afi][safi] = 0;
 	}
 }
 
@@ -111,6 +112,8 @@ void bgp_addpath_free_info_data(struct bgp_addpath_info_data *d,
 uint32_t bgp_addpath_id_for_peer(struct peer *peer, afi_t afi, safi_t safi,
 				struct bgp_addpath_info_data *d)
 {
+	if (!bgp_addpath_encode_tx(peer, afi, safi))
+		return IDALLOC_INVALID;
 	if (peer->addpath_type[afi][safi] < BGP_ADDPATH_MAX)
 		return d->addpath_tx_id[peer->addpath_type[afi][safi]];
 	else
@@ -205,27 +208,28 @@ static void bgp_addpath_flush_type_rn(struct bgp *bgp, afi_t afi, safi_t safi,
  * post-bestpath ID processing is skipped for types not used, this is the only
  * chance to free this data.
  */
-static void bgp_addpath_flush_type(struct bgp *bgp, afi_t afi, safi_t safi,
+void bgp_addpath_flush_type(struct bgp *bgp, afi_t afi, safi_t safi,
 				   enum bgp_addpath_strat addpath_type)
 {
 	struct bgp_dest *dest, *ndest;
+	if (bgp->rib[afi][safi]) {
+		for (dest = bgp_table_top(bgp->rib[afi][safi]); dest;
+		     dest = bgp_route_next(dest)) {
+			if (safi == SAFI_MPLS_VPN) {
+				struct bgp_table *table;
 
-	for (dest = bgp_table_top(bgp->rib[afi][safi]); dest;
-	     dest = bgp_route_next(dest)) {
-		if (safi == SAFI_MPLS_VPN) {
-			struct bgp_table *table;
+				table = bgp_dest_get_bgp_table_info(dest);
+				if (!table)
+					continue;
 
-			table = bgp_dest_get_bgp_table_info(dest);
-			if (!table)
-				continue;
-
-			for (ndest = bgp_table_top(table); ndest;
-			     ndest = bgp_route_next(ndest))
-				bgp_addpath_flush_type_rn(bgp, afi, safi,
-							  addpath_type, ndest);
-		} else {
-			bgp_addpath_flush_type_rn(bgp, afi, safi, addpath_type,
-						  dest);
+				for (ndest = bgp_table_top(table); ndest;
+				     ndest = bgp_route_next(ndest))
+					bgp_addpath_flush_type_rn(bgp, afi, safi,
+								  addpath_type, ndest);
+			} else {
+				bgp_addpath_flush_type_rn(bgp, afi, safi, addpath_type,
+							  dest);
+			}
 		}
 	}
 
@@ -240,7 +244,7 @@ static void bgp_addpath_populate_path(struct id_alloc *allocator,
 				      struct bgp_path_info *path,
 				      enum bgp_addpath_strat addpath_type)
 {
-	if (bgp_addpath_tx_path(addpath_type, path)) {
+	if (IDALLOC_INVALID == path->tx_addpath.addpath_tx_id[addpath_type]) {
 		path->tx_addpath.addpath_tx_id[addpath_type] =
 			idalloc_allocate(allocator);
 	}
@@ -252,7 +256,7 @@ static void bgp_addpath_populate_path(struct id_alloc *allocator,
  * for unused strategies, the first time a peer is configured to use a strategy,
  * we have to backfill the data.
  */
-static void bgp_addpath_populate_type(struct bgp *bgp, afi_t afi, safi_t safi,
+void bgp_addpath_populate_type(struct bgp *bgp, afi_t afi, safi_t safi,
 				    enum bgp_addpath_strat addpath_type)
 {
 	struct bgp_dest *dest, *ndest;
@@ -373,7 +377,7 @@ void bgp_addpath_set_peer_type(struct peer *peer, afi_t afi, safi_t safi,
 
 	peer->addpath_type[afi][safi] = addpath_type;
 
-	bgp_addpath_type_changed(bgp);
+	//bgp_addpath_type_changed(bgp);
 
 	if (addpath_type != BGP_ADDPATH_NONE) {
 		if (bgp_addpath_dmed_required(addpath_type)) {
@@ -436,24 +440,12 @@ void bgp_addpath_update_ids(struct bgp *bgp, struct bgp_dest *bn, afi_t afi,
 			bgp->tx_addpath.id_allocators[afi][safi][i];
 		pool_ptr = &(bn->tx_addpath.free_ids[i]);
 
-		if (bgp->tx_addpath.peercount[afi][safi][i] == 0)
-			continue;
-
-		/* Free Unused IDs back to the pool.*/
-		for (pi = bgp_dest_get_bgp_path_info(bn); pi; pi = pi->next) {
-			if (pi->tx_addpath.addpath_tx_id[i] != IDALLOC_INVALID
-			    && !bgp_addpath_tx_path(i, pi)) {
-				idalloc_free_to_pool(pool_ptr,
-					pi->tx_addpath.addpath_tx_id[i]);
-				pi->tx_addpath.addpath_tx_id[i] =
-					IDALLOC_INVALID;
-			}
-		}
+		//if (bgp->tx_addpath.peercount[afi][safi][i] == 0)
+		//	continue;
 
 		/* Give IDs to paths that need them (pulling from the pool) */
 		for (pi = bgp_dest_get_bgp_path_info(bn); pi; pi = pi->next) {
-			if (pi->tx_addpath.addpath_tx_id[i] == IDALLOC_INVALID
-			    && bgp_addpath_tx_path(i, pi)) {
+			if (pi->tx_addpath.addpath_tx_id[i] == IDALLOC_INVALID) {
 				pi->tx_addpath.addpath_tx_id[i] =
 					idalloc_allocate_prefer_pool(
 						alloc, pool_ptr);

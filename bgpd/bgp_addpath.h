@@ -30,7 +30,7 @@
 
 #define BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE 1
 
-void bgp_addpath_init_bgp_data(struct bgp_addpath_bgp_data *d);
+void bgp_addpath_init_bgp_data(struct bgp *bgp);
 
 bool bgp_addpath_is_addpath_used(struct bgp_addpath_bgp_data *d, afi_t afi,
 				 safi_t safi);
@@ -69,4 +69,9 @@ void bgp_addpath_update_ids(struct bgp *bgp, struct bgp_dest *dest, afi_t afi,
 			    safi_t safi);
 
 void bgp_addpath_type_changed(struct bgp *bgp);
+void bgp_addpath_populate_type(struct bgp *bgp, afi_t afi, safi_t safi,
+				    enum bgp_addpath_strat addpath_type);
+void bgp_addpath_flush_type(struct bgp *bgp, afi_t afi, safi_t safi,
+				   enum bgp_addpath_strat addpath_type);
+
 #endif

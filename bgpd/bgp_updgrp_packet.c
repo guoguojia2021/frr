@@ -708,6 +708,7 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 		adj = adv->adj;
 		addpath_tx_id = adj->addpath_tx_id;
 		path = adv->pathi;
+		UNSET_FLAG(adv->flags, ADV_IN_QUEUE);
 
 		space_remaining = STREAM_CONCAT_REMAIN(s, snlri, STREAM_SIZE(s))
 				  - BGP_MAX_PACKET_SIZE_OVERFLOW;
@@ -910,7 +911,10 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 	struct bpacket *pkt;
 	struct stream *s;
 	struct bgp_adj_out *adj;
+	struct bgp_adj_out *wait_adj;
+	struct bgp_adv_fifo_head tmp_withdraw;
 	struct bgp_advertise *adv;
+	struct bgp_advertise *tmp_adv;
 	struct peer *peer;
 	struct bgp_dest *dest;
 	bgp_size_t unfeasible_len;
@@ -927,6 +931,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 	bool addpath_capable = false;
 	int addpath_overhead = 0;
 	uint32_t addpath_tx_id = 0;
+	uint32_t wait_addpath_tx_id = 0;
 	const struct prefix_rd *prd = NULL;
 
 
@@ -943,6 +948,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 	stream_reset(s);
 	addpath_capable = bgp_addpath_encode_tx(peer, afi, safi);
 	addpath_overhead = addpath_capable ? BGP_ADDPATH_ID_LEN : 0;
+	bgp_adv_fifo_init(&tmp_withdraw);
 
 	while ((adv = bgp_adv_fifo_first(&subgrp->sync->withdraw)) != NULL) {
 		const struct prefix *dest_p;
@@ -952,6 +958,16 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		dest = adv->dest;
 		dest_p = bgp_dest_get_prefix(dest);
 		addpath_tx_id = adj->addpath_tx_id;
+		UNSET_FLAG(adv->flags, ADV_IN_QUEUE);
+		wait_addpath_tx_id = adv->wait_addpath_tx_id;
+		if (wait_addpath_tx_id != IDALLOC_INVALID) {
+			wait_adj = adj_lookup(adv->dest, subgrp,wait_addpath_tx_id);
+			if ((wait_adj) && (wait_adj->adv) && (CHECK_FLAG(wait_adj->adv->flags, ADV_IN_QUEUE))) {
+				bgp_adv_fifo_del(&subgrp->sync->withdraw, adv);
+				bgp_adv_fifo_add_tail(&tmp_withdraw, adv);
+				continue;
+			}
+		}
 
 		space_remaining =
 			STREAM_WRITEABLE(s) - BGP_MAX_PACKET_SIZE_OVERFLOW;
@@ -1025,6 +1041,10 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		subgrp->scount--;
 
 		bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+	}
+	while ((tmp_adv = bgp_adv_fifo_first(&tmp_withdraw) != NULL)) {
+		bgp_adv_fifo_del(&tmp_withdraw, adv);
+		bgp_adv_fifo_add_tail(&subgrp->sync->withdraw, adv);
 	}
 
 	if (!stream_empty(s)) {

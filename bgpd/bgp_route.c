@@ -3133,7 +3133,8 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 				struct bgp_path_info *pi,
 				int adv_2nd,
 				uint32_t addpath_tx_id,
-				struct attr *post_attr)
+				struct attr *post_attr,
+				uint32_t wait_addpath_tx_id)
 {
 	struct prefix *p;
 	struct attr attr;
@@ -3174,11 +3175,11 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 					    PEER_FLAG_DEFAULT_ORIGINATE)
 					    && is_default_prefix(bgp_dest_get_prefix(dest)))
 			break;
-		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
 		break;
  
 	case ANNOUNCE_CHK_TO_SENDER:
-		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
 		if (!adv_2nd)
 			break;
 		/*
@@ -3204,7 +3205,7 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 		if (subgroup_announce_check(dest, second, subgrp, dest_p, &attr, post_attr, 0)) {
 			bgp_adj_out_set_subgroup(dest, subgrp, &attr, second);
 		} else {
-			bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+			bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
 		}
 		break;
  
@@ -3220,7 +3221,8 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 					struct bgp_path_info *selected,
 					struct bgp_dest *dest,
-					uint32_t addpath_tx_id)
+					uint32_t addpath_tx_id,
+					uint32_t wait_addpath_tx_id)
 {
 	const struct prefix *p;
 	struct peer *onlypeer;
@@ -3242,12 +3244,12 @@ void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 		return;
 
 	if (selected) {
-        subgroup_announce_action(subgrp, dest, selected, 1, addpath_tx_id, NULL);
+        subgroup_announce_action(subgrp, dest, selected, 1, addpath_tx_id, NULL, wait_addpath_tx_id);
 	}
 
 	/* If selected is NULL we must withdraw the path using addpath_tx_id */
 	else {
-		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id);
+		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
 	}
 }
 
