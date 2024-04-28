@@ -343,10 +343,8 @@ DEFUN (show_srv6_locator_detail,
 	json_object *json_locator = NULL;
 	struct seg6_sid *sid = NULL;
 	struct in6_addr result_sid = {0};
-	char ip_str[INET6_ADDRSTRLEN];
-	char ip_with_mask[INET6_ADDRSTRLEN + 5];
+	struct prefix p = {};
 	char buf[256];
-	int len = 0;
 
 	if (uj) {
 		locator = zebra_srv6_locator_lookup(locator_name);
@@ -368,7 +366,7 @@ DEFUN (show_srv6_locator_detail,
 		prefix2str(&locator->prefix, str, sizeof(str));
 		vty_out(vty, "Name: %s\n", locator->name);
 		vty_out(vty, "Prefix: %s\n", str);
-		vty_out(vty, "Compress: %s\n", locator->compress == true ? "Yes" : "No");
+		vty_out(vty, "Compress: %s\n", locator->compress ? "Yes" : "No");
 		vty_out(vty, "Block-Bit-Len: %u\n",
 			locator->block_bits_length);
         vty_out(vty, "Node-Bit-Len: %u\n",
@@ -387,49 +385,35 @@ DEFUN (show_srv6_locator_detail,
 		}
 		vty_out(vty, "  sids:\n");
 		for (ALL_LIST_ELEMENTS_RO(locator->sids, sidnode, sid)) {
-			if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN)
-			{
-				combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
-				inet_ntop(AF_INET6, &result_sid, ip_str, sizeof(ip_str));
-
-				len = snprintf(ip_with_mask, INET6_ADDRSTRLEN + 5, "%s/%d", ip_str, 128);
-				if (len < 0 || len >= INET6_ADDRSTRLEN + 5) {
-					vty_out(vty, "Error: Failed to format IP with mask.\n");
-				} else {
-					vty_out(vty, "   -opcode* %s\n", ip_with_mask);
-				}
-			}
-			else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA)
-			{
+			if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
 				locator->node_bits_length = 0;
 				combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
-				inet_ntop(AF_INET6, &result_sid, ip_str, sizeof(ip_str));
-				len = snprintf(ip_with_mask, INET6_ADDRSTRLEN + 5, "%s/%d", ip_str, 128);
-				if (len < 0 || len >= INET6_ADDRSTRLEN + 5) {
-					vty_out(vty, "Error: Failed to format IP with mask.\n");
-				} else {
-					vty_out(vty, "   -opcode* %s\n", ip_with_mask);
-				}
+				p.family = AF_INET6;
+				p.prefixlen = 128;
+				p.u.prefix6 = result_sid;
+				prefix2str(&p, buf, sizeof(buf));
 				locator->node_bits_length = 16;
 			}
-			else
-			{
-				prefix2str(&sid->ipv6Addr, buf, sizeof(buf));
-				vty_out(vty, "   -opcode %s\n", buf);
+			else {
+				combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+				p.family = AF_INET6;
+				p.prefixlen = 128;
+				p.u.prefix6 = result_sid;
+				prefix2str(&p, buf, sizeof(buf));
+				//prefix2str(&sid->ipv6Addr, buf, sizeof(buf));
 			}
+			vty_out(vty, "   -opcode %s\n", buf);
 			vty_out(vty, "    sidaction %s\n", seg6local_action2str(sid->sidaction));
-			if(sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X || sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA) {
+			if(sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
 				char ifbuf[INET6_ADDRSTRLEN] = {0};
 				vty_out(vty, "    ifname %s\n", sid->ifname);
 				if (sid->nexthop.ipa_type == IPADDR_V4)
 					inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, ifbuf, sizeof(ifbuf));
 				else if (sid->nexthop.ipa_type == IPADDR_V6)
 					inet_ntop(AF_INET6, &sid->nexthop.ipaddr_v6, ifbuf, sizeof(ifbuf));
-				vty_out(vty, " nexthop %s\n", ifbuf);
+				vty_out(vty, "    nexthop %s\n", ifbuf);
 			}
-			else {
-				vty_out(vty, "    vrf %s\n", sid->vrfName);
-			}		
+			vty_out(vty, "    vrf %s\n", sid->vrfName);
 		}
 	}
 
@@ -608,33 +592,33 @@ DEFUN (no_srv6_locator_sid,
 }
 
 DEFUN_NOSH (srv6_compress_locator_sid,
-        srv6_compress_locator_cmd,
-        "locator WORD prefix X:X::X:X/M$prefix compress-16 next \
-         [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-64)$func_bit_len]",
-        "Segment Routing SRv6 locator\n"
-        "Specify locator-name\n"
-        "Configure SRv6 locator prefix\n"
-        "Specify SRv6 locator prefix\n"
+		srv6_compress_locator_cmd,
+		"locator WORD prefix X:X::X:X/M$prefix compress-16 next \
+		 [block-len (16-64)$block_bit_len] [node-len (16-64)$node_bit_len] [func-bits (16-64)$func_bit_len]",
+		"Segment Routing SRv6 locator\n"
+		"Specify locator-name\n"
+		"Configure SRv6 locator prefix\n"
+		"Specify SRv6 locator prefix\n"
 		"Configure SRv6 micro-sid\n"
 		"Specify SRv6 micro-sid flavor\n"
-        "Configure SRv6 locator block length in bits\n"
-        "Specify SRv6 locator block length in bits\n"
-        "Configure SRv6 locator node length in bits\n"
-        "Specify SRv6 locator node length in bits\n"
-        "Configure SRv6 locator function length in bits\n"
-        "Specify SRv6 locator function length in bits\n")
+		"Configure SRv6 locator block length in bits\n"
+		"Specify SRv6 locator block length in bits\n"
+		"Configure SRv6 locator node length in bits\n"
+		"Specify SRv6 locator node length in bits\n"
+		"Configure SRv6 locator function length in bits\n"
+		"Specify SRv6 locator function length in bits\n")
 {
-    struct srv6_locator *locator_sid = NULL;
+	struct srv6_locator *locator_sid = NULL;
 	struct seg6_sid *sid = NULL;
 	struct listnode *node = NULL;
 	struct zserv *client;
 	struct listnode *client_node;
-    char *prefix = NULL;
-    int ret = 0;
-    int idx = 0;
-    int block_bit_len = 0;
-    int node_bit_len = 0;
-    int func_bit_len = 0;
+	char *prefix = NULL;
+	int ret = 0;
+	int idx = 0;
+	int block_bit_len = 0;
+	int node_bit_len = 0;
+	int func_bit_len = 0;
 
 	locator_sid = zebra_srv6_locator_lookup(argv[1]->arg);
 	if (locator_sid) {
@@ -652,26 +636,26 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 	locator_sid->status_up = true;
 	locator_sid->compress = true;
 
-    prefix = argv[3]->arg;
-    ret = str2prefix_ipv6(prefix, &locator_sid->prefix);
-    apply_mask_ipv6(&locator_sid->prefix);
-    if (!ret) {
+	prefix = argv[3]->arg;
+	ret = str2prefix_ipv6(prefix, &locator_sid->prefix);
+	apply_mask_ipv6(&locator_sid->prefix);
+	if (!ret) {
 		srv6_locator_del(locator_sid);
-        vty_out(vty, "Malformed IPv6 prefix\n");
-        return CMD_WARNING_CONFIG_FAILED;
-    }
+		vty_out(vty, "Malformed IPv6 prefix\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
 
-    if (argv_find(argv, argc, "block-len", &idx)) {
-        block_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
-    }
-    if (argv_find(argv, argc, "node-len", &idx)) {
-        node_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
-    }
-    if (argv_find(argv, argc, "func-bits", &idx)) {
-        func_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
-    }
+	if (argv_find(argv, argc, "block-len", &idx)) {
+		block_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
+	}
+	if (argv_find(argv, argc, "node-len", &idx)) {
+		node_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
+	}
+	if (argv_find(argv, argc, "func-bits", &idx)) {
+		func_bit_len = strtoul(argv[idx + 1]->arg, NULL, 10);
+	}
 
-    if (locator_sid->prefix.prefixlen == 48 && block_bit_len == 32 && node_bit_len ==16 && func_bit_len == 16)
+	if (locator_sid->prefix.prefixlen == 48 && block_bit_len == 32 && node_bit_len ==16 && func_bit_len == 16)
 	{
 		locator_sid->block_bits_length = block_bit_len;
 		locator_sid->node_bits_length = node_bit_len;
@@ -681,8 +665,8 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 	else
 	{
 		srv6_locator_del(locator_sid);
-        vty_out(vty, "%% Malformed locator sid format, it must be block-len 32 node-len 16 func-bits 16 and prefixlen 48\n");
-        return CMD_WARNING_CONFIG_FAILED;
+		vty_out(vty, "%% Malformed locator sid format, it must be block-len 32 node-len 16 func-bits 16 and prefixlen 48\n");
+		return CMD_WARNING_CONFIG_FAILED;
 	}
 
 	if (!zebra_srv6_local_sid_get_format(locator_sid)) {
@@ -691,10 +675,9 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
-    zebra_srv6_locator_add(locator_sid);
-
+	zebra_srv6_locator_add(locator_sid);
 	sid = srv6_locator_sid_alloc();
-	sid->sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UN;
+	sid->sidaction = ZEBRA_SEG6_LOCAL_ACTION_END;
 	sid->sidtype = ZEBRA_SEG6_LOCAL_SID_TYPE_UN;
 
 	locator_sid->function_bits_length = 0;
@@ -705,11 +688,8 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 	}
 
 	listnode_add(locator_sid->sids, sid);
-
 	zebra_srv6_local_sid_add(locator_sid, sid);
-
-	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-		client_node, client)) {
+	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
 		zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator_sid, sid);
 	}
 
@@ -724,8 +704,7 @@ DEFPY (locator_prefix,
 		locator_prefix_cmd,
 		"opcode WORD \
 		 <end | end-dt46 vrf VIEWVRFNAME | end-dt4 vrf VIEWVRFNAME | end-dt6 vrf VIEWVRFNAME | \
-		 end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp | \
-		 end-x-next-csid interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp>",
+		 end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp>",
 		"Configure SRv6 locator prefix\n"
 		"Specify SRv6 locator hex opcode\n"
 		"Apply the code to an End SID\n"
@@ -739,12 +718,6 @@ DEFPY (locator_prefix,
 		"vrf\n"
 		"vrf\n"
 		"Apply the code to an End.X SID\n"
-		"Select an interface to configure\n"
-		"Interface's name\n"
-		"Nexthop\n"
-		"Nexthop IP address\n"
-		"Nexthop IPv6 address\n"
-		"Apply the code to an End.x with NEXT-CSID\n"
 		"Select an interface to configure\n"
 		"Interface's name\n"
 		"Nexthop\n"
@@ -801,20 +774,7 @@ DEFPY (locator_prefix,
 			return CMD_WARNING;
 		}
 	}
-	else if (argv_find(argv, argc, "end-x-next-csid", &idx))
-	{
-		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END_UA;
-		nhpstr = argv[idx + 4]->arg;
-		ifName = argv[idx + 2]->arg;
-		if (inet_pton(AF_INET, nhpstr, &nexthop.ipaddr_v4) == 1)
-			nexthop.ipa_type = IPADDR_V4;
-		else if (inet_pton(AF_INET6, nhpstr, &nexthop.ipaddr_v6) == 1)
-			nexthop.ipa_type = IPADDR_V6;
-		else {
-			vty_out(vty, "%% Malformed address\n");
-			return CMD_WARNING;
-		}
-	}
+
 	prefix = argv[1]->arg;
 	ret = str2prefix_ipv6(prefix, &ipv6prefix);
 	apply_mask_ipv6(&ipv6prefix);
@@ -842,10 +802,8 @@ DEFPY (locator_prefix,
 		}
 	}
 
-	if (locator->compress == true)
-	{
-		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA)
-		{
+	if (locator->compress) {
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
 			//uN+uA
 			sid_unua = srv6_locator_sid_alloc();
 			sid_unua->sidaction = sidaction;
@@ -869,11 +827,8 @@ DEFPY (locator_prefix,
 			}
 
 			listnode_add(locator->sids, sid_unua);
-
 			zebra_srv6_local_sid_add(locator, sid_unua);
-
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-				client_node, client)) {
+			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
 				zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid_unua);
 			}
 
@@ -894,7 +849,6 @@ DEFPY (locator_prefix,
 			memcpy(&sid_ua->nexthop, &nexthop, sizeof(struct ipaddr));
 
 			locator->node_bits_length = 0;
-
 			if (!zebra_srv6_local_sid_format_valid(locator, sid_ua)) {
 				vty_out(vty, "%% Malformed locator sid_ua opcode format\n");
 				srv6_locator_sid_free(sid_ua);
@@ -902,59 +856,44 @@ DEFPY (locator_prefix,
 			}
 
 			listnode_add(locator->sids, sid_ua);
-
 			zebra_srv6_local_sid_add(locator, sid_ua);
-
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-				client_node, client)) {
+			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
 				zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid_ua);
 			}
 			locator->node_bits_length = 16;	
 		}
-		else
-		{
-			vty_out(vty, "locator is compressd, only support compress opcode. \n",vrfName);
+		else {
+			vty_out(vty, "locator is compressd, only support opcode end-x\n");
 			return CMD_WARNING;
 		}
 	}
 	else
 	{
-		if (sidaction != ZEBRA_SEG6_LOCAL_ACTION_END_UA)
-		{
-			sid = srv6_locator_sid_alloc();
-			sid->sidaction = sidaction;
-			sid->sidtype = ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT;
+		sid = srv6_locator_sid_alloc();
+		sid->sidaction = sidaction;
+		sid->sidtype = ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT;
 
-			if (vrfName != NULL)
-				strlcpy(sid->vrfName, vrfName, VRF_ALIASNAMESIZ);
+		if (vrfName != NULL)
+			strlcpy(sid->vrfName, vrfName, VRF_ALIASNAMESIZ);
 
-			sid->ipv6Addr = ipv6prefix;
-			strncpy(sid->sidstr, prefix, PREFIX_STRLEN);
-			if (ifName)
-				strlcpy(sid->ifname, ifName, INTERFACE_NAMSIZ);
-			else
-				sid->ifname[0] = '\0';
-			memcpy(&sid->nexthop, &nexthop, sizeof(struct ipaddr));
-
-			if (!zebra_srv6_local_sid_format_valid(locator, sid)) {
-				vty_out(vty, "%% Malformed locator sid opcode format\n");
-				srv6_locator_sid_free(sid);
-				return CMD_WARNING_CONFIG_FAILED;
-			}
-
-			listnode_add(locator->sids, sid);
-
-			zebra_srv6_local_sid_add(locator, sid);
-
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-				client_node, client)) {
-				zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid);
-			}
-		}
+		sid->ipv6Addr = ipv6prefix;
+		strncpy(sid->sidstr, prefix, PREFIX_STRLEN);
+		if (ifName)
+			strlcpy(sid->ifname, ifName, INTERFACE_NAMSIZ);
 		else
-		{
-			vty_out(vty, "locator is non-compressd, only support non-compress opcode. \n",vrfName);
-			return CMD_WARNING;
+			sid->ifname[0] = '\0';
+		memcpy(&sid->nexthop, &nexthop, sizeof(struct ipaddr));
+
+		if (!zebra_srv6_local_sid_format_valid(locator, sid)) {
+			vty_out(vty, "%% Malformed locator sid opcode format\n");
+			srv6_locator_sid_free(sid);
+			return CMD_WARNING_CONFIG_FAILED;
+		}
+
+		listnode_add(locator->sids, sid);
+		zebra_srv6_local_sid_add(locator, sid);
+		for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
+			zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid);
 		}
 	}
 
@@ -987,15 +926,10 @@ DEFPY (no_locator_prefix,
 
 	for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
 		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
-			if (locator->compress == true && sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA)
-			{
+			if (locator->compress && sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
 				//del uN+uA
-				if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA)
-				{
-					for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-									client_node,
-								client)) {
-
+				if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA) {
+					for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
 						zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
 					}
 					zebra_srv6_local_sid_del(locator, sid);
@@ -1004,13 +938,9 @@ DEFPY (no_locator_prefix,
 					srv6_locator_sid_free(sid);
 				}
 				//del uA
-				else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA)
-				{
+				else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
 					locator->node_bits_length = 0;
-					for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-									client_node,
-								client)) {
-
+					for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
 						zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
 					}
 					zebra_srv6_local_sid_del(locator, sid);
@@ -1019,14 +949,9 @@ DEFPY (no_locator_prefix,
 					srv6_locator_sid_free(sid);
 					locator->node_bits_length = 16;
 				}
-				
 			}
-			else
-			{
-				for (ALL_LIST_ELEMENTS_RO(zrouter.client_list,
-								client_node,
-							client)) {
-
+			else {
+				for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
 					zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
 				}
 				zebra_srv6_local_sid_del(locator, sid);
@@ -1060,80 +985,48 @@ static int zebra_sr_config(struct vty *vty)
 			vty_out(vty, "   locator %s", locator->name);
 			vty_out(vty, " prefix %s/%u", str,
 				locator->prefix.prefixlen);
-			if (locator->compress == true)
+			if (locator->compress)
 				vty_out(vty, " compress-16 next");
 			if (locator->node_bits_length)
 				vty_out(vty, " block-len %u", locator->block_bits_length);
 			if (locator->function_bits_length)
 				vty_out(vty, " node-len %u", locator->node_bits_length);
-            if (locator->block_bits_length)
+			if (locator->block_bits_length)
 				vty_out(vty, " func-bits %u", locator->function_bits_length);
-			if (locator->compress == false)
-			{
+			if (locator->compress == false) {
 				if (locator->argument_bits_length)
 					vty_out(vty, " argu-bits %u", locator->argument_bits_length);
 			}
-            vty_out(vty, "\n");
-            for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
+			vty_out(vty, "\n");
+			for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
 				if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA || sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN)
 					continue;
-                vty_out(vty, "    opcode %s", sid->sidstr);
-                if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END)
-				    vty_out(vty, " end");
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4)
-                {
-				    vty_out(vty, " end-dt4");
-                    vty_out(vty, " vrf %s", sid->vrfName);
-                }
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6)
-                {
-				    vty_out(vty, " end-dt6");
-                    vty_out(vty, " vrf %s", sid->vrfName);
-                }
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT46)
-                {
-				    vty_out(vty, " end-dt46");
-                    vty_out(vty, " vrf %s", sid->vrfName);
-                }
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X)
-                {
-				    vty_out(vty, " end-x");
-                    vty_out(vty, " interface %s", sid->ifname);
+				vty_out(vty, "    opcode %s", sid->sidstr);
+				if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END)
+					vty_out(vty, " end");
+				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4) {
+					vty_out(vty, " end-dt4");
+					vty_out(vty, " vrf %s", sid->vrfName);
+				}
+				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6) {
+					vty_out(vty, " end-dt6");
+					vty_out(vty, " vrf %s", sid->vrfName);
+				}
+				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT46) {
+					vty_out(vty, " end-dt46");
+					vty_out(vty, " vrf %s", sid->vrfName);
+				}
+				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
+					vty_out(vty, " end-x");
+					vty_out(vty, " interface %s", sid->ifname);
 					if (sid->nexthop.ipa_type == IPADDR_V4)
 						inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, buf, sizeof(buf));
 					else if (sid->nexthop.ipa_type == IPADDR_V6)
 						inet_ntop(AF_INET6, &sid->nexthop.ipaddr_v6, buf, sizeof(buf));
 					vty_out(vty, " nexthop %s", buf);
-                }
-				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UN && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT)
-						vty_out(vty, " end-next-csid");
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT4)
-                {
-				    vty_out(vty, " end-dt4-usid");
-                    vty_out(vty, " vrf %s", sid->vrfName);
-                }
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT6)
-                {
-				    vty_out(vty, " end-dt6-usid");
-                    vty_out(vty, " vrf %s", sid->vrfName);
-                }
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UDT46)
-                {
-				    vty_out(vty, " end-dt46-usid");
-                    vty_out(vty, " vrf %s", sid->vrfName);
-                }
-                else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_UA)
-                {
-				    vty_out(vty, " end-x-next-csid");
-                    vty_out(vty, " interface %s", sid->ifname);
-					if (sid->nexthop.ipa_type == IPADDR_V4)
-						inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, buf, sizeof(buf));
-					else if (sid->nexthop.ipa_type == IPADDR_V6)
-						inet_ntop(AF_INET6, &sid->nexthop.ipaddr_v6, buf, sizeof(buf));
-					vty_out(vty, " nexthop %s", buf);
-                }
-                vty_out(vty, "\n");
-            }
+				}
+				vty_out(vty, "\n");
+			}
 			vty_out(vty, "\n");
 			vty_out(vty, "   exit\n");
 			vty_out(vty, "   !\n");
