@@ -969,7 +969,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     unsigned char *buf;
     int msg_len = 0;
 
-    if (!hardwareBFD || CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_UNSUPPORT_OFFLOAD))
+    if (!hardwareBFD)
         return;
 
     /* Individual reg/dereg messages are suppressed during shutdown. 
