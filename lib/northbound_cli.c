@@ -229,6 +229,7 @@ static int nb_cli_apply_changes_internal(struct vty *vty,
 		vty_out(vty, "%% Failed to edit configuration.\n\n");
 		vty_out(vty, "%s",
 			yang_print_errors(ly_native_ctx, buf, sizeof(buf)));
+		return CMD_WARNING_CONFIG_FAILED;
 	}
 
 	/*
