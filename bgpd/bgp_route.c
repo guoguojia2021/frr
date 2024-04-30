@@ -620,6 +620,27 @@ bgp_static_check (struct bgp *bgp, struct bgp_path_info *pi,
 	return 0;
 }
 
+static int bgp_path_info_srv6_cmp_compatible(struct bgp_path_info *exist,
+					struct bgp_path_info *new, int debug)
+{
+	bool new_te = false;
+	bool exist_te = false;
+	if (new->te_nexthop && CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+		new_te = true;;
+	if (exist->te_nexthop && CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+		exist_te = true;
+	if (new->te_backup_nexthop && CHECK_FLAG(new->te_backup_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+		new_te = true;
+	if (exist->te_backup_nexthop && CHECK_FLAG(exist->te_backup_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+		exist_te = true;
+
+	if (new_te == true && exist_te == false)
+		return 1;
+	if (new_te == false && exist_te == true)
+		return 0;
+
+	return -1;
+}
 /* Compare two bgp route entity.  If 'new' is preferable over 'exist' return 1.
  */
 static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
@@ -1220,28 +1241,9 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 			peer_sort_ret = 0;
 		}
 	}
-
-    if (new->te_nexthop != NULL || exist->te_nexthop != NULL) {
-        if (debug)
-            zlog_debug(
-                "%s: %s and %s cannot be multipath, nexthop one is te while the other does not",
-                pfx_buf, new_buf, exist_buf);
-
-        if (new->te_nexthop == NULL) {
-            if (CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-                return 0;
-        } else if (exist->te_nexthop == NULL) {
-            if (CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-                return 1;
-        } else {
-            if (CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)
-            && !CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-                return 0;
-            if (!CHECK_FLAG(exist->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)
-            && CHECK_FLAG(new->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-                return 1;
-        }
-    }
+	ret = bgp_path_info_srv6_cmp_compatible(exist, new, debug);
+	if (ret >= 0)
+		return ret;
 
 	/* 11. Maximum path check. */
 	if (newm == existm) {

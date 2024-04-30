@@ -2526,10 +2526,15 @@ void zebra_nhg_free(struct nhg_hash_entry *nhe)
 
 void zebra_nhg_hash_free(void *p)
 {
-	zebra_nhg_release_all_deps((struct nhg_hash_entry *)p);
-	zebra_nhg_free((struct nhg_hash_entry *)p);
-	zebra_nhg_seg_release_all_deps((struct nhg_hash_entry *)p);
-	zebra_nhg_seg_free((struct nhg_hash_entry *)p);
+	struct nhg_hash_entry *nhe = (struct nhg_hash_entry *)p;
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
+		zebra_nhg_seg_release_all_deps(nhe);
+		zebra_nhg_seg_free(nhe);
+	}
+	else {
+		zebra_nhg_release_all_deps(nhe);
+		zebra_nhg_free(nhe);
+	}
 }
 
 void zebra_nhg_decrement_ref(struct nhg_hash_entry *nhe)
@@ -2595,12 +2600,6 @@ void zebra_nhg_seg_free(struct nhg_hash_entry *nhe)
 	zebra_nhg_seg_free_members(nhe);
 
 	XFREE(MTYPE_NHG, nhe);
-}
-
-void zebra_nhg_seg_hash_free(void *p)
-{
-	zebra_nhg_seg_release_all_deps((struct nhg_hash_entry *)p);
-	zebra_nhg_seg_free((struct nhg_hash_entry *)p);
 }
 
 void zebra_nhg_seg_decrement_ref(struct nhg_hash_entry *nhe)
