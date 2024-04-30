@@ -2112,7 +2112,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	uint8_t *payload;
 
 	struct ipaddr out_sip_addr = {0};
-	struct sockaddr_in6 dst_sin6;
+	struct sockaddr_in6 dst_sin6 = {0};
 	char buf_addr[INET6_ADDRSTRLEN] = {0};
 
 	memset(sendbuf, 0, sizeof(sendbuf));
@@ -2179,6 +2179,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	total_len += datalen;
 
     dst_sin6.sin6_family = AF_INET6;
+	dst_sin6.sin6_port = 0;         //we don't use sin6_port in raw, but should set to 0!!
     
 	/* message data. */
 	iov.iov_base = (uint8_t *)sendbuf;
