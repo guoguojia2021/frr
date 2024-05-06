@@ -352,6 +352,16 @@ int pathd_srte_policy_create(struct nb_cb_create_args *args)
 
 	color = yang_dnode_get_uint32(args->dnode, "color");
 	yang_dnode_get_prefix(&endpoint, args->dnode, "endpoint");
+
+	/* set prefixlen to 0 if address is 0.0.0.0 or :: */
+	if (endpoint.family == AF_INET && endpoint.u.prefix4.s_addr == INADDR_ANY
+		&& endpoint.prefixlen == IPV4_MAX_BITLEN)
+		endpoint.prefixlen = 0;
+
+	if (endpoint.family == AF_INET6 && IPV6_ADDR_SAME(&endpoint.u.prefix6, &in6addr_any)
+		&& endpoint.prefixlen == IPV6_MAX_BITLEN)
+		endpoint.prefixlen = 0;
+
 	policy = srte_policy_add(color, &endpoint, SRTE_ORIGIN_LOCAL, NULL);
 
 	nb_running_set_entry(args->dnode, policy);
