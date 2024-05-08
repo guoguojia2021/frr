@@ -297,10 +297,16 @@ static struct nhg_hash_entry *zebra_srv6_find_pic_nhe_by_policy(struct zebra_sr_
 }
 
 static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
-	char *sidlist_name, bool add)
+	char *sidlist_name, bool add, bool *skip_update_depend)
 {
-	struct nexthop *resolved_hop;
-	struct nexthop *delete_hop;
+	struct nexthop *resolved_hop = NULL;
+	struct nexthop *exist_hop = NULL;
+	char buf[NEXTHOP_STRLEN];
+
+	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+		zlog_debug("%s: nexthop %s add %s sidlist_name %s", __func__,
+			nexthop2str(nexthop, buf, sizeof(buf)),
+			add ? "true" : "false", sidlist_name);
 
 	resolved_hop = nexthop_new();
 	nexthop_copy_no_recurse(resolved_hop, nexthop, nexthop);
@@ -311,14 +317,22 @@ static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
 	resolved_hop->flags = 0;
 	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
 
-	if (add)
-		_nexthop_add_sorted(&nexthop->resolved, resolved_hop);
-	else {
-		delete_hop = nexthop_exists_in_list(nexthop->resolved, resolved_hop);
+	exist_hop = nexthop_exists_in_list(nexthop->resolved, resolved_hop);
 
-		if (delete_hop)
+	if (add)
+		if (exist_hop) {
+			if (IS_ZEBRA_DEBUG_NHT)
+				zlog_debug("nexthop %s already exists", nexthop2str(resolved_hop, buf, sizeof(buf)));
+
+			*skip_update_depend = true;
+			nexthop_free(resolved_hop);
+		} else {
+			_nexthop_add_sorted(&nexthop->resolved, resolved_hop);
+		}
+	else {
+		if (exist_hop)
 			nexthop_del(&nexthop->resolved, resolved_hop);
-		return delete_hop;
+		return exist_hop;
 	}
 
 	return resolved_hop;
@@ -336,7 +350,7 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 			continue;
 
 		policy_sid_name = policy->srv6_segment_list.sidlists[path_num].sidlist_name;
-		add_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, true);
+		add_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, true, &skip_update_depend);
 
 		if (skip_update_depend) {
 			if (IS_ZEBRA_DEBUG_NHG_DETAIL)
@@ -370,7 +384,7 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 			continue;
 
 		policy_sid_name = policy->srv6_segment_list.sidlists_old[path_num].sidlist_name;
-		del_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, false);
+		del_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, false, &skip_update_depend);
 
 		if (del_hop == NULL)
 			continue;
@@ -383,7 +397,7 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 				zlog_debug("%s:nhe id %d delete nexthop %pI6 color %d", __func__, nhe->id,
 					&del_hop->gate.ipv6, nexthop->srte_color);
 		}
-
+		nexthop_free(del_hop);
 		if (skip_update_depend) {
 			if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 				zlog_debug("%s: nhe id %d del nexthop skip:%s", __func__,
