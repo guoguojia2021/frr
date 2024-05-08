@@ -136,6 +136,10 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 			vty_out(vty, " source-ipv6 %s",
 				inet_ntop(AF_INET6, &bs->out_sip6, addr_buf,
 					sizeof(addr_buf)));
+			if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
+			{
+				vty_out(vty, " remote-discr %u", bs->discrs.remote_discr);
+			}
 		}
 		else
 		{

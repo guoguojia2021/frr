@@ -389,7 +389,7 @@ DEFPY_YANG(
 
 DEFPY_YANG_NOSH(
 	sbfd_init_peer_enter, sbfd_init_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-init local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-init local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (1-4294967295)$discr [{vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
