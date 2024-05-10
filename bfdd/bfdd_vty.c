@@ -336,6 +336,9 @@ static struct json_object *__display_peer_json(struct bfd_session *bs)
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		json_object_int_add(jo, "minimum-ttl", bs->mh_ttl);
 
+	if (bs->bfd_mode != BFD_MODE_TYPE_NONE)
+		json_object_string_add(jo, "bfd-name", bs->bfd_name);
+
 	switch (bs->ses_state) {
 	case PTM_BFD_ADM_DOWN:
 		json_object_string_add(jo, "status", "shutdown");
