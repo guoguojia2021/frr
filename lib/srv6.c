@@ -175,6 +175,36 @@ struct srv6_locator *srv6_locator_alloc(const char *name)
 	QOBJ_REG(locator, srv6_locator);
 	return locator;
 }
+
+void combine_hide_sid(struct srv6_locator *locator, struct in6_addr *sid_addr, struct in6_addr *result_addr, enum seg6local_sid_type_t sidtype)
+{
+	uint8_t idx = 0;
+	uint8_t funcid = 0;
+	uint8_t locatorbit = 0;
+	uint8_t totalbit = 0;
+	uint8_t funbit = 0;
+
+	if (sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {  // block:32 node:0 func:16
+		locatorbit = locator->block_bits_length / 8;
+		totalbit = (locator->block_bits_length + locator->function_bits_length + locator->argument_bits_length) / 8;
+		funbit = (locator->function_bits_length + locator->argument_bits_length) / 8;
+
+	} else if (sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) {  // block:32 node:16 func:0
+		locatorbit = (locator->block_bits_length + locator->node_bits_length) / 8;
+		totalbit = (locator->block_bits_length + locator->node_bits_length  + locator->argument_bits_length) / 8;
+		funbit = locator->argument_bits_length / 8;
+
+	} 
+	
+	for (idx = 0; idx < locatorbit; idx++) {
+		result_addr->s6_addr[idx] = locator->prefix.prefix.s6_addr[idx];
+	}
+	for (; idx < totalbit; idx++) {
+		result_addr->s6_addr[idx] = sid_addr->s6_addr[16 - funbit + funcid];
+		funcid++;
+	}
+}
+
 void combine_sid(struct srv6_locator *locator, struct in6_addr *sid_addr, struct in6_addr *result_addr)
 {
 	uint8_t idx = 0;

@@ -170,42 +170,12 @@ void zebra_srv6_locator_delete(struct srv6_locator *locator)
 	struct listnode *client_node;
 
 	for (ALL_LIST_ELEMENTS(locator->sids, n, nnode, sid)) {
-		if (locator->compress) {
-			if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) {
-				locator->block_bits_length = 32;
-				locator->node_bits_length = 16;
-				locator->function_bits_length = 0;
-			}
-			else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA) {
-				locator->block_bits_length = 32;
-				locator->node_bits_length = 16;
-				locator->function_bits_length = 16;
-			}
-			else if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
-				locator->block_bits_length = 32;
-				locator->node_bits_length = 0;
-				locator->function_bits_length = 16;
-			}
-
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-				zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
-			}
-			zebra_srv6_local_sid_del(locator, sid);
-			listnode_delete(locator->sids, sid);
-			srv6_locator_sid_free(sid);
-
-			locator->block_bits_length = 32;
-			locator->node_bits_length = 16;
-			locator->function_bits_length = 16;
+		for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
+			zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
 		}
-		else {
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-				zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
-			}
-			zebra_srv6_local_sid_del(locator, sid);
-			listnode_delete(locator->sids, sid);
-			srv6_locator_sid_free(sid);
-		}
+		zebra_srv6_local_sid_del(locator, sid);
+		listnode_delete(locator->sids, sid);
+		srv6_locator_sid_free(sid);
 	}
 
 	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client))
@@ -616,7 +586,11 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 	struct in6_addr result_sid = {0};
 	struct vrf *vrf;
 
-    combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+	if (locator->compress && ((sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) || (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA))) {
+		combine_hide_sid(locator, &sid->ipv6Addr.prefix, &result_sid, sid->sidtype);
+	} else {
+    	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+	}
 
 	vrf = vrf_lookup_by_name(sid->vrfName);
 	if (!vrf)
@@ -624,10 +598,21 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 
 	ctx.table = vrf->data.l.table_id;
 	act = sid->sidaction;
-    ctx.block_bits_length = locator->block_bits_length;
-    ctx.node_bits_length = locator->node_bits_length;
-    ctx.function_bits_length = locator->function_bits_length;
-    ctx.argument_bits_length = locator->argument_bits_length;
+
+	if (locator->compress && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) {
+		ctx.node_bits_length = locator->node_bits_length;
+		ctx.function_bits_length = 0;
+	} else if (locator->compress && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
+		ctx.node_bits_length = 0;
+		ctx.function_bits_length = locator->function_bits_length;		
+	} else {
+		ctx.node_bits_length = locator->node_bits_length;
+		ctx.function_bits_length = locator->function_bits_length;
+	}
+
+	ctx.block_bits_length = locator->block_bits_length;
+	ctx.argument_bits_length = locator->argument_bits_length;
+
     strncpy(ctx.vrfName, sid->vrfName, VRF_ALIASNAMESIZ + 1);
 
     if (CHECK_FLAG(vrf->status, VRF_ACTIVE)) {
@@ -646,16 +631,28 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
 	struct in6_addr result_sid = {0};
 	struct vrf *vrf;
 
-	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+	if (locator->compress && ((sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) || (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA))) {
+		combine_hide_sid(locator, &sid->ipv6Addr.prefix, &result_sid, sid->sidtype);
+	} else {
+		combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+	}
 
 	vrf = vrf_lookup_by_name(sid->vrfName);
 	if (!vrf)
 		return;
 
-	ctx.table = vrf->data.l.table_id;
+	if (locator->compress && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) {
+		ctx.node_bits_length = locator->node_bits_length;
+		ctx.function_bits_length = 0;
+	} else if (locator->compress && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
+		ctx.node_bits_length = 0;
+		ctx.function_bits_length = locator->function_bits_length;		
+	} else {
+		ctx.node_bits_length = locator->node_bits_length;
+		ctx.function_bits_length = locator->function_bits_length;
+	}
+	
 	ctx.block_bits_length = locator->block_bits_length;
-	ctx.node_bits_length = locator->node_bits_length;
-	ctx.function_bits_length = locator->function_bits_length;
 	ctx.argument_bits_length = locator->argument_bits_length;
 	act = sid->sidaction;
 
@@ -708,9 +705,19 @@ extern bool zebra_srv6_local_sid_format_valid(struct srv6_locator *locator, stru
 {
 	struct in6_addr result_sid = {0};
 	uint16_t sid_masklen = 0;
-	combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+
+	if (locator->compress && ((sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) || (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA))) {
+		combine_hide_sid(locator, &sid->ipv6Addr.prefix, &result_sid, sid->sidtype);
+		if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN) {
+			sid_masklen = locator->block_bits_length + locator->node_bits_length;
+		} else { //UA
+			sid_masklen = locator->block_bits_length  + locator->function_bits_length;
+		}
+	} else {
+		combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+		sid_masklen = (locator->format == SRV6_FORMAT_F1) ? 128 : locator->block_bits_length + locator->node_bits_length + locator->function_bits_length;
+	}
     
-	sid_masklen = (locator->format == SRV6_FORMAT_F1) ? 128 : locator->block_bits_length + locator->node_bits_length + locator->function_bits_length;
 	// Logic is the same as la_vrf_impl::verify_srv6_endpoint
 	// addr_msb
 	//uint32_t addr_0 = result_sid.s6_addr32[0];
