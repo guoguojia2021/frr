@@ -1388,6 +1388,82 @@ static const struct route_map_rule_cmd route_match_metric_cmd = {
 	route_value_free,
 };
 
+/* `match vrf_group VRF_GROUP' */
+static int str2vrfgroup(const char *str, uint32_t *vrf_group)
+{
+	char *p;
+	char *half = NULL;
+	uint32_t group = 0, position = 0;
+	int ret = 0;
+
+	p = strchr(str, ':');
+	if (!p)
+		goto out;
+
+	if (!all_digit(p+1))
+		goto out;
+
+	position = (uint32_t)atoi(p+1);
+
+	half = XMALLOC(MTYPE_TMP, (p - str) + 1);
+	memcpy(half, str, (p - str));
+	half[p - str] = '\0';
+
+	if (!all_digit(half))
+		goto out;
+
+	group = (uint32_t)atoi(half);
+
+	*vrf_group = (group << 16) + position;
+	ret = 1;
+
+out:
+	XFREE(MTYPE_TMP, half);
+	return ret;
+}
+
+static void *route_vrf_group_compile(const char *arg)
+{
+	uint32_t *vrf_group;
+	int ret;
+
+	vrf_group = XMALLOC(MTYPE_ROUTE_MAP_COMPILED, sizeof(uint32_t));
+
+	ret = str2vrfgroup(arg, vrf_group);
+	if (!ret) {
+		XFREE(MTYPE_ROUTE_MAP_COMPILED, vrf_group);
+		return NULL;
+	}
+	zlog_debug(
+			"%s: vrf_group: %u", __func__, *vrf_group);
+	return vrf_group;
+}
+
+static void *route_vrf_group_free(void *rule)
+{
+	XFREE(MTYPE_ROUTE_MAP_COMPILED, rule);
+}
+
+/* Match function return 1 if match is success else return zero. */
+static enum route_map_cmd_result_t
+route_match_vrf_group(void *rule, const struct prefix *prefix, void *object)
+{
+	struct rmap_value *rv;
+	struct bgp_path_info *path;
+
+	rv = rule;
+	path = object;
+	return route_value_match(rv, path->attr->vrf_group);
+}
+
+/* Route map commands for vrf_group matching. */
+static const struct route_map_rule_cmd route_match_vrf_group_cmd = {
+	"vrf-group",
+	route_match_vrf_group,
+	route_vrf_group_compile,
+	route_vrf_group_free,
+};
+
 /* `match as-path ASPATH' */
 
 /* Match function for as-path match.  I assume given object is */
@@ -2066,6 +2142,35 @@ static const struct route_map_rule_cmd route_set_metric_cmd = {
 	route_set_metric,
 	route_value_compile,
 	route_value_free,
+};
+
+/* `set vrf_group VRF_GROUP' */
+
+/* Set vrf_group to attribute. */
+static enum route_map_cmd_result_t
+route_set_vrf_group(void *rule, const struct prefix *prefix, void *object)
+{
+	uint32_t *vrf_group;
+	struct bgp_path_info *path;
+
+	/* Fetch routemap's rule information. */
+	vrf_group = rule;
+	path = object;
+
+	path->attr->vrf_group = *vrf_group;
+	path->attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_VRF_GROUP);
+	zlog_debug(
+			"%s: p=%pFX, vrf_group: %u", __func__, prefix, *vrf_group);
+
+	return RMAP_OKAY;
+}
+
+/* Set vrf_group rule structure. */
+static const struct route_map_rule_cmd route_set_vrf_group_cmd = {
+	"vrf-group",
+	route_set_vrf_group,
+	route_vrf_group_compile,
+	route_vrf_group_free,
 };
 
 /* `set table (1-4294967295)' */
@@ -7327,6 +7432,9 @@ void bgp_route_map_init(void)
     route_map_match_metric_hook(generic_match_add);
     route_map_no_match_metric_hook(generic_match_delete);
 
+    route_map_match_vrf_group_hook(generic_match_add);
+    route_map_no_match_vrf_group_hook(generic_match_delete);
+
     route_map_match_tag_hook(generic_match_add);
     route_map_no_match_tag_hook(generic_match_delete);
 
@@ -7341,6 +7449,9 @@ void bgp_route_map_init(void)
 
     route_map_set_metric_hook(generic_set_add);
     route_map_no_set_metric_hook(generic_set_delete);
+
+    route_map_set_vrf_group_hook(generic_set_add);
+    route_map_no_set_vrf_group_hook(generic_set_delete);
 
     route_map_set_tag_hook(generic_set_add);
     route_map_no_set_tag_hook(generic_set_delete);
@@ -7367,6 +7478,7 @@ void bgp_route_map_init(void)
     route_map_install_match(&route_match_ecommunity_cmd);
     route_map_install_match(&route_match_local_pref_cmd);
     route_map_install_match(&route_match_metric_cmd);
+    route_map_install_match(&route_match_vrf_group_cmd);
     route_map_install_match(&route_match_origin_cmd);
     route_map_install_match(&route_match_probability_cmd);
     route_map_install_match(&route_match_interface_cmd);
@@ -7388,6 +7500,7 @@ void bgp_route_map_init(void)
     route_map_install_set(&route_set_weight_cmd);
     route_map_install_set(&route_set_label_index_cmd);
     route_map_install_set(&route_set_metric_cmd);
+    route_map_install_set(&route_set_vrf_group_cmd);
     route_map_install_set(&route_set_distance_cmd);
     route_map_install_set(&route_set_aspath_prepend_cmd);
     route_map_install_set(&route_set_aspath_exclude_cmd);

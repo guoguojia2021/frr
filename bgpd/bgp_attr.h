@@ -338,6 +338,9 @@ struct attr {
 	/* If NEXTHOP_TYPE_BLACKHOLE, then blackhole type */
 	enum blackhole_type bh_type;
     vni_t vni;
+
+	/* higher 16bits for vrf group, lower 16bits for position in vrf group */
+	uint32_t vrf_group;
 };
 
 /* rmap_change_flags definition */

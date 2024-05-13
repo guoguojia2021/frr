@@ -410,6 +410,8 @@ extern int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS);
 #define ZAPI_MESSAGE_TABLEID 0x0100
 #define ZAPI_MESSAGE_SRTE 0x0200
 #define ZAPI_MESSAGE_OPAQUE 0x0400
+/* vrf group */
+#define ZAPI_MESSAGE_VRF_GROUP 0x0800
 
 #define ZSERV_VERSION 6
 /* Zserv protocol message header */
@@ -573,6 +575,10 @@ struct zapi_route {
  */
 #define ZEBRA_FLAG_KERNEL_BYPASS      0x1000
 #define ZEBRA_FLAG_POLICY_TO_VPN      0x2000
+/*
+ * This flag indicate the route entry contain a valid vrf group
+ */
+#define ZEBRA_FLAG_VRF_GROUP          0x4000
 
 	/* The older XXX_MESSAGE flags live here */
 	uint32_t message;
@@ -609,6 +615,8 @@ struct zapi_route {
 
 	/* SR-TE color (used for nexthop updates only). */
 	uint32_t srte_color;
+
+	uint32_t vrf_group;
 
 #define ZAPI_MESSAGE_OPAQUE_LENGTH 4094
 	struct {

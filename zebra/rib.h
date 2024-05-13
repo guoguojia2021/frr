@@ -137,6 +137,9 @@ struct route_entry {
 	/* VRF identifier. */
 	vrf_id_t vrf_id;
 
+	/* VRF group identifier */
+	uint32_t vrf_group;
+
 	/* Which routing table */
 	uint32_t table;
 

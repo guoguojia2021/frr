@@ -318,6 +318,24 @@ void route_map_no_match_metric_hook(int (*func)(
 	rmap_match_set_hook.no_match_metric = func;
 }
 
+/* match vrf_group */
+void route_map_match_vrf_group_hook(int (*func)(
+	struct route_map_index *index, const char *command,
+	const char *arg, route_map_event_t type,
+	char *errmsg, size_t errmsg_len))
+{
+	rmap_match_set_hook.match_vrf_group = func;
+}
+
+/* no match vrf_group */
+void route_map_no_match_vrf_group_hook(int (*func)(
+	struct route_map_index *index, const char *command,
+	const char *arg, route_map_event_t type,
+	char *errmsg, size_t errmsg_len))
+{
+	rmap_match_set_hook.no_match_vrf_group = func;
+}
+
 /* match tag */
 void route_map_match_tag_hook(int (*func)(struct route_map_index *index,
 					  const char *command, const char *arg,
@@ -407,6 +425,24 @@ void route_map_no_set_metric_hook(int (*func)(struct route_map_index *index,
 					      char *errmsg, size_t errmsg_len))
 {
 	rmap_match_set_hook.no_set_metric = func;
+}
+
+/* set vrf_group */
+void route_map_set_vrf_group_hook(int (*func)(struct route_map_index *index,
+					   const char *command,
+					   const char *arg,
+					   char *errmsg, size_t errmsg_len))
+{
+	rmap_match_set_hook.set_vrf_group = func;
+}
+
+/* no set vrf_group */
+void route_map_no_set_vrf_group_hook(int (*func)(struct route_map_index *index,
+					      const char *command,
+					      const char *arg,
+					      char *errmsg, size_t errmsg_len))
+{
+	rmap_match_set_hook.no_set_vrf_group = func;
 }
 
 /* set tag */

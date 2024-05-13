@@ -1479,6 +1479,8 @@ int zapi_route_encode(uint8_t cmd, struct stream *s, struct zapi_route *api)
 		stream_putl(s, api->mtu);
 	if (CHECK_FLAG(api->message, ZAPI_MESSAGE_TABLEID))
 		stream_putl(s, api->tableid);
+	if (CHECK_FLAG(api->message, ZAPI_MESSAGE_VRF_GROUP))
+		stream_putl(s, api->vrf_group);
 
 	if (CHECK_FLAG(api->message, ZAPI_MESSAGE_OPAQUE)) {
 		if (api->opaque.length > ZAPI_MESSAGE_OPAQUE_LENGTH) {
@@ -1736,6 +1738,8 @@ int zapi_route_decode(struct stream *s, struct zapi_route *api)
 		STREAM_GETL(s, api->mtu);
 	if (CHECK_FLAG(api->message, ZAPI_MESSAGE_TABLEID))
 		STREAM_GETL(s, api->tableid);
+	if (CHECK_FLAG(api->message, ZAPI_MESSAGE_VRF_GROUP))
+		STREAM_GETL(s, api->vrf_group);
 
 	if (CHECK_FLAG(api->message, ZAPI_MESSAGE_OPAQUE)) {
 		STREAM_GETW(s, api->opaque.length);

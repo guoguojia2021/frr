@@ -1268,6 +1268,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	uint64_t cum_bw = 0;
 	uint32_t nhg_id = 0;
 	bool is_add;
+	uint32_t vrf_group = 0;
 
 	/* Don't try to install if we're not connected to Zebra or Zebra doesn't
 	 * know of this instance.
@@ -1340,6 +1341,13 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
     */
 	/* Metric is currently based on the best-path only */
 	metric = info->attr->med;
+
+	/* Vrf group is based on the best-path only */
+	if (info->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_VRF_GROUP))
+	{
+		vrf_group = info->attr->vrf_group;
+		SET_FLAG(api.flags, ZEBRA_FLAG_VRF_GROUP);
+	}
 
 	/* Determine if we're doing weighted ECMP or not */
 	do_wt_ecmp = bgp_path_info_mpath_chkwtd(bgp, info);
@@ -1414,6 +1422,13 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			if (mpinfo == info) {
 				metric = mpinfo_cp->attr->med;
 				tag = mpinfo_cp->attr->tag;
+				/* vrf_group is only allowed to be
+				 * overridden on 1st nexthop */
+				if (mpinfo_cp->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_VRF_GROUP))
+				{
+					vrf_group = mpinfo_cp->attr->vrf_group;
+		            SET_FLAG(api.flags, ZEBRA_FLAG_VRF_GROUP);
+				}
 			}
 		}
 		if (mpinfo->te_nexthop && CHECK_FLAG(mpinfo->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
@@ -1588,6 +1603,14 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	if (tag) {
 		SET_FLAG(api.message, ZAPI_MESSAGE_TAG);
 		api.tag = tag;
+	}
+
+    if (info->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_VRF_GROUP)) {
+		SET_FLAG(api.message, ZAPI_MESSAGE_VRF_GROUP);
+		api.vrf_group = vrf_group;
+		zlog_debug(
+			"%s: p=%pFX, vrf_group=%u",
+			__func__, p, vrf_group);
 	}
 
 	distance = bgp_distance_apply(p, info, afi, safi, bgp);

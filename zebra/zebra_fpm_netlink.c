@@ -238,6 +238,7 @@ struct netlink_route_info {
 	struct prefix *prefix;
 	uint32_t *metric;
 	unsigned int num_nhs;
+	uint32_t *vrf_group;
 
 	/*
 	 * Nexthop structures
@@ -464,6 +465,7 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
 	ri->rtm_table = zvrf_id(rib_dest_vrf(dest));
 	ri->rtm_protocol = RTPROT_UNSPEC;
 
+
 	/*
 	 * An RTM_DELROUTE need not be accompanied by any nexthops,
 	 * particularly in our communication with the FPM.
@@ -479,6 +481,8 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
 	ri->rtm_protocol = netlink_proto_from_route_type(re->type);
 	ri->rtm_type = RTN_UNICAST;
 	ri->metric = &re->metric;
+	if (CHECK_FLAG(re->flags, ZEBRA_FLAG_VRF_GROUP))
+		ri->vrf_group = &re->vrf_group;
 
 	for (ALL_NEXTHOPS(re->nhe->nhg, nexthop)) {
 		if (ri->num_nhs >= zrouter.multipath_num)
@@ -614,6 +618,13 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 	/* Metric. */
 	if (ri->metric)
 		nl_attr_put32(&req->n, in_buf_len, RTA_PRIORITY, *ri->metric);
+
+	if (ri->vrf_group) {
+		nl_attr_put32(&req->n, in_buf_len, RTA_SESSION, *ri->vrf_group);
+		zlog_debug(
+			"%s: %s %pFX vrf_group:%d", __func__,
+			nl_msg_type_to_str(ri->nlmsg_type), ri->prefix, *ri->vrf_group);
+	}
 
 	if (ri->num_nhs == 0)
 		goto done;
@@ -859,10 +870,10 @@ static void zfpm_log_route_info(struct netlink_route_info *ri,
 	char buf[PREFIX_STRLEN] = {0};
     uint8_t af = AF_UNSPEC;
 
-	zfpm_debug("%s : %s %pFX, Proto: %s, Metric: %u", label,
+	zfpm_debug("%s : %s %pFX, Proto: %s, Metric: %u, Vrf Group: %u", label,
 			nl_msg_type_to_str(ri->nlmsg_type), ri->prefix,
 			nl_rtproto_to_str(ri->rtm_protocol),
-			ri->metric ? *ri->metric : 0);
+			ri->metric ? *ri->metric : 0, ri->vrf_group);
 
 	for (i = 0; i < ri->num_nhs; i++) {
 		nhi = &ri->nhs[i];

@@ -369,6 +369,9 @@ const struct nexthop_group *dplane_ctx_get_ng(
 const struct nexthop_group *dplane_ctx_get_old_ng(
 	const struct zebra_dplane_ctx *ctx);
 
+uint32_t dplane_ctx_get_vrf_group(const struct zebra_dplane_ctx *ctx);
+void dplane_ctx_set_vrf_group(struct zebra_dplane_ctx *ctx, uint32_t vrf_group);
+
 /* Optional extra info about interfaces in nexthops - a plugin must enable
  * this extra info.
  */

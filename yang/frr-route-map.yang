@@ -130,6 +130,12 @@ module frr-route-map {
       "Match a route metric";
   }
 
+  identity match-vrf-group {
+    base rmap-match-type;
+    description
+      "Match a route vrf-group";
+  }
+
   identity match-tag {
     base rmap-match-type;
     description
@@ -157,6 +163,12 @@ module frr-route-map {
     base rmap-set-type;
     description
       "Set prefix/route metric";
+  }
+
+  identity set-vrf-group {
+    base rmap-set-type;
+    description
+      "Set prefix/route vrf-group";
   }
 
   identity set-tag {
@@ -251,6 +263,13 @@ module frr-route-map {
           }
         }
 
+        case match-vrf-group {
+          when "derived-from-or-self(../condition, 'match-vrf-group')";
+          leaf vrf-group {
+            type string;
+          }
+        }
+
         case match-tag {
           when "derived-from-or-self(../condition, 'match-tag')";
           leaf tag {
@@ -342,6 +361,15 @@ module frr-route-map {
                   "Subtract round trip time to metric";
               }
             }
+          }
+        }
+
+        case set-vrf-group {
+          when "derived-from-or-self(../action, 'set-vrf-group')";
+          leaf vrf-group {
+            type string;
+            description
+              "Route vrf-group value";
           }
         }
 

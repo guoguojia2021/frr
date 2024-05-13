@@ -578,6 +578,11 @@ int zebra_rib_labeled_unicast(struct route_entry *re)
 static bool check_update_fib(struct route_entry *old,
 				   struct route_entry *new)
 {
+	if (CHECK_FLAG(old->flags, ZEBRA_FLAG_VRF_GROUP) != CHECK_FLAG(new->flags, ZEBRA_FLAG_VRF_GROUP))
+		// vrf group enable or disable
+		return true;
+	if (old->vrf_group != new->vrf_group)
+		return true;
 	if (old->nhe && !new->nhe)
 		return false;
 	if (!old->nhe && new->nhe)
@@ -3854,9 +3859,9 @@ void _route_entry_dump(const char *func, union prefixconstptr pp,
 		   is_srcdst ? prefix2str(src_pp, srcaddr, sizeof(srcaddr))
 			     : "",
 		   VRF_LOGNAME(vrf), re->vrf_id);
-	zlog_debug("%s: uptime == %lu, type == %u, instance == %d, table == %d",
+	zlog_debug("%s: uptime == %lu, type == %u, instance == %d, table == %d, vrf_group == %d",
 		   straddr, (unsigned long)re->uptime, re->type, re->instance,
-		   re->table);
+		   re->table, re->vrf_group);
 	zlog_debug(
 		"%s: metric == %u, mtu == %u, distance == %u, flags == %sstatus == %s",
 		straddr, re->metric, re->mtu, re->distance,

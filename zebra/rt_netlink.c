@@ -2100,6 +2100,21 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 		}
 	}
 #endif
+	{
+		uint32_t vrf_group;
+		vrf_group = dplane_ctx_get_vrf_group(ctx);
+		if (IS_ZEBRA_DEBUG_KERNEL)
+			zlog_debug(
+				"%s: %s %pFX vrf %u(%u), fpm:%d, vrf_group:%d", __func__,
+				nl_msg_type_to_str(cmd), p, dplane_ctx_get_vrf(ctx),
+				table_id, fpm, vrf_group);
+
+		if (vrf_group != 0) {
+			if (!nl_attr_put32(&req->n, datalen, RTA_SESSION,
+				   vrf_group))
+				return 0;
+		}
+	}
 	/* Table corresponding to this route. */
 
 	table_id = dplane_ctx_get_table(ctx);

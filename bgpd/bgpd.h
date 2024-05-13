@@ -1898,6 +1898,7 @@ struct bgp_nlri {
 #define BGP_ATTR_PREFIX_SID                     40
 #define BGP_ATTR_SRTE_COLOR                     51
 #define BGP_ATTR_AS_OVERWRITE                   52
+#define BGP_ATTR_VRF_GROUP                      53
 #ifdef ENABLE_BGP_VNC_ATTR
 #define BGP_ATTR_VNC                           255
 #endif

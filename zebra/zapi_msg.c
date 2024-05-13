@@ -641,6 +641,10 @@ int zsend_redistribute_route(int cmd, struct zserv *client,
 	}
 	SET_FLAG(api.message, ZAPI_MESSAGE_MTU);
 	api.mtu = re->mtu;
+	if (re->vrf_group) {
+		SET_FLAG(api.message, ZAPI_MESSAGE_VRF_GROUP);
+		api.vrf_group = re->vrf_group;
+	}
 
 	struct stream *s = stream_new(stream_size);
 
@@ -2168,6 +2172,8 @@ static void zread_route_add(ZAPI_HANDLER_ARGS)
 		re->tag = api.tag;
 	if (CHECK_FLAG(api.message, ZAPI_MESSAGE_MTU))
 		re->mtu = api.mtu;
+	if (CHECK_FLAG(api.message, ZAPI_MESSAGE_VRF_GROUP))
+		re->vrf_group = api.vrf_group;
 
 	if (CHECK_FLAG(api.message, ZAPI_MESSAGE_OPAQUE)) {
 		re->opaque = XMALLOC(MTYPE_OPAQUE,

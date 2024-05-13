@@ -485,6 +485,8 @@ const char *rtm_rta2str(int type)
 		return "MFC_STATS";
 	case RTA_NH_ID:
 		return "NH_ID";
+	case RTA_SESSION:
+		return "SESSION";
 	default:
 		return "UNKNOWN";
 	}
@@ -869,6 +871,7 @@ next_rta:
 	case RTA_PRIORITY:
 	case RTA_TABLE:
 	case RTA_NH_ID:
+	case RTA_SESSION:
 		u32v = *(uint32_t *)RTA_DATA(rta);
 		zlog_debug("      %u", u32v);
 		break;

@@ -845,6 +845,49 @@ lib_route_map_entry_match_condition_tag_destroy(struct nb_cb_destroy_args *args)
 }
 
 /*
+ * XPath: /frr-route-map:lib/route-map/entry/match-condition/vrf-group
+ */
+static int
+lib_route_map_entry_match_condition_vrf_group_modify(struct nb_cb_modify_args *args)
+{
+	struct routemap_hook_context *rhc;
+	const char *vrf_group;
+	int rv;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	/* Check for hook function. */
+	if (rmap_match_set_hook.match_vrf_group == NULL)
+		return NB_OK;
+
+	/* Add configuration. */
+	rhc = nb_running_get_entry(args->dnode, NULL, true);
+	vrf_group = yang_dnode_get_string(args->dnode, NULL);
+
+	/* Set destroy information. */
+	rhc->rhc_mhook = rmap_match_set_hook.no_match_vrf_group;
+	rhc->rhc_rule = "vrf-group";
+	rhc->rhc_event = RMAP_EVENT_MATCH_DELETED;
+
+	rv = rmap_match_set_hook.match_vrf_group(rhc->rhc_rmi, "vrf-group", vrf_group,
+					   RMAP_EVENT_MATCH_ADDED,
+					   args->errmsg, args->errmsg_len);
+	if (rv != CMD_SUCCESS) {
+		rhc->rhc_mhook = NULL;
+		return NB_ERR_INCONSISTENCY;
+	}
+
+	return NB_OK;
+}
+
+static int
+lib_route_map_entry_match_condition_vrf_group_destroy(struct nb_cb_destroy_args *args)
+{
+	return lib_route_map_entry_match_destroy(args);
+}
+
+/*
  * XPath: /frr-route-map:lib/route-map/entry/set-action
  */
 static int lib_route_map_entry_set_action_create(struct nb_cb_create_args *args)
@@ -1194,6 +1237,52 @@ lib_route_map_entry_set_action_tag_destroy(struct nb_cb_destroy_args *args)
 }
 
 /*
+ * XPath: /frr-route-map:lib/route-map/entry/set-action/vrf-group
+ */
+static int
+lib_route_map_entry_set_action_vrf_group_modify(struct nb_cb_modify_args *args)
+{
+	struct routemap_hook_context *rhc;
+	const char *vrf_group;
+	int rv;
+
+	/*
+	 * NOTE: validate if 'action' is 'vrf_group', currently it is not
+	 * necessary because this is the only implemented action. Other
+	 * actions might have different validations.
+	 */
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	/* Check for hook function. */
+	if (rmap_match_set_hook.set_vrf_group == NULL)
+		return NB_OK;
+
+	/* Add configuration. */
+	rhc = nb_running_get_entry(args->dnode, NULL, true);
+	vrf_group = yang_dnode_get_string(args->dnode, NULL);
+
+	/* Set destroy information. */
+	rhc->rhc_shook = rmap_match_set_hook.no_set_vrf_group;
+	rhc->rhc_rule = "vrf-group";
+
+	rv = rmap_match_set_hook.set_vrf_group(rhc->rhc_rmi, "vrf-group", vrf_group,
+					 args->errmsg, args->errmsg_len);
+	if (rv != CMD_SUCCESS) {
+		rhc->rhc_shook = NULL;
+		return NB_ERR_INCONSISTENCY;
+	}
+
+	return NB_OK;
+}
+
+static int
+lib_route_map_entry_set_action_vrf_group_destroy(struct nb_cb_destroy_args *args)
+{
+	return lib_route_map_entry_set_destroy(args);
+}
+
+/*
  * XPath: /frr-route-map:lib/route-map/entry/set-action/policy
  */
 static int
@@ -1347,6 +1436,13 @@ const struct frr_yang_module_info frr_route_map_info = {
 			}
 		},
 		{
+			.xpath = "/frr-route-map:lib/route-map/entry/match-condition/rmap-match-condition/vrf-group",
+			.cbs = {
+				.modify = lib_route_map_entry_match_condition_vrf_group_modify,
+				.destroy = lib_route_map_entry_match_condition_vrf_group_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-route-map:lib/route-map/entry/match-condition/rmap-match-condition/tag",
 			.cbs = {
 				.modify = lib_route_map_entry_match_condition_tag_modify,
@@ -1415,6 +1511,13 @@ const struct frr_yang_module_info frr_route_map_info = {
 			.cbs = {
 				.modify = lib_route_map_entry_set_action_subtract_round_trip_time_modify,
 				.destroy = lib_route_map_entry_set_action_subtract_round_trip_time_destroy,
+			}
+		},
+		{
+			.xpath = "/frr-route-map:lib/route-map/entry/set-action/rmap-set-action/vrf-group",
+			.cbs = {
+				.modify = lib_route_map_entry_set_action_vrf_group_modify,
+				.destroy = lib_route_map_entry_set_action_vrf_group_destroy,
 			}
 		},
 		{

@@ -505,6 +505,41 @@ DEFPY_YANG(
 }
 
 DEFPY_YANG(
+	match_vrf_group, match_vrf_group_cmd,
+	"match vrf-group WORD$group",
+	MATCH_STR
+	"Match vrf-group of route\n"
+	"Vrf_Group value\n")
+{
+	const char *xpath =
+		"./match-condition[condition='frr-route-map:match-vrf-group']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-match-condition/vrf-group", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY, group);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(
+	no_match_vrf_group, no_match_vrf_group_cmd,
+	"no match vrf-group [WORD]",
+	NO_STR
+	MATCH_STR
+	"Match vrf_group of route\n"
+	"Vrf_Group value\n")
+{
+	const char *xpath =
+		"./match-condition[condition='frr-route-map:match-vrf-group']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(
 	match_tag, match_tag_cmd,
 	"match tag (1-4294967295)$tag",
 	MATCH_STR
@@ -596,6 +631,10 @@ void route_map_condition_show(struct vty *vty, const struct lyd_node *dnode,
 		vty_out(vty, " match metric %s\n",
 			yang_dnode_get_string(dnode,
 					      "./rmap-match-condition/metric"));
+	} else if (IS_MATCH_VRF_GROUP(condition)) {
+		vty_out(vty, " match vrf-group %s\n",
+			yang_dnode_get_string(dnode,
+					      "./rmap-match-condition/vrf-group"));
 	} else if (IS_MATCH_TAG(condition)) {
 		vty_out(vty, " match tag %s\n",
 			yang_dnode_get_string(dnode,
@@ -902,6 +941,39 @@ DEFPY_YANG(
 }
 
 DEFPY_YANG(
+	set_vrf_group, set_vrf_group_cmd,
+	"set vrf-group WORD$group",
+	SET_STR
+	"Vrf-Group value for routing protocol\n"
+	"Vrf-Group value\n")
+{
+	const char *xpath = "./set-action[action='frr-route-map:set-vrf-group']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value), "%s/rmap-set-action/vrf-group",
+		 xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY, group);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(
+	no_set_vrf_group, no_set_vrf_group_cmd,
+	"no set vrf-group [WORD]",
+	NO_STR
+	SET_STR
+	"Vrf_Group value for routing protocol\n"
+	"Vrf_Group value\n")
+{
+	const char *xpath = "./set-action[action='frr-route-map:set-vrf-group']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(
 	set_tag, set_tag_cmd,
 	"set tag (1-4294967295)$tag",
 	SET_STR
@@ -1022,6 +1094,9 @@ void route_map_action_show(struct vty *vty, const struct lyd_node *dnode,
 				yang_dnode_get_string(
 					dnode, "./rmap-set-action/value"));
 		}
+	} else if (IS_SET_VRF_GROUP(action)) {
+		vty_out(vty, " set vrf-group %s\n",
+            yang_dnode_get_string(dnode, "rmap-set-action/vrf-group"));
 	} else if (IS_SET_TAG(action)) {
 		vty_out(vty, " set tag %s\n",
 			yang_dnode_get_string(dnode, "rmap-set-action/tag"));
@@ -1610,6 +1685,9 @@ void route_map_cli_init(void)
 	install_element(RMAP_NODE, &match_metric_cmd);
 	install_element(RMAP_NODE, &no_match_metric_cmd);
 
+	install_element(RMAP_NODE, &match_vrf_group_cmd);
+	install_element(RMAP_NODE, &no_match_vrf_group_cmd);
+
 	install_element(RMAP_NODE, &match_tag_cmd);
 	install_element(RMAP_NODE, &no_match_tag_cmd);
 
@@ -1622,6 +1700,9 @@ void route_map_cli_init(void)
 
 	install_element(RMAP_NODE, &set_metric_cmd);
 	install_element(RMAP_NODE, &no_set_metric_cmd);
+
+	install_element(RMAP_NODE, &set_vrf_group_cmd);
+	install_element(RMAP_NODE, &no_set_vrf_group_cmd);
 
 	install_element(RMAP_NODE, &set_tag_cmd);
 	install_element(RMAP_NODE, &no_set_tag_cmd);

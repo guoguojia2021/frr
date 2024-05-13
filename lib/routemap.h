@@ -260,6 +260,8 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(C, "frr-route-map:ipv6-next-hop-type"))
 #define IS_MATCH_METRIC(C)                                                     \
 	(strmatch(C, "frr-route-map:match-metric"))
+#define IS_MATCH_VRF_GROUP(C)                                                     \
+	(strmatch(C, "frr-route-map:match-vrf-group"))
 #define IS_MATCH_TAG(C) (strmatch(C, "frr-route-map:match-tag"))
 /* Zebra route-map match conditions */
 #define IS_MATCH_IPv4_PREFIX_LEN(C)                                            \
@@ -322,6 +324,8 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(A, "frr-route-map:ipv6-next-hop"))
 #define IS_SET_METRIC(A)                                                       \
 	(strmatch(A, "frr-route-map:set-metric"))
+#define IS_SET_VRF_GROUP(A)                                                       \
+	(strmatch(A, "frr-route-map:set-vrf-group"))
 #define IS_SET_TAG(A) (strmatch(A, "frr-route-map:set-tag"))
 #define IS_SET_SR_TE_COLOR(A)                                                  \
 	(strmatch(A, "frr-route-map:set-sr-te-color"))
@@ -656,6 +660,16 @@ extern void route_map_no_match_metric_hook(int (*func)(
 	struct route_map_index *index, const char *command,
 	const char *arg, route_map_event_t type,
 	char *errmsg, size_t errmsg_len));
+/* match vrf_group */
+extern void route_map_match_vrf_group_hook(int (*func)(
+	struct route_map_index *index, const char *command,
+	const char *arg, route_map_event_t type,
+	char *errmsg, size_t errmsg_len));
+/* no match vrf_group */
+extern void route_map_no_match_vrf_group_hook(int (*func)(
+	struct route_map_index *index, const char *command,
+	const char *arg, route_map_event_t type,
+	char *errmsg, size_t errmsg_len));
 /* match tag */
 extern void route_map_match_tag_hook(int (*func)(
 	struct route_map_index *index, const char *command,
@@ -704,6 +718,17 @@ extern void route_map_set_metric_hook(int (*func)(struct route_map_index *index,
 						  size_t errmsg_len));
 /* no set metric */
 extern void route_map_no_set_metric_hook(
+	int (*func)(struct route_map_index *index,
+		    const char *command, const char *arg,
+		    char *errmsg, size_t errmsg_len));
+/* set vrf_group */
+extern void route_map_set_vrf_group_hook(int (*func)(struct route_map_index *index,
+						  const char *command,
+						  const char *arg,
+						  char *errmsg,
+						  size_t errmsg_len));
+/* no set vrf_group */
+extern void route_map_no_set_vrf_group_hook(
 	int (*func)(struct route_map_index *index,
 		    const char *command, const char *arg,
 		    char *errmsg, size_t errmsg_len));
@@ -892,6 +917,18 @@ struct route_map_match_set_hooks {
 			       route_map_event_t type,
 			       char *errmsg, size_t errmsg_len);
 
+	/* match vrf_group */
+	int (*match_vrf_group)(struct route_map_index *index,
+			    const char *command, const char *arg,
+			    route_map_event_t type,
+			    char *errmsg, size_t errmsg_len);
+
+	/* no match vrf_group */
+	int (*no_match_vrf_group)(struct route_map_index *index,
+			       const char *command, const char *arg,
+			       route_map_event_t type,
+			       char *errmsg, size_t errmsg_len);
+
 	/* match tag */
 	int (*match_tag)(struct route_map_index *index,
 			 const char *command, const char *arg,
@@ -941,6 +978,16 @@ struct route_map_match_set_hooks {
 
 	/* no set metric */
 	int (*no_set_metric)(struct route_map_index *index,
+			     const char *command, const char *arg,
+			     char *errmsg, size_t errmsg_len);
+
+	/* set vrf_group */
+	int (*set_vrf_group)(struct route_map_index *index,
+			  const char *command, const char *arg,
+			  char *errmsg, size_t errmsg_len);
+
+	/* no set vrf_group */
+	int (*no_set_vrf_group)(struct route_map_index *index,
 			     const char *command, const char *arg,
 			     char *errmsg, size_t errmsg_len);
 

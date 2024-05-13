@@ -2497,6 +2497,11 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 					__func__, bgp_vrf->name_pretty,
 					bgp_vrf->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN]->name);
 			return 0;
+		} else {
+			zlog_debug(
+                    "%s: evpn, vrf %s route map \"%s\" says MATCH, vrf_group %u",
+					__func__, bgp_vrf->name_pretty,
+					bgp_vrf->evpn_policy.rmap[BGP_EVPN_POLICY_DIR_TOVRF_FROMEVPN]->name, static_attr.vrf_group);
 		}
 	}
 
@@ -2506,7 +2511,7 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 	 * address for the rest of the code to flow through. In the case of IPv4,
 	 * make sure to set the flag for next hop attribute.
 	 */
-	attr = *parent_pi->attr;
+	attr = static_attr;
 	if (attr.evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP) {
 		if (afi == AFI_IP6)
 			evpn_convert_nexthop_to_ipv6(&attr);

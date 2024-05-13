@@ -124,6 +124,8 @@ struct dplane_route_info {
 	uint32_t zd_metric;
 	uint32_t zd_old_metric;
 
+	uint32_t zd_vrf_group;
+
 	uint16_t zd_instance;
 	uint16_t zd_old_instance;
 
@@ -1338,6 +1340,20 @@ route_tag_t dplane_ctx_get_old_tag(const struct zebra_dplane_ctx *ctx)
 	return ctx->u.rinfo.zd_old_tag;
 }
 
+uint32_t dplane_ctx_get_vrf_group(const struct zebra_dplane_ctx *ctx)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	return ctx->u.rinfo.zd_vrf_group;
+}
+
+void dplane_ctx_set_vrf_group(struct zebra_dplane_ctx *ctx, uint32_t vrf_group)
+{
+	DPLANE_CTX_VALID(ctx);
+
+	ctx->u.rinfo.zd_vrf_group = vrf_group;
+}
+
 uint16_t dplane_ctx_get_instance(const struct zebra_dplane_ctx *ctx)
 {
 	DPLANE_CTX_VALID(ctx);
@@ -2453,6 +2469,7 @@ int dplane_ctx_route_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	ctx->u.rinfo.zd_flags = re->flags;
 	ctx->u.rinfo.zd_metric = re->metric;
 	ctx->u.rinfo.zd_old_metric = re->metric;
+	ctx->u.rinfo.zd_vrf_group = re->vrf_group;
 	ctx->zd_vrf_id = re->vrf_id;
 	ctx->u.rinfo.zd_mtu = re->mtu;
 	ctx->u.rinfo.zd_nexthop_mtu = re->nexthop_mtu;
