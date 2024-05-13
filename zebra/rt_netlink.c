@@ -2607,8 +2607,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				/* Don't need anymore info for this */
 				break;
 			}
-
-			if (IS_ZEBRA_DEBUG_KERNEL)
+			if (IS_ZEBRA_DEBUG_FPMSYNCD)
 				zlog_debug("%s: ID (%u): %pNHv(%d) vrf %s(%u) sidlist_name %s fpm %s flag %d",
 						__func__, id, nh, nh->ifindex,
 						vrf_id_to_name(nh->vrf_id),
@@ -2857,8 +2856,7 @@ nexthop_done:
 			cmd);
 		return -1;
 	}
-
-	if (IS_ZEBRA_DEBUG_KERNEL)
+	if (IS_ZEBRA_DEBUG_FPMSYNCD)
 		zlog_debug("%s: %s, id=%u", __func__, nl_msg_type_to_str(cmd),
 			   id);
 

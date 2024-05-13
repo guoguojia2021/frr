@@ -4039,6 +4039,7 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 	struct nhg_segment *rb_node_dep = NULL;
 	struct nhg_hash_entry *depend = NULL;
 	uint8_t i = curr_index;
+	uint32_t id = 0;
 
 	frr_each(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
 		bool duplicate = false;
@@ -4047,8 +4048,8 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 			goto done;
 
 		depend = rb_node_dep->nhe;
-
-		if (IS_ZEBRA_DEBUG_RIB_DETAILED || IS_ZEBRA_DEBUG_NHG)
+		id = depend->id;
+		if (IS_ZEBRA_DEBUG_FPMSYNCD)
 			zlog_debug("%s: depend id=%d flags=0x%x", __func__, depend->id, depend->flags);
 
 		if (!zebra_nhg_segdepends_is_empty(depend)) {
@@ -4056,23 +4057,9 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 			i = zebra_nhg_seg_nhe2grp_internal(grp, i, depend, max_num);
 		} else {
 			if (!CHECK_FLAG(depend->flags, NEXTHOP_GROUP_VALID)) {
-
-				if (IS_ZEBRA_DEBUG_RIB_DETAILED || IS_ZEBRA_DEBUG_NHG)
+				if (IS_ZEBRA_DEBUG_FPMSYNCD)
 					zlog_debug(
 						"%s: Segment Nexthop ID (%u) not valid, not appending to dataplane install group",
-						__func__, depend->id);
-				continue;
-			}
-
-			/* If the nexthop not installed/queued for install don't
-			 * put in the ID array.
-			 */
-			if (!(CHECK_FLAG(depend->flags, NEXTHOP_GROUP_INSTALLED)
-			      || CHECK_FLAG(depend->flags, NEXTHOP_GROUP_QUEUED))) {
-
-				if (IS_ZEBRA_DEBUG_RIB_DETAILED || IS_ZEBRA_DEBUG_NHG)
-					zlog_debug(
-						"%s: Segment Nexthop ID (%u) not installed or queued for install, not appending to dataplane install group",
 						__func__, depend->id);
 				continue;
 			}
@@ -4086,7 +4073,7 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 			}
 
 			if (duplicate) {
-				if (IS_ZEBRA_DEBUG_RIB_DETAILED || IS_ZEBRA_DEBUG_NHG)
+				if (IS_ZEBRA_DEBUG_FPMSYNCD)
 					zlog_debug(
 						"%s: Segment Nexthop ID (%u) is duplicate, not appending to dataplane install group",
 						__func__, depend->id);
@@ -4096,9 +4083,8 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 			grp[i].id = depend->id;
 			grp[i].weight = depend->nhg.nexthop->weight;
 			i++;
-
-			if (IS_ZEBRA_DEBUG_RIB_DETAILED || IS_ZEBRA_DEBUG_NHG)
-				zlog_debug("%s: grp[%d] id=%d ", __func__, i, depend->id);
+			if (IS_ZEBRA_DEBUG_FPMSYNCD)
+				zlog_debug("%s: group id %d grp[%d] id=%d ", __func__, id, i, depend->id);
 		}
 	}
 
@@ -4228,8 +4214,7 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 	}
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID)
-		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)
-		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)) {
+		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)) {
 		/* Change its type to us since we are installing it */
 		if (!ZEBRA_NHG_CREATED(nhe))
 			nhe->type = ZEBRA_ROUTE_NHG;
@@ -4246,7 +4231,6 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 
 		switch (ret) {
 		case ZEBRA_DPLANE_REQUEST_QUEUED:
-			SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 			break;
 		case ZEBRA_DPLANE_REQUEST_FAILURE:
 			flog_err(
@@ -4276,12 +4260,10 @@ void zebra_nhg_seg_policy_to_vpn(struct nhg_hash_entry *nhe)
 	}
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID)
-		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)
-		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)) {
+		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)) {
 		ret = dplane_nexthop_add(nhe);
 		switch (ret) {
 		case ZEBRA_DPLANE_REQUEST_QUEUED:
-			SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 			break;
 		case ZEBRA_DPLANE_REQUEST_FAILURE:
 			flog_err(
