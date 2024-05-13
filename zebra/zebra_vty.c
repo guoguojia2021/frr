@@ -1069,6 +1069,8 @@ static void vty_show_ip_route(struct vty *vty, struct route_node *rn,
 				    re->distance);
 		json_object_int_add(json_route, "metric", re->metric);
 
+		json_object_int_add(json_route, "vrf_group", re->vrf_group);
+
 		if (CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED))
 			json_object_boolean_true_add(json_route, "installed");
 
@@ -1191,6 +1193,9 @@ static void vty_show_ip_route(struct vty *vty, struct route_node *rn,
 		len += vty_out(vty, " (%u)", re->nhe_id);
 		len += vty_out(vty, " (pic_nh %u)", re->pic_nhe_id);
 	}
+
+	if (CHECK_FLAG(re->flags, ZEBRA_FLAG_VRF_GROUP))
+		len += vty_out(vty, " (vrf_group %u:%u)", re->vrf_group >> 16, re->vrf_group % 65536);
 
 	/* Nexthop information. */
 	for (ALL_NEXTHOPS_PTR(nhg, nexthop)) {
