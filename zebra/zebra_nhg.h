@@ -364,6 +364,7 @@ extern uint8_t zebra_nhg_seg_nhe2grp(struct nh_grp *grp, struct nhg_hash_entry *
 extern void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe);
+extern void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_policy_to_vpn(struct nhg_hash_entry *nhe);
 /* Forward ref of dplane update context type */

@@ -2615,7 +2615,7 @@ void zebra_nhg_seg_decrement_ref(struct nhg_hash_entry *nhe)
 		nhg_segment_tree_decrement_ref(&nhe->nhg_segdepends);*/
 
 	if (ZEBRA_NHG_CREATED(nhe) && nhe->segment_ref <= 0)
-		zebra_nhg_uninstall_kernel(nhe);
+		zebra_nhg_seg_uninstall_kernel(nhe);
 }
 
 void zebra_nhg_seg_increment_ref(struct nhg_hash_entry *nhe)
@@ -4304,11 +4304,33 @@ void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe)
 			break;
 		}
 	}
+	zebra_nhg_handle_uninstall(nhe);
+}
 
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
-		zebra_nhg_seg_handle_uninstall(nhe);
+void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe)
+{
+	int ret = 0;
+
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT) || !nhe->pic_nhe)
+		ret = dplane_nexthop_delete(nhe);
 	else
-		zebra_nhg_handle_uninstall(nhe);
+		ret = dplane_pic_context_delete(nhe);
+
+	switch (ret) {
+	case ZEBRA_DPLANE_REQUEST_QUEUED:
+		break;
+	case ZEBRA_DPLANE_REQUEST_FAILURE:
+		flog_err(
+			EC_ZEBRA_DP_DELETE_FAIL,
+			"Failed to uninstall Nexthop ID (%u) from the kernel",
+			nhe->id);
+		break;
+	case ZEBRA_DPLANE_REQUEST_SUCCESS:
+		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
+		break;
+	}
+
+	zebra_nhg_seg_handle_uninstall(nhe);
 }
 
 void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
