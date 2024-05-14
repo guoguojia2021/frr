@@ -4231,6 +4231,7 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 
 		switch (ret) {
 		case ZEBRA_DPLANE_REQUEST_QUEUED:
+			SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 			break;
 		case ZEBRA_DPLANE_REQUEST_FAILURE:
 			flog_err(
@@ -4264,6 +4265,7 @@ void zebra_nhg_seg_policy_to_vpn(struct nhg_hash_entry *nhe)
 		ret = dplane_nexthop_add(nhe);
 		switch (ret) {
 		case ZEBRA_DPLANE_REQUEST_QUEUED:
+			SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 			break;
 		case ZEBRA_DPLANE_REQUEST_FAILURE:
 			flog_err(
@@ -4318,6 +4320,7 @@ void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe)
 
 	switch (ret) {
 	case ZEBRA_DPLANE_REQUEST_QUEUED:
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 		break;
 	case ZEBRA_DPLANE_REQUEST_FAILURE:
 		flog_err(
