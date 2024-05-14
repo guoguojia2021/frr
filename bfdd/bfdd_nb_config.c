@@ -94,9 +94,6 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 
 	/* Generate the corresponding key. */
 	gen_bfd_key(bk, &psa, &lsa, mhop, ifname, vrfname);
-	
-	if (yang_dnode_exists(dnode, "bfd-name"))
-		strlcpy(bk->bfdname, yang_dnode_get_string(dnode, "bfd-name"), sizeof(bk->bfdname));
 }
 
 static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,

@@ -516,8 +516,8 @@ static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg)
 	}
 
 	if (bvt->bfdname) {
-		if (!bs->key.bfdname[0] ||
-		    !strmatch(bs->key.bfdname, bvt->bfdname))
+		if ((!bs->key.bfdname[0] || !strmatch(bs->key.bfdname, bvt->bfdname)) &&  
+		    (!bs->bfd_name[0] || !strmatch(bs->bfd_name, bvt->bfdname)))
 			return;
 	}
 
