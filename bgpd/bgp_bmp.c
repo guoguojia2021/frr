@@ -1471,7 +1471,8 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 		bgp = hash_lookup(bmp_upd_bgp_hash_get(), &temp_bgp);
 		if (!bgp)
 		{
-		    XFREE(MTYPE_BMP_QUEUE, bqe);
+			if (!bqe->refcount)
+				XFREE(MTYPE_BMP_QUEUE, bqe);
 			return false;
 		}
 	}
