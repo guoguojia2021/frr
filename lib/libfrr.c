@@ -964,6 +964,11 @@ static int frr_config_read_in(struct thread *t)
 {
 	hook_call(frr_config_pre, master);
 
+	enum frr_cli_mode orig_cli_mode = frr_get_cli_mode();
+	if (orig_cli_mode == FRR_CLI_CLASSIC && di) {
+		di->cli_mode = FRR_CLI_TRANSACTIONAL;
+	}
+
 	if (!vty_read_config(vty_shared_candidate_config, di->config_file,
 			     config_default)
 	    && di->backup_config_file) {
@@ -995,6 +1000,10 @@ static int frr_config_read_in(struct thread *t)
 			zlog_err(
 				"%s: failed to read configuration file: %s (%s)",
 				__func__, nb_err_name(ret), errmsg);
+	}
+
+	if (di) {
+		di->cli_mode = orig_cli_mode;
 	}
 
 	hook_call(frr_config_post, master);
