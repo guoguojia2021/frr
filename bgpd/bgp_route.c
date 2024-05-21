@@ -4861,6 +4861,27 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			else
 				UNSET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
 		}
+		if (afi == AFI_IP && pi && CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)))
+		{
+			pNht.family = AF_INET;
+			pNht.u.prefix4 = attr->nexthop;
+			pNht.prefixlen = IPV4_MAX_BITLEN;
+			if (prefix_match(&pNht, &dest->p))
+				SET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
+			else
+				UNSET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
+		}
+		else if (afi == AFI_IP6 && pi && CHECK_FLAG(attr->flag, BGP_ATTR_NEXTHOP_AFI_IP6(attr)))
+		{
+			pNht.family = AF_INET6;
+			pNht.u.prefix6 = attr->mp_nexthop_global;
+			pNht.prefixlen = IPV6_MAX_BITLEN;
+			if (prefix_match(&pNht, &dest->p))
+				SET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
+			else
+				UNSET_FLAG(pi->extFlags, BGP_PATH_SUPERNET);
+		}
+
 		/* Same attribute comes in. */
 		if (!CHECK_FLAG(pi->flags, BGP_PATH_REMOVED)
 		    && same_attr
@@ -5179,10 +5200,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 						    safi, pi, NULL, connected,
 						    p)
 			    || CHECK_FLAG(peer->flags, PEER_FLAG_IS_RFAPI_HD))
-			{
-				if (!CHECK_FLAG(pi->extFlags, BGP_PATH_SUPERNET))
-				    bgp_path_info_set_flag(dest, pi, BGP_PATH_VALID);
-		    } 
+				{
+					if (!CHECK_FLAG(pi->extFlags, BGP_PATH_SUPERNET))
+				    	bgp_path_info_set_flag(dest, pi, BGP_PATH_VALID);
+		    	} 
 			else {
 				// If we need print nht log for prefix, format msg here
 				char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";
@@ -5311,6 +5332,27 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		pNht.family = AF_INET;
 		pNht.u.prefix4 = attr->nexthop;
 		pNht.prefixlen = IPV4_MAX_BITLEN;
+		if (prefix_match(&pNht, &dest->p))
+			SET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
+		else
+			UNSET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
+	}
+
+	if (afi == AFI_IP && new && CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)))
+	{
+		pNht.family = AF_INET;
+		pNht.u.prefix4 = attr->nexthop;
+		pNht.prefixlen = IPV4_MAX_BITLEN;
+		if (prefix_match(&pNht, &dest->p))
+			SET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
+		else
+			UNSET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
+	}
+	else if (afi == AFI_IP6 && new && CHECK_FLAG(attr->flag, BGP_ATTR_NEXTHOP_AFI_IP6(attr)))
+	{
+		pNht.family = AF_INET6;
+		pNht.u.prefix6 = attr->mp_nexthop_global;
+		pNht.prefixlen = IPV6_MAX_BITLEN;
 		if (prefix_match(&pNht, &dest->p))
 			SET_FLAG(new->extFlags, BGP_PATH_SUPERNET);
 		else

@@ -1348,7 +1348,7 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 					bgp_evpn_unimport_route(bgp_path,
 						afi, safi, bgp_dest_get_prefix(dest), path);
 			}
-		} else {
+		} else if (!CHECK_FLAG(path->extFlags, BGP_PATH_SUPERNET)) {
 			/* Path becomes valid, set flag; also for EVPN
 				* routes, import from VRFs if needed.
 				*/
