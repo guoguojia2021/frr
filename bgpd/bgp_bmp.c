@@ -2204,6 +2204,7 @@ static struct bmp_active *bmp_active_get(struct bmp_targets *bt,
 	ba->minretry = BMP_DFLT_MINRETRY;
 	ba->maxretry = BMP_DFLT_MAXRETRY;
 	ba->socket = -1;
+	ba->connect_time = 0;
 
 	bmp_actives_add(&bt->actives, ba);
 	return ba;
@@ -2214,6 +2215,7 @@ static void bmp_active_put(struct bmp_active *ba)
 	THREAD_OFF(ba->t_timer);
 	THREAD_OFF(ba->t_read);
 	THREAD_OFF(ba->t_write);
+	ba->connect_time = 0;
 
 	bmp_actives_del(&ba->targets->actives, ba);
 
@@ -2341,6 +2343,7 @@ static int bmp_active_thread(struct thread *t)
 	THREAD_OFF(ba->t_timer);
 	THREAD_OFF(ba->t_read);
 	THREAD_OFF(ba->t_write);
+	ba->connect_time = 0;
 
 	ba->last_err = NULL;
 
@@ -2398,6 +2401,7 @@ static void bmp_active_setup(struct bmp_active *ba)
 	THREAD_OFF(ba->t_timer);
 	THREAD_OFF(ba->t_read);
 	THREAD_OFF(ba->t_write);
+	ba->connect_time = 0;
 
 	if (ba->bmp)
 		return;
@@ -2411,6 +2415,7 @@ static void bmp_active_setup(struct bmp_active *ba)
 		thread_add_timer_msec(bm->master, bmp_active_thread, ba,
 				      ba->curretry, &ba->t_timer);
 	else {
+		ba->connect_time = (long)monotime(NULL);
 		thread_add_read(bm->master, bmp_active_thread, ba, ba->socket,
 				&ba->t_read);
 		thread_add_write(bm->master, bmp_active_thread, ba, ba->socket,
@@ -2610,6 +2615,7 @@ DEFPY(bmp_update_source,
 	VTY_DECLVAR_CONTEXT_SUB(bmp_targets, bt);
     int idx_ip = 2;
     union sockunion su;
+	struct bmp *bmp = NULL;
 
     if (str2sockunion(argv[idx_ip]->arg, &su) == 0)
     {
@@ -2617,8 +2623,16 @@ DEFPY(bmp_update_source,
     		if (sockunion_cmp(bt->update_source, &su) == 0)
     			return 0;
     		sockunion_free(bt->update_source);
-    	}
-    	bt->update_source = sockunion_dup(&su);
+			bt->update_source = sockunion_dup(&su);
+			//we need to reconnect session here
+			frr_each_safe(bmp_session, &bt->sessions, bmp) {
+				bmp_close(bmp); //reconnect is rescheduled in bmp_close
+				bmp_free(bmp);
+				vty_out(vty, "%% Reconnect all bmp session with new source\n");
+			}
+		}else{
+			bt->update_source = sockunion_dup(&su);
+		}
     }
 	else {
 		vty_out(vty,
@@ -3027,11 +3041,11 @@ static void bmp_show_outbound_conn_info(struct bmp_targets *bt, struct vty *vty)
     char *out;
 	struct ttable *tt;
 	struct bmp_active *ba;
-	char uptime[BGP_UPTIME_LEN];
+	char uptime[BGP_UPTIME_LEN] = {0};
 
 	vty_out(vty, "\n    Outbound connections:\n");
 	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-	ttable_add_row(tt, "remote|state||timer");
+	ttable_add_row(tt, "remote|state|desc|timer|retry(min/max/cur)");
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
 	frr_each (bmp_actives, &bt->actives, ba) {
 		const char *state_str = "?";
@@ -3040,13 +3054,12 @@ static void bmp_show_outbound_conn_info(struct bmp_targets *bt, struct vty *vty)
 			peer_uptime(ba->bmp->t_up.tv_sec,
 					uptime, sizeof(uptime),
 					false, NULL);
-			ttable_add_row(tt, "%s:%d|Up|%s|%s",
+			ttable_add_row(tt, "%s:%d|Up|%s|%s|%d/%d/%d",
 						ba->hostname, ba->port,
-						ba->bmp->remote, uptime);
+						ba->bmp->remote, uptime,
+						ba->minretry, ba->maxretry, ba->curretry);
 			continue;
 		}
-
-		uptime[0] = '\0';
 
 		if (ba->t_timer) {
 			long trem = thread_timer_remain_second(
@@ -3057,16 +3070,19 @@ static void bmp_show_outbound_conn_info(struct bmp_targets *bt, struct vty *vty)
 					false, NULL);
 			state_str = "RetryWait";
 		} else if (ba->t_read) {
+			if(ba->connect_time)
+				peer_uptime((time_t)ba->connect_time, uptime, sizeof(uptime), false, NULL);
+
 			state_str = "Connecting";
 		} else if (ba->resq.callback) {
 			state_str = "Resolving";
 		}
 
-		ttable_add_row(tt, "%s:%d|%s|%s|%s",
+		ttable_add_row(tt, "%s:%d|%s|%s|%s|%d/%d/%d",
 					ba->hostname, ba->port,
 					state_str,
 					ba->last_err ? ba->last_err : "",
-					uptime);
+					uptime, ba->minretry, ba->maxretry, ba->curretry);
 		continue;
 	}
 	out = ttable_dump(tt, "\n");
@@ -3205,6 +3221,8 @@ static void bmp_show_target(struct bmp_targets *bt, struct vty *vty)
 	vty_out(vty, "\n");
 
     bmp_show_adj_policy(bt, vty);
+
+	bmp_show_outbound_conn_info(bt, vty);
 
 	bmp_show_connected_session_info(bt, vty);
 

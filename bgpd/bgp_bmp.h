@@ -218,6 +218,7 @@ struct bmp_active {
 	int socket;
 	const char *last_err;
 	struct thread *t_timer, *t_read, *t_write;
+	long connect_time;    //mark time when start connecting
 };
 
 /* config & state for passive / listening sockets */
