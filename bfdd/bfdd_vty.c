@@ -605,6 +605,9 @@ static void _display_peer_counter(struct vty *vty, struct bfd_session *bs)
 		bs->stats.session_down);
 	vty_out(vty, "\t\tZebra notifications: %" PRIu64 "\n",
 		bs->stats.znotification);
+	vty_out(vty, "\t\tTx fail packet: %" PRIu64 "\n",
+		bs->stats.tx_fail_pkt);
+
 	vty_out(vty, "\n");
 }
 
@@ -631,6 +634,7 @@ static struct json_object *__display_peer_counters_json(struct bfd_session *bs)
 	json_object_int_add(jo, "session-up", bs->stats.session_up);
 	json_object_int_add(jo, "session-down", bs->stats.session_down);
 	json_object_int_add(jo, "zebra-notifications", bs->stats.znotification);
+	json_object_int_add(jo, "tx-fail-packet", bs->stats.tx_fail_pkt);
 
 	return jo;
 }
