@@ -222,6 +222,7 @@ struct bfd_session_stats {
 	uint64_t session_up;
 	uint64_t session_down;
 	uint64_t znotification;
+	uint64_t tx_fail_pkt;
 };
 
 /**

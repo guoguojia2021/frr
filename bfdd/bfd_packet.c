@@ -172,13 +172,22 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local, &bfd->key.peer, 
 	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
 	{
-		char endpoint[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, &bfd->key.peer, endpoint, sizeof(endpoint));
-		zlog_debug(
-			"sbfd initiator send failed , sr policy color: %d , endpoint: %s, sidlist: %s.", 
-			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
+		if(bfd->stats.tx_fail_pkt <= 1){
+			char dst[INET6_ADDRSTRLEN] = {0};
+			inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
+			zlog_err("sbfd initiator send failed, dst:%s, errno:%s", dst, safe_strerror(errno));
+		}
+
+		bfd->stats.tx_fail_pkt++;
         return -1;
 	}
+
+	if(bfd->stats.tx_fail_pkt > 0){
+		char dst[INET6_ADDRSTRLEN] = {0};
+		inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
+		zlog_warn("sbfd initiator send success, dst:%s, previous tx_fail_pkt:%d", dst, (int)bfd->stats.tx_fail_pkt);
+	}
+	bfd->stats.tx_fail_pkt = 0;
 
 	bfd->stats.tx_ctrl_pkt++;
 	return 0;
@@ -204,13 +213,22 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local , &bfd->key.peer, 
 	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
 	{
-		char endpoint[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, &bfd->key.local, endpoint, sizeof(endpoint));
-		zlog_debug(
-			"sbfd echo send failed , sr policy color: %d , endpoint: %s, sidlist: %s", 
-			bfd->key.srte_color,  endpoint, bfd->key.seglist_name);
+		if(bfd->stats.tx_fail_pkt <= 1){
+			char dst[INET6_ADDRSTRLEN] = {0};
+			inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
+			zlog_err("sbfd echo send failed, dst:%s, errno:%s", dst, safe_strerror(errno));
+		}
+
+		bfd->stats.tx_fail_pkt++;
         return -1;
 	}
+
+	if(bfd->stats.tx_fail_pkt > 0){
+		char dst[INET6_ADDRSTRLEN] = {0};
+		inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
+		zlog_warn("sbfd echo send success, dst:%s, previous tx_fail_pkt:%d", dst, (int)bfd->stats.tx_fail_pkt);
+	}
+	bfd->stats.tx_fail_pkt = 0;
 
 	bfd->stats.tx_echo_pkt++;
 	return 0;
@@ -2195,7 +2213,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     if (ret < 0)
     {
 		inet_ntop(AF_INET6, &dst_sin6.sin6_addr, buf_addr, INET6_ADDRSTRLEN);
-		zlog_err(
+		zlog_debug(
 			"sbfd send to:%s failed , ret:%d, errno:%s", buf_addr, ret, safe_strerror(errno));
 
 		return ret;
