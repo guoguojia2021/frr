@@ -122,7 +122,7 @@ int pathd_srte_segment_list_segment_create(struct nb_cb_create_args *args)
 	switch (args->event)
 	{
 		case NB_EV_VALIDATE:
-		    segment_list = nb_running_get_entry(args->dnode, NULL, true);
+		    segment_list = nb_running_get_entry(args->dnode, NULL, false);
 			if (segment_list && is_refcounter_retain(segment_list))
 			{
 				flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
@@ -151,7 +151,7 @@ int pathd_srte_segment_list_segment_destroy(struct nb_cb_destroy_args *args)
 	switch (args->event)
 	{
 		case NB_EV_VALIDATE:
-		    segment = nb_running_get_entry(args->dnode, NULL, true);
+		    segment = nb_running_get_entry(args->dnode, NULL, false);
 			if (segment && is_refcounter_retain(segment->segment_list))
 			{
 				flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
