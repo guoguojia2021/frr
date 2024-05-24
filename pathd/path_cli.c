@@ -1347,6 +1347,70 @@ static const char *metric_type_name(enum srte_candidate_metric_type type)
 	}
 }
 
+DEFPY(show_segment_list_detail,
+      show_segment_list_detail_cmd,
+      "show segment-list detail",
+      SHOW_STR
+      "Segment List\n"
+      "Show a detailed summary\n")
+{
+	struct srte_segment_list *s_list;
+	struct srte_segment_entry *s_entry;
+
+	RB_FOREACH (s_list, srte_segment_list_head, &srte_segment_lists) {
+		vty_out(vty,
+			"Segment-list Name: %s\n", s_list->name);
+
+		RB_FOREACH (s_entry, srte_segment_entry_head,
+			    &s_list->segments) {
+			if(IS_IPADDR_V4(&s_entry->srv6_sid_value))
+				vty_out(vty,
+					"    Index: %-10u  IPv4-address: %pI4\n",
+					s_entry->index, &s_entry->srv6_sid_value.ipaddr_v4);
+			if(IS_IPADDR_V6(&s_entry->srv6_sid_value))
+				vty_out(vty,
+					"    Index: %-10u  IPv6-address: %pI6\n",
+					s_entry->index, &s_entry->srv6_sid_value.ipaddr_v6);
+		}
+	}
+	vty_out(vty, "\n");
+
+	return CMD_SUCCESS;
+}
+
+DEFPY(show_segment_list_by_name_detail,
+      show_segment_list_by_name_detail_cmd,
+      "show segment-list WORD$name",
+      SHOW_STR
+      "Segment List\n"
+	  "Name of the Segment List\n")
+{
+	struct srte_segment_list *s_list;
+	struct srte_segment_entry *s_entry;
+	if (name == NULL)
+		return CMD_SUCCESS;
+
+	s_list = srte_segment_list_find(name);
+
+	vty_out(vty,
+		"Segment-list Name: %s\n", name);
+
+	RB_FOREACH (s_entry, srte_segment_entry_head,
+			&s_list->segments) {
+		if(IS_IPADDR_V4(&s_entry->srv6_sid_value))
+			vty_out(vty,
+				"    Index: %-10u  IPv4-address: %pI4\n",
+				s_entry->index, &s_entry->srv6_sid_value.ipaddr_v4);
+		if(IS_IPADDR_V6(&s_entry->srv6_sid_value))
+			vty_out(vty,
+				"    Index: %-10u  IPv6-address: %pI6\n",
+				s_entry->index, &s_entry->srv6_sid_value.ipaddr_v6);
+	}
+	vty_out(vty, "\n");
+
+	return CMD_SUCCESS;
+}
+
 static void config_write_float(struct vty *vty, float value)
 {
 	if (fabs(truncf(value) - value) < FLT_EPSILON) {
@@ -1536,6 +1600,8 @@ void path_cli_init(void)
 	install_element(ENABLE_NODE, &show_srte_policy_detail_cmd);
 	install_element(ENABLE_NODE, &show_srte_filter_policy_detail_cmd);
 	install_element(ENABLE_NODE, &show_srte_policy_by_name_detail_cmd);
+	install_element(ENABLE_NODE, &show_segment_list_detail_cmd);
+	install_element(ENABLE_NODE, &show_segment_list_by_name_detail_cmd);
 	install_element(CONFIG_NODE, &segment_routing_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &sr_traffic_eng_cmd);
