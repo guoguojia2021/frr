@@ -1456,10 +1456,6 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 	struct bgp temp_bgp;
 	struct bgp *bgp = NULL;
 
-	bqe = bmp_pull(bmp);
-	if (!bqe)
-		return false;
-
 	bqe = bmp_pull_by_valid_peerid(bmp);
 	if (!bqe)
 		return false;
