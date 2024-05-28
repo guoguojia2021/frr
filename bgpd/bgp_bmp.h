@@ -144,6 +144,12 @@ struct bmp_statistics{
 	uint64_t bmp_stat_rm_adj_in_post_policy;
 };
 
+struct bmp_vrf_sync{
+    vrf_id_t   vrf_id; //current vrf to sync, VRF_UNKNOWN -> no vrf need to sync
+	struct bgp *bgp;   //current bgp bond to vrf_id
+	uint32_t   diff;   //helper data used to find next vrf
+};
+
 /* an established BMP session to a peer */
 struct bmp {
 	struct bmp_session_item bsi;
@@ -187,6 +193,8 @@ struct bmp {
 	uint64_t syncpeerid;
 	afi_t syncafi;
 	safi_t syncsafi;
+
+	struct bmp_vrf_sync syncvrf;
 
 	struct bmp_statistics bmp_stat;
 };

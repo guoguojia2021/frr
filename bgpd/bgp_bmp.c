@@ -276,6 +276,47 @@ static struct hash *bmp_upd_bgp_hash_get(void)
 	return bgp_vrf_hash;
 }
 
+static void bmp_next_vrf_find(struct hash_bucket *hb, void *arg)
+{
+	struct bgp *bgp = (struct bgp *)hb->data;
+	struct bmp_vrf_sync *result = (struct bmp_vrf_sync *)arg;
+	int diff = 0;
+
+	if (bgp->vrf_id < result->vrf_id)
+		return;
+
+	diff = bgp->vrf_id - result->vrf_id;
+	if(diff < result->diff){
+		result->diff = diff;
+		result->vrf_id = bgp->vrf_id;
+		result->bgp = bgp;
+	}
+
+}
+
+static void bmp_next_vrf_find_with_afi_safi(afi_t afi, safi_t safi, struct bmp_vrf_sync *sync)
+{
+
+	do{
+
+		hash_iterate(bmp_upd_bgp_hash_get(), bmp_next_vrf_find, (void *)sync);
+		if(NULL == sync->bgp){
+			break;
+		}
+
+		if (sync->bgp->rib[afi][safi]){
+			break;
+		}
+
+		sync->diff = UINT32_MAX;
+		sync->vrf_id += 1;
+		sync->bgp = NULL;
+
+	}while(1);
+
+	return;
+}
+
 static struct bmp *bmp_new(struct bmp_targets *bt, int bmp_sock)
 {
 	struct bmp *new = XCALLOC(MTYPE_BMP_CONN, sizeof(struct bmp));
@@ -1273,9 +1314,15 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 				bmp_eor(bmp, afi, safi, BMP_PEER_FLAG_L, bgp);
 				bmp_eor(bmp, afi, safi, 0, bgp);
 
-				bmp->afistate[afi][safi] = BMP_AFI_LIVE;
-				bmp->syncafi = AFI_MAX;
-				bmp->syncsafi = SAFI_MAX;
+				if (is_gbmp_en()){
+					bmp->syncvrf.bgp = NULL;
+				}else{
+					//for normal bmp, afi+safi finished
+					bmp->afistate[afi][safi] = BMP_AFI_LIVE;
+					bmp->syncafi = AFI_MAX;
+					bmp->syncsafi = SAFI_MAX;
+				}
+
 				return true;
 			}
 			bmp->syncpeerid = 0;
@@ -1357,6 +1404,14 @@ static bool bmp_wrsync(struct bmp *bmp, struct pullwr *pullwr)
 
 			bmp->afistate[afi][safi] = BMP_AFI_SYNC;
 
+			if (is_gbmp_en())
+			{
+				bmp->syncvrf.vrf_id = VRF_DEFAULT;
+				bmp->syncvrf.diff = UINT32_MAX;
+				bmp->syncvrf.bgp = NULL;
+				bmp_next_vrf_find_with_afi_safi(afi, safi, &bmp->syncvrf);
+			}
+
 			bmp->syncafi = afi;
 			bmp->syncsafi = safi;
 			bmp->syncpeerid = 0;
@@ -1391,13 +1446,35 @@ afibreak:
 
     if (is_gbmp_en())
 	{
-        for (ALL_LIST_ELEMENTS_RO(bm->bgp, lnbgp, bgp))
-		{
-			if (!bgp->rib[afi][safi])
-			    continue;
-
+		if(bmp->syncvrf.bgp){
+			bgp = bmp->syncvrf.bgp;
 			bmp_wrsync_monitor(bgp, bmp, afi, safi);
 		}
+
+		if(bmp->syncvrf.bgp == NULL){
+			//try next bgp
+			bmp->syncvrf.vrf_id += 1;
+			bmp->syncvrf.diff = UINT32_MAX;
+			bmp_next_vrf_find_with_afi_safi(afi, safi, &bmp->syncvrf);
+			if(bmp->syncvrf.bgp){
+				//continue with next bgp instance
+				bmp->syncpeerid = 0;
+				memset(&bmp->syncpos, 0, sizeof(bmp->syncpos));
+				bmp->syncrdpos = NULL;
+				zlog_info("bmp[%s] %s %s sending vrf table:%d",
+							bmp->remote,
+							afi2str(bmp->syncafi),
+							safi2str(bmp->syncsafi), (int)bmp->syncvrf.vrf_id);
+			}else{
+				//continue with next afi+safi
+				bmp->afistate[afi][safi] = BMP_AFI_LIVE;
+				bmp->syncafi = AFI_MAX;
+				bmp->syncsafi = SAFI_MAX;
+			}
+		}
+
+		return true;
+
 	}
 	else
 	{
@@ -1948,11 +2025,28 @@ static void global_bmp_del(void)
 
 static void global_bmp_bgp_ins_del(struct bgp *bgp)
 {
+	struct bmp_targets *bt = NULL;
+	struct bmp *bmp = NULL;
+	struct bgp *bgp_del = NULL;
+
     struct hash *h = bmp_upd_bgp_hash_get();
 	if (!h || h->count == 0)
 	    return;
-	
-    hash_release(h, bgp);
+
+    bgp_del = (struct bgp *)hash_release(h, bgp);
+	if(bgp_del == NULL)
+	    return;
+
+	//reset the sync on bgp if any
+	frr_each_safe(bmp_targets, &global_bmpbgp->targets, bt){
+		frr_each (bmp_session, &bt->sessions, bmp) {
+			if(bmp->syncafi != AFI_MAX && bmp->syncvrf.bgp == bgp){
+				bmp->syncvrf.bgp = NULL;
+			}
+
+		}
+
+	}
 }
 
 static void bmp_bgp_put(struct bmp_bgp *bmpbgp)
@@ -1977,6 +2071,12 @@ static int bmp_bgp_del(struct bgp *bgp)
 	if (bmpbgp)
 		bmp_bgp_put(bmpbgp);
 	return 0;
+}
+
+static int bmp_bgp_add(struct bgp *bgp)
+{
+    //gbmp shold save all bgp instance from beginning
+	hash_get(bmp_upd_bgp_hash_get(), bgp, hash_alloc_intern);
 }
 
 static struct bmp_bgp_peer *bmp_bgp_peer_find(uint64_t peerid)
@@ -3498,6 +3598,7 @@ static int bgp_bmp_module_init(void)
 	hook_register(bgp_process, bmp_process);
 	hook_register(bgp_inst_config_write, bmp_config_write);
 	hook_register(bgp_inst_delete, bmp_bgp_del);
+	hook_register(bgp_inst_create, bmp_bgp_add);
 	hook_register(frr_late_init, bgp_bmp_init);
 	return 0;
 }

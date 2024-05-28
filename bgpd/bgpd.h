@@ -925,6 +925,7 @@ struct bgp {
 };
 DECLARE_QOBJ_TYPE(bgp);
 
+DECLARE_HOOK(bgp_inst_create, (struct bgp *bgp), (bgp));
 DECLARE_HOOK(bgp_inst_delete, (struct bgp *bgp), (bgp));
 DECLARE_HOOK(bgp_inst_config_write,
 		(struct bgp *bgp, struct vty *vty),

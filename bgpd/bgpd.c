@@ -100,6 +100,7 @@ DEFINE_QOBJ_TYPE(bgp_master);
 DEFINE_QOBJ_TYPE(bgp);
 DEFINE_QOBJ_TYPE(peer);
 DEFINE_HOOK(bgp_inst_delete, (struct bgp *bgp), (bgp));
+DEFINE_HOOK(bgp_inst_create, (struct bgp *bgp), (bgp));
 
 /* BGP process wide configuration.  */
 static struct bgp_master bgp_master;
@@ -3775,6 +3776,9 @@ int bgp_get(struct bgp **bgp_val, as_t *as, const char *name,
 	 */
 	bgp_handle_socket(bgp, vrf, VRF_UNKNOWN, true);
 	listnode_add(bm->bgp, bgp);
+
+	//notify creation
+	hook_call(bgp_inst_create, bgp);
 
 	if (IS_BGP_INST_KNOWN_TO_ZEBRA(bgp)) {
 		if (BGP_DEBUG(zebra, ZEBRA))
