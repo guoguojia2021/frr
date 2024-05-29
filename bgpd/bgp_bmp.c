@@ -463,6 +463,34 @@ static void bmp_notify_put(struct stream *s, struct bgp_notify *nfy)
 			+ sizeof(marker));
 }
 
+static void set_dummy_open(uint8_t* data, as_t as, struct in_addr id)
+{
+    #define AS_INDEX 20
+	#define IDENTIFIER_INDEX 24
+	uint32_t value = id.s_addr;
+
+    //network byte order
+	data[AS_INDEX] = ((as & 0xFF00) >> 8);
+	data[AS_INDEX+1] = (as & 0x00FF);
+
+    //IP address as network byte order
+	data[IDENTIFIER_INDEX] = ((value & 0xFF000000) >> 24);
+	data[IDENTIFIER_INDEX+1] = ((value & 0xFF0000) >> 16);
+	data[IDENTIFIER_INDEX+2] = ((value & 0xFF00) >> 8);
+	data[IDENTIFIER_INDEX+3] = (value & 0x00FF);
+}
+
+static uint8_t dummy_open[] = {
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			0x00, 0x23, 0x01,
+			0x04,                                            //bgp-4
+			0x00, 0x00,                                      //as, index[20-21]
+			0x00, 0x1e,                                      //Hold time, set to 30s
+			0x00, 0x00, 0x00, 0x00,                          //bgp identifier, index[24-27]
+			0x00                                             //optional
+};
+
 static struct stream *bmp_peerstate(struct peer *peer, bool down)
 {
 	struct stream *s;
@@ -503,17 +531,13 @@ static struct stream *bmp_peerstate(struct peer *peer, bool down)
 		else if (peer->su_remote->sa.sa_family == AF_INET)
 			stream_putw(s, peer->su_remote->sin.sin_port);
 
-		static const uint8_t dummy_open[] = {
-			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-			0x00, 0x13, 0x01,
-		};
-
 		bbpeer = bmp_bgp_peer_find(peer->qobj_node.nid);
 
 		if (bbpeer && bbpeer->open_tx)
 			stream_put(s, bbpeer->open_tx, bbpeer->open_tx_len);
 		else {
+			//expect this never happen, but dummy_open should be in right format
+			set_dummy_open(dummy_open, peer->local_as, peer->local_id);
 			stream_put(s, dummy_open, sizeof(dummy_open));
 			zlog_warn("bmp: missing TX OPEN message for peer %s",
 				  peer->host);
@@ -521,6 +545,7 @@ static struct stream *bmp_peerstate(struct peer *peer, bool down)
 		if (bbpeer && bbpeer->open_rx)
 			stream_put(s, bbpeer->open_rx, bbpeer->open_rx_len);
 		else {
+			set_dummy_open(dummy_open, peer->as, peer->remote_id);
 			stream_put(s, dummy_open, sizeof(dummy_open));
 			zlog_warn("bmp: missing RX OPEN message for peer %s",
 				  peer->host);
@@ -991,9 +1016,6 @@ static int bmp_peer_established(struct peer *peer)
 
 	frrtrace(1, frr_bgp, bmp_peer_status_changed, peer);
 
-	if (!bmpbgp)
-		return 0;
-
 	if (peer->status == Deleted) {
 		bbpeer = bmp_bgp_peer_find(peer->qobj_node.nid);
 		if (bbpeer) {
@@ -1033,6 +1055,9 @@ static int bmp_peer_established(struct peer *peer)
 		}
 	}
 
+	if (!bmpbgp)
+		return 0;
+
 	bmp_send_all(bmpbgp, bmp_peerstate(peer, false));
 	bmp_statistics_peer_state_update(peer, false);
 	return 0;
@@ -1046,9 +1071,6 @@ static int bmp_peer_backward(struct peer *peer)
 
 	frrtrace(1, frr_bgp, bmp_peer_backward_transition, peer);
 
-	if (!bmpbgp)
-		return 0;
-
 	bbpeer = bmp_bgp_peer_find(peer->qobj_node.nid);
 	if (bbpeer) {
 		XFREE(MTYPE_BMP_OPEN, bbpeer->open_tx);
@@ -1056,6 +1078,9 @@ static int bmp_peer_backward(struct peer *peer)
 		XFREE(MTYPE_BMP_OPEN, bbpeer->open_rx);
 		bbpeer->open_rx_len = 0;
 	}
+
+	if (!bmpbgp)
+		return 0;
 
 	bmp_send_all(bmpbgp, bmp_peerstate(peer, true));
 	bmp_statistics_peer_state_update(peer, true);
