@@ -1557,6 +1557,7 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 	bool written = false;
 	struct bgp temp_bgp;
 	struct bgp *bgp = NULL;
+	struct bgp_table *table = NULL;
 
 	bqe = bmp_pull_by_valid_peerid(bmp);
 	if (!bqe)
@@ -1595,12 +1596,24 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 		break;
 	}
 
-    bn =  is_gbmp_en() ? bgp_node_lookup(bgp->rib[afi][safi], &bqe->p) :
-        bgp_node_lookup(bmp->targets->bgp->rib[afi][safi], &bqe->p);
+	table = is_gbmp_en()? bgp->rib[afi][safi]: bmp->targets->bgp->rib[afi][safi];
 
 	struct prefix_rd *prd = NULL;
-	if ((bqe->afi == AFI_L2VPN && bqe->safi == SAFI_EVPN) || (bqe->safi == SAFI_MPLS_VPN))
+	struct bgp_dest *rdpos = NULL;
+	if ((bqe->afi == AFI_L2VPN && bqe->safi == SAFI_EVPN) || (bqe->safi == SAFI_MPLS_VPN)){
 		prd = &bqe->rd;
+		rdpos = bgp_node_lookup(table, (struct prefix *)prd);
+		if(NULL == rdpos || NULL == bgp_dest_get_bgp_table_info(rdpos)){
+			char pfxprint[PREFIX2STR_BUFFER] = {0};
+		    prefix2str(&bqe->p, pfxprint, sizeof(pfxprint));
+			zlog_info("bmp ignore route[%s] in %s %s, rd not found", pfxprint, afi2str(afi), safi2str(safi));
+			goto out;
+		}
+
+		table = bgp_dest_get_bgp_table_info(rdpos);
+	}
+
+	bn =  bgp_node_lookup(table, &bqe->p);
 
 	if (bmp->targets->afimon[afi][safi] & BMP_MON_ADJ_IN_POSTPOLICY) {
 		struct bgp_path_info *bpi;
