@@ -52,6 +52,7 @@
 #include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_trace.h"
 #include "bgpd/bgp_network.h"
+#include "bgpd/bgp_debug.h"
 
 static void bmp_close(struct bmp *bmp);
 static struct bmp_bgp *bmp_bgp_find(struct bgp *bgp);
@@ -1250,6 +1251,7 @@ static void bmp_monitor(struct bmp *bmp, struct peer *peer, uint8_t flags,
 	struct timeval tv = { .tv_sec = uptime, .tv_usec = 0 };
 	struct timeval uptime_real;
 	int addpath_encode = 0;
+	char send_attr_str[BUFSIZ];
 
  	if (CHECK_FLAG(peer->af_cap[afi][safi], PEER_CAP_ADDPATH_AF_TX_RCV) &&
 		CHECK_FLAG(peer->af_cap[afi][safi], PEER_CAP_ADDPATH_AF_RX_ADV)) {
@@ -1278,6 +1280,18 @@ static void bmp_monitor(struct bmp *bmp, struct peer *peer, uint8_t flags,
 	bmp->cnt_update++;
 	pullwr_write_stream(bmp->pullwr, hdr);
 	pullwr_write_stream(bmp->pullwr, msg);
+	if ((BGP_DEBUG(bmp, BMP)) || (BGP_DEBUG(bmp, BMP_ATTR))) {
+		zlog_debug("bmp send %s :peer %s, prefix %pFX",
+						  attr ? "UPDATE" : "WITHDRAW",
+						  peer->host, p);
+		if ((BGP_DEBUG(bmp, BMP_ATTR)) && attr)
+		{
+			memset(send_attr_str, 0, BUFSIZ);
+			bgp_dump_attr(attr, send_attr_str,
+				      sizeof(send_attr_str));
+			zlog_debug(" attr: %s", send_attr_str);
+		}
+	}
 	stream_free(hdr);
 	stream_free(msg);
 }

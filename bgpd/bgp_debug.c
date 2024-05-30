@@ -69,6 +69,7 @@ unsigned long conf_bgp_debug_pbr;
 unsigned long conf_bgp_debug_graceful_restart;
 unsigned long conf_bgp_debug_evpn_mh;
 unsigned long conf_bgp_debug_bfd;
+unsigned long conf_bgp_debug_bmp;
 
 unsigned long term_bgp_debug_as4;
 unsigned long term_bgp_debug_neighbor_events;
@@ -89,6 +90,7 @@ unsigned long term_bgp_debug_pbr;
 unsigned long term_bgp_debug_graceful_restart;
 unsigned long term_bgp_debug_evpn_mh;
 unsigned long term_bgp_debug_bfd;
+unsigned long term_bgp_debug_bmp;
 
 struct list *bgp_debug_neighbor_events_peers = NULL;
 struct list *bgp_debug_keepalive_peers = NULL;
@@ -1131,6 +1133,58 @@ DEFUN (debug_bgp_update,
 	}
 	return CMD_SUCCESS;
 }
+
+DEFUN (debug_bgp_bmp,
+       debug_bgp_bmp_cmd,
+       "debug bgp bmp [attr]",
+       DEBUG_STR
+       BGP_STR
+       "BGP bmp messages to server\n"
+       "debug attr info")
+{
+	int idx = 3;
+	if (argv_find(argv, argc, "attr", &idx)) {
+		if (vty->node == CONFIG_NODE)
+			DEBUG_ON(bmp, BMP_ATTR);
+		else {
+			TERM_DEBUG_ON(bmp, BMP_ATTR);
+			vty_out(vty, "BGP bmp debugging is on\n");
+		}
+		return CMD_SUCCESS;
+	}
+	if (vty->node == CONFIG_NODE) {
+		DEBUG_OFF(bmp, BMP_ATTR);
+		DEBUG_ON(bmp, BMP);
+	}
+	else {
+		TERM_DEBUG_ON(bmp, BMP);
+		TERM_DEBUG_OFF(bmp, BMP_ATTR);
+		vty_out(vty, "BGP bmp debugging is on\n");
+	}
+	return CMD_SUCCESS;
+}
+
+/* debug bgp updates */
+DEFUN (no_debug_bgp_bmp,
+       no_debug_bgp_bmp_cmd,
+       "no debug bgp bmp",
+       NO_STR
+       DEBUG_STR
+       BGP_STR
+       "BGP bmp messages to server\n")
+{
+	if (vty->node == CONFIG_NODE) {
+		DEBUG_OFF(bmp, BMP);
+		DEBUG_OFF(bmp, BMP_ATTR);
+	}
+	else {
+		TERM_DEBUG_OFF(bmp, BMP);
+		TERM_DEBUG_OFF(bmp, BMP_ATTR);
+		vty_out(vty, "BGP bmp debugging is off\n");
+	}
+	return CMD_SUCCESS;
+}
+
 
 /* alibaba begin */
 DEFUN (debug_bgp_update_strict,
@@ -2210,6 +2264,8 @@ DEFUN (no_debug_bgp,
 	TERM_DEBUG_OFF(evpn_mh, EVPN_MH_ES);
 	TERM_DEBUG_OFF(evpn_mh, EVPN_MH_RT);
 	TERM_DEBUG_OFF(bfd, BFD_LIB);
+	TERM_DEBUG_OFF(bmp, BMP);
+	TERM_DEBUG_OFF(bmp, BMP_ATTR);
 
 	vty_out(vty, "All possible debugging has been turned off\n");
 
@@ -2304,6 +2360,10 @@ DEFUN_NOSH (show_debugging_bgp,
 
 	if (BGP_DEBUG(bfd, BFD_LIB))
 		vty_out(vty, "  BGP BFD library debugging is on\n");
+	if (BGP_DEBUG(bmp, BMP))
+		vty_out(vty, "  BGP bmp debugging is on\n");
+	if (BGP_DEBUG(bmp, BMP_ATTR))
+			vty_out(vty, "	BGP bmp(attr) debugging is on\n");
 
 	vty_out(vty, "\n");
 	return CMD_SUCCESS;
@@ -2432,6 +2492,15 @@ static int bgp_config_write_debug(struct vty *vty)
 
 	if (CONF_BGP_DEBUG(bfd, BFD_LIB)) {
 		vty_out(vty, "debug bgp bfd\n");
+		write++;
+	}
+
+	if (CONF_BGP_DEBUG(bmp, BMP)) {
+		vty_out(vty, "debug bgp bmp\n");
+		write++;
+	}
+	if (CONF_BGP_DEBUG(bmp, BMP_ATTR)) {
+		vty_out(vty, "debug bgp bmp attr\n");
 		write++;
 	}
 
@@ -2583,6 +2652,11 @@ void bgp_debug_init(void)
 	/* debug bgp bfd */
 	install_element(ENABLE_NODE, &debug_bgp_bfd_cmd);
 	install_element(CONFIG_NODE, &debug_bgp_bfd_cmd);
+
+	install_element(ENABLE_NODE, &debug_bgp_bmp_cmd);
+	install_element(CONFIG_NODE, &debug_bgp_bmp_cmd);
+	install_element(ENABLE_NODE, &no_debug_bgp_bmp_cmd);
+	install_element(CONFIG_NODE, &no_debug_bgp_bmp_cmd);
 }
 
 /* Return true if this prefix is on the per_prefix_list of prefixes to debug
