@@ -1047,14 +1047,14 @@ int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
 		return -1;
 	}
 
-	/* Test for loopback. */
-	if (*ttl == BFD_TTL_VAL) {
-		bp_udp_send(sd, *ttl - 1, msgbuf, rlen,
-			    (struct sockaddr *)&peer,
-			    (sd == bvrf->bg_echo) ? sizeof(peer.sa_sin)
-						    : sizeof(peer.sa_sin6));
-		return -1;
-	}
+	// /* Test for loopback. */
+	// if (*ttl == BFD_TTL_VAL) {
+	// 	bp_udp_send(sd, *ttl - 1, msgbuf, rlen,
+	// 		    (struct sockaddr *)&peer,
+	// 		    (sd == bvrf->bg_echo) ? sizeof(peer.sa_sin)
+	// 					    : sizeof(peer.sa_sin6));
+	// 	return -1;
+	// }
 
 	/* Read my discriminator from BFD Echo packet. */
 	bep = (struct bfd_echo_pkt *)msgbuf;
