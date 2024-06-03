@@ -3714,7 +3714,7 @@ size_t bgp_packet_mpattr_start(struct stream *s, struct peer *peer, afi_t afi,
                 stream_putc(s, 24);
 				stream_putl(s, 0); /* RD = 0, per RFC */
 				stream_putl(s, 0);
-                stream_put(s, &attr->mp_nexthop_local,
+                stream_put(s, &attr->mp_nexthop_global,
 					   IPV6_MAX_BYTELEN);
             }
 		} break;
