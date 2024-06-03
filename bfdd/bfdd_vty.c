@@ -275,27 +275,6 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 	vty_out(vty, "\n");
 }
 
-static void _display_peer_ext(struct vty *vty, struct bfd_session *bs)
-{
-	vty_out(vty, "\tOscilation count: %" PRIuPTR "\n", bfd_hw_detect_get_count());
-	vty_out(vty, "\tAll session count: %" PRIuPTR "\n", bfd_id_get_count());
-
-    _display_peer(vty, bs);
-
-	vty_out(vty, "\t\tExtend:\n");
-	vty_out(vty, "\t\t\tDetect_TO: %" PRIu32 "ms\n",
-		(uint32_t)bs->detect_TO / 1000);
-	vty_out(vty, "\t\t\tHw_det_count: %" PRIu16 "\n",
-		bs->hw_det_count);
-	vty_out(vty, "\t\t\tHw_det_repot: %" PRIu16 "\n",
-		bs->hw_det_repot);
-	vty_out(vty, "\t\t\tHw_det_btime sec: %" PRIdPTR "\n",
-		bs->hw_det_btime.tv_sec);
-	vty_out(vty, "\t\t\tHw_det_btime usec: %" PRIdPTR "\n",
-		bs->hw_det_btime.tv_usec);
-	vty_out(vty, "\n");
-}
-
 static struct json_object *_peer_json_header(struct bfd_session *bs)
 {
 	struct json_object *jo = json_object_new_object();
@@ -452,26 +431,6 @@ static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg)
 	}
 
 	_display_peer(vty, bs);
-}
-
-static void _display_peer_iter_ext(struct hash_bucket *hb, void *arg)
-{
-	struct bfd_vrf_tuple *bvt = (struct bfd_vrf_tuple *)arg;
-	struct vty *vty;
-	struct bfd_session *bs = hb->data;
-
-	if (!bvt)
-		return;
-	vty = bvt->vty;
-
-	if (bvt->vrfname) {
-		if ((!bs->key.vrfname[0] ||
-		    !strmatch(bs->key.vrfname, bvt->vrfname)) &&
-		    (!bs->key.vrfaliasname[0] ||
-		    !strmatch(bs->key.vrfaliasname, bvt->vrfname)))
-			return;
-	}
-	_display_peer_ext(vty, bs);
 }
 
 static void _display_peer_json_iter(struct hash_bucket *hb, void *arg)
@@ -911,20 +870,6 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 	vty_json(vty, jo);
 }
 
-static void _display_peers_oscial(struct vty *vty, char *vrfname, bool use_json)
-{
-	struct bfd_vrf_tuple bvt;
-
-	memset(&bvt, 0, sizeof(struct bfd_vrf_tuple));
-	bvt.vrfname = vrfname;
-	if (!use_json) {
-		bvt.vty = vty;
-		vty_out(vty, "BFD SOFT STOP FLAG: %d\n", bglobal.bfd_soft_stop_serv);
-		vty_out(vty, "BFD Peers:\n");
-		bfd_hw_detect_iterate(_display_peer_iter_ext, &bvt);
-		return;
-	}
-}
 static struct bfd_session *
 _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *label, const char *peer_str,
@@ -1252,25 +1197,6 @@ DEFPY(
 	return CMD_SUCCESS;
 }
 
-DEFPY(bfd_show_peers_oscil, bfd_show_peers_oscil_cmd,
-      "show bfd [vrf <NAME>] peers oscillation [json]",
-      SHOW_STR
-      "Bidirection Forwarding Detection\n"
-      VRF_CMD_HELP_STR
-      "BFD peers status\n"
-      "Show BFD oscillation peers information\n"
-      JSON_STR)
-{
-	char *vrf_name = NULL;
-	int idx_vrf = 0;
-
-	if (argv_find(argv, argc, "vrf", &idx_vrf))
-		vrf_name = argv[idx_vrf + 1]->arg;
-
-	_display_peers_oscial(vty, vrf_name, use_json(argc, argv));
-
-	return CMD_SUCCESS;
-}
 /*
  * Function definitions.
  */
@@ -1473,7 +1399,6 @@ void bfdd_vty_init(void)
 	install_element(ENABLE_NODE, &bfd_show_peers_brief_cmd);
 	install_element(ENABLE_NODE, &show_bfd_distributed_cmd);
 	install_element(ENABLE_NODE, &show_debugging_bfd_cmd);
-    install_element(ENABLE_NODE, &bfd_show_peers_oscil_cmd);
 	install_element(ENABLE_NODE, &bfd_debug_distributed_cmd);
 	install_element(ENABLE_NODE, &bfd_debug_peer_cmd);
 	install_element(ENABLE_NODE, &bfd_debug_zebra_cmd);

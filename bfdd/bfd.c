@@ -544,8 +544,6 @@ static uint32_t ptm_bfd_gen_ID(void)
 
 void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo)
 {
-    if (bglobal.bfd_soft_stop_serv == 1)
-        return;
 	uint64_t jitter, xmt_TO;
 	int maxpercent;
 
@@ -988,9 +986,6 @@ struct bfd_session *bfd_session_new(void)
 	monotime(&bs->uptime);
 	bs->downtime = bs->uptime;
 
-	monotime(&bs->hw_det_btime);
-	bs->hw_det_count = 0;
-
 	return bs;
 }
 struct bfd_session *bfd_common_session_new(uint8_t segnum)
@@ -1020,9 +1015,6 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 	bs->sock = -1;
 	monotime(&bs->uptime);
 	bs->downtime = bs->uptime;
-
-	monotime(&bs->hw_det_btime);
-	bs->hw_det_count = 0;
 
 	return bs;
 }
@@ -1273,7 +1265,6 @@ void bfd_session_free(struct bfd_session *bs)
 
 	bfd_key_delete(bs->key);
 	bfd_id_delete(bs->discrs.my_discr);
-	bfd_hw_detect_delete(bs->discrs.my_discr);
 
 	/* Remove observer if any. */
 	TAILQ_FOREACH(bso, &bglobal.bg_obslist, bso_entry) {
@@ -2287,8 +2278,6 @@ void bs_to_bpc(struct bfd_session *bs, struct bfd_peer_cfg *bpc)
 static struct hash *bfd_id_hash;
 static struct hash *bfd_key_hash;
 
-static struct hash *bfd_hw_detect_hash;
-
 /*sbfd reflector discr hash*/
 static struct hash *sbfd_rflt_hash;
 
@@ -2408,14 +2397,6 @@ struct bfd_session *bfd_id_lookup(uint32_t id)
 	return hash_lookup(bfd_id_hash, &bs);
 }
 
-struct bfd_session *bfd_hw_detect_lookup(uint32_t id)
-{
-	struct bfd_session bs;
-
-	bs.discrs.my_discr = id;
-
-	return hash_lookup(bfd_hw_detect_hash, &bs);
-}
 struct bfd_session *bfd_key_lookup(struct bfd_key key)
 {
 	struct bfd_session bs;
@@ -2462,15 +2443,6 @@ struct bfd_session *bfd_key_delete(struct bfd_key key)
 	return hash_release(bfd_key_hash, &bs);
 }
 
-struct bfd_session *bfd_hw_detect_delete(uint32_t id)
-{
-	struct bfd_session bs;
-
-	bs.discrs.my_discr = id;
-
-	return hash_release(bfd_hw_detect_hash, &bs);
-}
-
 struct sbfd_reflector *sbfd_discr_delete(uint32_t discr)
 {
 	struct sbfd_reflector sr;
@@ -2489,11 +2461,6 @@ void bfd_id_iterate(hash_iter_func hif, void *arg)
 void bfd_key_iterate(hash_iter_func hif, void *arg)
 {
 	hash_iterate(bfd_key_hash, hif, arg);
-}
-
-void bfd_hw_detect_iterate(hash_iter_func hif, void *arg)
-{
-	hash_iterate(bfd_hw_detect_hash, hif, arg);
 }
 
 void sbfd_discr_iterate(hash_iter_func hif, void *arg)
@@ -2517,24 +2484,9 @@ bool bfd_key_insert(struct bfd_session *bs)
 	return (hash_get(bfd_key_hash, bs, hash_alloc_intern) == bs);
 }
 
-bool bfd_hw_detect_insert(struct bfd_session *bs)
-{
-	return (hash_get(bfd_hw_detect_hash, bs, hash_alloc_intern) == bs);
-}
-
 bool sbfd_discr_insert(struct sbfd_reflector *sr)
 {
 	return (hash_get(sbfd_rflt_hash, sr, hash_alloc_intern) == sr);
-}
-
-unsigned long bfd_id_get_count(void)
-{
-	return bfd_id_hash->count;
-}
-
-unsigned long bfd_hw_detect_get_count(void)
-{
-	return bfd_hw_detect_hash->count;
 }
 
 unsigned long sbfd_discr_get_count(void)
@@ -2549,8 +2501,6 @@ void bfd_initialize(void)
 				  "BFD session discriminator hash");
 	bfd_key_hash = hash_create(bfd_key_hash_do, bfd_key_hash_cmp,
 				   "BFD session hash");
-	bfd_hw_detect_hash = hash_create(bfd_id_hash_do, bfd_id_hash_cmp,
-				   "BFD HW detect falut session hash");
 	sbfd_rflt_hash = hash_create(sbfd_discr_hash_do, sbfd_discr_hash_cmp,
 				   "SBFD reflector discriminator hash");
 	TAILQ_INIT(&bplist);
@@ -2593,7 +2543,6 @@ void bfd_shutdown(void)
 	/* Now free the hashes themselves. */
 	hash_free(bfd_id_hash);
 	hash_free(bfd_key_hash);
-    hash_free(bfd_hw_detect_hash);
 	hash_free(sbfd_rflt_hash);
 	
 	/* Free all profile allocations. */

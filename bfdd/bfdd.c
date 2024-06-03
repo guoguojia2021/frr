@@ -333,7 +333,6 @@ static void bg_init(void)
 	memcpy(&bglobal.bfdd_privs, &bfdd_privs,
 	       sizeof(bfdd_privs));
 
-    bglobal.bfd_soft_stop_serv = 0;
     bglobal.debug_peer_event = true;
 }
 

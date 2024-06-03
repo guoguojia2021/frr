@@ -336,10 +336,6 @@ struct bfd_session {
     uint32_t hwbfd_flags; /* number of pointers referencing this. */
     uint32_t srcport;
     uint64_t counterOid;
-	/* hw bfd oscillation*/
-	struct timeval hw_det_btime; /*hardware detect begin time*/
-	uint16_t hw_det_count;  /*hardware detect maybe fault counts*/
-	uint16_t hw_det_repot;  /*hardware detect fault report flag*/
  
  	uint32_t bfd_mode;
 	uint8_t segnum;
@@ -542,8 +538,6 @@ struct bfd_global {
 	 * - Network system call failures.
 	 */
 	bool debug_network;
-	
-	int bfd_soft_stop_serv;
 };
 
 extern struct bfd_global bglobal;
@@ -745,27 +739,21 @@ void bfd_vrf_terminate(void);
 struct bfd_vrf_global *bfd_vrf_look_by_session(struct bfd_session *bfd);
 struct bfd_session *bfd_id_lookup(uint32_t id);
 struct bfd_session *bfd_key_lookup(struct bfd_key key);
-struct bfd_session *bfd_hw_detect_lookup(uint32_t id);
 struct sbfd_reflector *sbfd_discr_lookup(uint32_t discr);
 struct bfd_session *bfd_id_delete(uint32_t id);
 struct bfd_session *bfd_key_delete(struct bfd_key key);
-struct bfd_session *bfd_hw_detect_delete(uint32_t id);
 struct sbfd_reflector *sbfd_discr_delete(uint32_t discr);
 
 bool bfd_id_insert(struct bfd_session *bs);
 bool bfd_key_insert(struct bfd_session *bs);
-bool bfd_hw_detect_insert(struct bfd_session *bs);
 bool sbfd_discr_insert(struct sbfd_reflector *sr);
 
 typedef void (*hash_iter_func)(struct hash_bucket *hb, void *arg);
 void bfd_id_iterate(hash_iter_func hif, void *arg);
 void bfd_key_iterate(hash_iter_func hif, void *arg);
-void bfd_hw_detect_iterate(hash_iter_func hif, void *arg);
 void sbfd_discr_iterate(hash_iter_func hif, void *arg);
 
 unsigned long bfd_get_session_count(void);
-unsigned long bfd_id_get_count(void);
-unsigned long bfd_hw_detect_get_count(void);
 unsigned long sbfd_discr_get_count(void);
 
 /* Export callback functions for `event.c`. */

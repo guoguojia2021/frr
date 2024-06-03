@@ -49,9 +49,6 @@ void bfd_recvtimer_update(struct bfd_session *bs)
 
     if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
         return;
-    
-    if (bglobal.bfd_soft_stop_serv == 1)
-        return;
 
     tv_normalize(&tv);
 #ifdef BFD_EVENT_DEBUG

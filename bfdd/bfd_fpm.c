@@ -154,10 +154,6 @@ typedef struct bfpm_glob_t_ {
 static bfpm_glob_t bfpm_glob_space;
 static bfpm_glob_t *bfpm_g = &bfpm_glob_space;
 
-#define BFD_DEFAULT_OSCIL_TIME_IVL 30 //second
-#define BFD_DEFAULT_RECOVER_TIME_IVL 10 //second
-#define BFD_DEFAULT_OSCIL_THR 5
-
 static int bfpm_read_cb(struct thread *thread);
 static int bfpm_write_cb(struct thread *thread);
 
@@ -363,65 +359,6 @@ static void bfpm_connection_down(const char *detail)
 	bfpm_set_state(BFPM_STATE_IDLE, detail);
 }
 
-static void bfd_soft_stop(void)
-{
-	bglobal.bfd_soft_stop_serv = 1;
-	zlog_err("[BFD] Hardware BFD stopped service. Please deal with it in time.");
-}
-
-static void bfd_hw_oscill_handle(struct bfd_session *bfd)
-{
-	zlog_warn("[BFD] enter bfd_hw_oscill_handle");
-    bfd_hw_detect_insert(bfd);
-	bfd->hw_det_repot = 1;
-	/* if occur hw fault count more than all bfd sessions, then soft stop bfd fun*/
-	if ( bfd_hw_detect_get_count() > (bfd_id_get_count() >> 1))
-	{
-        /*soft stop bfd */
-		bfd_soft_stop();
-	}
-}
-
-static long timeval_diff(struct timeval tv0, struct timeval tv1)
-{
-    long time1, time2, diff;
-
-    time1 = tv0.tv_sec * 1000000 + tv0.tv_usec;
-    time2 = tv1.tv_sec * 1000000 + tv1.tv_usec;
-
-    diff = time1 - time2;
-    if (diff < 0)
-        diff = -diff;
-    return diff;
-}
-
-static void bfd_oscill_detect(struct bfd_session *bfd)
-{
-	
-	long tbuff = 100 * 1000;
-	struct timeval tv;
-	monotime(&tv);
-
-	// calc time diff cmp detect_TO +  100ms
-	if ((uint64_t)timeval_diff(tv, bfd->uptime) <= (bfd->detect_TO + tbuff))
-	{
-        bfd->hw_det_count++;
-
-		if (monotime(NULL) - bfd->hw_det_btime.tv_sec <= BFD_DEFAULT_OSCIL_TIME_IVL)
-		{
-			if (!bfd->hw_det_repot  && bfd->hw_det_count >= BFD_DEFAULT_OSCIL_THR)
-			{
-				bfd_hw_oscill_handle(bfd);
-			}
-		}
-		else
-		{
-			bfd->hw_det_count = 1;
-            monotime(&bfd->hw_det_btime);
-		}
-	}
-}
-
 /*
  * zfpm_read_cb
  */
@@ -482,10 +419,6 @@ static int bfpm_read_cb(struct thread *thread)
     bs = bfd_find_disc(&peer, data.remote_discr);
     if (hdr.msg_type == BFD_NOTIFY_DOWN)
     {
-        if (bs){
-            bfd_oscill_detect(bs);
-        }
-
         if (bs && (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))) {
 			UNSET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
 
@@ -531,13 +464,6 @@ static int bfpm_read_cb(struct thread *thread)
                 thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
             }
         }
-    }
-    else if (hdr.msg_type == BFD_HW_FAULT)
-    {
-		zlog_warn("[BFD] bfdd receive bfdsync BFD_HW_FAULT msg");
-        /* won't need care data */
-        /* update hw flag */
-        bfd_soft_stop();
     }
 
 	stream_set_getp(ibuf, 0);
@@ -884,44 +810,6 @@ static int bfdsync_send_message()
 
 }
 
-static bool is_over_hw_detect_time(struct bfd_session *bfd)
-{
-	return (monotime(NULL) - bfd->hw_det_btime.tv_sec >= BFD_DEFAULT_OSCIL_TIME_IVL);
-}
-
-static bool is_meet_hw_recover_condition(struct bfd_session *bfd)
-{
-	if (bfd->ses_state == PTM_BFD_UP)
-	{
-        return (monotime(NULL) - bfd->uptime.tv_sec >= BFD_DEFAULT_RECOVER_TIME_IVL);
-	}
-	return false;
-}
-
-static void bfd_oscilation_start_time_update(struct bfd_session *bfd)
-{
-	if (bfd->hw_det_count == 0)
-	{
-		monotime(&bfd->hw_det_btime);
-	}
-	else
-	{
-		/* overtime, reset count and detect begin time */
-		if (!bfd->hw_det_repot && is_over_hw_detect_time(bfd))
-		{
-			bfd->hw_det_count = 0;
-			monotime(&bfd->hw_det_btime);
-		}
-
-		/* session up a period of time ,recover bfd session , del hw detect hash */
-		if (!bglobal.bfd_soft_stop_serv && bfd->hw_det_repot && is_meet_hw_recover_condition(bfd))
-		{
-			bfd->hw_det_repot = 0;
-            bfd_hw_detect_delete(bfd->discrs.my_discr);
-		}
-	}
-}
-
 void extract_segment_from_addr_list(char * segment, int max_size, struct in6_addr seg_list[], int seg_num)
 {
 	char tmp[64];
@@ -998,8 +886,6 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     {
         hdr->msg_type = BFD_CREATE_SESSION;
         SET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
-
-		bfd_oscilation_start_time_update(bfd);
     }
     else
     {

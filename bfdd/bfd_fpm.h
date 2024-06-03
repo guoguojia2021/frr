@@ -34,7 +34,6 @@ typedef enum {
     BFD_DELETE_SESSION,
     BFD_NOTIFY_UP = 3,
     BFD_NOTIFY_DOWN = 4,
-    BFD_HW_FAULT = 5,
 } bfdsync_message_types_t;
 
 typedef struct bfd_msg_hdr_t_
