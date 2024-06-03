@@ -2066,6 +2066,7 @@ static void global_bmp_bgp_ins_del(struct bgp *bgp)
 	struct bmp_targets *bt = NULL;
 	struct bmp *bmp = NULL;
 	struct bgp *bgp_del = NULL;
+	struct bmp_bgp *gbmp = NULL;
 
     struct hash *h = bmp_upd_bgp_hash_get();
 	if (!h || h->count == 0)
@@ -2075,8 +2076,13 @@ static void global_bmp_bgp_ins_del(struct bgp *bgp)
 	if(bgp_del == NULL)
 	    return;
 
+	gbmp = global_bmp_get();
+	if(gbmp == NULL)
+		//expect never happen
+		return;
+
 	//reset the sync on bgp if any
-	frr_each_safe(bmp_targets, &global_bmpbgp->targets, bt){
+	frr_each_safe(bmp_targets, &gbmp->targets, bt){
 		frr_each (bmp_session, &bt->sessions, bmp) {
 			if(bmp->syncafi != AFI_MAX && bmp->syncvrf.bgp == bgp){
 				bmp->syncvrf.bgp = NULL;
