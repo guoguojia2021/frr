@@ -13638,6 +13638,18 @@ DEFPY(show_ip_bgp, show_ip_bgp_cmd,
 	} else {
 		/* show <ip> bgp ipv4 all: AFI_IP, show <ip> bgp ipv6 all:
 		 * AFI_IP6 */
+		if (bgp == NULL) {
+			bgp = bgp_get_default();
+		}
+
+		if (bgp == NULL) {
+			if (CHECK_FLAG(show_flags, BGP_SHOW_OPT_JSON))
+				vty_out(vty, "{}\n");
+			else
+				vty_out(vty, "No BGP process is configured\n");
+
+			return CMD_WARNING;
+		}
 
 		if (uj)
 			vty_out(vty, "{\n");
