@@ -269,7 +269,10 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 
     if(CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
 	{
-        vty_out(vty, "\t\tCreated by hardware.\n");
+		if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS))
+        	vty_out(vty, "\t\tCreated by hardware success.\n");
+		else
+			vty_out(vty, "\t\tCreated by hardware.\n");
 	}
 
 	vty_out(vty, "\n");

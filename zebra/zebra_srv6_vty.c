@@ -80,6 +80,55 @@ static struct cmd_node srv6_loc_node = {
 	.prompt = "%s(config-srv6-locator)# "
 };
 
+static size_t list_count(struct list *list) {
+    size_t count = 0;
+    struct listnode *node;
+
+    for (node = list->head; node != NULL; node = node->next) {
+        count++;
+    }
+
+    return count;
+}
+
+static struct seg6_sid_ua_params *seg6_sid_ua_param_lookup(struct list *list, struct seg6_sid_ua_params *sid_ua_params)
+{
+	struct seg6_sid_ua_params *sid_ua_param_index = NULL;
+    struct listnode *node, *nnode;
+    if (!sid_ua_params)
+        return NULL;
+    for (ALL_LIST_ELEMENTS(list, node, nnode, sid_ua_param_index)) {
+		if (!strcmp(sid_ua_param_index->ifname, sid_ua_params->ifname) || 
+		    !ipaddr_cmp(&sid_ua_param_index->nexthop, &sid_ua_params->nexthop))
+			{
+				return sid_ua_param_index;
+			}       
+    }
+
+	return NULL;
+}
+
+
+static struct seg6_sid *sid_lookup_by_prefix_intf_nhp(struct srv6_locator *loc, struct prefix_ipv6 *ipv6prefix, 
+             const char *ifName, struct ipaddr *nexthop, enum seg6local_sid_type_t sidtype)
+{
+	struct seg6_sid *sid = NULL;
+	struct listnode *node, *nnode;
+
+	if (!ipv6prefix || !ifName || !nexthop || !loc)
+		return NULL;
+
+	for (ALL_LIST_ELEMENTS(loc->sids, node, nnode, sid)) {
+		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix->prefix)) {
+			if (!strcmp(sid->ifname, ifName) && !ipaddr_cmp(&sid->nexthop, nexthop) && sid->sidtype == sidtype)	
+			{
+				return sid;
+			}
+		}
+	}
+	return NULL;
+}
+
 static bool seg6local_act_contain_sidact(enum seg6local_action_t action,
 	enum seg6local_action_t sidaction)
 {
@@ -725,6 +774,23 @@ DEFPY (locator_prefix,
 	struct seg6_sid *sid_unua = NULL;
 	struct seg6_sid *sid_ua = NULL;
 	struct listnode *node = NULL;
+	struct listnode *node_ua = NULL;
+
+	struct seg6_sid_ua_ecmp *sid_ua_ecmp_node = NULL;
+	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_ua_ecmp *sid_unua_ecmp = NULL;
+
+	struct seg6_sid_ua_params *sid_ua_params = NULL;
+	struct seg6_sid_ua_params *sid_unua_params = NULL;
+	struct seg6_sid_ua_params st_sid_ua_params = {0};
+
+	struct in6_addr result_sid_ua = {0};
+	struct in6_addr result_sid_unua = {0};
+
+	bool is_found_ua_param = false;
+	bool is_found_unua_param = false;
+
+	char buf[BUFSIZ] = {0};
 	enum seg6local_action_t sidaction = ZEBRA_SEG6_LOCAL_ACTION_UNSPEC;
 	int idx = 0;
 	char *vrfName = VRF_DEFAULT_NAME;
@@ -785,7 +851,7 @@ DEFPY (locator_prefix,
 	}
 
 	for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
-		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
+		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix) && (sidaction != ZEBRA_SEG6_LOCAL_ACTION_END_X)) {
 			vty_out(vty, "Prefix %s is already exist,please delete it first. \n", argv[1]->arg);
 			return CMD_WARNING;
 		}
@@ -800,6 +866,92 @@ DEFPY (locator_prefix,
 
 	if (locator->compress) {
 		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
+			// check ecmp
+			combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
+			combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
+
+			strlcpy(st_sid_ua_params.ifname, ifName, INTERFACE_NAMSIZ);
+			memcpy(&st_sid_ua_params.nexthop, &nexthop, sizeof(struct ipaddr));
+
+			for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ua_ecmp_node)) {
+				if (IPV6_ADDR_SAME(&sid_ua_ecmp_node->ipv6Addr.prefix, &result_sid_ua)) {					
+					if (seg6_sid_ua_param_lookup(sid_ua_ecmp_node->sid_ua_params, &st_sid_ua_params) == NULL)
+					{
+						is_found_ua_param = false;
+					}
+					else
+					{
+						is_found_ua_param = true;
+					}
+
+					sid_ua_ecmp = sid_ua_ecmp_node;
+				}
+			}
+
+			for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ua_ecmp_node)) {
+				if (IPV6_ADDR_SAME(&sid_ua_ecmp_node->ipv6Addr.prefix, &result_sid_unua)) {
+					if (seg6_sid_ua_param_lookup(sid_ua_ecmp_node->sid_ua_params, &st_sid_ua_params) == NULL)
+					{
+						is_found_unua_param = false;
+					}
+					else
+					{
+						is_found_unua_param = true;
+					}
+
+					sid_unua_ecmp = sid_ua_ecmp_node;
+				}
+			}
+
+			if (is_found_ua_param == true && is_found_unua_param == false)
+			{
+				vty_out(vty, "%% UA ifName %s and nexthop is already exist.\n", ifName);
+				return CMD_WARNING;
+			}
+			else if (is_found_ua_param == false && is_found_unua_param == true)
+			{
+				vty_out(vty, "%% UNUA ifName %s and nexthop is already exist.\n", ifName);
+				return CMD_WARNING;
+			}
+			else if (is_found_ua_param == true &&  is_found_unua_param == true)
+			{
+				vty_out(vty, "%% UA and UNUA ifName %s and nexthop is already exist.\n", ifName);
+				return CMD_WARNING;
+			}
+
+			// uA
+			/* first create uA */
+			if (!sid_ua_ecmp)
+			{
+				sid_ua_ecmp = srv6_locator_sid_ua_ecmp_alloc();
+				sid_ua_ecmp->ipv6Addr.family = AF_INET6;
+				sid_ua_ecmp->ipv6Addr.prefixlen = 48;
+				IPV6_ADDR_COPY(&sid_ua_ecmp->ipv6Addr.prefix, &result_sid_ua);
+				listnode_add(locator->sid_ua_ecmps, sid_ua_ecmp);
+			}
+
+			sid_ua_params = srv6_locator_sid_ua_params_alloc();
+			strlcpy(sid_ua_params->ifname, ifName, INTERFACE_NAMSIZ);
+			memcpy(&sid_ua_params->nexthop, &nexthop, sizeof(struct ipaddr));
+			listnode_add(sid_ua_ecmp->sid_ua_params, sid_ua_params);
+
+			// uN + uA
+			/* first create uN + uA */
+			if (!sid_unua_ecmp)
+			{
+				sid_unua_ecmp = srv6_locator_sid_ua_ecmp_alloc();
+				sid_unua_ecmp->ipv6Addr.family = AF_INET6;
+				sid_unua_ecmp->ipv6Addr.prefixlen = 64;
+				IPV6_ADDR_COPY(&sid_unua_ecmp->ipv6Addr.prefix, &result_sid_unua);
+				listnode_add(locator->sid_ua_ecmps, sid_unua_ecmp);
+			}
+
+			sid_unua_params = srv6_locator_sid_ua_params_alloc();
+			strlcpy(sid_unua_params->ifname, ifName, INTERFACE_NAMSIZ);
+			memcpy(&sid_unua_params->nexthop, &nexthop, sizeof(struct ipaddr));
+			listnode_add(sid_unua_ecmp->sid_ua_params, sid_unua_params);
+		
+
 			//uN+uA
 			sid_unua = srv6_locator_sid_alloc();
 			sid_unua->sidaction = sidaction;
@@ -819,6 +971,10 @@ DEFPY (locator_prefix,
 			if (!zebra_srv6_local_sid_format_valid(locator, sid_unua)) {
 				vty_out(vty, "%% Malformed locator sid_unua opcode format\n");
 				srv6_locator_sid_free(sid_unua);
+				listnode_delete(sid_ua_ecmp->sid_ua_params, sid_ua_params);
+				srv6_locator_sid_ua_params_free(sid_ua_params);
+				listnode_delete(sid_unua_ecmp->sid_ua_params, sid_unua_params);
+				srv6_locator_sid_ua_params_free(sid_unua_params);
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 
@@ -847,6 +1003,10 @@ DEFPY (locator_prefix,
 			if (!zebra_srv6_local_sid_format_valid(locator, sid_ua)) {
 				vty_out(vty, "%% Malformed locator sid_ua opcode format\n");
 				srv6_locator_sid_free(sid_ua);
+				listnode_delete(sid_ua_ecmp->sid_ua_params, sid_ua_params);
+				srv6_locator_sid_ua_params_free(sid_ua_params);
+				listnode_delete(sid_unua_ecmp->sid_ua_params, sid_unua_params);
+				srv6_locator_sid_ua_params_free(sid_unua_params);
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 
@@ -930,6 +1090,174 @@ DEFPY (no_locator_prefix,
 		}
 	}
 	return CMD_SUCCESS;
+}
+
+DEFPY (no_locator_endx_prefix,
+       no_locator_endx_prefix_cmd,
+       "no opcode WORD end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp",
+       NO_STR
+       "Configure SRv6 locator prefix\n"
+       "Specify SRv6 locator hex opcode\n"
+       "Apply the code to an End.X SID\n"
+       "Select an interface to configure\n"
+       "Interface's name\n"
+       "Nexthop\n"
+       "Nexthop IP address\n"
+       "Nexthop IPv6 address\n"
+       )
+{
+	VTY_DECLVAR_CONTEXT(srv6_locator, locator);
+	struct seg6_sid *sid = NULL;
+	struct listnode *node, *next, *node_ua, *next_ua;
+    char *prefix = NULL;
+    int ret = 0;
+    struct prefix_ipv6 ipv6prefix = {0};
+    struct zserv *client;
+    struct listnode *client_node;
+
+	struct seg6_sid_ua_ecmp *sid_ecmp_index = NULL;
+	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_ua_ecmp *sid_unua_ecmp = NULL;
+
+	struct seg6_sid_ua_params *sid_ua_params = NULL;
+	struct seg6_sid_ua_params *sid_unua_params = NULL;
+
+	struct in6_addr result_sid_ua = {0};
+	struct in6_addr result_sid_unua = {0};
+	char *ifName = NULL;
+	struct ipaddr nexthop = {0};
+	char *nhpstr = NULL;
+    int idx = 0;
+	bool is_found_ua = false;
+	bool is_found_unua = false;
+	int ecmp_member_ua_cnt = 0;
+	int ecmp_member_unua_cnt = 0;
+	char *vrfName = VRF_DEFAULT_NAME;
+	struct seg6local_context ctx = {};
+
+
+    prefix = argv[2]->arg;
+    ret = str2prefix_ipv6(prefix, &ipv6prefix);
+	if (!ret) {
+		vty_out(vty, "Malformed IPv6 prefix\n");
+		return CMD_WARNING_CONFIG_FAILED;
+	}
+
+	if (argv_find(argv, argc, "end-x", &idx))
+	{
+		nhpstr = argv[idx + 4]->arg;
+		ifName = argv[idx + 2]->arg;
+		if (inet_pton(AF_INET, nhpstr, &nexthop.ipaddr_v4) == 1)
+			nexthop.ipa_type = IPADDR_V4;
+		else if (inet_pton(AF_INET6, nhpstr, &nexthop.ipaddr_v6) == 1)
+			nexthop.ipa_type = IPADDR_V6;
+		else {
+			vty_out(vty, "%% Malformed address\n");
+			return CMD_WARNING;
+		}
+	}
+	else
+	{
+		vty_out(vty, "%% invalid cmd\n");
+		return CMD_WARNING;
+	}
+
+	combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
+	combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
+ 
+	for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ecmp_index)) {
+		if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_ua)) {
+			for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_ua_params, node_ua, next_ua, sid_ua_params)) {
+				if (!strcmp(sid_ua_params->ifname, ifName) && !ipaddr_cmp(&sid_ua_params->nexthop, &nexthop)) {
+					sid_ua_ecmp = sid_ecmp_index;
+					sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
+					if (!sid)
+					{
+						vty_out(vty, "%% find ua sid fail, ifname:%s\n", ifName);
+						return CMD_WARNING;
+					}
+					listnode_delete(locator->sids, sid);
+					srv6_locator_sid_free(sid);	
+					listnode_delete(sid_ecmp_index->sid_ua_params, sid_ua_params);
+					srv6_locator_sid_ua_params_free(sid_ua_params);
+					is_found_ua = true;
+				}
+			}
+		}
+	}
+
+	for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ecmp_index)) {
+		if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_unua)) {
+			for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_ua_params, node_ua, next_ua, sid_unua_params)) {
+				if (!strcmp(sid_unua_params->ifname, ifName) && !ipaddr_cmp(&sid_unua_params->nexthop,  &nexthop)) {
+					sid_unua_ecmp = sid_ecmp_index;
+					sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA);
+					if (!sid)
+					{
+						vty_out(vty, "%% find unua sid fail, ifname:%s\n", ifName);
+						return CMD_WARNING;
+					}
+					listnode_delete(locator->sids, sid);
+					srv6_locator_sid_free(sid);	
+					listnode_delete(sid_ecmp_index->sid_ua_params, sid_unua_params);
+					srv6_locator_sid_ua_params_free(sid_unua_params);
+					is_found_unua = true;
+				}
+			}
+		}
+	}
+
+	if (!is_found_ua)
+	{
+		vty_out(vty, "%% del opcode fail: invalid ua sid\n");
+		return CMD_WARNING;
+	}
+
+	if (!is_found_unua)
+	{
+		vty_out(vty, "%% del opcode fail: invalid unua sid\n");
+		return CMD_WARNING;		
+	}
+	
+	ecmp_member_ua_cnt = list_count(sid_ua_ecmp->sid_ua_params);
+	ecmp_member_unua_cnt = list_count(sid_unua_ecmp->sid_ua_params);
+
+	if (ecmp_member_ua_cnt >= 1)
+	{
+		ctx.block_bits_length = locator->block_bits_length;
+		ctx.node_bits_length = 0;
+		ctx.function_bits_length = locator->function_bits_length;
+		ctx.argument_bits_length = locator->argument_bits_length;
+
+		zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_ua, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_ua_ecmp->sid_ua_params);
+	}
+
+	if (ecmp_member_unua_cnt >= 1)
+	{
+		ctx.block_bits_length = locator->block_bits_length;
+		ctx.node_bits_length = locator->node_bits_length;
+		ctx.function_bits_length = locator->function_bits_length;
+		ctx.argument_bits_length = locator->argument_bits_length;
+
+		zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_unua, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_ua_ecmp->sid_ua_params);
+	}
+
+	if (ecmp_member_ua_cnt == 0 && ecmp_member_unua_cnt == 0)
+	{
+		for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
+			if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
+				for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
+					zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+				}
+				zebra_srv6_local_sid_del(locator, sid);
+
+				listnode_delete(locator->sids, sid);
+				srv6_locator_sid_free(sid);
+			}
+		}
+	}
+	
+    return CMD_SUCCESS;
 }
 
 static int zebra_sr_config(struct vty *vty)
@@ -1030,6 +1358,7 @@ void zebra_srv6_vty_init(void)
 	/* Command for configuration */
 	install_element(SRV6_LOC_NODE, &locator_prefix_cmd);
     install_element(SRV6_LOC_NODE, &no_locator_prefix_cmd);
+	install_element(SRV6_LOC_NODE, &no_locator_endx_prefix_cmd);
 
 	/* Command for operation */
 	install_element(VIEW_NODE, &show_srv6_locator_cmd);

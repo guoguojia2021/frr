@@ -413,7 +413,7 @@ static int bfpm_read_cb(struct thread *thread)
     STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN); 
     STREAM_GET(data.bfd_name, ibuf, MAXNAMELEN + 1); 
 
-    zlog_info("read from bfdsyncd, bfd:%s, ver:%d, type:%d, msglen:%d, peer:%s, remote_discr:%u", 
+    zlog_info("read from bfdsyncd, bfd_name:%s, ver:%d, type:%d, msglen:%d, peer:%s, remote_discr:%u", 
         data.bfd_name, hdr.version, hdr.msg_type, hdr.msg_len, data.bpc_peer, data.remote_discr);
     strtosa(data.bpc_peer, &peer);
     bs = bfd_find_disc(&peer, data.remote_discr);

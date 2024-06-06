@@ -24,6 +24,8 @@
 DEFINE_QOBJ_TYPE(srv6_locator);
 DEFINE_MTYPE_STATIC(LIB, SRV6_LOCATOR, "SRV6 locator");
 DEFINE_MTYPE_STATIC(LIB, SRV6_LOCATOR_CHUNK, "SRV6 locator chunk");
+DEFINE_MTYPE_STATIC(LIB, SRV6_SID_UA_ECMP, "SRV6 locator ua sid ecmp");
+DEFINE_MTYPE_STATIC(LIB, SRV6_SID_UA_PARAMS, "SRV6 locator ua sid ecmp params");
 
 const char *seg6local_action2str(uint32_t action)
 {
@@ -157,6 +159,8 @@ void srv6_locator_del(struct srv6_locator *locator)
         list_delete(&locator->chunks);
     if (locator->sids)
         list_delete(&locator->sids);
+	if (locator->sid_ua_ecmps)
+        list_delete(&locator->sid_ua_ecmps);
     XFREE(MTYPE_SRV6_LOCATOR, locator);
     return;
 }
@@ -171,6 +175,7 @@ struct srv6_locator *srv6_locator_alloc(const char *name)
 	locator->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
 
     locator->sids = list_new();
+	locator->sid_ua_ecmps = list_new();
 
 	QOBJ_REG(locator, srv6_locator);
 	return locator;
@@ -253,6 +258,7 @@ void srv6_locator_free(struct srv6_locator *locator)
 		QOBJ_UNREG(locator);
 		list_delete(&locator->chunks);
         list_delete(&locator->sids);
+		list_delete(&locator->sid_ua_ecmps);
 
 		XFREE(MTYPE_SRV6_LOCATOR, locator);
 	}
@@ -262,6 +268,41 @@ void srv6_locator_chunk_free(struct srv6_locator_chunk *chunk)
 {
 	XFREE(MTYPE_SRV6_LOCATOR_CHUNK, chunk);
 }
+
+struct seg6_sid_ua_params *srv6_locator_sid_ua_params_alloc(void)
+{
+	struct seg6_sid_ua_params *sid_ua_params = NULL;
+
+	sid_ua_params = XCALLOC(MTYPE_SRV6_SID_UA_PARAMS, sizeof(struct seg6_sid_ua_params));
+
+	return sid_ua_params;
+}
+
+void srv6_locator_sid_ua_params_free(struct seg6_sid_ua_ecmp *sid_ua_params)
+{
+	XFREE(MTYPE_SRV6_SID_UA_PARAMS, sid_ua_params);
+	return;
+}
+
+struct seg6_sid_ua_ecmp *srv6_locator_sid_ua_ecmp_alloc(void)
+{
+	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
+
+	sid_ua_ecmp = XCALLOC(MTYPE_SRV6_SID_UA_ECMP, sizeof(struct seg6_sid_ua_ecmp));
+
+	sid_ua_ecmp->sid_ua_params = list_new();
+
+	return sid_ua_ecmp;
+}
+
+void srv6_locator_sid_ua_ecmp_free(struct seg6_sid_ua_ecmp *sid_ua_ecmp)
+{
+	if (sid_ua_ecmp->sid_ua_params)
+        list_delete(&sid_ua_ecmp->sid_ua_params);
+	XFREE(MTYPE_SRV6_SID_UA_ECMP, sid_ua_ecmp);
+	return;
+}
+
 struct seg6_sid *srv6_locator_sid_alloc(void)
 {
     struct seg6_sid *sid = NULL;
