@@ -2045,7 +2045,7 @@ int _isis_spf_schedule(struct isis_area *area, int level,
 }
 
 static void isis_print_paths(struct vty *vty, struct isis_vertex_queue *queue,
-			     uint8_t *root_sysid)
+			     uint8_t *root_sysid, struct json_object **json)
 {
 	struct listnode *node;
 	struct isis_vertex *vertex;
@@ -2149,13 +2149,17 @@ static void isis_print_paths(struct vty *vty, struct isis_vertex_queue *queue,
 			       vertex_typestr, vertex_metricstr, vertex_nexthop,
 			       vertex_interface, vertex_parent);
 	}
-	table = ttable_dump(tt, "\n");
-	vty_out(vty, "%s\n", table);
-	XFREE(MTYPE_TMP, table);
+	if (json == NULL) {
+		table = ttable_dump(tt, "\n");
+		vty_out(vty, "%s\n", table);
+		XFREE(MTYPE_TMP, table);
+	} else
+		*json = ttable_json(tt, "ssdsss");
 	ttable_del(tt);
 }
 
-void isis_print_spftree(struct vty *vty, struct isis_spftree *spftree)
+void isis_print_spftree(struct vty *vty, struct isis_spftree *spftree,
+			struct json_object **json)
 {
 	const char *tree_id_text = NULL;
 
@@ -2177,10 +2181,13 @@ void isis_print_spftree(struct vty *vty, struct isis_spftree *spftree)
 		return;
 	}
 
-	vty_out(vty, "IS-IS paths to level-%d routers %s\n", spftree->level,
-		tree_id_text);
-	isis_print_paths(vty, &spftree->paths, spftree->sysid);
-	vty_out(vty, "\n");
+	if (!json)
+		vty_out(vty, "IS-IS paths to level-%d routers %s\n",
+			spftree->level, tree_id_text);
+
+	isis_print_paths(vty, &spftree->paths, spftree->sysid, json);
+	if (!json)
+		vty_out(vty, "\n");
 }
 
 static void show_isis_topology_common(struct vty *vty, int levels,
@@ -2203,24 +2210,25 @@ static void show_isis_topology_common(struct vty *vty, int levels,
 			if (area->ip_circuits > 0) {
 				isis_print_spftree(
 					vty,
-					area->spftree[SPFTREE_IPV4][level - 1]);
+					area->spftree[SPFTREE_IPV4][level - 1], NULL);
 			}
 			if (area->ipv6_circuits > 0) {
 				isis_print_spftree(
 					vty,
-					area->spftree[SPFTREE_IPV6][level - 1]);
+					area->spftree[SPFTREE_IPV6][level - 1], NULL);
 			}
 			if (isis_area_ipv6_dstsrc_enabled(area)) {
 				isis_print_spftree(vty,
 						   area->spftree[SPFTREE_DSTSRC]
-								[level - 1]);
+								[level - 1], NULL);
 			}
 		}
 
 		if (fabricd_spftree(area)) {
 			vty_out(vty,
 				"IS-IS paths to level-2 routers with hop-by-hop metric\n");
-			isis_print_paths(vty, &fabricd_spftree(area)->paths, isis->sysid);
+			isis_print_paths(vty, &fabricd_spftree(area)->paths,
+					 isis->sysid, NULL);
 			vty_out(vty, "\n");
 		}
 
