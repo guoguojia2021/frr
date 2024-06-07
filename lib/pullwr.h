@@ -111,6 +111,7 @@ static inline void pullwr_write_stream(struct pullwr *pullwr,
 extern void pullwr_stats(struct pullwr *pullwr, uint64_t *total_written,
 			 size_t *pending, size_t *kernel_pending);
 
+extern bool pullwr_empty(struct pullwr *pullwr);
 #ifdef __cplusplus
 }
 #endif

@@ -273,3 +273,8 @@ void pullwr_stats(struct pullwr *pullwr, uint64_t *total_written,
 		tmp = 0;
 	*kernel_pending = tmp;
 }
+
+bool pullwr_empty(struct pullwr *pullwr)
+{
+	return pullwr->valid == 0;
+}

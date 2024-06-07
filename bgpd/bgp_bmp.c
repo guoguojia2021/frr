@@ -276,11 +276,13 @@ static struct hash *bmp_upd_bgp_hash_get(void)
 	return bgp_vrf_hash;
 }
 
-static void bmp_next_vrf_find(struct hash_bucket *hb, void *arg)
+static void bmp_next_vrf_compare(struct bgp *bgp, struct bmp_vrf_sync *arg)
 {
-	struct bgp *bgp = (struct bgp *)hb->data;
 	struct bmp_vrf_sync *result = (struct bmp_vrf_sync *)arg;
 	int diff = 0;
+
+	if (bgp->vrf_id == VRF_UNKNOWN)
+		return;
 
 	if (bgp->vrf_id < result->vrf_id)
 		return;
@@ -288,7 +290,6 @@ static void bmp_next_vrf_find(struct hash_bucket *hb, void *arg)
 	diff = bgp->vrf_id - result->vrf_id;
 	if(diff < result->diff){
 		result->diff = diff;
-		result->vrf_id = bgp->vrf_id;
 		result->bgp = bgp;
 	}
 
@@ -298,12 +299,17 @@ static void bmp_next_vrf_find_with_afi_safi(afi_t afi, safi_t safi, struct bmp_v
 {
 
 	do{
+		struct bgp *bgp_temp = NULL;
+		struct listnode *node = NULL;
+		for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, bgp_temp)) {
+			bmp_next_vrf_compare(bgp_temp, sync);
+		}
 
-		hash_iterate(bmp_upd_bgp_hash_get(), bmp_next_vrf_find, (void *)sync);
 		if(NULL == sync->bgp){
 			break;
 		}
 
+		sync->vrf_id = sync->bgp->vrf_id;
 		if (sync->bgp->rib[afi][safi]){
 			break;
 		}
@@ -1319,6 +1325,7 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 					memset(&bmp->syncpos, 0,
 					       sizeof(bmp->syncpos));
 					bmp->syncpos.family = afi2family(afi);
+					bmp->syncpeerid = 0;
 					/* check whethere there is a valid
 					 * next mid-layer table, otherwise
 					 * declare table completed (eor)
@@ -1486,10 +1493,10 @@ afibreak:
 				bmp->syncpeerid = 0;
 				memset(&bmp->syncpos, 0, sizeof(bmp->syncpos));
 				bmp->syncrdpos = NULL;
-				zlog_info("bmp[%s] %s %s sending vrf table:%d",
+				zlog_info("bmp[%s] %s %s sending bgp table:%s(%d)",
 							bmp->remote,
 							afi2str(bmp->syncafi),
-							safi2str(bmp->syncsafi), (int)bmp->syncvrf.vrf_id);
+							safi2str(bmp->syncsafi), bmp->syncvrf.bgp->name, (int)bmp->syncvrf.vrf_id);
 			}else{
 				//continue with next afi+safi
 				bmp->afistate[afi][safi] = BMP_AFI_LIVE;
@@ -1669,8 +1676,18 @@ static void bmp_wrfill(struct bmp *bmp, struct pullwr *pullwr)
 			break;
 		if (bmp_wrqueue(bmp, pullwr))
 			break;
-		if (bmp_wrsync(bmp, pullwr))
+
+		if (bmp_wrsync(bmp, pullwr) == false){
+			//no more sync needed
 			break;
+		}else{
+			if(pullwr_empty(pullwr)){
+				//pull empty, but there's still data need to send, bump.
+
+				pullwr_bump(pullwr);
+			}
+		}
+
 		break;
 	}
 }
@@ -2073,8 +2090,6 @@ static void global_bmp_bgp_ins_del(struct bgp *bgp)
 	    return;
 
     bgp_del = (struct bgp *)hash_release(h, bgp);
-	if(bgp_del == NULL)
-	    return;
 
 	gbmp = global_bmp_get();
 	if(gbmp == NULL)
@@ -2115,12 +2130,6 @@ static int bmp_bgp_del(struct bgp *bgp)
 	if (bmpbgp)
 		bmp_bgp_put(bmpbgp);
 	return 0;
-}
-
-static int bmp_bgp_add(struct bgp *bgp)
-{
-    //gbmp shold save all bgp instance from beginning
-	hash_get(bmp_upd_bgp_hash_get(), bgp, hash_alloc_intern);
 }
 
 static struct bmp_bgp_peer *bmp_bgp_peer_find(uint64_t peerid)
@@ -3642,7 +3651,6 @@ static int bgp_bmp_module_init(void)
 	hook_register(bgp_process, bmp_process);
 	hook_register(bgp_inst_config_write, bmp_config_write);
 	hook_register(bgp_inst_delete, bmp_bgp_del);
-	hook_register(bgp_inst_create, bmp_bgp_add);
 	hook_register(frr_late_init, bgp_bmp_init);
 	return 0;
 }
