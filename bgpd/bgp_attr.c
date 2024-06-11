@@ -1193,6 +1193,10 @@ void bgp_attr_unintern(struct attr **pattr)
 	/* If reference becomes zero then free attribute object. */
 	if (attr->refcnt == 0) {
 		ret = hash_release(attrhash, attr);
+		if (ret != attr)
+		{
+			zlog_notice("%s,<find %p release %p>", __func__, ret, attr);
+		}
 		assert(ret != NULL);
 		XFREE(MTYPE_ATTR, attr);
 		*pattr = NULL;
