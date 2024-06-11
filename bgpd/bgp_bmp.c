@@ -2203,6 +2203,9 @@ static struct bmp_targets *bmp_targets_get(struct bgp *bgp, const char *name)
 	bt->bmpbgp = bmp_bgp_get(bgp);
 	bmp_session_init(&bt->sessions);
 	bmp_qhash_init(&bt->updhash);
+	// Get 1 million node for hash, and not shrink or grow.
+	bt->updhash.hh.minshift = 20;
+	bt->updhash.hh.maxshift = 20;
 	bmp_qlist_init(&bt->updlist);
 	bmp_actives_init(&bt->actives);
 	bmp_listeners_init(&bt->listeners);
