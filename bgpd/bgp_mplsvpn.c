@@ -923,11 +923,13 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		if (nexthop_self_flag)
 			bgp_path_info_set_flag(bn, bpi, BGP_PATH_ANNC_NH_SELF);
 
-		struct bgp *bgp_nexthop = bgp;
+		struct bgp *bgp_nexthop;
 		int nh_valid;
 
 		if (bpi->extra && bpi->extra->bgp_orig)
 			bgp_nexthop = bpi->extra->bgp_orig;
+		else
+			bgp_nexthop = bgp_orig;
 
         struct bgp_path_info *oripath = NULL;
         if (((struct bgp_path_info *)parent)->extra)
