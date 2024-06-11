@@ -359,6 +359,18 @@ static void bfpm_connection_down(const char *detail)
 	bfpm_set_state(BFPM_STATE_IDLE, detail);
 }
 
+char *bfd_status_translate(int status)
+{
+	switch (status) {
+    case BFD_NOTIFY_UP:
+        return "up";
+    case BFD_NOTIFY_DOWN:
+        return "down";
+	default:
+	    return "unknown";
+    }
+}
+
 /*
  * zfpm_read_cb
  */
@@ -370,6 +382,7 @@ static int bfpm_read_cb(struct thread *thread)
 	bfpm_g->t_read = NULL;
     struct bfd_session *bs = NULL;
     struct sockaddr_any peer;
+	size_t already;
 
 	/*
 	 * Check if async connect is now done.
@@ -383,38 +396,77 @@ static int bfpm_read_cb(struct thread *thread)
 	assert(bfpm_g->sock >= 0);
 
 	ibuf = bfpm_g->ibuf;
+	already = stream_get_endp(ibuf);
 
-	ssize_t nbyte;
+	if (already < BFDSYNC_MSG_HDR_LEN) {
+		ssize_t nbyte;
 
-	nbyte = stream_read_try(ibuf, bfpm_g->sock,
-				(sizeof(bfd_msg_hdr_t) + sizeof(bfd_msg_notify_t)));
-	if (nbyte == 0 || nbyte == -1) {
-		if (nbyte == -1) {
-			char buffer[1024];
+		nbyte = stream_read_try(ibuf, bfpm_g->sock,
+					BFDSYNC_MSG_HDR_LEN - already);
+		if (nbyte == 0 || nbyte == -1) {
+			if (nbyte == -1) {
+				char buffer[1024];
 
-			sprintf(buffer, "closed socket in read(%d): %s",
-				errno, safe_strerror(errno));
-			bfpm_connection_down(buffer);
-		} else
-			bfpm_connection_down("closed socket in read");
-		return 0;
+				snprintf(buffer, sizeof(buffer),
+					 "closed socket in read(%d): %s", errno,
+					 safe_strerror(errno));
+				bfpm_connection_down(buffer);
+			} else
+				bfpm_connection_down("closed socket in read");
+			return 0;
+		}
+
+		if (nbyte != (ssize_t)(BFDSYNC_MSG_HDR_LEN - already))
+		{
+			zlog_info("read bfd_msg hdr from bfdsyncd incomplete, nbyte:%u actual:%u", nbyte, (ssize_t)(BFDSYNC_MSG_HDR_LEN - already));
+			goto done;
+		}
+			
+		already = BFDSYNC_MSG_HDR_LEN;
 	}
 
-	if (nbyte != (ssize_t)(sizeof(bfd_msg_hdr_t) + sizeof(bfd_msg_notify_t)))
-		goto done;
-
-    
+    // get bfd_msg hdr
+	stream_set_getp(ibuf, 0);
 	STREAM_GETC(ibuf, hdr.version);
 	STREAM_GETC(ibuf, hdr.msg_type);
 	STREAM_GETW(ibuf, hdr.msg_len);
+
+	/*
+	 * Read out the rest of the packet.
+	 */
+	if (already < hdr.msg_len) {
+		ssize_t nbyte;
+
+		nbyte = stream_read_try(ibuf, bfpm_g->sock, hdr.msg_len - already);
+
+		if (nbyte == 0 || nbyte == -1) {
+			if (nbyte == -1) {
+				char buffer[1024];
+
+				snprintf(buffer, sizeof(buffer),
+					 "failed to read message(%d) %s", errno,
+					 safe_strerror(errno));
+				bfpm_connection_down(buffer);
+			} else
+				bfpm_connection_down("failed to read message");
+			return 0;
+		}
+
+		if (nbyte != (ssize_t)(hdr.msg_len - already))
+		{
+			zlog_info("read bfd_msg notify from bfdsyncd incomplete, nbyte:%u actual:%u", nbyte, (ssize_t)(hdr.msg_len - already));
+			goto done;
+		}
+	}
+    
     data.recvCount = stream_getq(ibuf);
     data.sendCount = stream_getq(ibuf);
     STREAM_GETL(ibuf, data.remote_discr);
     STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN); 
     STREAM_GET(data.bfd_name, ibuf, MAXNAMELEN + 1); 
 
-    zlog_info("read from bfdsyncd, bfd_name:%s, ver:%d, type:%d, msglen:%d, peer:%s, remote_discr:%u", 
-        data.bfd_name, hdr.version, hdr.msg_type, hdr.msg_len, data.bpc_peer, data.remote_discr);
+    zlog_info("read from bfdsyncd, bfd_name:%s, ver:%d, notify status:%s, msglen:%d, peer:%s, remote_discr:%u, already:%u", 
+        data.bfd_name, hdr.version, bfd_status_translate(hdr.msg_type), hdr.msg_len, data.bpc_peer, data.remote_discr, already);
     strtosa(data.bpc_peer, &peer);
     bs = bfd_find_disc(&peer, data.remote_discr);
     if (hdr.msg_type == BFD_NOTIFY_DOWN)
