@@ -175,7 +175,7 @@ void typesafe_hash_shrink(struct thash_head *head)
 
 	if (head->minshift && newshift < head->minshift)
 		newshift = head->minshift;
-	if (newshift == head->tabshift)
+	if (newshift >= head->tabshift)
 		return;
 	newsize = _HASH_SIZE(newshift);
 

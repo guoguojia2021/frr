@@ -2230,6 +2230,8 @@ static struct bmp_targets *global_bmp_targets_get( const char *name)
 	bt->bmpbgp = global_bmp_get();
 	bmp_session_init(&bt->sessions);
 	bmp_qhash_init(&bt->updhash);
+	bt->updhash.hh.minshift = 20;
+	bt->updhash.hh.maxshift = 20;
 	bmp_qlist_init(&bt->updlist);
 	bmp_actives_init(&bt->actives);
 	bmp_listeners_init(&bt->listeners);
