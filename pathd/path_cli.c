@@ -1391,6 +1391,8 @@ DEFPY(show_segment_list_by_name_detail,
 		return CMD_SUCCESS;
 
 	s_list = srte_segment_list_find(name);
+	if (s_list == NULL)
+		return CMD_SUCCESS;
 
 	vty_out(vty,
 		"Segment-list Name: %s\n", name);

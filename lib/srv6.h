@@ -81,6 +81,11 @@ enum seg6local_sid_type_t {
 	ZEBRA_SEG6_LOCAL_SID_TYPE_UN        = 3,
 };
 
+#define ZEBRA_SEG6_ACTION_IS_END_DT46(action)          \
+	( action == ZEBRA_SEG6_LOCAL_ACTION_END_DT4        \
+		|| action == ZEBRA_SEG6_LOCAL_ACTION_END_DT6   \
+		|| action == ZEBRA_SEG6_LOCAL_ACTION_END_DT46)
+
 struct seg6_segs {
 	size_t num_segs;
 	struct in6_addr segs[256];

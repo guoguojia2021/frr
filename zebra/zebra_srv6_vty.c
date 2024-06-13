@@ -735,9 +735,6 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 
 	listnode_add(locator_sid->sids, sid);
 	zebra_srv6_local_sid_add(locator_sid, sid);
-	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-		zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator_sid, sid);
-	}
 
 	VTY_PUSH_CONTEXT(SRV6_LOC_NODE, locator_sid);
 	vty->node = SRV6_LOC_NODE;
@@ -804,6 +801,7 @@ DEFPY (locator_prefix,
 	char *nhpstr = NULL;
 	struct listnode *sidnode, *sidnnode;
 	struct seg6_sid *sid_end_x = NULL;
+	int sid_count = 0;
 
 	if (argv_find(argv, argc, "end", &idx))
 		sidaction = ZEBRA_SEG6_LOCAL_ACTION_END;
@@ -845,17 +843,20 @@ DEFPY (locator_prefix,
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
-	if (locator->sids->count >= SRV6_LOCATOR_SID_COUNT_MAX) {
-		vty_out(vty, "One locator only can config %d sids. \n", SRV6_LOCATOR_SID_COUNT_MAX);
-		return CMD_WARNING;
-	}
-
 	for (ALL_LIST_ELEMENTS_RO(locator->sids, node, sid)) {
 		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix) && (sidaction != ZEBRA_SEG6_LOCAL_ACTION_END_X)) {
 			vty_out(vty, "Prefix %s is already exist,please delete it first. \n", argv[1]->arg);
 			return CMD_WARNING;
 		}
+		if (ZEBRA_SEG6_ACTION_IS_END_DT46(sid->sidaction))
+			sid_count++;
 	}
+
+	if (ZEBRA_SEG6_ACTION_IS_END_DT46(sidaction) && sid_count >= SRV6_LOCATOR_SID_COUNT_MAX) {
+		vty_out(vty, "One locator only can config %d dt46 sids. \n", SRV6_LOCATOR_SID_COUNT_MAX);
+		return CMD_WARNING;
+	}
+
 	if (strcmp(vrfName, VRF_DEFAULT_NAME) != 0) {
 		sid = sid_lookup_by_vrf_action(locator, vrfName, sidaction);
 		if (sid) {
@@ -980,9 +981,6 @@ DEFPY (locator_prefix,
 
 			listnode_add(locator->sids, sid_unua);
 			zebra_srv6_local_sid_add(locator, sid_unua);
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-				zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid_unua);
-			}
 
 			//uA
 			sid_ua = srv6_locator_sid_alloc();
@@ -1012,9 +1010,6 @@ DEFPY (locator_prefix,
 
 			listnode_add(locator->sids, sid_ua);
 			zebra_srv6_local_sid_add(locator, sid_ua);
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-				zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid_ua);
-			}
 		}
 		else {
 			vty_out(vty, "locator is compressd, only support opcode end-x\n");
@@ -1046,8 +1041,10 @@ DEFPY (locator_prefix,
 
 		listnode_add(locator->sids, sid);
 		zebra_srv6_local_sid_add(locator, sid);
-		for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-			zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid);
+		if (ZEBRA_SEG6_ACTION_IS_END_DT46(sidaction)) {
+			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
+				zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid);
+			}
 		}
 	}
 

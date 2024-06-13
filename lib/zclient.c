@@ -1185,6 +1185,9 @@ int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
 {
     struct seg6_sid *sidtmp = NULL;
     struct listnode *node = NULL;
+	unsigned long sidcountp;
+	unsigned int sid_count = 0;
+
 
 	stream_putw(s, strlen(loc->name));
 	stream_put(s, loc->name, strlen(loc->name));
@@ -1197,15 +1200,19 @@ int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
     stream_putc(s, loc->argument_bits_length);
 	stream_putl(s, loc->format);
     
-    stream_putl(s, loc->sids->count);
+	sidcountp = stream_get_endp(s);
+	stream_putl(s, 0);
     for (ALL_LIST_ELEMENTS_RO(loc->sids, node, sidtmp)) {
+		if (!ZEBRA_SEG6_ACTION_IS_END_DT46(sidtmp->sidaction))
+			continue;
+		sid_count++;
         stream_putw(s, sidtmp->ipv6Addr.prefixlen);
     	stream_put(s, &sidtmp->ipv6Addr.prefix, sizeof(sidtmp->ipv6Addr.prefix));
         stream_putl(s, sidtmp->sidaction);
         stream_putw(s, strlen(sidtmp->vrfName));
     	stream_put(s, sidtmp->vrfName, strlen(sidtmp->vrfName));
     }
-	
+	stream_putl_at(s, sidcountp, sid_count);
 	return 0;
 }
 
