@@ -793,7 +793,7 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	monotime(&bfd->downtime);
 
 	/* only signal clients when going from up->down state */
-	if (old_state == PTM_BFD_UP || old_state == PTM_BFD_INIT)
+	if (old_state == PTM_BFD_UP)
 		control_notify(bfd, PTM_BFD_DOWN);
 
 	ptm_sbfd_echo_reset(bfd);
@@ -1003,7 +1003,7 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 	bs->timers.required_min_echo_rx = BFD_DEFREQUIREDMINRX;
 	bs->detect_mult = BFD_DEFDETECTMULT;
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
-	bs->ses_state = PTM_BFD_INIT;
+	bs->ses_state = PTM_BFD_DOWN;
 
 	/* Initiate connection with slow timers. */
 	bs_set_slow_timers(bs);
