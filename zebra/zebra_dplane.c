@@ -3210,7 +3210,7 @@ dplane_route_update_internal(struct route_node *rn,
 			if (CHECK_FLAG(old_re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
 				SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
 			}
-			dplane_ctx_set_flags(ctx, old_flags);
+			dplane_ctx_set_old_flags(ctx, old_flags);
 			ctx->zd_is_update = true;
 
 			old_re->dplane_sequence =
