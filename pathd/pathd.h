@@ -631,6 +631,8 @@ struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *polic
 
 struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_name, 
                         struct srte_candidate *candidate);
+void srte_candidate_bfd_group_add_with_status(const char *bfd_name,  enum detection_status status);
+
 void srte_candidate_bfd_group_del(const char *bfd_name, 
                         struct srte_candidate *candidate);
 

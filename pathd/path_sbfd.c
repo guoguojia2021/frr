@@ -1103,6 +1103,7 @@ static int policy_sbfd_state_change(char *bfd_name, int state)
 
 	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
 	if(!group){
+		srte_candidate_bfd_group_add_with_status(bfd_name, new_status);
 		return 0;
 	}
 
