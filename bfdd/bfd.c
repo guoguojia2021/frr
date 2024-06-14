@@ -1903,6 +1903,9 @@ void bs_set_slow_timers(struct bfd_session *bs)
 	/* Set the appropriated timeouts for slow connection. */
 	bs->detect_TO = (BFD_DEFDETECTMULT * BFD_DEF_SLOWTX);
 	bs->xmt_TO = BFD_DEF_SLOWTX;
+
+	/* add for sbfd-echo slow connection  */
+	bs->echo_xmt_TO = BFD_DEF_SLOWTX;
 }
 
 void bfd_set_echo(struct bfd_session *bs, bool echo)
