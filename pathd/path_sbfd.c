@@ -1094,7 +1094,7 @@ void policy_sbfd_enabled(struct srte_policy *policy)
 static int policy_sbfd_state_change(char *bfd_name, int state)
 {
 	struct srte_candidate *candidate;
-	enum detection_status new_status = (state == BFD_STATUS_UP?SRTE_DETECT_UP: (state == BFD_STATUS_DOWN?SRTE_DETECT_DOWN: SRTE_DETECT_NONE));
+	enum detection_status new_status = (state == BFD_STATUS_UP?SRTE_DETECT_UP: SRTE_DETECT_DOWN);
 	struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
