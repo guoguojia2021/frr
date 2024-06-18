@@ -67,7 +67,7 @@ ssize_t bfd_recv_ipv6(int sd, uint8_t *msgbuf, size_t msgbuflen, uint8_t *ttl,
 int bp_udp_send(int sd, uint8_t ttl, uint8_t *data, size_t datalen,
 		struct sockaddr *to, socklen_t tolen);
 int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
-		   uint8_t *ttl, uint32_t *my_discr);
+		   uint8_t *ttl, uint32_t *my_discr, uint32_t *remote_discr);
 
 int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* sip , struct in6_addr* dip,
     uint16_t src_port, uint16_t dst_port,
@@ -349,10 +349,11 @@ void ptm_sbfd_echo_snd(struct bfd_session *bfd)
 	struct bfd_echo_pkt bep;
     
 	memset(&bep, 0, sizeof(bep));
-	bep.ver = BFD_ECHO_VERSION;
+	BFD_SETVER(bep.ver, BFD_ECHO_VERSION);
 	bep.len = BFD_ECHO_PKT_LEN;
-	bep.my_discr = htonl(bfd->discrs.my_discr);
-
+	// adapt cisco hw bfd echo pkt format
+	bep.remote_discr = htonl(bfd->discrs.my_discr); 
+   
     if (_ptm_sbfd_echo_send(bfd, &bep, BFD_ECHO_PKT_LEN) != 0)
 	    return;
 
@@ -364,19 +365,23 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 {
 	struct bfd_session *bfd;
 	uint32_t my_discr = 0;
+	uint32_t remote_discr = 0;
 	uint8_t ttl = 0;
 
 	/* Receive and parse echo packet. */
-	if (bp_bfd_echo_in(bvrf, s, &ttl, &my_discr) == -1)
+	if (bp_bfd_echo_in(bvrf, s, &ttl, &my_discr, &remote_discr) == -1)
 		return 0;
 
 	/* Your discriminator not zero - use it to find session */
-	bfd = bfd_id_lookup(my_discr);
+	bfd = bfd_id_lookup(remote_discr);
 	if (bfd == NULL) {
-		if (bglobal.debug_network)
-			zlog_debug("echo-packet: no matching session (id:%u)",
-				   my_discr);
-		return -1;
+		bfd = bfd_id_lookup(my_discr);
+		if (bfd == NULL) {
+			if (bglobal.debug_network)
+				zlog_debug("echo-packet: no matching session (id:%u)",
+					my_discr);
+			return -1;
+		}
 	}
 
 	if (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE)) {
@@ -1024,7 +1029,7 @@ int bfd_recv_cb(struct thread *t)
  * Returns -1 on error or loopback or 0 on success.
  */
 int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
-		   uint8_t *ttl, uint32_t *my_discr)
+		   uint8_t *ttl, uint32_t *my_discr, uint32_t *remote_discr)
 {
 	struct bfd_echo_pkt *bep;
 	ssize_t rlen;
@@ -1061,8 +1066,13 @@ int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
 	*my_discr = ntohl(bep->my_discr);
 	if (*my_discr == 0) {
 		cp_debug(false, &peer, &local, ifindex, vrfid,
-			 "invalid echo packet discriminator (zero)");
-		return -1;
+			 "echo packet discriminator (zero)");
+	}
+
+	*remote_discr = ntohl(bep->remote_discr);
+	if (*remote_discr == 0) {
+		cp_debug(false, &peer, &local, ifindex, vrfid,
+			 "echo packet discriminator (zero)");
 	}
 
 	return 0;

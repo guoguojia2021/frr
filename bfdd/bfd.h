@@ -80,12 +80,14 @@ struct bfd_echo_pkt {
 		uint32_t byteFields;
 		struct {
 			uint8_t ver;
+			uint8_t flags;
+			uint8_t detect_mult;
 			uint8_t len;
-			uint16_t reserved;
 		};
 	};
 	uint32_t my_discr;
-	uint8_t pad[16];
+	uint32_t remote_discr;
+	uint8_t pad[12];
 };
 
 #define BFD_XMTDEL_DELAY_TIMER               5
