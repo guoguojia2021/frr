@@ -1382,8 +1382,7 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 					continue;
 				if (bpiter->peer->su_remote ==  NULL)
 					continue;
-				//if (!CHECK_FLAG(bpiter->flags, BGP_PATH_VALID))
-				if (CHECK_FLAG(bpi->flags, BGP_PATH_REMOVED))
+				if (!CHECK_FLAG(bpiter->flags, BGP_PATH_VALID))
 					continue;
 				if (bpiter->peer->qobj_node.nid
 				    <= bmp->syncpeerid)
@@ -1642,8 +1641,7 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 
 		for (bpi = bn ? bgp_dest_get_bgp_path_info(bn) : NULL; bpi;
 		     bpi = bpi->next) {
-			//if (!CHECK_FLAG(bpi->flags, BGP_PATH_VALID))
-			if (CHECK_FLAG(bpi->flags, BGP_PATH_REMOVED))
+			if (!CHECK_FLAG(bpi->flags, BGP_PATH_VALID))
 				continue;
 			if (bpi->peer == peer)
 				break;
