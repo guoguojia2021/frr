@@ -167,8 +167,8 @@ void zebra_srv6_locator_delete(struct srv6_locator *locator)
 	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
 	struct zserv *client;
 	struct seg6_sid *sid = NULL;
-	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
-	struct seg6_sid_ua_params *sid_ua_params = NULL;
+	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_endx_params *sid_endx_params = NULL;
 	struct listnode *client_node;
 
 	for (ALL_LIST_ELEMENTS(locator->sids, n, nnode, sid)) {
@@ -180,9 +180,9 @@ void zebra_srv6_locator_delete(struct srv6_locator *locator)
 		srv6_locator_sid_free(sid);
 	}
 
-	for (ALL_LIST_ELEMENTS(locator->sid_ua_ecmps, n, nnode, sid_ua_ecmp)) {
-		listnode_delete(locator->sid_ua_ecmps, sid_ua_ecmp);
-		srv6_locator_sid_ua_ecmp_free(sid_ua_ecmp);
+	for (ALL_LIST_ELEMENTS(locator->sid_endx_ecmps, n, nnode, sid_ua_ecmp)) {
+		listnode_delete(locator->sid_endx_ecmps, sid_ua_ecmp);
+		srv6_locator_sid_endx_ecmp_free(sid_ua_ecmp);
 	}	
 
 	for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client))
@@ -592,8 +592,8 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 	struct seg6local_context ctx = {};
 	struct in6_addr result_sid = {0};
 	struct listnode *node = NULL;
-	struct seg6_sid_ua_ecmp *sid_ua_ecmp_index = NULL;
-	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_endx_ecmp_index = NULL;
+	struct seg6_sid_endx_ecmp *sid_endx_ecmp = NULL;
 	struct vrf *vrf;
 	bool is_found = false;
 
@@ -626,12 +626,12 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 
     strncpy(ctx.vrfName, sid->vrfName, VRF_ALIASNAMESIZ + 1);
 
-	if (act == ZEBRA_SEG6_LOCAL_ACTION_END_X && locator->compress == true)
+	if (act == ZEBRA_SEG6_LOCAL_ACTION_END_X)
 	{
-		for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ua_ecmp_index)) {
-			if (IPV6_ADDR_SAME(&sid_ua_ecmp_index->ipv6Addr.prefix, &result_sid)) {
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_endx_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_endx_ecmp_index->ipv6Addr.prefix, &result_sid)) {
 				is_found = true;
-				sid_ua_ecmp = sid_ua_ecmp_index;
+				sid_endx_ecmp = sid_endx_ecmp_index;
 				break;	
 			}
 		}
@@ -644,8 +644,8 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 	}
 
     if (CHECK_FLAG(vrf->status, VRF_ACTIVE)) {
-		if (act == ZEBRA_SEG6_LOCAL_ACTION_END_X && locator->compress == true)
-			zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid, vrf->name, act, &ctx, sid_ua_ecmp->sid_ua_params);
+		if (act == ZEBRA_SEG6_LOCAL_ACTION_END_X)
+			zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid, vrf->name, act, &ctx, sid_endx_ecmp->sid_endx_params);
 		else
         	zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx, sid->ifname, &sid->nexthop);
 		if ((locator->compress == false && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT) ||

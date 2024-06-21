@@ -336,7 +336,7 @@ static const char *local_action2str(enum seg6local_action_t action)
 }
 
 void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const char *vrf_name,
-    enum seg6local_action_t act, const struct seg6local_context *ctx, const struct list *sid_ua_params)
+    enum seg6local_action_t act, const struct seg6local_context *ctx, const struct list *sid_endx_params)
 {
     int ret;
     char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
@@ -349,7 +349,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     char channel[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
     
-    struct seg6_sid_ua_params *sid_ua_params_node = NULL;
+    struct seg6_sid_endx_params *sid_ua_params_node = NULL;
     struct listnode *node = NULL;
 
     DB_FieldValue_List *pstDataLst_head = NULL;
@@ -452,7 +452,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     }
     pstDataLst_action->next = pstDataLst_vrf;
 
-    for (ALL_LIST_ELEMENTS_RO(sid_ua_params, node, sid_ua_params_node)) {
+    for (ALL_LIST_ELEMENTS_RO(sid_endx_params, node, sid_ua_params_node)) {
         if (strlen(intf_val) + strlen(sid_ua_params_node->ifname) + 1 >= ZEBRA_DB_IF_MAX_VALUE_LEN) {
             zlog_err("create ifname field segment failed.");
             return;

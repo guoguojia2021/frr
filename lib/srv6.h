@@ -126,7 +126,7 @@ struct srv6_locator {
 	bool status_up;
 	struct list *chunks;
     struct list *sids;
-	struct list *sid_ua_ecmps;
+	struct list *sid_endx_ecmps;
     /*
 	 * For Zclient communication values
 	 */
@@ -163,14 +163,14 @@ struct srv6_locator_chunk {
 	uint32_t session_id;
 };
 
-struct seg6_sid_ua_params {
+struct seg6_sid_endx_params {
 	char ifname[INTERFACE_NAMSIZ];
 	struct ipaddr nexthop;
 };
 
-struct seg6_sid_ua_ecmp {
+struct seg6_sid_endx_ecmp {
 	struct prefix_ipv6 ipv6Addr;
-	struct list *sid_ua_params; 
+	struct list *sid_endx_params; 
 };
 
 struct seg6_sid {
@@ -268,10 +268,10 @@ extern void combine_hide_sid(struct srv6_locator *locator, struct in6_addr *sid_
 extern void srv6_locator_chunk_free(struct srv6_locator_chunk *chunk);
 extern struct seg6_sid *srv6_locator_sid_alloc(void);
 extern void srv6_locator_sid_free(struct seg6_sid *sid);
-extern struct seg6_sid_ua_ecmp *srv6_locator_sid_ua_ecmp_alloc(void);
-extern void srv6_locator_sid_ua_ecmp_free(struct seg6_sid_ua_ecmp *sid_ua_ecmp);
-extern struct seg6_sid_ua_params *srv6_locator_sid_ua_params_alloc(void);
-extern void srv6_locator_sid_ua_params_free(struct seg6_sid_ua_ecmp *sid_ua_params);
+extern struct seg6_sid_endx_ecmp *srv6_locator_sid_endx_ecmp_alloc(void);
+extern void srv6_locator_sid_endx_ecmp_free(struct seg6_sid_endx_ecmp *sid_endx_ecmp);
+extern struct seg6_sid_endx_params *srv6_locator_sid_endx_params_alloc(void);
+extern void srv6_locator_sid_endx_params_free(struct seg6_sid_endx_ecmp *sid_endx_params);
 
 json_object *srv6_locator_chunk_json(const struct srv6_locator_chunk *chunk);
 json_object *srv6_locator_json(const struct srv6_locator *loc);

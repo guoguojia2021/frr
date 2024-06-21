@@ -91,21 +91,38 @@ static size_t list_count(struct list *list) {
     return count;
 }
 
-static struct seg6_sid_ua_params *seg6_sid_ua_param_lookup(struct list *list, struct seg6_sid_ua_params *sid_ua_params)
+static struct seg6_sid_endx_params *seg6_sid_endx_param_lookup(struct list *list, struct seg6_sid_endx_params *sid_endx_params)
 {
-	struct seg6_sid_ua_params *sid_ua_param_index = NULL;
+	struct seg6_sid_endx_params *sid_endx_param_index = NULL;
     struct listnode *node, *nnode;
-    if (!sid_ua_params)
+    if (!sid_endx_params)
         return NULL;
-    for (ALL_LIST_ELEMENTS(list, node, nnode, sid_ua_param_index)) {
-		if (!strcmp(sid_ua_param_index->ifname, sid_ua_params->ifname) || 
-		    !ipaddr_cmp(&sid_ua_param_index->nexthop, &sid_ua_params->nexthop))
+    for (ALL_LIST_ELEMENTS(list, node, nnode, sid_endx_param_index)) {
+		if (!strcmp(sid_endx_param_index->ifname, sid_endx_params->ifname) || 
+		    !ipaddr_cmp(&sid_endx_param_index->nexthop, &sid_endx_params->nexthop))
 			{
-				return sid_ua_param_index;
+				return sid_endx_param_index;
 			}       
     }
 
 	return NULL;
+}
+
+static void seg6_sid_endx_ecmp_free(struct srv6_locator *locator, struct seg6_sid_endx_ecmp *sid_endx_ecmp)
+{
+	int sid_endx_ecmp_member_cnt = 0;
+
+	if (!locator || !sid_endx_ecmp)
+		return;
+
+	sid_endx_ecmp_member_cnt = list_count(sid_endx_ecmp->sid_endx_params);
+	if (sid_endx_ecmp_member_cnt == 0)
+	{
+		listnode_delete(locator->sid_endx_ecmps, sid_endx_ecmp);
+		srv6_locator_sid_endx_ecmp_free(sid_endx_ecmp);
+	}
+
+	return;
 }
 
 
@@ -385,8 +402,12 @@ DEFUN (show_srv6_locator_detail,
 	const bool uj = use_json(argc, argv);
 	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
 	struct srv6_locator *locator;
+	struct seg6_sid_endx_ecmp *sid_ecmp_index = NULL;
+	struct seg6_sid_endx_params *sid_ecmp_params_index = NULL;
 	struct listnode *node;
 	struct listnode *sidnode;
+	struct listnode *ecmp_node;
+	struct listnode *ecmp_para_node;
 	char str[256];
 	const char *locator_name = argv[4]->arg;
 	json_object *json_locator = NULL;
@@ -461,6 +482,25 @@ DEFUN (show_srv6_locator_detail,
 				vty_out(vty, "    nexthop %s\n", ifbuf);
 			}
 			vty_out(vty, "    vrf %s\n", sid->vrfName);
+		}
+
+		vty_out(vty, "  end-x ecmp:\n");
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, ecmp_node, sid_ecmp_index)) {
+			memset(buf,0,sizeof(buf));
+			p.family = AF_INET6;
+			p.prefixlen = 128;
+			p.u.prefix6 = sid_ecmp_index->ipv6Addr.prefix;
+			prefix2str(&p, buf, sizeof(buf));
+			vty_out(vty, "   -prefix %s\n", buf);
+			for (ALL_LIST_ELEMENTS_RO(sid_ecmp_index->sid_endx_params, ecmp_para_node, sid_ecmp_params_index)) {
+				char ecmpbuf[INET6_ADDRSTRLEN] = {0};
+				vty_out(vty, "    ifname %s\n", sid_ecmp_params_index->ifname);
+				if (sid_ecmp_params_index->nexthop.ipa_type == IPADDR_V4)
+					inet_ntop(AF_INET, &sid_ecmp_params_index->nexthop.ipaddr_v4, ecmpbuf, sizeof(ecmpbuf));
+				else if (sid_ecmp_params_index->nexthop.ipa_type == IPADDR_V6)
+					inet_ntop(AF_INET6, &sid_ecmp_params_index->nexthop.ipaddr_v6, ecmpbuf, sizeof(ecmpbuf));
+				vty_out(vty, "    nexthop %s\n", ecmpbuf);		
+			}
 		}
 	}
 
@@ -773,19 +813,23 @@ DEFPY (locator_prefix,
 	struct listnode *node = NULL;
 	struct listnode *node_ua = NULL;
 
-	struct seg6_sid_ua_ecmp *sid_ua_ecmp_node = NULL;
-	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
-	struct seg6_sid_ua_ecmp *sid_unua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_endx_ecmp_node = NULL;
+	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_unua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_endx_ecmp = NULL;
 
-	struct seg6_sid_ua_params *sid_ua_params = NULL;
-	struct seg6_sid_ua_params *sid_unua_params = NULL;
-	struct seg6_sid_ua_params st_sid_ua_params = {0};
+	struct seg6_sid_endx_params *sid_ua_params = NULL;
+	struct seg6_sid_endx_params *sid_unua_params = NULL;
+	struct seg6_sid_endx_params *sid_endx_params = NULL;
+	struct seg6_sid_endx_params st_sid_endx_params = {0};
 
 	struct in6_addr result_sid_ua = {0};
 	struct in6_addr result_sid_unua = {0};
+	struct in6_addr result_sid_endx = {0};
 
 	bool is_found_ua_param = false;
 	bool is_found_unua_param = false;
+	bool is_found_endx_param = false;
 
 	char buf[BUFSIZ] = {0};
 	enum seg6local_action_t sidaction = ZEBRA_SEG6_LOCAL_ACTION_UNSPEC;
@@ -871,12 +915,12 @@ DEFPY (locator_prefix,
 			combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
 			combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
 
-			strlcpy(st_sid_ua_params.ifname, ifName, INTERFACE_NAMSIZ);
-			memcpy(&st_sid_ua_params.nexthop, &nexthop, sizeof(struct ipaddr));
+			strlcpy(st_sid_endx_params.ifname, ifName, INTERFACE_NAMSIZ);
+			memcpy(&st_sid_endx_params.nexthop, &nexthop, sizeof(struct ipaddr));
 
-			for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ua_ecmp_node)) {
-				if (IPV6_ADDR_SAME(&sid_ua_ecmp_node->ipv6Addr.prefix, &result_sid_ua)) {					
-					if (seg6_sid_ua_param_lookup(sid_ua_ecmp_node->sid_ua_params, &st_sid_ua_params) == NULL)
+			for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_endx_ecmp_node)) {
+				if (IPV6_ADDR_SAME(&sid_endx_ecmp_node->ipv6Addr.prefix, &result_sid_ua)) {					
+					if (seg6_sid_endx_param_lookup(sid_endx_ecmp_node->sid_endx_params, &st_sid_endx_params) == NULL)
 					{
 						is_found_ua_param = false;
 					}
@@ -885,13 +929,13 @@ DEFPY (locator_prefix,
 						is_found_ua_param = true;
 					}
 
-					sid_ua_ecmp = sid_ua_ecmp_node;
+					sid_ua_ecmp = sid_endx_ecmp_node;
 				}
 			}
 
-			for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ua_ecmp_node)) {
-				if (IPV6_ADDR_SAME(&sid_ua_ecmp_node->ipv6Addr.prefix, &result_sid_unua)) {
-					if (seg6_sid_ua_param_lookup(sid_ua_ecmp_node->sid_ua_params, &st_sid_ua_params) == NULL)
+			for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_endx_ecmp_node)) {
+				if (IPV6_ADDR_SAME(&sid_endx_ecmp_node->ipv6Addr.prefix, &result_sid_unua)) {
+					if (seg6_sid_endx_param_lookup(sid_endx_ecmp_node->sid_endx_params, &st_sid_endx_params) == NULL)
 					{
 						is_found_unua_param = false;
 					}
@@ -900,7 +944,7 @@ DEFPY (locator_prefix,
 						is_found_unua_param = true;
 					}
 
-					sid_unua_ecmp = sid_ua_ecmp_node;
+					sid_unua_ecmp = sid_endx_ecmp_node;
 				}
 			}
 
@@ -924,33 +968,33 @@ DEFPY (locator_prefix,
 			/* first create uA */
 			if (!sid_ua_ecmp)
 			{
-				sid_ua_ecmp = srv6_locator_sid_ua_ecmp_alloc();
+				sid_ua_ecmp = srv6_locator_sid_endx_ecmp_alloc();
 				sid_ua_ecmp->ipv6Addr.family = AF_INET6;
 				sid_ua_ecmp->ipv6Addr.prefixlen = 48;
 				IPV6_ADDR_COPY(&sid_ua_ecmp->ipv6Addr.prefix, &result_sid_ua);
-				listnode_add(locator->sid_ua_ecmps, sid_ua_ecmp);
+				listnode_add(locator->sid_endx_ecmps, sid_ua_ecmp);
 			}
 
-			sid_ua_params = srv6_locator_sid_ua_params_alloc();
+			sid_ua_params = srv6_locator_sid_endx_params_alloc();
 			strlcpy(sid_ua_params->ifname, ifName, INTERFACE_NAMSIZ);
 			memcpy(&sid_ua_params->nexthop, &nexthop, sizeof(struct ipaddr));
-			listnode_add(sid_ua_ecmp->sid_ua_params, sid_ua_params);
+			listnode_add(sid_ua_ecmp->sid_endx_params, sid_ua_params);
 
 			// uN + uA
 			/* first create uN + uA */
 			if (!sid_unua_ecmp)
 			{
-				sid_unua_ecmp = srv6_locator_sid_ua_ecmp_alloc();
+				sid_unua_ecmp = srv6_locator_sid_endx_ecmp_alloc();
 				sid_unua_ecmp->ipv6Addr.family = AF_INET6;
 				sid_unua_ecmp->ipv6Addr.prefixlen = 64;
 				IPV6_ADDR_COPY(&sid_unua_ecmp->ipv6Addr.prefix, &result_sid_unua);
-				listnode_add(locator->sid_ua_ecmps, sid_unua_ecmp);
+				listnode_add(locator->sid_endx_ecmps, sid_unua_ecmp);
 			}
 
-			sid_unua_params = srv6_locator_sid_ua_params_alloc();
+			sid_unua_params = srv6_locator_sid_endx_params_alloc();
 			strlcpy(sid_unua_params->ifname, ifName, INTERFACE_NAMSIZ);
 			memcpy(&sid_unua_params->nexthop, &nexthop, sizeof(struct ipaddr));
-			listnode_add(sid_unua_ecmp->sid_ua_params, sid_unua_params);
+			listnode_add(sid_unua_ecmp->sid_endx_params, sid_unua_params);
 		
 
 			//uN+uA
@@ -972,10 +1016,17 @@ DEFPY (locator_prefix,
 			if (!zebra_srv6_local_sid_format_valid(locator, sid_unua)) {
 				vty_out(vty, "%% Malformed locator sid_unua opcode format\n");
 				srv6_locator_sid_free(sid_unua);
-				listnode_delete(sid_ua_ecmp->sid_ua_params, sid_ua_params);
-				srv6_locator_sid_ua_params_free(sid_ua_params);
-				listnode_delete(sid_unua_ecmp->sid_ua_params, sid_unua_params);
-				srv6_locator_sid_ua_params_free(sid_unua_params);
+
+				/* free unua resource */
+				listnode_delete(sid_unua_ecmp->sid_endx_params, sid_unua_params);
+				srv6_locator_sid_endx_params_free(sid_unua_params);
+				seg6_sid_endx_ecmp_free(locator,sid_unua_ecmp);
+
+				/* free ua resource */
+				listnode_delete(sid_ua_ecmp->sid_endx_params, sid_ua_params);
+				srv6_locator_sid_endx_params_free(sid_ua_params);
+				seg6_sid_endx_ecmp_free(locator,sid_ua_ecmp);
+
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 
@@ -1001,10 +1052,12 @@ DEFPY (locator_prefix,
 			if (!zebra_srv6_local_sid_format_valid(locator, sid_ua)) {
 				vty_out(vty, "%% Malformed locator sid_ua opcode format\n");
 				srv6_locator_sid_free(sid_ua);
-				listnode_delete(sid_ua_ecmp->sid_ua_params, sid_ua_params);
-				srv6_locator_sid_ua_params_free(sid_ua_params);
-				listnode_delete(sid_unua_ecmp->sid_ua_params, sid_unua_params);
-				srv6_locator_sid_ua_params_free(sid_unua_params);
+
+				/* free ua resource */
+				listnode_delete(sid_ua_ecmp->sid_endx_params, sid_ua_params);
+				srv6_locator_sid_endx_params_free(sid_ua_params);
+				seg6_sid_endx_ecmp_free(locator,sid_ua_ecmp);
+
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 
@@ -1018,6 +1071,48 @@ DEFPY (locator_prefix,
 	}
 	else
 	{
+		if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) 
+		{
+			combine_sid(locator, &ipv6prefix.prefix, &result_sid_endx);
+			strlcpy(st_sid_endx_params.ifname, ifName, INTERFACE_NAMSIZ);
+			memcpy(&st_sid_endx_params.nexthop, &nexthop, sizeof(struct ipaddr));
+
+			for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_endx_ecmp_node)) {
+				if (IPV6_ADDR_SAME(&sid_endx_ecmp_node->ipv6Addr.prefix, &result_sid_endx)) {					
+					if (seg6_sid_endx_param_lookup(sid_endx_ecmp_node->sid_endx_params, &st_sid_endx_params) == NULL)
+					{
+						is_found_endx_param = false;
+					}
+					else
+					{
+						is_found_endx_param = true;
+					}
+
+					sid_endx_ecmp = sid_endx_ecmp_node;
+				}
+			}
+
+			if (is_found_endx_param == true)
+			{
+				vty_out(vty, "%% endx ifName %s and nexthop is already exist.\n", ifName);
+				return CMD_WARNING;
+			}
+
+			if (!sid_endx_ecmp)
+			{
+				sid_endx_ecmp = srv6_locator_sid_endx_ecmp_alloc();
+				sid_endx_ecmp->ipv6Addr.family = AF_INET6;
+				sid_endx_ecmp->ipv6Addr.prefixlen = locator->block_bits_length + locator->node_bits_length;
+				IPV6_ADDR_COPY(&sid_endx_ecmp->ipv6Addr.prefix, &result_sid_endx);
+				listnode_add(locator->sid_endx_ecmps, sid_endx_ecmp);
+			}
+
+			sid_endx_params = srv6_locator_sid_endx_params_alloc();
+			strlcpy(sid_endx_params->ifname, ifName, INTERFACE_NAMSIZ);
+			memcpy(&sid_endx_params->nexthop, &nexthop, sizeof(struct ipaddr));
+			listnode_add(sid_endx_ecmp->sid_endx_params, sid_endx_params);
+		}
+		
 		sid = srv6_locator_sid_alloc();
 		sid->sidaction = sidaction;
 		sid->sidtype = ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT;
@@ -1034,8 +1129,14 @@ DEFPY (locator_prefix,
 		memcpy(&sid->nexthop, &nexthop, sizeof(struct ipaddr));
 
 		if (!zebra_srv6_local_sid_format_valid(locator, sid)) {
-			vty_out(vty, "%% Malformed locator sid opcode format\n");
 			srv6_locator_sid_free(sid);
+			if (sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) 
+			{
+				listnode_delete(sid_endx_ecmp->sid_endx_params, sid_endx_params);
+				srv6_locator_sid_endx_params_free(sid_endx_params);			
+				seg6_sid_endx_ecmp_free(locator,sid_endx_ecmp);
+			}
+			vty_out(vty, "%% Malformed locator sid opcode format\n");
 			return CMD_WARNING_CONFIG_FAILED;
 		}
 
@@ -1067,6 +1168,14 @@ DEFPY (no_locator_prefix,
     struct prefix_ipv6 ipv6prefix = {0};
     struct zserv *client;
     struct listnode *client_node;
+	struct in6_addr result_sid_endx = {0};
+	struct in6_addr result_sid_ua = {0};
+	struct in6_addr result_sid_unua = {0};
+	struct seg6_sid_endx_ecmp *sid_ecmp_index = NULL;
+	struct seg6_sid_endx_ecmp *sid_endx_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_unua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_endx_params *sid_endx_params = NULL;
 
     prefix = argv[2]->arg;
     ret = str2prefix_ipv6(prefix, &ipv6prefix);
@@ -1075,17 +1184,61 @@ DEFPY (no_locator_prefix,
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 
+	if (locator->compress)
+	{
+		combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
+		combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_ua)) {
+				sid_ua_ecmp = sid_ecmp_index;
+				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_endx_params)) {
+					listnode_delete(sid_ecmp_index->sid_endx_params, sid_endx_params);
+					srv6_locator_sid_endx_params_free(sid_endx_params);
+				}
+			}
+		}
+
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_unua)) {
+				sid_unua_ecmp = sid_ecmp_index;
+				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_endx_params)) {
+					listnode_delete(sid_ecmp_index->sid_endx_params, sid_endx_params);
+					srv6_locator_sid_endx_params_free(sid_endx_params);
+				}
+			}
+		}
+
+		seg6_sid_endx_ecmp_free(locator,sid_ua_ecmp);
+		seg6_sid_endx_ecmp_free(locator,sid_unua_ecmp);
+	}
+	else
+	{
+		combine_sid(locator, &ipv6prefix.prefix, &result_sid_endx);
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_endx)) {
+				sid_endx_ecmp = sid_ecmp_index;
+				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_endx_params)) {
+					listnode_delete(sid_ecmp_index->sid_endx_params, sid_endx_params);
+					srv6_locator_sid_endx_params_free(sid_endx_params);
+				}
+			}
+		}
+		seg6_sid_endx_ecmp_free(locator,sid_endx_ecmp);
+	}
+
 	for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
-		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
-			for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-				zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+		if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix) && (sid->sidtype != ZEBRA_SEG6_LOCAL_SID_TYPE_UN)) {
+			if (ZEBRA_SEG6_ACTION_IS_END_DT46(sid->sidaction)) {
+				for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
+					zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
+				}
 			}
 			zebra_srv6_local_sid_del(locator, sid);
-
 			listnode_delete(locator->sids, sid);
 			srv6_locator_sid_free(sid);
-		}
+		}		
 	}
+
 	return CMD_SUCCESS;
 }
 
@@ -1105,30 +1258,36 @@ DEFPY (no_locator_endx_prefix,
 {
 	VTY_DECLVAR_CONTEXT(srv6_locator, locator);
 	struct seg6_sid *sid = NULL;
-	struct listnode *node, *next, *node_ua, *next_ua;
+	struct listnode *node, *next;
     char *prefix = NULL;
     int ret = 0;
     struct prefix_ipv6 ipv6prefix = {0};
     struct zserv *client;
     struct listnode *client_node;
 
-	struct seg6_sid_ua_ecmp *sid_ecmp_index = NULL;
-	struct seg6_sid_ua_ecmp *sid_ua_ecmp = NULL;
-	struct seg6_sid_ua_ecmp *sid_unua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_ecmp_index = NULL;
+	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_unua_ecmp = NULL;
+	struct seg6_sid_endx_ecmp *sid_endx_ecmp = NULL;
 
-	struct seg6_sid_ua_params *sid_ua_params = NULL;
-	struct seg6_sid_ua_params *sid_unua_params = NULL;
+	struct seg6_sid_endx_params *sid_endx_params = NULL;
+	struct seg6_sid_endx_params *sid_ua_params = NULL;
+	struct seg6_sid_endx_params *sid_unua_params = NULL;
 
 	struct in6_addr result_sid_ua = {0};
 	struct in6_addr result_sid_unua = {0};
+	struct in6_addr result_sid_endx = {0};
+
 	char *ifName = NULL;
 	struct ipaddr nexthop = {0};
 	char *nhpstr = NULL;
     int idx = 0;
 	bool is_found_ua = false;
 	bool is_found_unua = false;
+	bool is_found_endx = false;
 	int ecmp_member_ua_cnt = 0;
 	int ecmp_member_unua_cnt = 0;
+	int ecmp_member_endx_cnt = 0;
 	char *vrfName = VRF_DEFAULT_NAME;
 	struct seg6local_context ctx = {};
 
@@ -1159,100 +1318,194 @@ DEFPY (no_locator_endx_prefix,
 		return CMD_WARNING;
 	}
 
-	combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
-	combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
- 
-	for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ecmp_index)) {
-		if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_ua)) {
-			for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_ua_params, node_ua, next_ua, sid_ua_params)) {
-				if (!strcmp(sid_ua_params->ifname, ifName) && !ipaddr_cmp(&sid_ua_params->nexthop, &nexthop)) {
-					sid_ua_ecmp = sid_ecmp_index;
-					sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
-					if (!sid)
-					{
-						vty_out(vty, "%% find ua sid fail, ifname:%s\n", ifName);
-						return CMD_WARNING;
+	
+	if (locator->compress == true)
+	{
+		combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
+		combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
+	
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_ua)) {
+				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_ua_params)) {
+					if (!strcmp(sid_ua_params->ifname, ifName) && !ipaddr_cmp(&sid_ua_params->nexthop, &nexthop)) {
+						sid_ua_ecmp = sid_ecmp_index;
+						sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
+						if (!sid)
+						{
+							vty_out(vty, "%% find ua sid fail, ifname:%s\n", ifName);
+							return CMD_WARNING;
+						}
+						if (list_count(sid_ecmp_index->sid_endx_params) > 1)
+						{
+							listnode_delete(locator->sids, sid);
+							srv6_locator_sid_free(sid);	
+						}
+						listnode_delete(sid_ecmp_index->sid_endx_params, sid_ua_params);
+						srv6_locator_sid_endx_params_free(sid_ua_params);
+						is_found_ua = true;
 					}
+				}
+			}
+		}
+
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_unua)) {
+				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_unua_params)) {
+					if (!strcmp(sid_unua_params->ifname, ifName) && !ipaddr_cmp(&sid_unua_params->nexthop,  &nexthop)) {
+						sid_unua_ecmp = sid_ecmp_index;
+						sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA);
+						if (!sid)
+						{
+							vty_out(vty, "%% find unua sid fail, ifname:%s\n", ifName);
+							return CMD_WARNING;
+						}
+						if (list_count(sid_ecmp_index->sid_endx_params) > 1)
+						{
+							listnode_delete(locator->sids, sid);
+							srv6_locator_sid_free(sid);	
+						}
+						listnode_delete(sid_ecmp_index->sid_endx_params, sid_unua_params);
+						srv6_locator_sid_endx_params_free(sid_unua_params);
+						is_found_unua = true;
+					}
+				}
+			}
+		}
+
+		if (!is_found_ua)
+		{
+			vty_out(vty, "%% del opcode fail: invalid ua sid\n");
+			return CMD_WARNING;
+		}
+
+		if (!is_found_unua)
+		{
+			vty_out(vty, "%% del opcode fail: invalid unua sid\n");
+			return CMD_WARNING;		
+		}
+		
+		ecmp_member_ua_cnt = list_count(sid_ua_ecmp->sid_endx_params);
+		ecmp_member_unua_cnt = list_count(sid_unua_ecmp->sid_endx_params);
+
+		if (ecmp_member_ua_cnt >= 1)
+		{
+			ctx.block_bits_length = locator->block_bits_length;
+			ctx.node_bits_length = 0;
+			ctx.function_bits_length = locator->function_bits_length;
+			ctx.argument_bits_length = locator->argument_bits_length;
+
+			zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_ua, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_ua_ecmp->sid_endx_params);
+		}
+
+		if (ecmp_member_unua_cnt >= 1)
+		{
+			ctx.block_bits_length = locator->block_bits_length;
+			ctx.node_bits_length = locator->node_bits_length;
+			ctx.function_bits_length = locator->function_bits_length;
+			ctx.argument_bits_length = locator->argument_bits_length;
+
+			zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_unua, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_ua_ecmp->sid_endx_params);
+		}
+
+
+		if (ecmp_member_unua_cnt == 0)
+		{
+			for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
+				if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix) && (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA)) {
+					/* free unua ecmp resource */
+					listnode_delete(locator->sid_endx_ecmps, sid_unua_ecmp);
+					srv6_locator_sid_endx_ecmp_free(sid_unua_ecmp);
+
+					/* free sid */
+					zebra_srv6_local_sid_del(locator, sid);
 					listnode_delete(locator->sids, sid);
-					srv6_locator_sid_free(sid);	
-					listnode_delete(sid_ecmp_index->sid_ua_params, sid_ua_params);
-					srv6_locator_sid_ua_params_free(sid_ua_params);
-					is_found_ua = true;
+					srv6_locator_sid_free(sid);
+				}
+			}
+		}
+
+		// unua and ua ecmp member must be same
+		if (ecmp_member_ua_cnt == 0)
+		{
+			for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
+				if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix) && (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA)) {
+					/* free ua ecmp resource */
+					listnode_delete(locator->sid_endx_ecmps, sid_ua_ecmp);
+					srv6_locator_sid_endx_ecmp_free(sid_ua_ecmp);
+
+					/* free sid */
+					zebra_srv6_local_sid_del(locator, sid);
+					listnode_delete(locator->sids, sid);
+					srv6_locator_sid_free(sid);
 				}
 			}
 		}
 	}
-
-	for (ALL_LIST_ELEMENTS_RO(locator->sid_ua_ecmps, node, sid_ecmp_index)) {
-		if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_unua)) {
-			for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_ua_params, node_ua, next_ua, sid_unua_params)) {
-				if (!strcmp(sid_unua_params->ifname, ifName) && !ipaddr_cmp(&sid_unua_params->nexthop,  &nexthop)) {
-					sid_unua_ecmp = sid_ecmp_index;
-					sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_UNUA);
-					if (!sid)
-					{
-						vty_out(vty, "%% find unua sid fail, ifname:%s\n", ifName);
-						return CMD_WARNING;
+	else
+	{
+		combine_sid(locator, &ipv6prefix.prefix, &result_sid_endx);
+	
+		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
+			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_endx)) {
+				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_endx_params)) {
+					if (!strcmp(sid_endx_params->ifname, ifName) && !ipaddr_cmp(&sid_endx_params->nexthop, &nexthop)) {
+						sid_endx_ecmp = sid_ecmp_index;
+						sid = sid_lookup_by_prefix_intf_nhp(locator, &ipv6prefix, ifName, &nexthop, ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT);
+						if (!sid)
+						{
+							vty_out(vty, "%% find endx sid fail, ifname:%s\n", ifName);
+							return CMD_WARNING;
+						}
+						
+						if (list_count(sid_ecmp_index->sid_endx_params) > 1)
+						{
+							listnode_delete(locator->sids, sid);
+							srv6_locator_sid_free(sid);
+						}
+	
+						listnode_delete(sid_ecmp_index->sid_endx_params, sid_endx_params);
+						srv6_locator_sid_endx_params_free(sid_endx_params);
+						is_found_endx = true;
 					}
-					listnode_delete(locator->sids, sid);
-					srv6_locator_sid_free(sid);	
-					listnode_delete(sid_ecmp_index->sid_ua_params, sid_unua_params);
-					srv6_locator_sid_ua_params_free(sid_unua_params);
-					is_found_unua = true;
 				}
 			}
 		}
-	}
 
-	if (!is_found_ua)
-	{
-		vty_out(vty, "%% del opcode fail: invalid ua sid\n");
-		return CMD_WARNING;
-	}
+		if (!is_found_endx)
+		{
+			vty_out(vty, "%% del opcode fail: invalid endx sid\n");
+			return CMD_WARNING;
+		}
+		
+		ecmp_member_endx_cnt = list_count(sid_endx_ecmp->sid_endx_params);
 
-	if (!is_found_unua)
-	{
-		vty_out(vty, "%% del opcode fail: invalid unua sid\n");
-		return CMD_WARNING;		
+		if (ecmp_member_endx_cnt >= 1)
+		{
+			ctx.block_bits_length = locator->block_bits_length;
+			ctx.node_bits_length = locator->node_bits_length;
+			ctx.function_bits_length = locator->function_bits_length;
+			ctx.argument_bits_length = locator->argument_bits_length;
+
+			zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_endx, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_endx_ecmp->sid_endx_params);
+		}
+
+		if (ecmp_member_endx_cnt == 0)
+		{
+			for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
+				if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix) && (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT)) {
+					/* free endx ecmp resource */
+					listnode_delete(locator->sid_endx_ecmps, sid_endx_ecmp);
+					srv6_locator_sid_endx_ecmp_free(sid_endx_ecmp);
+
+					/* free sid */
+					zebra_srv6_local_sid_del(locator, sid);
+					listnode_delete(locator->sids, sid);
+					srv6_locator_sid_free(sid);
+				}
+			}
+		}
 	}
 	
-	ecmp_member_ua_cnt = list_count(sid_ua_ecmp->sid_ua_params);
-	ecmp_member_unua_cnt = list_count(sid_unua_ecmp->sid_ua_params);
-
-	if (ecmp_member_ua_cnt >= 1)
-	{
-		ctx.block_bits_length = locator->block_bits_length;
-		ctx.node_bits_length = 0;
-		ctx.function_bits_length = locator->function_bits_length;
-		ctx.argument_bits_length = locator->argument_bits_length;
-
-		zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_ua, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_ua_ecmp->sid_ua_params);
-	}
-
-	if (ecmp_member_unua_cnt >= 1)
-	{
-		ctx.block_bits_length = locator->block_bits_length;
-		ctx.node_bits_length = locator->node_bits_length;
-		ctx.function_bits_length = locator->function_bits_length;
-		ctx.argument_bits_length = locator->argument_bits_length;
-
-		zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid_unua, vrfName, ZEBRA_SEG6_LOCAL_ACTION_END_X, &ctx, sid_ua_ecmp->sid_ua_params);
-	}
-
-	if (ecmp_member_ua_cnt == 0 && ecmp_member_unua_cnt == 0)
-	{
-		for (ALL_LIST_ELEMENTS(locator->sids, node, next, sid)) {
-			if (IPV6_ADDR_SAME(&sid->ipv6Addr.prefix, &ipv6prefix.prefix)) {
-				for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client)) {
-					zsend_srv6_manager_del_sid(client, VRF_DEFAULT, locator, sid);
-				}
-				zebra_srv6_local_sid_del(locator, sid);
-
-				listnode_delete(locator->sids, sid);
-				srv6_locator_sid_free(sid);
-			}
-		}
-	}
 	
     return CMD_SUCCESS;
 }
