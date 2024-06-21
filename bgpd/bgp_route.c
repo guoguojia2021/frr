@@ -641,6 +641,16 @@ static int bgp_path_info_srv6_cmp_compatible(struct bgp_path_info *exist,
 
 	return -1;
 }
+
+static bool bgp_attr_is_srv6(struct attr *attr)
+{
+	if (attr->srv6_l3vpn)
+		return true;
+	if (attr->srv6_vpn)
+		return true;
+	return false;
+}
+
 /* Compare two bgp route entity.  If 'new' is preferable over 'exist' return 1.
  */
 static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
@@ -1273,6 +1283,11 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 			if (debug)
 				zlog_debug(
 					"%s: %s and %s cannot be multipath, one has a label while the other does not",
+					pfx_buf, new_buf, exist_buf);
+		} else if(bgp_attr_is_srv6(existattr) != bgp_attr_is_srv6(newattr)){
+			if (debug)
+				zlog_debug(
+					"%s: %s and %s cannot be multipath, one has is srv6 while the other does not",
 					pfx_buf, new_buf, exist_buf);
 		} else if (CHECK_FLAG(bgp->flags,
 				      BGP_FLAG_ASPATH_MULTIPATH_RELAX)) {
