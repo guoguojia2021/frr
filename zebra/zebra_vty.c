@@ -997,6 +997,8 @@ static void show_nexthop_json_helper(json_object *json_nexthop,
 	if (nexthop->srte_color)
 		json_object_int_add(json_nexthop, "srteColor",
 				    nexthop->srte_color);
+	if (nexthop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST || nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
+		json_object_string_add(json_nexthop, "segment-list", nexthop->sidlist_name);
 
 	if (nexthop->nh_srv6) {
 		json_seg6local = json_object_new_object();

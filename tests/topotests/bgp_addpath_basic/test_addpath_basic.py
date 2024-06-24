@@ -74,7 +74,6 @@ sys.path.append(os.path.join(CWD, "../"))
 from lib import topotest
 from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.common_config import step
-from exabgp_process import ExaBGP
 
 pytestmark = [pytest.mark.bgpd]
 
