@@ -91,6 +91,7 @@ struct bfd_echo_pkt {
 };
 
 #define BFD_XMTDEL_DELAY_TIMER               5
+#define SBFD_ECHO_HW_OFFLOAD_DELAY_TIMER     60
 
 /* Macros for manipulating control packets */
 #define BFD_VERMASK 0x03
@@ -156,6 +157,8 @@ enum bfd_diagnosticis {
 	BD_ADMIN_DOWN = 7,
 	/* Reverse Concatenated Path Down. */
 	BD_REVCONCATPATH_DOWN = 8,
+	/* Echo Detect Function Failed. */
+	BD_ECHO_DETECT_FAILED = 9,
 	/* 9..31: reserved. */
 };
 
@@ -304,8 +307,11 @@ struct bfd_session {
 	struct thread *xmttimer_ev;
 	struct thread *echo_xmttimer_ev;
 	uint64_t echo_detect_TO;
+	uint64_t echo_hw_xmt_TO;
+	uint64_t echo_hw_detect_TO;
 
     struct thread *xmttimer_delay;
+	struct thread *sbfd_echo_hw_offload_delay;
 
 	/* software object state */
 	uint8_t polling;
@@ -346,6 +352,7 @@ struct bfd_session {
 };
 #define BFD_HWFLAG_SENDCREATE         (1 << 0)
 #define BFD_HWFLAG_CREATE_SUCCESS     (1 << 1)
+#define BFD_HWFLAG_DELAYSENDCREATE    (1 << 2)
 
 struct peer_label {
 	TAILQ_ENTRY(peer_label) pl_entry;
@@ -394,9 +401,10 @@ struct sbfd_reflector{
 #define BFD_DEFDETECTMULT 3
 #define BFD_DEFDESIREDMINTX (300 * 1000) /* microseconds. */
 #define BFD_DEFREQUIREDMINRX (300 * 1000) /* microseconds. */
-#define BFD_DEF_DES_MIN_ECHO_TX (50 * 1000) /* microseconds. */
-#define BFD_DEF_REQ_MIN_ECHO_RX (50 * 1000) /* microseconds. */
+#define BFD_DEF_DES_MIN_ECHO_TX (300 * 1000) /* microseconds. */
+#define BFD_DEF_REQ_MIN_ECHO_RX (300 * 1000) /* microseconds. */
 #define BFD_DEF_SLOWTX (1000 * 1000) /* microseconds. */
+#define SBFD_ECHO_DEF_SLOWTX (3000 * 1000) /* microseconds. */
 /** Minimum multi hop TTL. */
 #define BFD_DEF_MHOP_TTL 254
 #define BFD_PKT_LEN 24 /* Length of control packet */
@@ -629,6 +637,7 @@ void bfd_xmttimer_delete(struct bfd_session *bs);
 void bfd_echo_xmttimer_delete(struct bfd_session *bs);
 void bfd_recvtimer_delete(struct bfd_session *bs);
 void bfd_echo_recvtimer_delete(struct bfd_session *bs);
+void sbfd_echo_hwoffloadtimer_delete(struct bfd_session *bs);
 
 void bfd_recvtimer_assign(struct bfd_session *bs, bfd_ev_cb cb, int sd);
 void bfd_echo_recvtimer_assign(struct bfd_session *bs, bfd_ev_cb cb, int sd);
@@ -767,6 +776,7 @@ int bfd_xmt_cb(struct thread *t);
 int bfd_echo_xmt_cb(struct thread *t);
 int bfd_xmtdel_delay_cb(struct thread *t);
 int bfd_notify_down(struct bfd_session *bs);
+int sbfd_echo_xmt_delay_cb(struct thread *t);
 struct bfd_session *bfd_find_disc(struct sockaddr_any *sa,
 					 uint32_t ldisc);
 

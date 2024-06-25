@@ -163,6 +163,7 @@ const struct bfd_diag_str_list diag_list[] = {
 	{.str = "concatenated-path-down", .type = BD_CONCATPATH_DOWN},
 	{.str = "administratively-down", .type = BD_ADMIN_DOWN},
 	{.str = "reverse-concat-path-down", .type = BD_REVCONCATPATH_DOWN},
+	{.str = "echo-detect-failed", .type = BD_ECHO_DETECT_FAILED},
 	{.str = NULL},
 };
 

@@ -216,7 +216,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 		if(bfd->stats.tx_fail_pkt <= 1){
 			char dst[INET6_ADDRSTRLEN] = {0};
 			inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
-			zlog_err("sbfd echo send failed, dst:%s, errno:%s", dst, safe_strerror(errno));
+			zlog_err("sbfd echo send failed, bfd_name:%s, dst:%s, errno:%s", bfd->bfd_name, dst, safe_strerror(errno));
 		}
 
 		bfd->stats.tx_fail_pkt++;
@@ -226,7 +226,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	if(bfd->stats.tx_fail_pkt > 0){
 		char dst[INET6_ADDRSTRLEN] = {0};
 		inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
-		zlog_warn("sbfd echo send success, dst:%s, previous tx_fail_pkt:%d", dst, (int)bfd->stats.tx_fail_pkt);
+		zlog_warn("sbfd echo send success, bfd_name:%s, dst:%s, previous tx_fail_pkt:%d", bfd->bfd_name, dst, (int)bfd->stats.tx_fail_pkt);
 	}
 	bfd->stats.tx_fail_pkt = 0;
 
@@ -361,6 +361,32 @@ void ptm_sbfd_echo_snd(struct bfd_session *bfd)
 		SET_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO_ACTIVE);
 }
 
+int sbfd_echo_hw_offload_delay_cb(struct thread *t)
+{
+	struct bfd_session *bs = THREAD_ARG(t);
+
+	/* Compute detect time */
+	bs->echo_hw_xmt_TO = bs->timers.desired_min_echo_tx;
+	bs->echo_hw_detect_TO = bs->detect_mult * bs->echo_hw_xmt_TO;
+
+    zlog_info("start offload hw,bfd_name:%s, echo_hw_xmt_TO:%llu, echo_hw_detect_TO:%llu",bs->bfd_name,bs->echo_hw_xmt_TO,bs->echo_hw_detect_TO);
+
+	/* update sbfd status */
+	sbfd_echo_state_handler(bs, PTM_BFD_UP);
+	/* try to offload hw sbfd echo*/
+	bfd_fpm_peer_sendmsg(bs, true);
+
+	/* remove soft detect time */
+	if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+	{
+		bfd_echo_recvtimer_delete(bs);
+	}
+
+    bs->sbfd_echo_hw_offload_delay = NULL;
+
+	return 0;
+}
+
 static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 {
 	struct bfd_session *bfd;
@@ -393,23 +419,40 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 
 	bfd->stats.rx_echo_pkt++;
 
-	/* Compute detect time */
-	bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
-	bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
-
     if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
+		/* 
+		 * sbfd session delay up, set it up again in sbfd_echo_hw_offload_delay_cb
+		 */
 		/*sbfd receive echo pkt ,need to update state*/
-		sbfd_echo_state_handler(bfd, PTM_BFD_UP);
+		//sbfd_echo_state_handler(bfd, PTM_BFD_UP);
 
         if (hardwareBFD)
-			/* try to offload hw sbfd echo*/
-			bfd_fpm_peer_sendmsg(bfd, true);
+		{
+			/* delay sbfd echo xmt */
+            if (!bfd->sbfd_echo_hw_offload_delay)
+            {
+				SET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
+                thread_add_timer(master, sbfd_echo_hw_offload_delay_cb, bfd, SBFD_ECHO_HW_OFFLOAD_DELAY_TIMER, &bfd->sbfd_echo_hw_offload_delay);
+            }
+		}
 		
 	}
 
+	if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+	{
+		bfd->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
+		bfd->echo_detect_TO = 0;
+	}
+	else
+	{
+		/* Keep software slow time before hw offload */
+		bfd->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
+		bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+	}
+
 	/* Update echo receive timeout. */
-	if (bfd->echo_detect_TO > 0)
+	if (bfd->echo_detect_TO > 0 && !CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
 		bfd_echo_recvtimer_update(bfd);
 
 	return 0;

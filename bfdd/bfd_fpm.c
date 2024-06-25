@@ -480,6 +480,8 @@ static int bfpm_read_cb(struct thread *thread)
 				bs->stats.tx_echo_pkt += data.sendCount;
 				bs->stats.hw_rx_ctrl_pkt = 0;
 				bs->stats.hw_tx_ctrl_pkt = 0;
+				bs->echo_hw_xmt_TO = 0;
+				bs->echo_hw_detect_TO = 0;
 				bfd_fpm_peer_sendmsg(bs, false);
 				ptm_sbfd_sess_dn(bs, BD_ECHO_FAILED);
 				ptm_bfd_start_xmt_timer(bs, true);
@@ -506,15 +508,33 @@ static int bfpm_read_cb(struct thread *thread)
         {
 			/*recv hw BFD_NOTIFY_UP msg, set flag BFD_HWFLAG_CREATE_SUCCESS*/
             SET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
-            if (!bs->xmttimer_delay)
-            {
-                thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
-            }
-            else
-            {
-                THREAD_OFF(bs->xmttimer_delay);
-                thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
-            }
+			if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+			{
+				/* 
+				 *  It is possible that the offload will be triggered again when the offload has already been sent. 
+				 *  If it is confirmed that the peer has been sent, the offload timer is deleted. 
+				*/
+				sbfd_echo_hwoffloadtimer_delete(bs);
+
+				/*
+				 *  Confirm that the hardware has created a session. At this time, set the software pakcet to the configuration value.
+				 *  Keep sending the bfd session pakcet before the hardware pakcet works normally.
+				*/
+				bs->echo_xmt_TO = bs->timers.desired_min_echo_tx;
+				bs->echo_detect_TO = bs->detect_mult * bs->echo_xmt_TO;
+				ptm_bfd_start_xmt_timer(bs, true);
+			}
+
+			if (!bs->xmttimer_delay)
+			{
+				thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
+			}
+			else
+			{
+				THREAD_OFF(bs->xmttimer_delay);
+				thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
+			}
+			
         }
     }
 
@@ -944,6 +964,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
         hdr->msg_type = BFD_DELETE_SESSION;
         UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
 		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
+		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
         bfd->counterOid = 0;
     }
 
@@ -980,8 +1001,8 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		data->src_port = htons(BFD_DEFDESTPORT);
 		data->dest_port = htons(BFD_DEF_ECHO_PORT);
 		data->bpc_type = BPC_TYPE_SBFD_ECHO;
-		data->bpc_txinterval = htonl((uint32_t)bfd->echo_xmt_TO);
-		data->bpc_recvinterval = htonl((uint32_t)bfd->echo_detect_TO / bfd->detect_mult);
+		data->bpc_txinterval = htonl((uint32_t)bfd->echo_hw_xmt_TO);
+		data->bpc_recvinterval = htonl((uint32_t)bfd->echo_hw_detect_TO / bfd->detect_mult);
 		data->discrs.remote_discr = htonl(bfd->discrs.my_discr);
         
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);

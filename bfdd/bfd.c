@@ -92,8 +92,8 @@ static void bfd_profile_set_default(struct bfd_profile *bp)
 	bp->echo_mode = false;
 	bp->passive = false;
 	bp->minimum_ttl = BFD_DEF_MHOP_TTL;
-	bp->min_echo_rx = BFD_DEFREQUIREDMINRX;
-	bp->min_echo_tx = BFD_DEFDESIREDMINTX;
+	bp->min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
+	bp->min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
 	bp->min_rx = BFD_DEFREQUIREDMINRX;
 	bp->min_tx = BFD_DEFDESIREDMINTX;
 }
@@ -183,13 +183,13 @@ void bfd_session_apply(struct bfd_session *bs)
 	/* We can only apply echo options on single hop sessions. */
 	if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH)) {
 		/* Configure echo timers if they were default. */
-		if (bs->peer_profile.min_echo_rx == BFD_DEFREQUIREDMINRX)
+		if (bs->peer_profile.min_echo_rx == BFD_DEF_REQ_MIN_ECHO_RX)
 			bs->timers.required_min_echo_rx = bp->min_echo_rx;
 		else
 			bs->timers.required_min_echo_rx =
 				bs->peer_profile.min_echo_rx;
 
-		if (bs->peer_profile.min_echo_tx == BFD_DEFDESIREDMINTX)
+		if (bs->peer_profile.min_echo_tx == BFD_DEF_DES_MIN_ECHO_TX)
 			bs->timers.desired_min_echo_tx = bp->min_echo_tx;
 		else
 			bs->timers.desired_min_echo_tx =
@@ -653,7 +653,7 @@ void ptm_bfd_xmt_TO(struct bfd_session *bfd, int fbit)
 
 void ptm_sbfd_echo_reset(struct bfd_session *bfd)
 {
-	bfd->echo_xmt_TO = BFD_DEF_SLOWTX;
+	bfd->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
 	bfd->echo_detect_TO = 0;
 	ptm_bfd_echo_xmt_TO(bfd);
 }
@@ -791,6 +791,11 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	bfd->polling = 0;
 	bfd->demand_mode = 0;
 	monotime(&bfd->downtime);
+
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO) && !bfd->sbfd_echo_hw_offload_delay)
+	{
+		THREAD_OFF(bfd->sbfd_echo_hw_offload_delay);
+	}
 
 	/* only signal clients when going from up->down state */
 	if (old_state == PTM_BFD_UP)
@@ -946,11 +951,24 @@ int bfd_echo_recvtimer_cb(struct thread *t)
 	case PTM_BFD_UP:
 	    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 		{
-            ptm_sbfd_sess_dn(bs, BD_ECHO_FAILED);
+            ptm_sbfd_sess_dn(bs, BD_ECHO_DETECT_FAILED);
 		}
 		else
 		{
-		    ptm_bfd_sess_dn(bs, BD_ECHO_FAILED);
+		    ptm_bfd_sess_dn(bs, BD_ECHO_DETECT_FAILED);
+		}
+		break;
+	case PTM_BFD_DOWN:
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		{
+			if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
+			{
+				zlog_info("%s:  Wait for the offloaded bfd to be down.  bfd: [%s]  bfd'state is %s",
+		    		__func__,  bs_to_string(bs), state_list[bs->ses_state].str);
+				sbfd_echo_hwoffloadtimer_delete(bs);
+				UNSET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
+				bfd_echo_recvtimer_update(bs);
+			}
 		}
 		break;
 	}
@@ -969,8 +987,8 @@ struct bfd_session *bfd_session_new(void)
 
 	bs->timers.desired_min_tx = BFD_DEFDESIREDMINTX;
 	bs->timers.required_min_rx = BFD_DEFREQUIREDMINRX;
-	bs->timers.required_min_echo_rx = BFD_DEFREQUIREDMINRX;
-	bs->timers.desired_min_echo_tx = BFD_DEFREQUIREDMINRX;
+	bs->timers.required_min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
+	bs->timers.desired_min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
 	bs->detect_mult = BFD_DEFDETECTMULT;
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
 	bs->ses_state = PTM_BFD_DOWN;
@@ -999,8 +1017,8 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 
 	bs->timers.desired_min_tx = BFD_DEFDESIREDMINTX;
 	bs->timers.required_min_rx = BFD_DEFREQUIREDMINRX;
-	bs->timers.desired_min_echo_tx = BFD_DEFDESIREDMINTX;
-	bs->timers.required_min_echo_rx = BFD_DEFREQUIREDMINRX;
+	bs->timers.desired_min_echo_tx = BFD_DEF_DES_MIN_ECHO_TX;
+	bs->timers.required_min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
 	bs->detect_mult = BFD_DEFDETECTMULT;
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
 	bs->ses_state = PTM_BFD_DOWN;
@@ -1905,7 +1923,7 @@ void bs_set_slow_timers(struct bfd_session *bs)
 	bs->xmt_TO = BFD_DEF_SLOWTX;
 
 	/* add for sbfd-echo slow connection  */
-	bs->echo_xmt_TO = BFD_DEF_SLOWTX;
+	bs->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
 }
 
 void bfd_set_echo(struct bfd_session *bs, bool echo)

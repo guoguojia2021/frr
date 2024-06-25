@@ -43,6 +43,7 @@
 #define LOCAL_IPV4_STR "IPv4 local address\n"
 #define LOCAL_IPV6_STR "IPv6 local address\n"
 #define LOCAL_INTF_STR "Configure local interface name to use\n"
+#define DETAIL_STR "BFD detail information\n"
 
 /*
  * Prototypes
@@ -57,8 +58,8 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs);
 static struct json_object *__display_peer_json(struct bfd_session *bs);
 static struct json_object *_peer_json_header(struct bfd_session *bs);
 static void _display_peer_json(struct vty *vty, struct bfd_session *bs);
-static void _display_peer(struct vty *vty, struct bfd_session *bs);
-static void _display_all_peers(struct vty *vty, char *vrfname, bool use_json);
+static void _display_peer(struct vty *vty, struct bfd_session *bs, bool is_detail);
+static void _display_all_peers(struct vty *vty, char *vrfname, bool is_detail, bool use_json);
 static void _display_peer_iter(struct hash_bucket *hb, void *arg);
 static void _display_peer_json_iter(struct hash_bucket *hb, void *arg);
 static void _display_peer_counter(struct vty *vty, struct bfd_session *bs);
@@ -74,7 +75,7 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *vrfname);
 static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg);
 static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg);
-static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json);
+static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool is_detail, bool use_json);
 static void _display_bfd_counters_by_bfdname_iter(struct hash_bucket *hb, void *arg);
 static void _display_bfd_counters_json_by_bfdname_iter(struct hash_bucket *hb, void *arg);
 static void _display_bfd_counters_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json);
@@ -162,7 +163,7 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 		vty_out(vty, "\t\tlabel: %s\n", bs->pl->pl_label);
 }
 
-static void _display_peer(struct vty *vty, struct bfd_session *bs)
+static void _display_peer(struct vty *vty, struct bfd_session *bs, bool is_detail)
 {
 	char buf[256];
 	time_t now;
@@ -235,12 +236,27 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 			bs->timers.required_min_echo_rx / 1000);
 	else
 		vty_out(vty, "\t\t\tEcho receive interval: disabled\n");
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO)
-	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
-		vty_out(vty, "\t\t\tEcho transmission interval: %ums\n",
-			bs->timers.desired_min_echo_tx / 1000);
+    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO)
+            || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		vty_out(vty, "\t\t\tConfigured echo transmission interval: %ums\n",
+				bs->timers.desired_min_echo_tx / 1000);
+		if (is_detail)
+		{
+			vty_out(vty, "\t\t\tCurrent soft-echo transmission interval: %ums\n",
+					bs->echo_xmt_TO / 1000);
+			vty_out(vty, "\t\t\tCurrent soft-detect echo receive interval: %ums\n",
+					bs->echo_detect_TO / 1000);
+			vty_out(vty, "\t\t\tCurrent hw-echo transmission interval: %ums\n",
+					bs->echo_hw_xmt_TO / 1000);
+			vty_out(vty, "\t\t\tCurrent hw-detect echo receive interval: %ums\n",
+					bs->echo_hw_detect_TO / 1000);
+		}
+	}
 	else
+	{
 		vty_out(vty, "\t\t\tEcho transmission interval: disabled\n");
+	}
 
     if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
 	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
@@ -267,12 +283,27 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs)
 			vty_out(vty, "\t\t\tEcho receive interval: disabled\n");		
 	}
 
-    if(CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+	if (is_detail)
 	{
-		if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS))
-        	vty_out(vty, "\t\tCreated by hardware success.\n");
-		else
-			vty_out(vty, "\t\tCreated by hardware.\n");
+		if(CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
+		{
+			if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS))
+				vty_out(vty, "\t\tCreated by hardware success.\n");
+			else if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+				vty_out(vty, "\t\tCreated by hardware.\n");
+			else
+				vty_out(vty, "\t\tCreated by hardware delay.\n");
+		}
+	}
+	else
+	{
+		if(CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
+		{
+			if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS))
+				vty_out(vty, "\t\tCreated by hardware success.\n");
+			else
+				vty_out(vty, "\t\tCreated by hardware.\n");
+		}
 	}
 
 	vty_out(vty, "\n");
@@ -354,12 +385,20 @@ static struct json_object *__display_peer_json(struct bfd_session *bs)
 			    bs->timers.desired_min_tx / 1000);
 	json_object_int_add(jo, "echo-receive-interval",
 			    bs->timers.required_min_echo_rx / 1000);
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO) 
-	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
-		json_object_int_add(jo, "echo-transmit-interval",
-			bs->timers.desired_min_echo_tx / 1000);
+    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO) 
+            || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		json_object_int_add(jo, "configured-echo-transmit-interval",
+				bs->timers.desired_min_echo_tx / 1000);
+		json_object_int_add(jo, "current-echo-transmit-interval",
+				bs->echo_xmt_TO / 1000);
+		json_object_int_add(jo, "current-detect-echo-receive-interval",
+				bs->echo_detect_TO / 1000);
+	}
 	else
+	{
 		json_object_int_add(jo, "echo-transmit-interval", 0);
+	}
 
 	json_object_int_add(jo, "detect-multiplier", bs->detect_mult);
 
@@ -387,6 +426,7 @@ struct bfd_vrf_tuple {
 	const char *bfdname;
 	struct vty *vty;
 	struct json_object *jo;
+	bool detail;
 };
 
 static void _display_peer_iter(struct hash_bucket *hb, void *arg)
@@ -406,7 +446,7 @@ static void _display_peer_iter(struct hash_bucket *hb, void *arg)
 		    !strmatch(bs->key.vrfaliasname, bvt->vrfname)))
 			return;
 	}
-	_display_peer(vty, bs);
+	_display_peer(vty, bs, bvt->detail);
 }
 
 static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg)
@@ -433,7 +473,7 @@ static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg)
 			return;
 	}
 
-	_display_peer(vty, bs);
+	_display_peer(vty, bs, bvt->detail);
 }
 
 static void _display_peer_json_iter(struct hash_bucket *hb, void *arg)
@@ -493,13 +533,14 @@ static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg)
 }
 
 
-static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json)
+static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool is_detail, bool use_json)
 {
 	struct json_object *jo;
 	struct bfd_vrf_tuple bvt = {0};
 
 	bvt.vrfname = vrfname;
 	bvt.bfdname = bfdname;
+	bvt.detail = is_detail;
 
 	if (!use_json) {
 		bvt.vty = vty;
@@ -515,12 +556,13 @@ static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdnam
 	vty_json(vty, jo);
 }
 
-static void _display_all_peers(struct vty *vty, char *vrfname, bool use_json)
+static void _display_all_peers(struct vty *vty, char *vrfname, bool is_detail, bool use_json)
 {
 	struct json_object *jo;
 	struct bfd_vrf_tuple bvt = {0};
 
 	bvt.vrfname = vrfname;
+	bvt.detail = is_detail;
 
 	if (!use_json) {
 		bvt.vty = vty;
@@ -952,15 +994,21 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
  * Show commands.
  */
 DEFPY(bfd_show_by_bfdname, bfd_show_by_bfdname_cmd,
-      "show bfd [vrf NAME$vrf_name] bfd-name BFDNAME$bfdname [json]",
+      "show bfd [vrf NAME$vrf_name] bfd-name BFDNAME$bfdname [json] [detail]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
 	  "Specify bfd session name\n"
 	  "bfd session name\n"
-	  JSON_STR)
+	  JSON_STR DETAIL_STR)
 {
-	_display_bfd_by_bfdname(vty, vrf_name, bfdname, use_json(argc, argv));
+	bool is_detail = false;
+	int idx_detail = 0;
+
+	if (argv_find(argv, argc, "detail", &idx_detail))
+		is_detail = true;
+
+	_display_bfd_by_bfdname(vty, vrf_name, bfdname, is_detail, use_json(argc, argv));
 
 	return CMD_SUCCESS;
 }
@@ -994,33 +1042,40 @@ DEFPY(bfd_clear_counters_by_bfdname, bfd_clear_counters_by_bfdname_cmd,
 	return CMD_SUCCESS;
 }
 
-DEFPY(bfd_show_peers, bfd_show_peers_cmd, "show bfd [vrf NAME] peers [json]",
+DEFPY(bfd_show_peers, bfd_show_peers_cmd, "show bfd [vrf NAME] peers [json] [detail]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
        VRF_CMD_HELP_STR
-      "BFD peers status\n" JSON_STR)
+      "BFD peers status\n" JSON_STR DETAIL_STR)
 {
 	char *vrf_name = NULL;
 	int idx_vrf = 0;
+	int idx_detail = 0;
+	bool is_detail = false;
 
 	if (argv_find(argv, argc, "vrf", &idx_vrf))
 		vrf_name = argv[idx_vrf + 1]->arg;
 
-	_display_all_peers(vty, vrf_name, use_json(argc, argv));
+	if (argv_find(argv, argc, "detail", &idx_detail))
+		is_detail = true;
+
+	_display_all_peers(vty, vrf_name, is_detail, use_json(argc, argv));
 
 	return CMD_SUCCESS;
 }
 
 DEFPY(bfd_show_peer, bfd_show_peer_cmd,
-      "show bfd [vrf NAME$vrf_name] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> [json]",
+      "show bfd [vrf NAME$vrf_name] peer <WORD$label|<A.B.C.D|X:X::X:X>$peer [{multihop|local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname}]> [json] [detail]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
       "BFD peers status\n"
       "Peer label\n" PEER_IPV4_STR PEER_IPV6_STR MHOP_STR LOCAL_STR
-	      LOCAL_IPV4_STR LOCAL_IPV6_STR INTERFACE_STR LOCAL_INTF_STR JSON_STR)
+	      LOCAL_IPV4_STR LOCAL_IPV6_STR INTERFACE_STR LOCAL_INTF_STR JSON_STR DETAIL_STR)
 {
 	struct bfd_session *bs;
+	bool is_detail = false;
+	int idx_detail = 0;
 
 	/* Look up the BFD peer. */
 	bs = _find_peer_or_error(vty, argc, argv, label, peer_str, local_str,
@@ -1028,11 +1083,14 @@ DEFPY(bfd_show_peer, bfd_show_peer_cmd,
 	if (bs == NULL)
 		return CMD_WARNING_CONFIG_FAILED;
 
+	if (argv_find(argv, argc, "detail", &idx_detail))
+		is_detail = true;
+
 	if (use_json(argc, argv)) {
 		_display_peer_json(vty, bs);
 	} else {
 		vty_out(vty, "BFD Peer:\n");
-		_display_peer(vty, bs);
+		_display_peer(vty, bs, is_detail);
 	}
 
 	return CMD_SUCCESS;

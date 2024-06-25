@@ -330,9 +330,6 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 			
 			if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO)
 			{
-				bs->timers.desired_min_echo_tx = bs->timers.desired_min_tx;
-		        bs->echo_xmt_TO = bs->timers.desired_min_echo_tx;
-		        bs->echo_detect_TO = bs->detect_mult * bs->echo_xmt_TO;
 				memcpy(&bs->key.peer, &bs->key.local, sizeof(struct in6_addr));	
 				SET_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO);
 			}

@@ -125,6 +125,11 @@ void bfd_echo_recvtimer_delete(struct bfd_session *bs)
 	THREAD_OFF(bs->echo_recvtimer_ev);
 }
 
+void sbfd_echo_hwoffloadtimer_delete(struct bfd_session *bs)
+{
+	THREAD_OFF(bs->sbfd_echo_hw_offload_delay);
+}
+
 void bfd_xmttimer_delete(struct bfd_session *bs)
 {
 	THREAD_OFF(bs->xmttimer_ev);
