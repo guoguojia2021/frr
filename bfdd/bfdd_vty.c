@@ -239,7 +239,7 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs, bool is_detai
     if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO)
             || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
-		vty_out(vty, "\t\t\tConfigured echo transmission interval: %ums\n",
+		vty_out(vty, "\t\t\tEcho transmission interval: %ums\n",
 				bs->timers.desired_min_echo_tx / 1000);
 		if (is_detail)
 		{
