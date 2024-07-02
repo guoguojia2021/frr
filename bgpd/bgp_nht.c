@@ -517,7 +517,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		char bnc_buf[BNC_FLAG_DUMP_SIZE];
 
 		zlog_debug(
-			"%s(%u): Rcvd NH update %pFX(%u) - metric %d/%d #nhops %d/%d flags %s type %d",
+			"%s(%u): Rcvd NH update %pFX(%u) - metric %u/%u #nhops %d/%d flags %s type %d",
 			bnc->bgp->name_pretty, bnc->bgp->vrf_id, &nhr->prefix,
 			bnc->srte_color, nhr->metric, bnc->metric,
 			nhr->nexthop_num, bnc->nexthop_num,
@@ -1285,6 +1285,30 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 				bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
 				bgp_evpn_import_route(bgp_path,
 					afi, safi, bgp_dest_get_prefix(dest), path);
+		}
+	}
+	else if (CHECK_FLAG(path->flags, BGP_PATH_IGP_CHANGED) && bnc_is_valid_nexthop)
+	{
+		if (safi == SAFI_EVPN &&
+			bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
+			bgp_evpn_import_route(bgp_path,
+				afi, safi, bgp_dest_get_prefix(dest), path);
+
+		if (BGP_DEBUG(nht, NHT)) 
+		{
+			char buf1[RD_ADDRSTRLEN];
+			if (dest->pdest) {
+				prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
+					buf1, sizeof(buf1));
+				zlog_debug(
+					"... igp chenge eval path %d/%d %pBD RD %s %s flags 0x%x",
+					afi, safi, dest, buf1,
+					bgp_path->name_pretty, path->flags);
+			} else
+				zlog_debug(
+					"... igp chenge eval path %d/%d %pBD %s flags 0x%x",
+					afi, safi, dest, bgp_path->name_pretty,
+					path->flags);
 		}
 	}
 
