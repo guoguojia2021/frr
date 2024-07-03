@@ -794,9 +794,9 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 #endif
 	if (debug)
 		zlog_debug(
-			"%s: entry: leak-to=%s, p=%pBD, type=%d, sub_type=%d",
+			"%s: entry: leak-to=%s, p=%pBD, type=%d, sub_type=%d, flags=0x%0x",
 			__func__, bgp->name_pretty, bn, source_bpi->type,
-			source_bpi->sub_type);
+			source_bpi->sub_type, source_bpi->flags);
 
 	/*
 	 * Routes that are redistributed into BGP from zebra do not get
@@ -838,6 +838,7 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		}
 
 		if (attrhash_cmp(bpi->attr, new_attr) && labelssame
+			&& !CHECK_FLAG(source_bpi->flags, BGP_PATH_IGP_CHANGED)
 		    && !CHECK_FLAG(bpi->flags, BGP_PATH_REMOVED)) {
 
 			bgp_attr_unintern(&new_attr);
@@ -1389,6 +1390,11 @@ void vpn_leak_from_vrf_update(struct bgp *bgp_vpn,	    /* to */
 	new_info =
 		leak_update(bgp_vpn, bn, new_attr, afi, safi, path_vrf, &label,
 			    1, bgp_vrf, NULL, nexthop_self_flag, debug);
+
+	if (CHECK_FLAG(path_vrf->flags, BGP_PATH_IGP_CHANGED))
+	{
+		SET_FLAG(new_info->flags, BGP_PATH_IGP_CHANGED);
+	}
 
 	/*
 	 * Routes actually installed in the vpn RIB must also be

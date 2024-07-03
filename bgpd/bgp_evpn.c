@@ -2583,6 +2583,7 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 					evp, vrf_id_to_name(bgp_vrf->vrf_id));
 			}
 			pi->extra->igpmetric = parent_pi->extra->igpmetric;
+			SET_FLAG(pi->flags, BGP_PATH_IGP_CHANGED);
 		}
 
 		/* Mark if nexthop has changed. */
