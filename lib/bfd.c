@@ -594,12 +594,13 @@ static void _bfd_sess_remove(struct bfd_session_params *bsp)
 
 static void _sbfd_sess_remove(struct bfd_session_params *bsp)
 {
-	/* Not installed, nothing to do. */
-	if (!bsp->installed)
-		return;
 
 	/* Cancel any pending installation request. */
 	THREAD_OFF(bsp->installev);
+
+	/* Not installed, nothing to do. */
+	if (!bsp->installed)
+		return;
 
 	/* Send request to remove any session. */
 	bsp->lastev = BSE_UNINSTALL;
