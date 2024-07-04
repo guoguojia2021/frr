@@ -436,7 +436,12 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
                 thread_add_timer(master, sbfd_echo_hw_offload_delay_cb, bfd, SBFD_ECHO_HW_OFFLOAD_DELAY_TIMER, &bfd->sbfd_echo_hw_offload_delay);
             }
 		}
-		
+		/* for vsonic sbfd */
+		else
+		{
+			/*sbfd receive echo pkt ,need to update state*/
+			sbfd_echo_state_handler(bfd, PTM_BFD_UP);
+		}		
 	}
 
 	if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
