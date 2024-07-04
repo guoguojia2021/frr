@@ -187,8 +187,8 @@ void bgp_peer_bfd_update_source(struct peer *p)
 			changed = true;
 		}
 	} else {
-		if ((source && memcmp(&source->sin6, &src.v6, sizeof(src.v6)))
-		    || memcmp(&p->su.sin6, &dst.v6, sizeof(dst.v6))) {
+		if ((source && memcmp(&source->sin6.sin6_addr, &src.v6, sizeof(src.v6)))
+		    || memcmp(&p->su.sin6.sin6_addr, &dst.v6, sizeof(dst.v6))) {
 			if (BGP_DEBUG(bfd, BFD_LIB))
 				zlog_debug(
 					"%s: address [%pI6->%pI6] to [%pI6->%pI6]",
