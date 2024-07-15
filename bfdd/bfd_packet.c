@@ -1356,6 +1356,8 @@ int bp_peer_socket(struct bfd_session *bs)
 		return -1;
 	}
 
+	
+
 	/* Set TTL to 255 for all transmitted packets */
 	if (bp_set_ttl(sd, BFD_TTL_VAL) != 0) {
 		close(sd);
@@ -1369,7 +1371,6 @@ int bp_peer_socket(struct bfd_session *bs)
 	}
 
 	bp_set_prio(sd, SOCK_OPT_PRIO_HIGH);
-
 	/* Find an available source port in the proper range */
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
