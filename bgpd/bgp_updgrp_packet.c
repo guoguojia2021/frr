@@ -119,7 +119,7 @@ static void bpacket_queue_add_packet(struct bpacket_queue *q,
  * invoking this function.
  */
 struct bpacket *bpacket_queue_add(struct bpacket_queue *q, struct stream *s,
-				  struct bpacket_attr_vec_arr *vecarrp)
+				  struct bpacket_attr_vec_arr *vecarrp, union sockunion *from)
 {
 	struct bpacket *pkt;
 	struct bpacket *last_pkt;
@@ -134,6 +134,10 @@ struct bpacket *bpacket_queue_add(struct bpacket_queue *q, struct stream *s,
 			       sizeof(struct bpacket_attr_vec_arr));
 		else
 			bpacket_attr_vec_arr_reset(&pkt->arr);
+		if (from != NULL)
+		{
+			memcpy(&(pkt->from), from, sizeof(union sockunion));
+		}
 		bpacket_queue_add_packet(q, pkt);
 		return pkt;
 	}
@@ -145,6 +149,11 @@ struct bpacket *bpacket_queue_add(struct bpacket_queue *q, struct stream *s,
 	last_pkt = bpacket_queue_last(q);
 	assert(last_pkt->buffer == NULL);
 	last_pkt->buffer = s;
+	if (from != NULL)
+	{
+             memcpy(&(last_pkt->from), from, sizeof(union sockunion));
+
+	}
 	if (vecarrp)
 		memcpy(&last_pkt->arr, vecarrp,
 		       sizeof(struct bpacket_attr_vec_arr));
@@ -351,11 +360,42 @@ struct stream *bpacket_reformat_for_peer(struct bpacket *pkt,
 	bpacket_attr_vec *vec;
 	struct peer *peer;
 	struct bgp_filter *filter;
+	bool withdraw = false;
+
+	vec = &pkt->arr.entries[BGP_ATTR_VEC_NH];
+	if (!CHECK_FLAG(vec->flags, BPKT_ATTRVEC_FLAGS_UPDATED))
+		withdraw = true;
+
+	
+	/*withdraw pkt*/
+	if (withdraw) {
+		if(pkt->from.sa.sa_family != 0){
+			if (paf->afi == AFI_IP && paf->safi == SAFI_UNICAST){
+				if (memcmp(&(pkt->from.sin.sin_addr),&(paf->peer->su.sin.sin_addr),4) != 0){
+					return s;
+				}
+			}else if (paf->afi == AFI_IP6 && paf->safi == SAFI_UNICAST){
+				if (memcmp(&(pkt->from.sin6.sin6_addr),&(paf->peer->su.sin6.sin6_addr),16) != 0){
+					return s;
+				}
+			}
+		}
+	}else { /*update pkt*/
+		if(pkt->from.sa.sa_family != 0){
+			if (paf->afi == AFI_IP && paf->safi == SAFI_UNICAST){
+				if (memcmp(&(pkt->from.sin.sin_addr),&(paf->peer->su.sin.sin_addr),4) == 0){
+					return s;
+				}
+			}else if (paf->afi == AFI_IP6 && paf->safi == SAFI_UNICAST){
+				if (memcmp(&(pkt->from.sin6.sin6_addr),&(paf->peer->su.sin6.sin6_addr),16) == 0){
+					return s;
+				}
+			}
+		}
+	}
 
 	s = stream_dup(pkt->buffer);
 	peer = PAF_PEER(paf);
-
-	vec = &pkt->arr.entries[BGP_ATTR_VEC_NH];
 
 	if (!CHECK_FLAG(vec->flags, BPKT_ATTRVEC_FLAGS_UPDATED))
 		return s;
@@ -699,6 +739,19 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 	addpath_overhead = addpath_capable ? BGP_ADDPATH_ID_LEN : 0;
 
 	adv = bgp_adv_fifo_first(&subgrp->sync->update);
+	union sockunion from_peer;
+	memset(&from_peer, 0, sizeof(from_peer));
+	if(adv){
+		if (adv->pathi->peer->su.sa.sa_family == AF_INET){
+			from_peer.sa.sa_family = AF_INET;
+			memcpy(&from_peer.sin.sin_addr, &(adv->baa->attr->from.sin.sin_addr),4);
+		}
+		else if(adv->pathi->peer->su.sa.sa_family == AF_INET6){
+			from_peer.sa.sa_family = AF_INET6;
+			memcpy(&from_peer.sin6.sin6_addr, &(adv->baa->attr->from.sin6.sin6_addr),16);
+		}
+	}
+	
 	while (adv) {
 		const struct prefix *dest_p;
 
@@ -772,9 +825,11 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 					subgrp->update_group->id, subgrp->id);
 
 				/* Flush the FIFO update queue */
-				while (adv && adv->adj)
+				while (adv && adv->adj) {
 					adv = bgp_advertise_clean_subgroup(
 						subgrp, adv->adj);
+					bgp_advertise_free_old_adv_subgroup(subgrp, adj);
+				}
 				return NULL;
 			}
 
@@ -887,7 +942,7 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 				(stream_get_endp(packet)
 				 - stream_get_getp(packet)),
 				peer->max_packet_size, num_pfx);
-		pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), packet, &vecarr);
+		pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), packet, &vecarr,&from_peer);
 		stream_reset(s);
 		stream_reset(snlri);
 		return pkt;
@@ -932,6 +987,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 	uint32_t addpath_tx_id = 0;
 	uint32_t wait_addpath_tx_id = 0;
 	const struct prefix_rd *prd = NULL;
+	bool is_old_adv = false; /* is this withdraw old_best_select */
 
 
 	if (!subgrp)
@@ -949,7 +1005,24 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 	addpath_overhead = addpath_capable ? BGP_ADDPATH_ID_LEN : 0;
 	bgp_adv_fifo_init(&tmp_withdraw);
 
-	while ((adv = bgp_adv_fifo_first(&subgrp->sync->withdraw)) != NULL) {
+	adv = bgp_adv_fifo_first(&subgrp->sync->withdraw);
+
+	union sockunion withdraw_peer;
+	memset(&withdraw_peer, 0, sizeof(withdraw_peer));
+	/*only old_adv adv->pathi is not NULL*/
+	if(adv && adv->pathi){
+		is_old_adv = true;
+		if (adv->pathi->peer->su.sa.sa_family == AF_INET){
+			withdraw_peer.sa.sa_family = AF_INET;
+			memcpy(&withdraw_peer.sin.sin_addr, &(adv->withdraw_baa->attr->from.sin.sin_addr),4);
+		}
+		else if(adv->pathi->peer->su.sa.sa_family == AF_INET6){
+			withdraw_peer.sa.sa_family = AF_INET6;
+			memcpy(&withdraw_peer.sin6.sin6_addr, &(adv->withdraw_baa->attr->from.sin6.sin6_addr),16);
+		}
+	}
+
+	while (adv) {
 		const struct prefix *dest_p;
 
 		assert(adv->dest);
@@ -1037,9 +1110,31 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 				   pfx_buf);
 		}
 
-		subgrp->scount--;
 
+		struct bgp_advertise_attr *withdraw_baa;
+		struct bgp_advertise *next = NULL;
+		withdraw_baa = adv->withdraw_baa;
+
+		if(withdraw_baa){
+			next = adv->next;
+		}
+
+		
+		if(is_old_adv) {
+			bgp_advertise_delete(withdraw_baa, adv);
+			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
+            /* Unlink myself from advertisement FIFO.  */
+			bgp_adv_fifo_del(&subgrp->sync->withdraw, adv);
+			bgp_advertise_free(adj->old_adv);
+			adj->old_adv = NULL;
+			goto next;
+		}
+
+		subgrp->scount--;
 		bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+next:
+		adv = next;
+
 	}
 	while ((tmp_adv = bgp_adv_fifo_first(&tmp_withdraw) != NULL)) {
 		bgp_adv_fifo_del(&tmp_withdraw, adv);
@@ -1068,7 +1163,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 				   (stream_get_endp(s) - stream_get_getp(s)),
 				   num_pfx);
 		pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), stream_dup(s),
-					NULL);
+					NULL,&withdraw_peer);
 		stream_reset(s);
 		return pkt;
 	}
@@ -1159,7 +1254,7 @@ void subgroup_default_update_packet(struct update_subgroup *subgrp,
 	/* Set size. */
 	bgp_packet_set_size(s);
 
-	(void)bpacket_queue_add(SUBGRP_PKTQ(subgrp), s, &vecarr);
+	(void)bpacket_queue_add(SUBGRP_PKTQ(subgrp), s, &vecarr,NULL);
 	subgroup_trigger_write(subgrp);
 	subgrp->scount++;
 }
@@ -1252,7 +1347,7 @@ void subgroup_default_withdraw_packet(struct update_subgroup *subgrp)
 
 	bgp_packet_set_size(s);
 
-	(void)bpacket_queue_add(SUBGRP_PKTQ(subgrp), s, NULL);
+	(void)bpacket_queue_add(SUBGRP_PKTQ(subgrp), s, NULL,NULL);
 	subgroup_trigger_write(subgrp);
 	subgrp->scount--;
 }

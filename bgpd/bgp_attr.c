@@ -697,6 +697,10 @@ unsigned int attrhash_key_make(const void *p)
 	MIX(attr->mp_nexthop_len);
 	key = jhash(attr->mp_nexthop_global.s6_addr, IPV6_MAX_BYTELEN, key);
 	key = jhash(attr->mp_nexthop_local.s6_addr, IPV6_MAX_BYTELEN, key);
+	if(attr->from.sa.sa_family == 2) /*AF_INET*/
+		key= jhash(&(attr->from.sin.sin_addr),4,key);
+	if(attr->from.sa.sa_family == 30) /*AF_INET6*/
+		key = jhash(attr->from.sin6.sin6_addr.s6_addr, IPV6_MAX_BYTELEN, key);
 	MIX3(attr->nh_ifindex, attr->nh_lla_ifindex, attr->distance);
 	MIX(attr->rmap_table_id);
 	MIX(attr->nh_type);
@@ -716,7 +720,8 @@ unsigned int attrhash_key_make(const void *p)
         && attr1->aspath == attr2->aspath
         && attr1->community == attr2->community && attr1->med == attr2->med
         && attr1->local_pref == attr2->local_pref
-        && attr1->rmap_change_flags == attr2->rmap_change_flags) {
+        && attr1->rmap_change_flags == attr2->rmap_change_flags
+			&& attr1->from.sa.sa_family == attr2->from.sa.sa_family) {
         if (attr1->aggregator_as == attr2->aggregator_as
             && attr1->aggregator_addr.s_addr
                     == attr2->aggregator_addr.s_addr
