@@ -695,6 +695,7 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	struct bgp_path_info *bpi_ultimate;
 	struct peer * new_peer = NULL;
 	struct peer * exist_peer = NULL;
+	bool cannot_multipath = false;
 
 	*paths_eq = 0;
 
@@ -743,6 +744,10 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 	} else {
 		exist_peer = exist->peer;
 	}
+
+	if (bgp_attr_is_srv6(existattr) != bgp_attr_is_srv6(newattr))
+		cannot_multipath = true;
+
 	/* A BGP speaker that has advertised the "Long-lived Graceful Restart
 	 * Capability" to a neighbor MUST perform the following upon receiving
 	 * a route from that neighbor with the "LLGR_STALE" community, or upon
@@ -1284,7 +1289,7 @@ static int bgp_path_info_cmp(struct bgp *bgp, struct bgp_path_info *new,
 				zlog_debug(
 					"%s: %s and %s cannot be multipath, one has a label while the other does not",
 					pfx_buf, new_buf, exist_buf);
-		} else if(bgp_attr_is_srv6(existattr) != bgp_attr_is_srv6(newattr)){
+		} else if(cannot_multipath){
 			if (debug)
 				zlog_debug(
 					"%s: %s and %s cannot be multipath, one has is srv6 while the other does not",
