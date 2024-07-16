@@ -609,7 +609,8 @@ static const int RNH_INVALID_NH_FLAGS = (NEXTHOP_FLAG_RECURSIVE |
 
 bool rnh_nexthop_valid(const struct route_entry *re, const struct nexthop *nh)
 {
-	return (CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED)
+	return ((CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED) 
+			|| CHECK_FLAG(re->status, ROUTE_ENTRY_ROUTE_REPLACING))
 		&& CHECK_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE)
 		&& !CHECK_FLAG(nh->flags, RNH_INVALID_NH_FLAGS));
 }
@@ -738,11 +739,12 @@ zebra_rnh_resolve_nexthop_entry(struct zebra_vrf *zvrf, afi_t afi,
 				continue;
 			}
 
-			if (CHECK_FLAG(re->status, ROUTE_ENTRY_QUEUED)) {
+			if (CHECK_FLAG(re->status, ROUTE_ENTRY_QUEUED) 
+					&& !CHECK_FLAG(re->status, ROUTE_ENTRY_ROUTE_REPLACING)) {
 				if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 					zlog_debug(
-						"        Route Entry %s queued",
-						zebra_route_string(re->type));
+						"        Route Entry %s queued 0x%0x",
+						zebra_route_string(re->type), re->status);
 				continue;
 			}
 
