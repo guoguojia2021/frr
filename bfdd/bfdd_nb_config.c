@@ -34,9 +34,8 @@
  * Helpers.
  */
 
-static void get_ip_by_interface(const char *ifname, char *ifip) {
+static void get_ip_by_interface(const char *ifname, int family, char *ifip) {
     struct ifaddrs *ifaddr, *ifa;
-    int family;
     char intfip[INET6_ADDRSTRLEN];
 	
     if (getifaddrs(&ifaddr) == -1) {
@@ -46,19 +45,15 @@ static void get_ip_by_interface(const char *ifname, char *ifip) {
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == NULL) continue;
-        family = ifa->ifa_addr->sa_family;
-
-        if (family == AF_INET || family == AF_INET6) {
-            if (strcmp(ifa->ifa_name, ifname) == 0) {
-                getnameinfo(ifa->ifa_addr,
-                            (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                                                  sizeof(struct sockaddr_in6),
-                            intfip, sizeof(intfip),
-                            NULL, 0, NI_NUMERICHOST);
-				strlcpy(ifip,intfip,INET6_ADDRSTRLEN - 1);
-				break;
-            }
-        }
+		if (strcmp(ifa->ifa_name, ifname) == 0 && family == ifa->ifa_addr->sa_family) {
+			getnameinfo(ifa->ifa_addr,
+						(family == AF_INET) ? sizeof(struct sockaddr_in) :
+												sizeof(struct sockaddr_in6),
+						intfip, sizeof(intfip),
+						NULL, 0, NI_NUMERICHOST);
+			strlcpy(ifip,intfip,INET6_ADDRSTRLEN - 1);
+			break;
+		}
     }
 	
     freeifaddrs(ifaddr);
@@ -87,7 +82,7 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 			ifname = NULL;
 		if (ifname != NULL && !yang_dnode_exists(dnode, "source-addr"))
 		{
-			get_ip_by_interface(ifname,ifip);
+			get_ip_by_interface(ifname,psa.sa_sin.sin_family,ifip);
 			strtosa(ifip, &lsa);
 		}
 	}
