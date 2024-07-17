@@ -609,6 +609,10 @@ static const int RNH_INVALID_NH_FLAGS = (NEXTHOP_FLAG_RECURSIVE |
 
 bool rnh_nexthop_valid(const struct route_entry *re, const struct nexthop *nh)
 {
+	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+	{
+		zlog_debug("re(%p)->status 0x%0x nh(%p)->flags 0x%0x", re, re->status, nh, nh->flags);
+	}
 	return ((CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED) 
 			|| CHECK_FLAG(re->status, ROUTE_ENTRY_ROUTE_REPLACING))
 		&& CHECK_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE)
@@ -723,7 +727,12 @@ zebra_rnh_resolve_nexthop_entry(struct zebra_vrf *zvrf, afi_t afi,
 
 		/* Identify appropriate route entry. */
 		RNODE_FOREACH_RE (rn, re) {
-			if (CHECK_FLAG(re->status, ROUTE_ENTRY_REMOVED)) {
+			if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+			{
+				zlog_debug("%s: rn %p re %p <0x%0x, 0x%0x>", __func__,rn, re, re->status, re->flags);
+			}
+			if (CHECK_FLAG(re->status, ROUTE_ENTRY_REMOVED)
+				&& !CHECK_FLAG(re->status, ROUTE_ENTRY_ROUTE_REPLACING)) {
 				if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 					zlog_debug(
 						"        Route Entry %s removed",
@@ -1458,6 +1467,13 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 	stream_putw_at(s, 0, stream_get_endp(s));
 
 	client->nh_last_upd_time = monotime(NULL);
+
+	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+	{
+		struct prefix *dp = &rnh->node->p;
+		zlog_debug("%s: (%pFX) re %p, num %d <nump %d>",__func__, dp, re, num, nump);
+	}
+
 	return zserv_send_message(client, s);
 
 failure:
