@@ -3255,10 +3255,12 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 		}
 
 		dest = rib_dest_from_rnode(rn);
-		if (dest && dest->selected_fib
-		    && !CHECK_FLAG(dest->selected_fib->status,
-				   ROUTE_ENTRY_REMOVED)
-		    && dest->selected_fib->type != ZEBRA_ROUTE_TABLE)
+		if (dest && dest->selected_fib &&
+		    (!CHECK_FLAG(dest->selected_fib->status,
+				 ROUTE_ENTRY_REMOVED) ||
+		     CHECK_FLAG(dest->selected_fib->status,
+				ROUTE_ENTRY_ROUTE_REPLACING)) &&
+		    dest->selected_fib->type != ZEBRA_ROUTE_TABLE)
 			match = dest->selected_fib;
 
 		/* If there is no selected route or matched route is EGP, go up

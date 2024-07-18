@@ -4023,8 +4023,15 @@ int rib_add_multipath_nhe(afi_t afi, safi_t safi, struct prefix *p,
 	/* Free implicit route.*/
 	if (same) {
 		ret = 1;
+		rib_dest_t *dest = rn->info;
+
+		if (same == dest->selected_fib)
+		{
+			SET_FLAG(same->status, ROUTE_ENTRY_ROUTE_REPLACING);
+		}
 		rib_delnode(rn, same);
 	}
+		
 
 	/* See if we can remove some RE entries that are queued for
 	 * removal, but won't be considered in rib processing.
