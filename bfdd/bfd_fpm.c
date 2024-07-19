@@ -1067,9 +1067,14 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
 
     data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
     data->discrs.my_discr = htonl(sr->discr);
-	inet_ntop(AF_INET6, &sr->local, data->bpc_local, sizeof(data->bpc_local));
+	inet_ntop(sr->family, &sr->local, data->bpc_local, sizeof(data->bpc_local));
 	strncpy(data->bpc_vrfname, VRF_DEFAULT_NAME, MAXNAMELEN);
 	data->bpc_type = BPC_TYPE_SBFD_RFLT;
+
+	if (sr->family == AF_INET)
+        data->bpc_ipv4 = 1;
+    else
+        data->bpc_ipv4 = 0;
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
     hdr->msg_len = htons(msg_len);

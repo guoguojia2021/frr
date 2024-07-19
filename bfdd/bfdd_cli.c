@@ -52,6 +52,7 @@
 #define IPV4_ADDRESS 4
 #define IPV6_ADDRESS 6
 #define INVALID_IP   0 
+#define IPV4_STR "IPv4 information\n"
 
 /*
  * Prototypes.
@@ -1006,10 +1007,11 @@ DEFPY_YANG(bfd_peer_profile, bfd_peer_profile_cmd,
 
 DEFPY(
 	sbfd_reflector, sbfd_reflector_cmd,
-	"sbfd reflector source-address X:X::X:X$srcip discriminator WORD...",
+	"sbfd reflector source-address <A.B.C.D|X:X::X:X> discriminator WORD...",
     "seamless BFD\n"
     "sbfd reflector\n"
 	"binding source ip address\n"
+	IPV4_STR
 	IPV6_STR
 	"discriminator\n"
 	"discriminator value or range (e.g. 100 or 100 200 300 or 100-300)\n")
@@ -1020,6 +1022,7 @@ DEFPY(
 	uint32_t discr = 0;
 	uint32_t discr_from = 0;
 	uint32_t discr_to = 0;
+	struct sockaddr_any srcip;
 
 	for (i = idx_discr; i < argc; i++) {
         /* check validity*/
@@ -1029,6 +1032,7 @@ DEFPY(
 		if (strspn(pstr, "0123456789")==strlen(pstr))
         {
 			discr = atol(pstr);
+			strtosa(source_address_str, &srcip);
 			sbfd_reflector_new(discr, &srcip);
         }
 		/*discr segment*/
@@ -1052,6 +1056,7 @@ DEFPY(
 
 			for (j = discr_from; j <= discr_to; j++)
 			{
+				strtosa(source_address_str, &srcip);
                 sbfd_reflector_new(j, &srcip);
 			}
         }

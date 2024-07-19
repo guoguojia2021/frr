@@ -384,6 +384,7 @@ TAILQ_HEAD(obslist, bfd_session_observer);
 struct sbfd_reflector{
 	uint32_t discr;
 	struct in6_addr local;
+	uint32_t family;
 };
 
 /* States defined per 4.1 */
@@ -915,7 +916,7 @@ void bfd_dplane_show_counters(struct vty *vty);
 
 
 /*sbfd relfector*/
-struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct in6_addr *sip);
+struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct sockaddr_any *sip);
 void sbfd_reflector_free(const uint32_t discr);
 void sbfd_reflector_flush(void);
 

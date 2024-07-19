@@ -1392,7 +1392,7 @@ static void _sbfd_reflector_write_config(struct hash_bucket *hb, void *arg)
 	char buf[INET6_ADDRSTRLEN];
 	struct vty *vty;
 	vty = (struct vty *) arg;
-	inet_ntop(AF_INET6, &sr->local, buf, sizeof(buf));
+	inet_ntop(sr->family, &sr->local, buf, sizeof(buf));
 	vty_out(vty, "  sbfd reflector source-address %s discriminator %u\n", buf, sr->discr);
 }
 

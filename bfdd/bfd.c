@@ -2865,7 +2865,7 @@ unsigned long bfd_get_session_count(void)
 	return bfd_key_hash->count;
 }
 
-struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct in6_addr *sip)
+struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct sockaddr_any *sip)
 {
 	struct sbfd_reflector *sr;
 
@@ -2875,7 +2875,19 @@ struct sbfd_reflector *sbfd_reflector_new(const uint32_t discr, struct in6_addr 
 
 	sr = XCALLOC(MTYPE_SBFD_REFLECTOR, sizeof(*sr));
     sr->discr = discr;
-	memcpy(&sr->local, sip, sizeof(struct in6_addr));
+
+	switch (sip->sa_sin.sin_family) {
+	case AF_INET:
+		sr->family = AF_INET;
+		memcpy(&sr->local, &sip->sa_sin.sin_addr,
+		       sizeof(sip->sa_sin.sin_addr));
+		break;
+	case AF_INET6:
+		sr->family = AF_INET6;
+		memcpy(&sr->local, &sip->sa_sin6.sin6_addr,
+		       sizeof(sip->sa_sin6.sin6_addr));
+		break;
+	}
 
 	sbfd_discr_insert(sr);
 
