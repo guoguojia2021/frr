@@ -206,6 +206,7 @@ def test_protocols_convergence():
     output = tgen.gears["r1"].vtysh_cmd("show evpn rmac vni all", isjson=False)
     logger.info("==== result from show evpn next-hops vni all")
     logger.info(output)
+
     # Check IPv4 and IPv6 connectivity between r1 and r2 ( routing vxlan evpn)
     pingrouter = tgen.gears["r1"]
     logger.info(

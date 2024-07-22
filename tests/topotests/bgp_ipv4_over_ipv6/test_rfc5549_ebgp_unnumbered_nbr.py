@@ -580,7 +580,6 @@ def test_restart_frr_p2(request):
     assert result is True, "Testcase {} : Failed \n Error: {}".format(tc_name, result)
     write_test_footer(tc_name)
 
-
 if __name__ == "__main__":
     args = ["-s"] + sys.argv[1:]
     sys.exit(pytest.main(args))
