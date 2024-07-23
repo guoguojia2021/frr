@@ -2591,7 +2591,7 @@ DEFUN (show_interface_desc_vrf_all,
 
 	RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name)
 		if (!RB_EMPTY(if_name_head, &vrf->ifaces_by_name)) {
-			vty_out(vty, "\n\tVRF %s(%u)\n\n", VRF_LOGNAME(vrf),
+			vty_out(vty, "\n\tVRF %s(%u)\n\n", VRF_LOGALIASNAME(vrf),
 				vrf->vrf_id);
 			if_show_description(vty, vrf);
 		}

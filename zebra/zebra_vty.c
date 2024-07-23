@@ -378,7 +378,7 @@ static void show_nexthop_detail_helper(struct vty *vty,
 	if (re->vrf_id != nexthop->vrf_id) {
 		struct vrf *vrf = vrf_lookup_by_id(nexthop->vrf_id);
 
-		vty_out(vty, "(vrf %s)", VRF_LOGNAME(vrf));
+		vty_out(vty, "(vrf %s)", VRF_LOGALIASNAME(vrf));
 	}
 
 	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_DUPLICATE))
