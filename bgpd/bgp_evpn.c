@@ -6376,7 +6376,8 @@ bool bgp_evpn_is_prefix_nht_supported(const struct prefix *pfx)
 	    && (evp->prefix.route_type == BGP_EVPN_MAC_IP_ROUTE
 		|| evp->prefix.route_type == BGP_EVPN_AD_ROUTE
 		|| evp->prefix.route_type == BGP_EVPN_ES_ROUTE
-		|| evp->prefix.route_type == BGP_EVPN_IMET_ROUTE
+		/* evpn type-3 route no track nexthop */ 
+		/*|| evp->prefix.route_type == BGP_EVPN_IMET_ROUTE */
 		|| evp->prefix.route_type == BGP_EVPN_IP_PREFIX_ROUTE))
 		return true;
 
