@@ -1051,8 +1051,8 @@ static inline void zebra_evpn_local_neigh_update_log(
  */
 static int zebra_evpn_ip_inherit_dad_from_mac(struct zebra_vrf *zvrf,
 					      bool is_old_mac_dup,
-					      zebra_mac_t *new_zmac,
-					      zebra_neigh_t *nbr)
+					      struct zebra_mac *new_zmac,
+					      struct zebra_neigh *nbr)
 {
 	bool is_new_mac_dup = false;
 

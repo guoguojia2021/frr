@@ -844,7 +844,6 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 				type = ECOMMUNITY_NODE_TARGET;
 			if (token == ecommunity_token_color) {
 				type = ECOMMUNITY_COLOR;
-			}
 			if (token == ecommunity_token_bw_path) {
 				type = ECOMMUNITY_LINK_BANDWIDTH;
 				link_bandwidth_type = ECOMM_LB_SET_NUM_MPATH;
