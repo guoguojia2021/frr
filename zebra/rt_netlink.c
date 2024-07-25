@@ -2187,18 +2187,6 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 			return NLMSG_ALIGN(req->n.nlmsg_len);
 		}
 	}
-	/* Count overall nexthops so we can decide whether to use singlepath
-	 * or multipath case.
-	 */
-	nexthop_num = 0;
-	for (ALL_NEXTHOPS_PTR(dplane_ctx_get_ng(ctx), nexthop)) {
-		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
-			continue;
-		if (!NEXTHOP_IS_ACTIVE(nexthop->flags))
-			continue;
-
-		nexthop_num++;
-	}
 
 	if ((!fpm && kernel_nexthops_supported()
 	     && (!proto_nexthops_only()
@@ -2240,14 +2228,21 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 				   pic_nh_id))
 				return 0;
 		}
-		if (nexthop_num == 1 && fpm) {
-			nexthop = dplane_ctx_get_ng(ctx)->nexthop;
-			if (nexthop)
-				if (!nl_attr_put32(&req->n, datalen, RTA_OIF, nexthop->ifindex))
-					return 0;
-		}
 
 		return NLMSG_ALIGN(req->n.nlmsg_len);
+	}
+
+	/* Count overall nexthops so we can decide whether to use singlepath
+	 * or multipath case.
+	 */
+	nexthop_num = 0;
+	for (ALL_NEXTHOPS_PTR(dplane_ctx_get_ng(ctx), nexthop)) {
+		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+			continue;
+		if (!NEXTHOP_IS_ACTIVE(nexthop->flags))
+			continue;
+
+		nexthop_num++;
 	}
 
 	/* Singlepath case. */
