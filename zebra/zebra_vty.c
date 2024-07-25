@@ -1544,6 +1544,7 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 	uptime2str(nhe->uptime, up_str, sizeof(up_str));
 
 	vty_out(vty, "ID: %u (%s %p)\n", nhe->id, zebra_route_string(nhe->type), nhe);
+	vty_out(vty, "     Afi: %u\n", nhe->afi);
 	vty_out(vty, "     RefCnt: %u\n", nhe->refcnt);
 	vty_out(vty, "     segment_ref: %u\n", nhe->segment_ref);
 	vty_out(vty, "     Uptime: %s\n", up_str);
@@ -1586,6 +1587,7 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 			/* Make recursive nexthops a bit more clear */
 			vty_out(vty, "       ");
 
+		vty_out(vty, "type:%d, flags:%d ", nexthop->type, nexthop->flags);
 		show_route_nexthop_helper(vty, NULL, nexthop);
 
 		if (nhe->backup_info == NULL || nhe->backup_info->nhe == NULL) {
