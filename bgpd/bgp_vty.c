@@ -1499,6 +1499,9 @@ DEFUN (no_router_bgp,
 			for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, tmp_bgp)) {
 				if (tmp_bgp->inst_type != BGP_INSTANCE_TYPE_VRF)
 					continue;
+				if (CHECK_FLAG(tmp_bgp->vrf_flags, BGP_VRF_AUTO))
+					bgp_delete(tmp_bgp);
+
 				if (CHECK_FLAG(tmp_bgp->af_flags[AFI_IP][SAFI_UNICAST],
 					       BGP_CONFIG_MPLSVPN_TO_VRF_IMPORT) ||
 				    CHECK_FLAG(tmp_bgp->af_flags[AFI_IP6][SAFI_UNICAST],
