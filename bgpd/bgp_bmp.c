@@ -3307,7 +3307,7 @@ static void bmp_show_bgp_peers_info(struct vty *vty)
 	struct peer *peer;
 	struct bgp *bgp;
 	struct listnode *lnbgp, *lnpeer;
-
+	struct vrf *vrf;
 
 	vty_out(vty, "\nBGP Peers monitored by BMP:\n");
 	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
@@ -3315,9 +3315,10 @@ static void bmp_show_bgp_peers_info(struct vty *vty)
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
 
 	for (ALL_LIST_ELEMENTS_RO(bm->bgp, lnbgp, bgp)) {
+		vrf = vrf_get(bgp->vrf_id, NULL);
+		if (!vrf)
+			continue;
 		for (ALL_LIST_ELEMENTS_RO(bgp->peer, lnpeer, peer)) {
-            struct vrf *vrf;
-			vrf = vrf_get(peer->bgp->vrf_id, NULL);
 			ttable_add_row(tt, "%s|%u|%u|%s", 
 			    peer->host, peer->as, peer->local_as, vrf->aliasName);                
 		}
