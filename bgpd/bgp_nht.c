@@ -1236,14 +1236,14 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 			zlog_debug(
 				"... eval path %d/%d %pBD RD %s %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
 				afi, safi, dest, buf1,
-				bgp_path->name_pretty, path->flags, path->change_flags, ath->sub_type,
+				bgp_path->name_pretty, path->flags, bnc->change_flags, path->sub_type,
 				bnc_is_valid_nexthop ? "valid" : "invalid",
 				isServiceRoute ? "yes" : "no", isSrv6TeBnc ? "yes" : "no");
 		} else
 			zlog_debug(
 				"... eval path %d/%d %pBD %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
 				afi, safi, dest, bgp_path->name_pretty,
-				path->flags, path->change_flags, path->sub_type,
+				path->flags, bnc->change_flags, path->sub_type,
 				bnc_is_valid_nexthop ? "valid" : "invalid",
 				isServiceRoute ? "yes" : "no", isSrv6TeBnc ? "yes" : "no");
 	}
