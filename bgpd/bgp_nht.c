@@ -1201,10 +1201,18 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 	if (safi == SAFI_UNICAST && path->sub_type == BGP_ROUTE_IMPORTED
 		&& path->extra && path->extra->num_labels
 		&& (path->attr->evpn_overlay.type != OVERLAY_INDEX_GATEWAY_IP)
-		&& (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))
-		&& !isServiceRoute) {
+		&& (!path->attr || !path->attr->vni || is_zero_mac(&path->attr->rmac))){
+			if (isServiceRoute)
+				bnc_is_valid_nexthop =
+					bgp_isvalid_nexthop(bnc) ? true : false;
+			else
+				bnc_is_valid_nexthop =
+					bgp_isvalid_labeled_nexthop(bnc) ? true : false;
+	} else if (safi == SAFI_MPLS_VPN &&
+			path->sub_type != BGP_ROUTE_IMPORTED) {
+		/* avoid not redistributing mpls vpn routes */
 		bnc_is_valid_nexthop =
-			bgp_isvalid_labeled_nexthop(bnc) ? true : false;
+			bgp_isvalid_nexthop(bnc) ? true : false;
 	} else {
 		if (bgp_update_martian_nexthop(
 				bnc->bgp, afi, safi, path->type,
@@ -1226,14 +1234,18 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 			prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
 				buf1, sizeof(buf1));
 			zlog_debug(
-				"... eval path %d/%d %pBD RD %s %s flags 0x%x",
+				"... eval path %d/%d %pBD RD %s %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
 				afi, safi, dest, buf1,
-				bgp_path->name_pretty, path->flags);
+				bgp_path->name_pretty, path->flags, path->change_flags, ath->sub_type,
+				bnc_is_valid_nexthop ? "valid" : "invalid",
+				isServiceRoute ? "yes" : "no", isSrv6TeBnc ? "yes" : "no");
 		} else
 			zlog_debug(
-				"... eval path %d/%d %pBD %s flags 0x%x",
+				"... eval path %d/%d %pBD %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
 				afi, safi, dest, bgp_path->name_pretty,
-				path->flags);
+				path->flags, path->change_flags, path->sub_type,
+				bnc_is_valid_nexthop ? "valid" : "invalid",
+				isServiceRoute ? "yes" : "no", isSrv6TeBnc ? "yes" : "no");
 	}
 
 	/* Skip paths marked for removal or as history. */
