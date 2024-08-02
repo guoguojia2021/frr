@@ -160,6 +160,7 @@ enum node_type {
 	SRV6_LOCS_NODE,		 /* SRv6 locators node */
 	SRV6_LOC_NODE,		 /* SRv6 locator node */
 	VTY_NODE,		 /* Vty node. */
+	SRV6_ENCAP_NODE, /* SRv6 encapsulation node */
 	FPM_NODE,		 /* Dataplane FPM node. */
 	LINK_PARAMS_NODE,	/* Link-parameters node */
 	BGP_EVPN_VNI_NODE,       /* BGP EVPN VNI */

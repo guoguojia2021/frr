@@ -1784,6 +1784,7 @@ static bool zapi_read_nexthops(struct zserv *client, struct prefix *p,
 	struct nhg_backup_info *bnhg = NULL;
 	uint16_t i;
 	struct nexthop *last_nh = NULL;
+	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
 
 	assert(!(png && pbnhg));
 
@@ -1869,8 +1870,10 @@ static bool zapi_read_nexthops(struct zserv *client, struct prefix *p,
 		    && api_nh->type != NEXTHOP_TYPE_BLACKHOLE) {
 			if (IS_ZEBRA_DEBUG_RECV)
 				zlog_debug("%s: adding seg6", __func__);
-
-			nexthop_add_srv6_seg6(nexthop, &api_nh->seg6_segs, &api_nh->seg6_src);
+			if (!IPV6_ADDR_SAME(&srv6->encap_src_addr, &in6addr_any))
+				nexthop_add_srv6_seg6(nexthop, &api_nh->seg6_segs, &srv6->encap_src_addr);
+			else
+				nexthop_add_srv6_seg6(nexthop, &api_nh->seg6_segs, &api_nh->seg6_src);
 		}
 
 		if (IS_ZEBRA_DEBUG_RECV) {

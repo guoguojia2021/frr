@@ -406,6 +406,23 @@ static int zebra_srv6_manager_get_locator_all(struct zserv *client,
 	return ret;
 }
 
+void zebra_srv6_encap_src_addr_set(struct in6_addr *encap_src_addr)
+{
+	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+
+	if (!encap_src_addr)
+		return;
+
+	memcpy(&srv6->encap_src_addr, encap_src_addr, sizeof(struct in6_addr));
+}
+
+void zebra_srv6_encap_src_addr_unset(void)
+{
+	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+
+	memset(&srv6->encap_src_addr, 0, sizeof(struct in6_addr));
+}
+
 /**
  * Release srv6-locator chunks from a client.
  *
