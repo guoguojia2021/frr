@@ -1350,8 +1350,9 @@ static const char *metric_type_name(enum srte_candidate_metric_type type)
 
 DEFPY(show_segment_list_detail,
       show_segment_list_detail_cmd,
-      "show segment-list detail",
+      "show sr-te segment-list detail",
       SHOW_STR
+      "SR-TE info\n"
       "Segment List\n"
       "Show a detailed summary\n")
 {
@@ -1381,8 +1382,9 @@ DEFPY(show_segment_list_detail,
 
 DEFPY(show_segment_list_by_name_detail,
       show_segment_list_by_name_detail_cmd,
-      "show segment-list WORD$name",
+      "show sr-te segment-list WORD$name",
       SHOW_STR
+      "SR-TE info\n"
       "Segment List\n"
 	  "Name of the Segment List\n")
 {

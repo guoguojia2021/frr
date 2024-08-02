@@ -336,14 +336,12 @@ static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
 	return 0;
 }
 
-
 DEFUN (show_srv6_tunnel,
        show_srv6_tunnel_cmd,
-       "show srv6 tunnel [detail]",
+       "show sr-te tunnel",
        SHOW_STR
-       "Segment Routing SRv6\n"
-       "tunnel info\n"
-       "Show a detailed summary\n")
+       "SR-TE info\n"
+       "Tunnel info\n")
 {
 	struct ttable *tt;
 	//struct srte_policy *policy;
@@ -380,7 +378,6 @@ DEFUN (show_srv6_tunnel,
 
 	return CMD_SUCCESS;
 }
-
 
 DEFUN (show_srv6_locator,
        show_srv6_locator_cmd,
