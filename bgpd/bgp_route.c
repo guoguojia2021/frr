@@ -2537,7 +2537,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 						"%s [Update:SEND] %pFX is filtered by bgp peer high route-map",
 						peer->host, p);
 
-				bgp_attr_flush(&dummy_attr);
+				bgp_attr_flush(rmap_path.attr);
 				return false;
 			}
 		}
