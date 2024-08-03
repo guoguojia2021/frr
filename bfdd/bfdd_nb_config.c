@@ -406,6 +406,11 @@ static int bfd_session_destroy(enum nb_event event,
 			ptm_bfd_notify(bs, PTM_BFD_DEL);
 		}
 
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO) && bs->sbfd_echo_hw_offload_delay)
+		{
+			THREAD_OFF(bs->sbfd_echo_hw_offload_delay);
+		}
+		
 		bfd_session_free(bs);
 		break;
 

@@ -792,7 +792,7 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	bfd->demand_mode = 0;
 	monotime(&bfd->downtime);
 
-	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO) && !bfd->sbfd_echo_hw_offload_delay)
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO) && bfd->sbfd_echo_hw_offload_delay)
 	{
 		THREAD_OFF(bfd->sbfd_echo_hw_offload_delay);
 	}
