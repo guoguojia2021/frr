@@ -462,7 +462,8 @@ struct bgp_advertise * bgp_advertise_free_old_adv_subgroup(struct update_subgrou
 		withdraw_baa = adj->old_adv->withdraw_baa;
 		if(withdraw_baa){
 			bgp_advertise_delete(withdraw_baa, adj->old_adv);
-			next = withdraw_baa->adv;
+			//next = withdraw_baa->adv;
+			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
 			/* Unintern BGP advertise attribute.  */
 			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
 		}
@@ -503,7 +504,8 @@ bgp_advertise_clean_subgroup(struct update_subgroup *subgrp,
 		withdraw_baa = adv->withdraw_baa;
 		if (withdraw_baa){
 			bgp_advertise_delete(withdraw_baa, adv);
-			next = withdraw_baa->adv;
+			//next = withdraw_baa->adv;
+			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
 			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
 		}
 	}

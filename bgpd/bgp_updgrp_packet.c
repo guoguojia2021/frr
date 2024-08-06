@@ -1116,7 +1116,9 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		withdraw_baa = adv->withdraw_baa;
 
 		if(withdraw_baa){
-			next = adv->next;
+			//todo: check
+			//next = adv->next;
+			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
 		}
 
 		
