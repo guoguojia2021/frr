@@ -1827,6 +1827,10 @@ if test "$enable_bgp_vnc" != "no";then
   AC_DEFINE([ENABLE_BGP_VNC], [1], [Enable BGP VNC support])
 fi
 
+if test "$tcmalloc_enabled" != "false";then
+  AC_DEFINE([ENABLE_TC_MALLOC], [1], [Enable tcmalloc])
+fi
+
 bgpd_bmp=false
 case "${enable_bgp_bmp}" in
   no)
@@ -2632,6 +2636,7 @@ AC_DEFINE_UNQUOTED([WATCHFRR_SH_PATH], ["${CFG_SBIN%/}/watchfrr.sh"], [path to w
 
 dnl various features
 AM_CONDITIONAL([SUPPORT_REALMS], [test "$enable_realms" = "yes"])
+AM_CONDITIONAL([ENABLE_TC_MALLOC], [test "$tcmalloc_enabled" != "false"])
 AM_CONDITIONAL([ENABLE_BGP_VNC], [test "$enable_bgp_vnc" != "no"])
 AM_CONDITIONAL([BGP_BMP], [$bgpd_bmp])
 dnl northbound
