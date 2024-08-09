@@ -1131,6 +1131,7 @@ static void rib_install_ipv4_pending_to_fib(rib_dest_t *dest)
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
 			ip4_pending_fib_count--;
 			ip4_sent_fib_count++;
+			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			hook_call(rib_update, dest->rnode, "pending route release to fpm");
 		}
 		rib_pending_list_del(AFI_IP, dest);
@@ -1146,6 +1147,7 @@ static void rib_install_ipv6_pending_to_fib(rib_dest_t *dest)
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
 			ip6_pending_fib_count--;
 			ip6_sent_fib_count++;
+			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			hook_call(rib_update, dest->rnode, "pending route release to fpm");
 		}
 		rib_pending_list_del(AFI_IP6, dest);
@@ -1190,6 +1192,7 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		{
 
 			(ip4_sent_fib_count)++;
+			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			if (ip4_sent_fib_count == ZEBRA_TABLE_FIB_THRESHOLD * zebra_config_fib_max && fib_threshold_alarm_switch)
 			{
 				zlog_warn(
@@ -1226,6 +1229,7 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		if (totalCount < zebra_config_fib_max)
 		{
 			(ip6_sent_fib_count)++;
+			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			if (ip6_sent_fib_count == ZEBRA_TABLE_FIB_THRESHOLD * zebra_config_fib_max && fib_threshold_alarm_switch)
 			{
 				zlog_warn(
@@ -1347,13 +1351,19 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 	else {
 		if((info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))
 		{
-			(ip4_sent_fib_count)--;
+			if (CHECK_FLAG(dest->flags,RIB_DEST_FIB_COUNT)) {
+				(ip4_sent_fib_count)--;
+				UNSET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
+			}
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("deleting sent fib, decrease ip4_sent_fib_count: %lu %lu",ip4_sent_fib_count,ip4_pending_fib_count);
 		}
 		else if ((info->afi == AFI_IP6) && (info->safi == SAFI_UNICAST))
 		{
-			(ip6_sent_fib_count)--;
+			if (CHECK_FLAG(dest->flags,RIB_DEST_FIB_COUNT)) {
+				(ip6_sent_fib_count)--;
+				UNSET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
+			}
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_notice("deleting sent fib, decrease ip6_sent_fib_count: %lu %lu",ip6_sent_fib_count,ip6_pending_fib_count);
 		}
