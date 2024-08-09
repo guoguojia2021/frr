@@ -783,9 +783,16 @@ static void bgp_stream_get_afi_safi(struct stream *pkt, iana_afi_t *afi, iana_sa
 }
 
 
-static bool bmp_packet_config_check(struct bmp_targets *bt, uint8_t bmitype, iana_afi_t afi,iana_safi_t safi)
+static bool bmp_packet_config_check(struct bmp_targets *bt, uint8_t bmitype, iana_afi_t afi_in, iana_safi_t safi_in)
 {
 	bool bconfig = false;
+	afi_t afi;
+	safi_t safi;
+
+	if (bgp_map_afi_safi_iana2int(afi_in, safi_in, &afi, &safi) < 0) {
+		return bconfig;
+	}
+
 	switch(bmitype)
 	{
 		case BMP_ADJ_IN_PREPOLICY:
