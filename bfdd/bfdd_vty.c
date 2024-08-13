@@ -90,8 +90,8 @@ static char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
             return "bfd";
         case BFD_MODE_TYPE_SBFD_ECHO:
             return "sbfd-echo";
-        case BFD_MODE_TYPE_SBFD_INIT:
-            return "sbfd-init";
+        case BFD_MODE_TYPE_SBFD:
+            return "sbfd";
         default:
             return "Unknown";
     }
@@ -111,14 +111,14 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
     
 	if (bs->bfd_name[0])
 	{
-		vty_out(vty, " bfd-name %s", bs->bfd_name);
+		vty_out(vty, " name %s", bs->bfd_name);
 	}
 
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH))
 		vty_out(vty, " multihop");
 
-	if (bs->bfd_mode == BFD_MODE_TYPE_BFD || bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
-		vty_out(vty, " bfd-mode %s", bfd_mode_type_to_string(bs->bfd_mode));
+	if (bs->bfd_mode == BFD_MODE_TYPE_BFD || bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
+		vty_out(vty, " mode %s", bfd_mode_type_to_string(bs->bfd_mode));
 
 
 	if (memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
@@ -350,7 +350,7 @@ static struct json_object *__display_peer_json(struct bfd_session *bs)
 		json_object_int_add(jo, "minimum-ttl", bs->mh_ttl);
 
 	if (bs->bfd_mode != BFD_MODE_TYPE_NONE)
-		json_object_string_add(jo, "bfd-name", bs->bfd_name);
+		json_object_string_add(jo, "name", bs->bfd_name);
 
 	switch (bs->ses_state) {
 	case PTM_BFD_ADM_DOWN:
@@ -985,7 +985,7 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
  * Show commands.
  */
 DEFPY(bfd_show_by_bfdname, bfd_show_by_bfdname_cmd,
-      "show bfd [vrf NAME$vrf_name] bfd-name BFDNAME$bfdname [json] [detail]",
+      "show bfd [vrf NAME$vrf_name] name BFDNAME$bfdname [json] [detail]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
@@ -1005,7 +1005,7 @@ DEFPY(bfd_show_by_bfdname, bfd_show_by_bfdname_cmd,
 }
 
 DEFPY(bfd_show_counters_by_bfdname, bfd_show_counters_by_bfdname_cmd,
-      "show bfd [vrf NAME$vrf_name] bfd-name BFDNAME$bfdname counters [json]",
+      "show bfd [vrf NAME$vrf_name] name BFDNAME$bfdname counters [json]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
@@ -1020,7 +1020,7 @@ DEFPY(bfd_show_counters_by_bfdname, bfd_show_counters_by_bfdname_cmd,
 }
 
 DEFPY(bfd_clear_counters_by_bfdname, bfd_clear_counters_by_bfdname_cmd,
-      "clear bfd [vrf NAME$vrfname] bfd-name BFDNAME$bfdname counters",
+      "clear bfd [vrf NAME$vrfname] name BFDNAME$bfdname counters",
       CLEAR_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR

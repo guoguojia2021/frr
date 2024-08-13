@@ -148,7 +148,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
-		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)) {
+		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD)) {
 			if(bfd_session_get_by_name(yang_dnode_get_string(args->dnode, "bfd-name"))) {
 				snprintf(
 					args->errmsg, args->errmsg_len,
@@ -249,7 +249,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 			args->resource->ptr = bs;
 			break;
 		}
-		else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+		else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD)
 		{
 			sbfd_session_get_key(mhop, args->dnode, &bk);
 			bs = bfd_key_lookup(bk);
@@ -279,7 +279,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 				return NB_ERR_RESOURCE;
 			}
 
-			if (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+			if (bfd_mode == BFD_MODE_TYPE_SBFD)
 			{
 				if (!yang_dnode_exists(args->dnode, "remote-discr")){ 
 					snprintf(
@@ -310,7 +310,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 			strtosa(yang_dnode_get_string(args->dnode, "./source-ipv6"), &out_sip6);
 			memcpy(&bs->out_sip6, &out_sip6.sa_sin6.sin6_addr, sizeof(struct in6_addr));
 
-			if (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+			if (bfd_mode == BFD_MODE_TYPE_SBFD)
 			{
 				bs->discrs.remote_discr = yang_dnode_get_uint32(args->dnode, "./remote-discr");
 			}
@@ -402,7 +402,7 @@ static int bfd_session_destroy(enum nb_event event,
 		if (bglobal.debug_peer_event)
 		    zlog_info("bfd_session_destroy: %s", bs_to_string(bs));
 
-		if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD_INIT){
+		if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD){
 			ptm_bfd_notify(bs, PTM_BFD_DEL);
 		}
 
@@ -1036,7 +1036,7 @@ int bfdd_bfd_sessions_bfd_mode_modify(
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
-		if ((bfd_mode != BFD_MODE_TYPE_BFD) && (bfd_mode != BFD_MODE_TYPE_SBFD_ECHO) && (bfd_mode != BFD_MODE_TYPE_SBFD_INIT))
+		if ((bfd_mode != BFD_MODE_TYPE_BFD) && (bfd_mode != BFD_MODE_TYPE_SBFD_ECHO) && (bfd_mode != BFD_MODE_TYPE_SBFD))
 		{
 			snprintf(args->errmsg, args->errmsg_len,"bfd mode is invalid.");
 			return NB_ERR_VALIDATION;
@@ -1307,12 +1307,12 @@ int bfdd_bfd_sessions_srte_sbfd_source_ipv6_destroy(
  */
 int bfdd_bfd_sessions_srte_sbfd_init_create(struct nb_cb_create_args *args)
 {
-	return bfd_session_create(args, false, BFD_MODE_TYPE_SBFD_INIT);
+	return bfd_session_create(args, false, BFD_MODE_TYPE_SBFD);
 }
 
 int bfdd_bfd_sessions_srte_sbfd_init_destroy(struct nb_cb_destroy_args *args)
 {
-	return bfd_session_destroy(args->event, args->dnode, false, BFD_MODE_TYPE_SBFD_INIT);
+	return bfd_session_destroy(args->event, args->dnode, false, BFD_MODE_TYPE_SBFD);
 }
 
 /*

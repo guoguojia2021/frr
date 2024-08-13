@@ -419,7 +419,7 @@ bfdd_bfd_sessions_srte_sbfd_echo_lookup_entry(struct nb_cb_lookup_entry_args *ar
 const void *
 bfdd_bfd_sessions_srte_sbfd_init_get_next(struct nb_cb_get_next_args *args)
 {
-	return bfd_session_next(args->list_entry, true, BFD_MODE_TYPE_SBFD_INIT);
+	return bfd_session_next(args->list_entry, true, BFD_MODE_TYPE_SBFD);
 }
 
 int bfdd_bfd_sessions_srte_sbfd_init_get_keys(struct nb_cb_get_keys_args *args)

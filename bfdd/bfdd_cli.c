@@ -120,7 +120,7 @@ void bfd_cli_show_header_end(struct vty *vty, const struct lyd_node *dnode
 
 DEFPY_YANG_NOSH(
 	bfd_peer_enter, bfd_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X>  bfd-name WORD$bfdname bfd-mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X>  name WORD$bfdname mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
@@ -204,7 +204,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	bfd_no_peer, bfd_no_peer_cmd,
-	"no peer <A.B.C.D|X:X::X:X>  bfd-name NAME$bfdname bfd-mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
+	"no peer <A.B.C.D|X:X::X:X>  name NAME$bfdname mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR
@@ -279,7 +279,7 @@ int determine_ip_version(const char *ip)
 
 DEFPY_YANG_NOSH(
 	sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
@@ -348,7 +348,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	sbfd_echo_no_peer, sbfd_echo_no_peer_cmd,
-	"no peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"no peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR
@@ -390,7 +390,7 @@ DEFPY_YANG(
 
 DEFPY_YANG_NOSH(
 	sbfd_init_peer_enter, sbfd_init_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-init local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (1-4294967295)$discr [{vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (1-4294967295)$discr [{vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
@@ -460,7 +460,7 @@ DEFPY_YANG_NOSH(
 	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, source_ipv6_str);
 
 	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
-	snprintf(value, sizeof(value), "%d", BFD_MODE_TYPE_SBFD_INIT);
+	snprintf(value, sizeof(value), "%d", BFD_MODE_TYPE_SBFD);
 	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
 
 	snprintf(xpath_rd, sizeof(xpath_rd), "%s/remote-discr", xpath);
@@ -476,7 +476,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	sbfd_init_no_peer, sbfd_init_no_peer_cmd,
-	"no peer  <A.B.C.D|X:X::X:X> bfd-name BFDNAME$bfdname bfd-mode sbfd-init local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
+	"no peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR
@@ -526,8 +526,8 @@ static char *_bfd_cli_bfd_mode_type_to_string(enum bfd_mode_type mode) {
             return "bfd";
         case BFD_MODE_TYPE_SBFD_ECHO:
             return "sbfd-echo";
-        case BFD_MODE_TYPE_SBFD_INIT:
-            return "sbfd-init";
+        case BFD_MODE_TYPE_SBFD:
+            return "sbfd";
         default:
             return "Unknown";
     }
@@ -544,10 +544,10 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 		yang_dnode_get_string(dnode, "dest-addr"));
 		
 	if (yang_dnode_exists(dnode, "bfd-name"))
-	    vty_out(vty, " bfd-name %s", yang_dnode_get_string(dnode, "bfd-name"));
+	    vty_out(vty, " name %s", yang_dnode_get_string(dnode, "bfd-name"));
 
 	if (yang_dnode_exists(dnode, "bfd-mode"))
-	    vty_out(vty, " bfd-mode %s", _bfd_cli_bfd_mode_type_to_string(yang_dnode_get_uint32(dnode, "bfd-mode")));
+	    vty_out(vty, " mode %s", _bfd_cli_bfd_mode_type_to_string(yang_dnode_get_uint32(dnode, "bfd-mode")));
 
 
 	if (bfd_mode == BFD_MODE_TYPE_BFD)
@@ -570,7 +570,7 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 		}
 		vty_out(vty, "\n");
 	}
-	else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+	else if (bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bfd_mode == BFD_MODE_TYPE_SBFD)
 	{
 		if (yang_dnode_exists(dnode, "source-addr"))
 			vty_out(vty, " local-address %s",
@@ -584,7 +584,7 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 			vty_out(vty, " source-ipv6 %s",
 				yang_dnode_get_string(dnode, "source-ipv6"));
 
-		if (bfd_mode == BFD_MODE_TYPE_SBFD_INIT)
+		if (bfd_mode == BFD_MODE_TYPE_SBFD)
 		{
 			if (yang_dnode_exists(dnode, "remote-discr"))
 				vty_out(vty, " remote-discr %u",
@@ -619,7 +619,7 @@ void bfd_cli_show_sbfd_echo_peer(struct vty *vty, const struct lyd_node *dnode,
 void bfd_cli_show_sbfd_init_peer(struct vty *vty, const struct lyd_node *dnode,
 				 bool show_defaults)
 {
-	_bfd_cli_show_peer(vty, dnode, show_defaults, true, BFD_MODE_TYPE_SBFD_INIT);
+	_bfd_cli_show_peer(vty, dnode, show_defaults, true, BFD_MODE_TYPE_SBFD);
 }
 
 void bfd_cli_show_peer_end(struct vty *vty, const struct lyd_node *dnode

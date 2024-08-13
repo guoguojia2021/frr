@@ -189,7 +189,7 @@ enum bfd_mode_type {
 	BFD_MODE_TYPE_NONE = 0,
 	BFD_MODE_TYPE_BFD = 1,
 	BFD_MODE_TYPE_SBFD_ECHO = 2,
-	BFD_MODE_TYPE_SBFD_INIT = 3,
+	BFD_MODE_TYPE_SBFD = 3,
 };
 
 /*

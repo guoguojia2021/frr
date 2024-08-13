@@ -1075,7 +1075,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
     
 	if (bfd_name[0])
 	{
-		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD_INIT))
+		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD))
 		{
 			hook_call(sbfd_state_change_hook, bfd_name, state);
 			if (bsglobal.debugging)
