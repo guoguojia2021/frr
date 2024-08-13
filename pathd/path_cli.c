@@ -274,6 +274,15 @@ DEFPY(show_srte_filter_policy_detail,
 	struct prefix endpoint;
 	(void)str2prefix(addr_str, &endpoint);
 
+	/* set prefixlen to 0 if address is 0.0.0.0 or :: */
+	if (endpoint.family == AF_INET && endpoint.u.prefix4.s_addr == INADDR_ANY
+		&& endpoint.prefixlen == IPV4_MAX_BITLEN)
+		endpoint.prefixlen = 0;
+
+	if (endpoint.family == AF_INET6 && IPV6_ADDR_SAME(&endpoint.u.prefix6, &in6addr_any)
+		&& endpoint.prefixlen == IPV6_MAX_BITLEN)
+		endpoint.prefixlen = 0;
+
     policy = srte_policy_find(num, &endpoint);
 
 	if (!policy)
