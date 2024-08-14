@@ -204,7 +204,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	bfd_no_peer, bfd_no_peer_cmd,
-	"no peer <A.B.C.D|X:X::X:X>  name NAME$bfdname mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
+	"no peer <A.B.C.D|X:X::X:X>  name BFDNAME$bfdname mode bfd [{multihop$multihop|local-address <A.B.C.D|X:X::X:X>|interface IFNAME$ifname|vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR

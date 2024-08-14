@@ -85,7 +85,7 @@ static void _clear_peer_counter(struct bfd_session *bs);
 static char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
         case BFD_MODE_TYPE_NONE:
-            return "None";
+            return "bgp-bfd";
         case BFD_MODE_TYPE_BFD:
             return "bfd";
         case BFD_MODE_TYPE_SBFD_ECHO:
@@ -845,13 +845,28 @@ static void _clear_peer_counter(struct bfd_session *bs)
 static void _display_peer_brief(struct vty *vty, struct bfd_session *bs)
 {
 	char addr_buf[INET6_ADDRSTRLEN];
+	char *buf = "N/A";
 
-	vty_out(vty, "%-10u", bs->discrs.my_discr);
+	vty_out(vty, "%-12s", strlen(bs->key.bfdname) == 0 ? buf : bs->key.bfdname);
+	vty_out(vty, " %-12u", bs->discrs.my_discr);
+	vty_out(vty, " %-10s", bfd_mode_type_to_string(bs->bfd_mode));
+	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
+	{
+		inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf, sizeof(addr_buf));
+		vty_out(vty, " %-40s", addr_buf);
+		inet_ntop(AF_INET6, &bs->out_sip6, addr_buf, sizeof(addr_buf));
+		vty_out(vty, " %-40s", addr_buf);
+	}
+	else
+	{
+		vty_out(vty, " %-40s", buf);
+		vty_out(vty, " %-40s", buf);
+	}
 	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
 	vty_out(vty, " %-40s", addr_buf);
 	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
 	vty_out(vty, " %-40s", addr_buf);
-	vty_out(vty, "%-15s\n", state_list[bs->ses_state].str);
+	vty_out(vty, "%-8s\n", state_list[bs->ses_state].str);
 }
 
 static void _display_peer_brief_iter(struct hash_bucket *hb, void *arg)
@@ -884,15 +899,25 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 		bvt.vty = vty;
 
 		vty_out(vty, "Session count: %lu\n", bfd_get_session_count());
-		vty_out(vty, "%-10s", "SessionId");
+		vty_out(vty, "Session up count: %lu\n", bfd_get_session_count());
+		vty_out(vty, "Session down count: %lu\n", bfd_get_session_count());
+		vty_out(vty, "%-12s", "SessName");
+		vty_out(vty, " %-12s", "SessId");
+		vty_out(vty, " %-10s", "Mode");
+		vty_out(vty, " %-40s", "Encap-data-dip");
+		vty_out(vty, " %-40s", "Encap-data-sip");
 		vty_out(vty, " %-40s", "LocalAddress");
 		vty_out(vty, " %-40s", "PeerAddress");
-		vty_out(vty, "%-15s\n", "Status");
+		vty_out(vty, "%-8s\n", "Status");
 
-		vty_out(vty, "%-10s", "=========");
-		vty_out(vty, " %-40s", "============");
-		vty_out(vty, " %-40s", "===========");
-		vty_out(vty, "%-15s\n", "======");
+		vty_out(vty, "%-12s", "==========");
+		vty_out(vty, " %-12s", "===========");
+		vty_out(vty, " %-10s", "=========");
+		vty_out(vty, " %-40s", "=====================================");
+		vty_out(vty, " %-40s", "=====================================");
+		vty_out(vty, " %-40s", "=====================================");
+		vty_out(vty, " %-40s", "=====================================");
+		vty_out(vty, "%-8s\n", "======");
 
 		bfd_id_iterate(_display_peer_brief_iter, &bvt);
 		return;
@@ -985,10 +1010,11 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
  * Show commands.
  */
 DEFPY(bfd_show_by_bfdname, bfd_show_by_bfdname_cmd,
-      "show bfd [vrf NAME$vrf_name] name BFDNAME$bfdname [json] [detail]",
+      "show bfd [vrf NAME$vrf_name] peer name BFDNAME$bfdname [json] [detail]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
+	  "BFD peers status\n"
 	  "Specify bfd session name\n"
 	  "bfd session name\n"
 	  JSON_STR DETAIL_STR)
@@ -1005,10 +1031,11 @@ DEFPY(bfd_show_by_bfdname, bfd_show_by_bfdname_cmd,
 }
 
 DEFPY(bfd_show_counters_by_bfdname, bfd_show_counters_by_bfdname_cmd,
-      "show bfd [vrf NAME$vrf_name] name BFDNAME$bfdname counters [json]",
+      "show bfd [vrf NAME$vrf_name] peer name BFDNAME$bfdname counters [json]",
       SHOW_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
+	  "BFD peers status\n"
 	  "Specify bfd session name\n"
 	  "bfd session name\n"
       "Show BFD peer counters information\n"
@@ -1020,10 +1047,11 @@ DEFPY(bfd_show_counters_by_bfdname, bfd_show_counters_by_bfdname_cmd,
 }
 
 DEFPY(bfd_clear_counters_by_bfdname, bfd_clear_counters_by_bfdname_cmd,
-      "clear bfd [vrf NAME$vrfname] name BFDNAME$bfdname counters",
+      "clear bfd [vrf NAME$vrfname] peer name BFDNAME$bfdname counters",
       CLEAR_STR
       "Bidirection Forwarding Detection\n"
       VRF_CMD_HELP_STR
+	  "BFD peers status\n"
 	  "Specify bfd session name\n"
 	  "bfd session name\n"
 	  "clear BFD peer counters information\n")
