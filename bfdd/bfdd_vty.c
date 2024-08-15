@@ -847,7 +847,7 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs)
 	char addr_buf[INET6_ADDRSTRLEN];
 	char *buf = "N/A";
 
-	vty_out(vty, "%-12s", strlen(bs->key.bfdname) == 0 ? buf : bs->key.bfdname);
+	vty_out(vty, "%-28s", strlen(bs->bfd_name) == 0 ? buf : bs->bfd_name);
 	vty_out(vty, " %-12u", bs->discrs.my_discr);
 	vty_out(vty, " %-10s", bfd_mode_type_to_string(bs->bfd_mode));
 	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
@@ -899,9 +899,7 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 		bvt.vty = vty;
 
 		vty_out(vty, "Session count: %lu\n", bfd_get_session_count());
-		vty_out(vty, "Session up count: %lu\n", bfd_get_session_count());
-		vty_out(vty, "Session down count: %lu\n", bfd_get_session_count());
-		vty_out(vty, "%-12s", "SessName");
+		vty_out(vty, "%-28s", "SessName");
 		vty_out(vty, " %-12s", "SessId");
 		vty_out(vty, " %-10s", "Mode");
 		vty_out(vty, " %-40s", "Encap-data-dip");
@@ -910,7 +908,7 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 		vty_out(vty, " %-40s", "PeerAddress");
 		vty_out(vty, "%-8s\n", "Status");
 
-		vty_out(vty, "%-12s", "==========");
+		vty_out(vty, "%-28s", "==========");
 		vty_out(vty, " %-12s", "===========");
 		vty_out(vty, " %-10s", "=========");
 		vty_out(vty, " %-40s", "=====================================");
