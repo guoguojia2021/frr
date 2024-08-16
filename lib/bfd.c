@@ -36,7 +36,7 @@
 
 DEFINE_MTYPE_STATIC(LIB, BFD_INFO, "BFD info");
 DEFINE_HOOK(bfd_state_change_hook, (char *bfd_name, int state,int remote_cbit),(bfd_name, state, remote_cbit));
-DEFINE_HOOK(sbfd_state_change_hook, (char *bfd_name, int state),(bfd_name, state));
+DEFINE_HOOK(sbfd_state_change_hook, (char *bfd_name, int state, uint32_t my_discr),(bfd_name, state, my_discr));
 
 
 /**
@@ -72,8 +72,8 @@ static const struct in6_addr i6a_zero;
  *                     went down from the message sent from Zebra to clients.
  */
 static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
-					   struct prefix *sp, int *status,
-					   int *remote_cbit, uint32_t *srte_color, char *seglist_name,
+					   struct prefix *sp, int *status, int *remote_cbit,
+					   uint32_t *srte_color, uint32_t *my_discr, char *seglist_name,
 					   vrf_id_t vrf_id, char *bfd_name, uint32_t *bfd_mode)
 {
 	unsigned int ifindex;
@@ -83,6 +83,7 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	uint32_t color,bfdmode;
 	uint8_t seglist_name_len;
 	uint8_t bfd_name_len = 0;
+	uint32_t discr = 0;
 
 	/*
 	 * If the ifindex lookup fails the
@@ -142,6 +143,8 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
     /*support sbfd*/
 	STREAM_GETL(s, color);
 	*srte_color = color;
+	STREAM_GETL(s, discr);
+	*my_discr = discr;
     
 	STREAM_GETC(s, seglist_name_len);
 	if (seglist_name_len > 0 && seglist_name_len < 64)
@@ -1024,6 +1027,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	uint32_t bfd_mode = 0;
 	char seglist_name[64] = {0};
     char bfd_name[BFD_NAME_SIZE+1] = {0};
+	uint32_t my_discr = 0;
 
 	if (!zclient->bfd_integration)
 		return 0;
@@ -1032,8 +1036,8 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	if (bsglobal.shutting_down)
 		return 0;
 
-	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,  &srte_color, seglist_name,
-				vrf_id, bfd_name, &bfd_mode);
+	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,  &srte_color,
+		&my_discr, seglist_name, vrf_id, bfd_name, &bfd_mode);
 	/*
 	 * When interface lookup fails or an invalid stream is read, we must
 	 * not proceed otherwise it will trigger an assertion while checking
@@ -1077,9 +1081,9 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	{
 		if ((bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) || (bfd_mode == BFD_MODE_TYPE_SBFD))
 		{
-			hook_call(sbfd_state_change_hook, bfd_name, state);
+			hook_call(sbfd_state_change_hook, bfd_name, state, my_discr);
 			if (bsglobal.debugging)
-				zlog_debug("%s:   sessions updated: %s", __func__,  bfd_name);
+				zlog_debug("%s:   sessions updated: %s(%u)", __func__,  bfd_name, my_discr);
 		}
 		else
 		{

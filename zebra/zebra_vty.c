@@ -366,12 +366,14 @@ static void show_nexthop_detail_helper(struct vty *vty,
 		vty_out(vty, " %pI4",
 			&nexthop->gate.ipv4);
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		break;
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		vty_out(vty, " %s",
 			inet_ntop(AF_INET6, &nexthop->gate.ipv6,
 				  buf, sizeof(buf)));
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		break;
 	}
 
@@ -722,6 +724,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		vty_out(vty, " via %pI4", &nexthop->gate.ipv4);
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		vty_out(vty, " color %d", nexthop->srte_color);
 		break;
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
@@ -729,6 +732,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 			inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
 				  sizeof(buf)));
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
+		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		vty_out(vty, " color %d", nexthop->srte_color);
 		break;
 	}

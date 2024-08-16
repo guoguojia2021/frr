@@ -680,6 +680,7 @@ struct zapi_srv6_active_sidlist{
 #define SRV6_SID_LIST_UPDATE 0x02
 #define SRV6_SID_LIST_DEL 0x04
 	uint8_t weight;
+	uint32_t my_discriminator;
 };
 
 struct zapi_srv6te_tunnel {

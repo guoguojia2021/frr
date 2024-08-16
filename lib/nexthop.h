@@ -147,7 +147,7 @@ struct nexthop {
 
 	/* SR-TE color used for matching SR-TE policies */
 	uint32_t srte_color;
-
+	uint32_t my_discriminator;
 	/* SRv6 information */
 	struct nexthop_srv6 *nh_srv6;
 	struct in6_addr seg6_src;

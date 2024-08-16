@@ -973,8 +973,9 @@ void handle_recursive_segdepend(struct nhg_segment_tree_head *nhg_segdepends,
 	for (nh = nexthop; nh; nh = nh->next) {
 
 		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-			zlog_debug("%s: head %p, nh %pNHv, sidlist_name %s, type %d",
-				__func__, nhg_segdepends, nh, nh->sidlist_name, type);
+			zlog_debug("%s: head %p nh %pNHv sidlist_name %s discriminator %utype %d",
+				__func__, nhg_segdepends, nh, nh->sidlist_name,
+				nh->my_discriminator, type);
 
 		segdepends_find_add(nhg_segdepends, nh, afi, type, false, pic);
 	}
@@ -2799,6 +2800,7 @@ static struct nexthop *nexthop_seg_set_resolved(afi_t afi,
 		if (policy_num < policy->srv6_segment_list.path_num) {
 			memcpy(resolved_hop->sidlist_name, policy->srv6_segment_list.sidlists[policy_num].sidlist_name,
 				SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+			resolved_hop->my_discriminator = policy->srv6_segment_list.sidlists[policy_num].my_discriminator;
 			SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 		}
 	}

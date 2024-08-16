@@ -292,6 +292,7 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 
 	/*support sbfd , add color and sidlist name*/
 	stream_putl(msg, bs->key.srte_color);
+	stream_putl(msg, bs->discrs.my_discr);
 	len = strlen(bs->key.seglist_name);
 	stream_putc(msg, len);
 	if (len > 0)

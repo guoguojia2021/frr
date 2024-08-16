@@ -310,8 +310,10 @@ static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
 		strcat(segmentlist_old, "[ ");
 		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num_old; i++) {
 			char buf[80] = {0};
-			sprintf(buf, "(%s-%d-0x%x)", policy->srv6_segment_list.sidlists_old[i].sidlist_name,
-				policy->srv6_segment_list.sidlists_old[i].weight, policy->srv6_segment_list.sidlists_old[i].type);
+			sprintf(buf, "(%s-%d-%u-0x%x)", policy->srv6_segment_list.sidlists_old[i].sidlist_name,
+				policy->srv6_segment_list.sidlists_old[i].weight,
+				policy->srv6_segment_list.sidlists[i].my_discriminator,
+				policy->srv6_segment_list.sidlists_old[i].type);
 			strcat(segmentlist_old, buf);
 		}
 		strcat(segmentlist_old, " ]");
@@ -319,8 +321,10 @@ static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
 		strcat(segmentlist, "[ ");
 		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num; i++) {
 			char buf[80] = {0};
-			sprintf(buf, "(%s-%d-0x%x)", policy->srv6_segment_list.sidlists[i].sidlist_name,
-				policy->srv6_segment_list.sidlists[i].weight, policy->srv6_segment_list.sidlists[i].type);
+			sprintf(buf, "(%s-%d-%u-0x%x)", policy->srv6_segment_list.sidlists[i].sidlist_name,
+				policy->srv6_segment_list.sidlists[i].weight,
+				policy->srv6_segment_list.sidlists[i].my_discriminator,
+				policy->srv6_segment_list.sidlists[i].type);
 			strcat(segmentlist, buf);
 		}
 		strcat(segmentlist, " ]");

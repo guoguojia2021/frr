@@ -865,6 +865,7 @@ void nexthop_copy_no_context(struct nexthop *copy,
 	memcpy(&copy->seg6_src, &nexthop->seg6_src, sizeof(nexthop->seg6_src));
 	copy->alibgp_flags = nexthop->alibgp_flags;
 	memcpy(copy->sidlist_name, nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	copy->my_discriminator = nexthop->my_discriminator;
 	copy->rparent = rparent;
 
 	if (CHECK_FLAG(copy->flags, NEXTHOP_FLAG_RECURSIVE))
@@ -914,6 +915,7 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 				&nexthop->nh_srv6->seg6_src);
 	}
 	memcpy(copy->sidlist_name, nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	copy->my_discriminator = nexthop->my_discriminator;
 }
 
 void nexthop_copy(struct nexthop *copy, const struct nexthop *nexthop,

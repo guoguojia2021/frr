@@ -1063,6 +1063,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 	candidate->policy = policy;
 	candidate->type = SRTE_CANDIDATE_TYPE_UNDEFINED;
 	candidate->discriminator = frr_weak_random();
+	candidate->my_discriminator = 0;
 	candidate->protocol_origin = origin;
 	if (originator != NULL) {
 		strlcpy(candidate->originator, originator,
@@ -1550,7 +1551,8 @@ struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *polic
 	return RB_FIND(srte_candidate_group_head, &policy->candidate_groups, &search);
 }
 
-void srte_candidate_bfd_group_add_with_status(const char *bfd_name,  enum detection_status status)
+void srte_candidate_bfd_group_add_with_status(const char *bfd_name,
+	enum detection_status status, uint32_t my_discriminator)
 {
 	struct srte_candidate_bfd_group* group = NULL;
 	group = XCALLOC(MTYPE_PATH_SR_CANDIDATE_BFD_GROUP, sizeof(*group));
@@ -1558,6 +1560,7 @@ void srte_candidate_bfd_group_add_with_status(const char *bfd_name,  enum detect
 	group->cpath_num = 0;
 	group->status = status;
 	strncpy(group->bfd_name, bfd_name, BFD_NAME_SIZE);
+	group->my_discriminator = my_discriminator;
 	RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
 
 	RB_INSERT(srte_candidate_bfd_group_head, &sbfd_groups, group);
@@ -1598,6 +1601,7 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_na
 
 	group->cpath_num += 1;
 	candidate->status = group->status;
+	candidate->my_discriminator = group->my_discriminator;
 }
 
 void srte_candidate_bfd_group_del(const char *bfd_name, struct srte_candidate *candidate)

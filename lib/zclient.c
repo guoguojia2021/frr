@@ -3613,7 +3613,7 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 	stream_putw(s, zp->binding_v6sid.ipa_type);
 	stream_write(s, (uint8_t *)&zp->binding_v6sid.ipaddr_v6, sizeof(struct in6_addr));
 
-	stream_putw(s, zt->path_num);
+	stream_putc(s, zt->path_num);
 
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
@@ -3624,7 +3624,8 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 			stream_putl(s, zt->sidlists[i].segments[j].sid_type);
 			stream_put_ipaddr(s, &zt->sidlists[i].segments[j].srv6_sid_value);
 		}
-		stream_putw(s, zt->sidlists[i].weight);
+		stream_putl(s, zt->sidlists[i].my_discriminator);
+		stream_putc(s, zt->sidlists[i].weight);
 	}
 
 	/* Put length at the first point of the stream. */
@@ -3650,7 +3651,7 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
     STREAM_GETW(s, zp->binding_v6sid.ipa_type);
 	STREAM_GET(&zp->binding_v6sid.ipaddr_v6, s, sizeof(struct in6_addr));
 
-	STREAM_GETW(s, zp->srv6_tunnel.path_num);
+	STREAM_GETC(s, zp->srv6_tunnel.path_num);
 	char endpoint[60];
 	prefix2str(&zp->endpoint, endpoint, sizeof(endpoint));
 	for (uint32_t i = 0; i < zt->path_num; i++)
@@ -3663,11 +3664,12 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 			STREAM_GET_IPADDR(s, &zt->sidlists[i].segments[j].srv6_sid_value);
 			char srv6_sid_value[46];
 			ipaddr2str(&zt->sidlists[i].segments[j].srv6_sid_value, srv6_sid_value, sizeof(srv6_sid_value));
-			zlog_debug("%s: policy %s, color %d, endpoint %s, sidlist_name %s, index %d, sid_type %d, srv6_sid_value %s",
+			zlog_debug("%s: policy %s, color %d, endpoint %s, sidlist_name %s, index %d, sid_type %d, srv6_sid_value %s, discriminator %u",
 				__func__, zp->name, zp->color, endpoint, zt->sidlists[i].sidlist_name, zt->sidlists[i].segments[j].index,
-				zt->sidlists[i].segments[j].sid_type, srv6_sid_value);
+				zt->sidlists[i].segments[j].sid_type, srv6_sid_value, zt->sidlists[i].my_discriminator);
 		}
-		STREAM_GETW(s, zt->sidlists[i].weight);
+		STREAM_GETL(s, zt->sidlists[i].my_discriminator);
+		STREAM_GETC(s, zt->sidlists[i].weight);
 	}
 
 	return 0;

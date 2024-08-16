@@ -391,7 +391,7 @@ struct srte_candidate {
 
 	/* bfd name*/
 	char bfd_name[BFD_NAME_SIZE + 1];
-
+	uint32_t my_discriminator;
 };
 
 RB_HEAD(srte_candidate_head, srte_candidate);
@@ -438,6 +438,7 @@ struct srte_candidate_bfd_group {
 	enum detection_status status;
 
 	char bfd_name[BFD_NAME_SIZE + 1];
+	uint32_t my_discriminator;
 };
 
 RB_HEAD(srte_candidate_bfd_group_head, srte_candidate_bfd_group);
@@ -631,7 +632,8 @@ struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *polic
 
 struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_name, 
                         struct srte_candidate *candidate);
-void srte_candidate_bfd_group_add_with_status(const char *bfd_name,  enum detection_status status);
+void srte_candidate_bfd_group_add_with_status(const char *bfd_name,
+	enum detection_status status, uint32_t my_discriminator);
 
 void srte_candidate_bfd_group_del(const char *bfd_name, 
                         struct srte_candidate *candidate);

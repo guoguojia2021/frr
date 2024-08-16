@@ -265,8 +265,9 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 
 		if (count < candidate_group->up_cpath_num)
 		{
-			zlog_info("collect UP cpath, color:%u, endpoint:%s, group:%u, cpath:%s, sidlist:%s, bfd_name:%s",
-				zp.color, endpoint, candidate_group->preference, candidate->name, candidate->segment_list->name, candidate->bfd_name);
+			zlog_info("collect UP cpath, color:%u, endpoint:%s, group:%u, cpath:%s, sidlist:%s, bfd_name:%s(%u)",
+				zp.color, endpoint, candidate_group->preference, candidate->name, candidate->segment_list->name,
+				candidate->bfd_name, candidate->my_discriminator);
 
 			strlcpy(zp.srv6_tunnel.sidlists[count].sidlist_name, candidate->segment_list->name,
 				sizeof(zp.srv6_tunnel.sidlists[count].sidlist_name));
@@ -279,6 +280,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 			}
 			zp.srv6_tunnel.sidlists[count].segment_count = segment_count;
 			zp.srv6_tunnel.sidlists[count].weight = candidate->weight;
+			zp.srv6_tunnel.sidlists[count].my_discriminator = candidate->my_discriminator;
 			count++;
 		}
 	}

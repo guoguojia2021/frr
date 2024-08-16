@@ -297,23 +297,23 @@ static struct nhg_hash_entry *zebra_srv6_find_pic_nhe_by_policy(struct zebra_sr_
 }
 
 static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
-	char *sidlist_name, bool add, bool *skip_update_depend)
+	char *sidlist_name, uint32_t discriminator, bool add, bool *skip_update_depend)
 {
 	struct nexthop *resolved_hop = NULL;
 	struct nexthop *exist_hop = NULL;
 	char buf[NEXTHOP_STRLEN];
 
 	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
-		zlog_debug("%s: nexthop %s add %s sidlist_name %s", __func__,
+		zlog_debug("%s: nexthop %s add %s sidlist_name %s(%u)", __func__,
 			nexthop2str(nexthop, buf, sizeof(buf)),
-			add ? "true" : "false", sidlist_name);
+			add ? "true" : "false", sidlist_name, discriminator);
 
 	resolved_hop = nexthop_new();
 	nexthop_copy_no_recurse(resolved_hop, nexthop, nexthop);
 
 	memcpy(resolved_hop->sidlist_name, sidlist_name,
 		SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
-
+	resolved_hop->my_discriminator = discriminator;
 	resolved_hop->flags = 0;
 	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
 
@@ -344,13 +344,15 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 	struct nexthop *add_hop = NULL;
 	char *policy_sid_name = NULL;
 	uint8_t path_num = 0;
+	uint32_t discriminator = 0;
 
 	for(path_num = 0; path_num < policy->srv6_segment_list.path_num; path_num++) {
 		if (!CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].type, SRV6_SID_LIST_ADD))
 			continue;
 
 		policy_sid_name = policy->srv6_segment_list.sidlists[path_num].sidlist_name;
-		add_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, true, &skip_update_depend);
+		discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
+		add_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, discriminator, true, &skip_update_depend);
 
 		if (skip_update_depend) {
 			if (IS_ZEBRA_DEBUG_NHG_DETAIL)
@@ -377,6 +379,7 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 	char *policy_sid_name = NULL;
 	char *node_sid_name = NULL;
 	uint8_t path_num = 0;
+	uint32_t discriminator = 0;
 
 	for(path_num = 0; path_num < policy->srv6_segment_list.path_num_old; path_num++) {
 
@@ -384,7 +387,8 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 			continue;
 
 		policy_sid_name = policy->srv6_segment_list.sidlists_old[path_num].sidlist_name;
-		del_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, false, &skip_update_depend);
+		discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
+		del_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, discriminator, false, &skip_update_depend);
 
 		if (del_hop == NULL)
 			continue;
@@ -775,11 +779,13 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 }
 
 static bool zebra_srv6_policy_set_sidlist_type(struct zapi_srv6te_tunnel *te_tunnel,
-	char *sidlist_name, uint32_t weight)
+	char *sidlist_name, uint32_t weight, uint32_t my_discriminator)
 {
 	for (uint32_t i = 0; i < te_tunnel->path_num_old; i++) {
 		if (sidlist_name != NULL && strcmp(te_tunnel->sidlists_old[i].sidlist_name, sidlist_name) == 0) {
 			if (te_tunnel->sidlists_old[i].weight != weight)
+				SET_FLAG(te_tunnel->sidlists_old[i].type, SRV6_SID_LIST_UPDATE);
+			else if (te_tunnel->sidlists_old[i].my_discriminator != my_discriminator)
 				SET_FLAG(te_tunnel->sidlists_old[i].type, SRV6_SID_LIST_UPDATE);
 			UNSET_FLAG(te_tunnel->sidlists_old[i].type, SRV6_SID_LIST_DEL);
 			return true;
@@ -797,7 +803,7 @@ static bool zebra_srv6_policy_check_update(struct zapi_srv6te_tunnel *new_tunnel
 
 	for (path_num = 0; path_num < new_tunnel->path_num; path_num++) {
 		find = zebra_srv6_policy_set_sidlist_type(new_tunnel, new_tunnel->sidlists[path_num].sidlist_name,
-			new_tunnel->sidlists[path_num].weight);
+			new_tunnel->sidlists[path_num].weight, new_tunnel->sidlists[path_num].my_discriminator);
 		if (find == false) {
 			SET_FLAG(new_tunnel->sidlists[path_num].type, SRV6_SID_LIST_ADD);
 			segment_list_changed = true;
@@ -837,6 +843,7 @@ void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 			strlcpy(new_tunnel->sidlists_old[path_num].sidlist_name, policy->srv6_segment_list.sidlists[path_num].sidlist_name,
 				sizeof(policy->srv6_segment_list.sidlists[path_num].sidlist_name));
 			new_tunnel->sidlists_old[path_num].weight = policy->srv6_segment_list.sidlists[path_num].weight;
+			new_tunnel->sidlists_old[path_num].my_discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
 			SET_FLAG(new_tunnel->sidlists_old[path_num].type, SRV6_SID_LIST_DEL);
 		}
 
