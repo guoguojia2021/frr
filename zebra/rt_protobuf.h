@@ -59,6 +59,7 @@ struct seg6_iptunnel_encap_proto {
 	int mode;
 	char segment_name[64];
 	struct in6_addr src;
+	unsigned int discriminator;
 	struct ipv6_sr_hdr srh[0];
 };
 extern ssize_t protobuf_msg_encode(int cmd, struct zebra_dplane_ctx *ctx, uint8_t *data,
