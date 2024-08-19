@@ -734,7 +734,7 @@ identity set-extcommunity-color {
       description
         "Value of the ext-community";
       leaf extcommunity-color {
-        type color-list;
+        type string;
         description
           "Set BGP ext-community color attribute with a list of colors";
 	reference

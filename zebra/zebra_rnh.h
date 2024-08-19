@@ -49,7 +49,7 @@ struct rnh_node {
 extern void zebra_rnh_init(void);
 
 extern struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, 
-			  bool *exists, uint32_t srte_color);
+			  bool *exists, uint32_t srte_color, uint8_t srte_color_flag);
 extern struct rnh *zebra_lookup_rnh(struct prefix *p, vrf_id_t vrfid,
 				    safi_t safi);
 extern void zebra_free_rnh(struct rnh *rnh);

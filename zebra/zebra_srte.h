@@ -106,11 +106,11 @@ extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 extern struct zebra_sr_policy *zebra_sr_policy_add_by_prefix(struct prefix *p, uint32_t color, char *name);
 
 extern struct zebra_sr_policy *zebra_sr_policy_lookup_by_prefix(struct prefix *p, uint32_t color);
-extern struct zebra_sr_policy *zebra_sr_policy_match_by_prefix(struct prefix *p, uint32_t color, struct route_node **prn);
+extern struct zebra_sr_policy *zebra_sr_policy_match_by_prefix(struct prefix *p, uint32_t color);
 
 extern void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy);
 extern void *srte_table_alloc(void *arg);
-extern void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, bool rt_delete);
+extern void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, uint32_t seq, bool rt_delete);
 extern int zebra_sr_policy_label_update_walk(struct hash_bucket *hb, void *arg);
 extern void zebra_free_sr_table(struct route_table *table);
 extern struct route_table *zebra_srte_table_create(afi_t afi, uint32_t color);

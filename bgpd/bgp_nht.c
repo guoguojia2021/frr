@@ -141,12 +141,12 @@ void bgp_replace_nexthop_by_peer(struct peer *from, struct peer *to)
 		return;
 
 	afi = family2afi(pp.family);
-	bncp = bnc_find(&from->bgp->nexthop_cache_table[afi], &pp, 0);
+	bncp = bnc_find(&from->bgp->nexthop_cache_table[afi], &pp, 0, 0);
 
 	if (!sockunion2hostprefix(&to->su, &pt))
 		return;
 
-	bnct = bnc_find(&to->bgp->nexthop_cache_table[afi], &pt, 0);
+	bnct = bnc_find(&to->bgp->nexthop_cache_table[afi], &pt, 0, 0);
 
 	if (bnct != bncp)
 		return;
@@ -164,7 +164,7 @@ void bgp_unlink_nexthop_by_peer(struct peer *peer)
 	if (!sockunion2hostprefix(&peer->su, &p))
 		return;
 
-	bnc = bnc_find(&peer->bgp->nexthop_cache_table[afi], &p, 0);
+	bnc = bnc_find(&peer->bgp->nexthop_cache_table[afi], &p, 0, 0);
 	if (!bnc)
 		return;
 
@@ -189,7 +189,9 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	struct bgp_nexthop_cache *te_bnc_backup = NULL;
 	struct prefix p;
 	uint32_t srte_color = 0;
+	uint8_t  srte_color_flag = 0;
 	uint32_t srte_color_backup = 0;
+	uint8_t  srte_color_backup_flag = 0;
 	int is_bgp_static_route = 0;
 	ifindex_t ifindex = 0;
 	bool isServiceRoute = false;
@@ -221,7 +223,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 			return 1;
 
 		ecommunity_select_color(
-			pi->attr->ecommunity, &srte_color, &srte_color_backup);
+			pi->attr->ecommunity, &srte_color, &srte_color_flag, &srte_color_backup, &srte_color_backup_flag);
 
 		if (!is_bgp_static_route && orig_prefix
 		    && prefix_same(&p, orig_prefix)) {
@@ -258,9 +260,9 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	else
 		tree = &bgp_nexthop->nexthop_cache_table[afi];
 
-	bnc = bnc_find(tree, &p, 0);
+	bnc = bnc_find(tree, &p, 0, 0);
 	if (!bnc) {
-		bnc = bnc_new(tree, &p, 0);
+		bnc = bnc_new(tree, &p, 0, 0);
 		bnc->bgp = bgp_nexthop;
 		bnc->ifindex = ifindex;
 		if (BGP_DEBUG(nht, NHT)) {
@@ -285,9 +287,9 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 #if 1
 	if (srte_color != 0)
 	{
-		te_bnc = bnc_find(tree, &p, srte_color);
+		te_bnc = bnc_find(tree, &p, srte_color, srte_color_flag);
 		if (!te_bnc) {
-			te_bnc = bnc_new(tree, &p, srte_color);
+			te_bnc = bnc_new(tree, &p, srte_color, srte_color_flag);
 			te_bnc->bgp = bgp_nexthop;
 			if (BGP_DEBUG(nht, NHT)) {
 				char buf[PREFIX2STR_BUFFER];
@@ -310,9 +312,9 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	}
 	if (srte_color_backup != 0)
 	{
-		te_bnc_backup = bnc_find(tree, &p, srte_color_backup);
+		te_bnc_backup = bnc_find(tree, &p, srte_color_backup, srte_color_backup_flag);
 		if (!te_bnc_backup) {
-			te_bnc_backup = bnc_new(tree, &p, srte_color_backup);
+			te_bnc_backup = bnc_new(tree, &p, srte_color_backup, srte_color_backup_flag);
 			te_bnc_backup->bgp = bgp_nexthop;
 			if (BGP_DEBUG(nht, NHT)) {
 				char buf[PREFIX2STR_BUFFER];
@@ -467,7 +469,7 @@ void bgp_delete_connected_nexthop(afi_t afi, struct peer *peer)
 		return;
 
 	bnc = bnc_find(&peer->bgp->nexthop_cache_table[family2afi(p.family)],
-		       &p, 0);
+		       &p, 0, 0);
 	if (!bnc) {
 		if (BGP_DEBUG(nht, NHT))
 			zlog_debug(
@@ -695,9 +697,9 @@ static void bgp_process_cond_nexthop_update(struct bgp_nexthop_cache *bnc,
 		char bnc_buf[BNC_FLAG_DUMP_SIZE];
 
 		zlog_debug(
-			"%s(%u): Rcvd cond NH update %pFX(%u) - metric %d/%d #nhops %d/%d flags %s",
+			"%s(%u): Rcvd cond NH update %pFX(flag:%d, color:%u) - metric %d/%d #nhops %d/%d flags %s",
 			bnc->bgp->name_pretty, bnc->bgp->vrf_id, &nhr->prefix,
-			bnc->srte_color, nhr->metric, bnc->metric,
+			bnc->srte_color, bnc->srte_color_flag, nhr->metric, bnc->metric,
 			nhr->nexthop_num, bnc->nexthop_num,
 			bgp_nexthop_dump_bnc_flags(bnc, bnc_buf,
 						   sizeof(bnc_buf)));
@@ -845,7 +847,7 @@ void bgp_nht_interface_events(struct peer *peer)
 		return;
 
 	table = &bgp->nexthop_cache_table[AFI_IP6];
-	bnc = bnc_find(table, &p, 0);
+	bnc = bnc_find(table, &p, 0, 0);
 	if (!bnc)
 		return;
 
@@ -882,7 +884,7 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	afi = family2afi(match.family);
 	tree = &bgp->nexthop_cache_table[afi];
 
-	bnc_nhc = bnc_find(tree, &match, nhr.srte_color);
+	bnc_nhc = bnc_find(tree, &match, nhr.srte_color, nhr.srte_color_flag);
 	if (!bnc_nhc) {
 		if (BGP_DEBUG(nht, NHT))
 			zlog_debug(
@@ -892,13 +894,13 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 		bgp_process_nexthop_update(bnc_nhc, &nhr, false);
 
 	tree = &bgp->condition_track_table[afi];
-	bnc_cond = bnc_find(tree, &match, 0);
+	bnc_cond = bnc_find(tree, &match, 0, 0);
 	if (bnc_cond) {
 		bgp_process_cond_nexthop_update(bnc_cond, &nhr);
 	}
 
 	tree = &bgp->import_check_table[afi];
-	bnc_import = bnc_find(tree, &match, nhr.srte_color);
+	bnc_import = bnc_find(tree, &match, nhr.srte_color, nhr.srte_color_flag);
 	if (!bnc_import) {
 		if (BGP_DEBUG(nht, NHT))
 			zlog_debug(
@@ -1080,17 +1082,21 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 			resolve_via_default = true;
 	}
 
-    if (BGP_DEBUG(zebra, ZEBRA))
-        zlog_debug("%s: sending cmd %s for %pFX (vrf %s color %d)", __func__,
-               zserv_command_string(command), &bnc->prefix,
-               bnc->bgp->name_pretty, bnc->srte_color);
+	if (BGP_DEBUG(zebra, ZEBRA))
+		zlog_debug("%s: sending cmd %s for %pFX (vrf %s color %d)", __func__,
+			   zserv_command_string(command), &bnc->prefix,
+			   bnc->bgp->name_pretty, bnc->srte_color);
 
-    if (bnc->srte_color)
-    	ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
-    			       false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &bnc->srte_color);
-    else
-        ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
-    			       false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);
+	if (bnc->srte_color) {
+		struct zapi_color_para tmp = {0};
+		tmp.srte_color = bnc->srte_color;
+		tmp.srte_color_flag = bnc->srte_color_flag;
+		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
+					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &tmp);
+	}
+	else
+		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
+					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);
 	/* TBD: handle the failure */
 	if (ret == ZCLIENT_SEND_FAILURE) {
 		flog_warn(EC_BGP_ZEBRA_SEND,
@@ -1535,7 +1541,7 @@ void bgp_nht_reg_enhe_cap_intfs(struct peer *peer)
 	if (p.family != AF_INET6)
 		return;
 
-	bnc = bnc_find(&bgp->nexthop_cache_table[AFI_IP6], &p, 0);
+	bnc = bnc_find(&bgp->nexthop_cache_table[AFI_IP6], &p, 0, 0);
 	if (!bnc)
 		return;
 
@@ -1577,7 +1583,7 @@ void bgp_nht_dereg_enhe_cap_intfs(struct peer *peer)
 	if (p.family != AF_INET6)
 		return;
 
-	bnc = bnc_find(&bgp->nexthop_cache_table[AFI_IP6], &p, 0);
+	bnc = bnc_find(&bgp->nexthop_cache_table[AFI_IP6], &p, 0, 0);
 	if (!bnc)
 		return;
 

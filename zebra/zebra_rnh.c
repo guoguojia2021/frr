@@ -225,7 +225,7 @@ void zebra_rnh_info_del(struct route_node *dest, struct rnh *pi)
 		dest->info = pi->next;
 }
 
-struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color)
+struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color, uint8_t srte_color_flag)
 {
 	struct route_table *table;
 	struct route_node *rn;
@@ -258,7 +258,7 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 	rn = route_node_get(table, p);
 	/* Check previously received route. */
 	for (rnh = rn->info; rnh; rnh = rnh->next)
-		if (rnh->srte_color == srte_color)
+		if ((rnh->srte_color == srte_color) && (rnh->srte_color_flag == srte_color_flag))
 			break;
 
 	if (!rnh) {
@@ -280,6 +280,7 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		route_lock_node(rn);
 		rnh->node = rn;
 		rnh->srte_color = srte_color;
+		rnh->srte_color_flag = srte_color_flag;
 		rnh->srp_status = ZEBRA_SR_POLICY_DOWN;
 		*exists = false;
         
@@ -505,7 +506,7 @@ void zebra_register_rnh_pseudowire(vrf_id_t vrf_id, struct zebra_pw *pw,
 		return;
 
 	addr2hostprefix(pw->af, &pw->nexthop, &nh);
-	rnh = zebra_add_rnh(&nh, vrf_id, &exists, 0);
+	rnh = zebra_add_rnh(&nh, vrf_id, &exists, 0, 0);
 	if (!rnh)
 		return;
 
@@ -835,10 +836,10 @@ static void zebra_rnh_eval_nexthop_entry(struct zebra_vrf *zvrf, afi_t afi,
 static void zebra_rnh_eval_nexthop_entry_srte(afi_t afi,
 					 struct route_node *nrn,
 					 struct rnh *rnh,
-					 struct route_node *prn,
 					 struct zebra_sr_policy *policy)
 {
 	int state_changed = 0;
+	struct route_node *prn = policy ? policy->node : NULL;
 
 	/* If we're resolving over a different route, resolution has changed or
 	 * the resolving route has some change (e.g., metric), there is a state
@@ -858,7 +859,7 @@ static void zebra_rnh_eval_nexthop_entry_srte(afi_t afi,
 			memset(&rnh->resolved_route, 0, sizeof(struct prefix));
 			rnh->resolved_route.family = family;
 		}
-		rnh->srp_status = policy->status;
+		rnh->srp_status = policy ? policy->status : ZEBRA_SR_POLICY_DOWN;
 		state_changed = 1;
 	} else if (rnh->srp_status != policy->status || rnh->policy != policy) {
 		rnh->srp_status = policy->status;
@@ -974,11 +975,21 @@ void zebra_evaluate_rnh(struct zebra_vrf *zvrf, afi_t afi, int force,
 void zebra_evaluate_rnh_by_srte(afi_t afi,
 			struct rnh *rnh)
 {
-	struct route_node *prn = NULL;
 	struct zebra_sr_policy *policy = NULL;
 	struct route_node *nrn = rnh->node;
 
-	policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_color, &prn);
+	if (rnh->srte_color_flag == 0) {
+		policy = zebra_sr_policy_lookup_by_prefix(&nrn->p, rnh->srte_color);
+		if (!policy || policy->status != ZEBRA_SR_POLICY_UP)
+			policy = NULL;
+	}
+	else if (rnh->srte_color_flag == 1 || rnh->srte_color_flag == 3)
+		policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_color);
+	else if (rnh->srte_color_flag == 2) {
+		struct prefix endpoint = {0};
+		endpoint.family = AF_INET6;
+		policy = zebra_sr_policy_match_by_prefix(&endpoint, rnh->srte_color);
+	}
 
 	/* If the entry cannot be resolved and that is also the existing state,
 	 * there is nothing further to do.
@@ -987,7 +998,7 @@ void zebra_evaluate_rnh_by_srte(afi_t afi,
 		return;
 
 	/* Process based on type of entry. */
-	zebra_rnh_eval_nexthop_entry_srte(afi, nrn, rnh, prn, policy);
+	zebra_rnh_eval_nexthop_entry_srte(afi, nrn, rnh, policy);
 }
 
 void zebra_print_rnh_table(vrf_id_t vrfid, afi_t afi, struct vty *vty,
@@ -1501,10 +1512,10 @@ static void print_rnh(struct route_node *rn, struct vty *vty)
 
 	rnh = rn->info;
 	for (; rnh; rnh = rnh->next) {
-		vty_out(vty, "%s%s - color %u\n",
+		vty_out(vty, "%s%s - color flag:%d, %u\n",
 			inet_ntop(rn->p.family, &rn->p.u.prefix, buf, BUFSIZ),
 			CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED) ? "(Connected)"
-								    : "", rnh->srte_color);
+								    : "", rnh->srte_color_flag, rnh->srte_color);
 		if (rnh->state) {
 			vty_out(vty, " resolved via %s\n",
 				zebra_route_string(rnh->state->type));

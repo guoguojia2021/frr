@@ -2850,13 +2850,18 @@ static const struct route_map_rule_cmd route_set_ecommunity_nt_cmd = {
 	route_set_ecommunity_free,
 };
 
-void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint32_t *backup_color)
+void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint8_t *srte_color_flag, 
+											uint32_t *backup_color, uint8_t *srte_color_backup_flag)
 {
 	uint32_t aux_color = 0;
 	uint32_t sla_color = 0;
 	uint32_t pri_color = 0;
 	uint8_t *p;
 	uint32_t c = 0;
+	uint8_t sla_color_flag = 0;
+	uint8_t pri_color_flag = 0;
+
+	*backup_color = 0;
 
 	if (!ecom || !ecom->size)
 		return;
@@ -2864,19 +2869,21 @@ void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint32_t 
 	for (p = ecom->val; c < ecom->size; p += ecom->unit_size, c++) {
 		if (p == NULL)
 			break;
-
 		if (p[0] == ECOMMUNITY_ENCODE_OPAQUE &&
 		    p[1] == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
-		    *backup_color = aux_color;
 			ptr_get_be32((const uint8_t *)&p[4], &aux_color);
 			if (aux_color > pri_color) {
 				sla_color = pri_color;
+				sla_color_flag = pri_color_flag;
 				pri_color = aux_color;
+				pri_color_flag = p[2] >> 6;
 			}
 		}
 	}
 	*color = pri_color;
+	*srte_color_flag = pri_color_flag;
 	*backup_color = sla_color;
+	*srte_color_backup_flag = sla_color_flag;
 	return;
 }
 

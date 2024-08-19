@@ -394,9 +394,9 @@ void bgp_trackroute_adv_enable(struct peer *peer, afi_t afi, safi_t safi, struct
     peer->advmap_config_change[afi][safi] = true;
 
     tree = &bgp->condition_track_table[afi];
-    bnc = bnc_find(tree, &filter->advmap.condition_route, 0);
+    bnc = bnc_find(tree, &filter->advmap.condition_route, 0, 0);
     if (!bnc) {
-        bnc = bnc_new(tree, &filter->advmap.condition_route, 0);
+        bnc = bnc_new(tree, &filter->advmap.condition_route, 0, 0);
         bnc->bgp = bgp;
         bnc->ifindex = 0;
         char buf[PREFIX2STR_BUFFER];
@@ -445,7 +445,7 @@ void bgp_trackroute_adv_disable(struct peer *peer, afi_t afi, safi_t safi, struc
     peer->advmap_config_change[afi][safi] = true;
 
     tree = &bgp->condition_track_table[afi];
-    bnc = bnc_find(tree, &filter->advmap.condition_route, 0);
+    bnc = bnc_find(tree, &filter->advmap.condition_route, 0, 0);
     if (!bnc) {
         return;
     } 

@@ -168,7 +168,7 @@ struct zebra_sr_policy *zebra_sr_policy_lookup_by_prefix(struct prefix *p, uint3
 	return rn->info;
 }
 
-struct zebra_sr_policy *zebra_sr_policy_match_by_prefix(struct prefix *p, uint32_t color, struct route_node **prn)
+struct zebra_sr_policy *zebra_sr_policy_match_by_prefix(struct prefix *p, uint32_t color)
 {
 	struct route_node *rn;
 	struct srte_table_key srte_key = {0};
@@ -193,7 +193,6 @@ struct zebra_sr_policy *zebra_sr_policy_match_by_prefix(struct prefix *p, uint32
 	while(rn) {
 		policy = rn->info;
 		if (policy && policy->status != ZEBRA_SR_POLICY_DOWN) {
-			*prn = rn;
 			return policy;
 		}
 		rn = rn->parent;
@@ -579,6 +578,7 @@ int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy
 	}
 
 	stream_putl(s, rnh->srte_color);
+	stream_putc(s, rnh->srte_color_flag);
 
 	num = 0;
 	if (policy && policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
@@ -718,6 +718,7 @@ int zebra_sr_policy_notify_unknown(struct rnh *rnh,
 	}
 
 	stream_putl(s, rnh->srte_color);
+	stream_putc(s, rnh->srte_color_flag);
 
     stream_putc(s, ZEBRA_ROUTE_SRTE);
 	stream_putw(s, 0); /* instance - not available */
@@ -743,7 +744,7 @@ static void zebra_sr_policy_activate(struct zebra_sr_policy *policy,
 	(void)zebra_sr_policy_bsid_install(policy);
 	zsend_sr_policy_notify_status(policy->color, policy->node,
 				      policy->name, ZEBRA_SR_POLICY_UP);
-	zebra_srte_evaluate_rn_nexthops(policy, false);
+	zebra_srte_evaluate_rn_nexthops(policy, zebra_router_get_next_sequence(), false);
 }
 
 static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
@@ -775,7 +776,7 @@ static void zebra_sr_policy_update(struct zebra_sr_policy *policy,
 
 	/* Handle segment-list update. */
 	if (segment_list_changed)
-		zebra_srte_evaluate_rn_nexthops(policy, false);
+		zebra_srte_evaluate_rn_nexthops(policy, zebra_router_get_next_sequence(), false);
 }
 
 static bool zebra_srv6_policy_set_sidlist_type(struct zapi_srv6te_tunnel *te_tunnel,
@@ -860,7 +861,7 @@ void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 
 	policy->srv6_segment_list = *new_tunnel;
 	policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
-	zebra_srte_evaluate_rn_nexthops(policy, false);
+	zebra_srte_evaluate_rn_nexthops(policy, zebra_router_get_next_sequence(), false);
 }
 
 
@@ -881,7 +882,7 @@ static void zebra_sr_policy_deactivate(struct zebra_sr_policy *policy)
 
 	zsend_sr_policy_notify_status(policy->color, policy->node,
 				      policy->name, ZEBRA_SR_POLICY_DOWN);
-	zebra_srte_evaluate_rn_nexthops(policy, true);
+	zebra_srte_evaluate_rn_nexthops(policy, zebra_router_get_next_sequence(), true);
 }
 
 int zebra_sr_policy_validate(struct zebra_sr_policy *policy,
@@ -1076,7 +1077,7 @@ void *srte_table_alloc(void *arg)
 	return srte_key_table;
 }
 
-void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, bool rt_delete)
+void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, uint32_t seq, bool rt_delete)
 {
 	struct route_node *rn;
 	struct rnh *rnh;
@@ -1119,6 +1120,15 @@ void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, bool rt_del
 		 * nexthop tracking evaluation code
 		 */
 		frr_each_safe(rnh_list, &policyNext->nht, rnh) {
+
+			if (rnh->seqno == seq) {
+				if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+					zlog_debug(
+						"    Node processed and moved already");
+				continue;
+			}
+
+			rnh->seqno = seq;
 			struct prefix *p = &rnh->node->p;
 
 			zebra_evaluate_rnh_by_srte(family2afi(p->family), rnh);

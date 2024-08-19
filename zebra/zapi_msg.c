@@ -1178,6 +1178,7 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 	safi_t safi;
 	uint32_t userdata_type = 0;
 	uint32_t srte_color = 0;
+	uint8_t srte_color_flag = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
 		zlog_debug(
@@ -1192,6 +1193,7 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 
 	while (l < hdr->length) {
 		srte_color = 0;
+		srte_color_flag = 0;
 		STREAM_GETC(s, flags);
 		STREAM_GETC(s, resolve_via_default);
 		STREAM_GETW(s, safi);
@@ -1225,21 +1227,22 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 				p.family);
 			return;
 		}
-        if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
-        {
-            STREAM_GETL(s, userdata_type);
-            switch (userdata_type) {
-        	case NEXTHOP_REGISTER_TYPE_COLOR:
-        		STREAM_GETL(s, srte_color);
-                l += 8;
-                break;
-        	default:
-        		zlog_err("recv error type with userdate:%u", userdata_type);
-                l += 4;
-                break;
-            }
-        }
-		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color);
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
+		{
+			STREAM_GETL(s, userdata_type);
+			switch (userdata_type) {
+			case NEXTHOP_REGISTER_TYPE_COLOR:
+				STREAM_GETL(s, srte_color);
+				STREAM_GETC(s, srte_color_flag);
+				l += 9;
+				break;
+			default:
+				zlog_err("recv error type with userdate:%u", userdata_type);
+				l += 4;
+				break;
+			}
+		}
+		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, srte_color_flag);
 		if (!rnh)
 			return;
 
@@ -1278,8 +1281,9 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 	struct prefix p;
 	unsigned short l = 0;
 	safi_t safi;
-    uint32_t userdata_type = 0;
-    uint32_t srte_color = 0;
+	uint32_t userdata_type = 0;
+	uint32_t srte_color = 0;
+	uint8_t srte_color_flag = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
 		zlog_debug(
@@ -1290,6 +1294,8 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 	s = msg;
 
 	while (l < hdr->length) {
+		srte_color = 0;
+		srte_color_flag = 0;
 		uint8_t ignore;
 		uint8_t flags;
 
@@ -1329,24 +1335,25 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 				p.family);
 			return;
 		}
-        if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
-        {
-            STREAM_GETL(s, userdata_type);
-            switch (userdata_type) {
-        	case NEXTHOP_REGISTER_TYPE_COLOR:
-        		STREAM_GETL(s, srte_color);
-                l += 8;
-                break;
-        	default:
-        		zlog_err("recv error type with userdate:%u", userdata_type);
-                l += 4;
-                break;
-            }
-        }
-        rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA))
+		{
+			STREAM_GETL(s, userdata_type);
+			switch (userdata_type) {
+			case NEXTHOP_REGISTER_TYPE_COLOR:
+				STREAM_GETL(s, srte_color);
+				STREAM_GETC(s, srte_color_flag);
+				l += 9;
+				break;
+			default:
+				zlog_err("recv error type with userdate:%u", userdata_type);
+				l += 4;
+				break;
+			}
+		}
+		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
 		for (rnh; rnh; rnh = rnh->next)
-			if (rnh->srte_color == srte_color)
+			if (rnh->srte_color == srte_color && rnh->srte_color_flag == srte_color_flag)
 				break;
 		if (rnh) {
 			client->nh_dereg_time = monotime(NULL);
@@ -1762,6 +1769,7 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 	{
 		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 		nexthop->srte_color = api_nh->srte_color;
+		nexthop->srte_color_flag = api_nh->srte_color_flag;
 		zebra_nhe_change_gateway_address(nexthop);
 	}
 	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6))

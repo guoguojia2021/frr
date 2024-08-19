@@ -455,6 +455,7 @@ struct zapi_nexthop {
 
 	/* SR-TE color. */
 	uint32_t srte_color;
+	uint8_t srte_color_flag;
 
 	/* SRv6 localsid info for Endpoint-behaviour */
 	uint32_t seg6local_action;
@@ -481,6 +482,12 @@ struct zapi_nexthop {
 #define ZAPI_NEXTHOP_FLAG_SEG6		0x20
 #define ZAPI_NEXTHOP_FLAG_SEG6LOCAL	0x40
 #define ZAPI_NEXTHOP_FLAG_SRTE      0x80
+
+struct zapi_color_para {
+	/* SR-TE color. */
+	uint32_t srte_color;
+	uint8_t srte_color_flag;
+};
 
 /*
  * ZAPI Nexthop Group. For use with protocol creation of nexthop groups.
@@ -602,6 +609,8 @@ struct zapi_route {
 	uint32_t nhgid;
 
 	uint8_t distance;
+
+	uint8_t srte_color_flag;
 
 	uint32_t metric;
 

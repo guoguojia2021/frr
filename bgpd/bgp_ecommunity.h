@@ -59,7 +59,7 @@
 #define ECOMMUNITY_REDIRECT_VRF             0x08
 #define ECOMMUNITY_TRAFFIC_MARKING          0x09
 #define ECOMMUNITY_REDIRECT_IP_NH           0x00
-#define ECOMMUNITY_COLOR 0x0b /* RFC9012 - color */
+#define ECOMMUNITY_COLOR                    0x0b /* RFC9012 - color */
 
 /* from IANA: bgp-extended-communities/bgp-extended-communities.xhtml
  * 0x0c Flow-spec Redirect to IPv4 - draft-ietf-idr-flowspec-redirect
@@ -288,7 +288,7 @@ static inline void encode_node_target(struct in_addr *node_id,
  *                 and ignored by the receiver;
  *
  */
-static inline void encode_color(uint32_t color_id, struct ecommunity_val *eval)
+static inline void encode_color(uint32_t color_id, as_t as, struct ecommunity_val *eval)
 {
 	/*
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -300,7 +300,7 @@ static inline void encode_color(uint32_t color_id, struct ecommunity_val *eval)
 	memset(eval, 0, sizeof(*eval));
 	eval->val[0] = ECOMMUNITY_ENCODE_OPAQUE;
 	eval->val[1] = ECOMMUNITY_COLOR;
-	eval->val[2] = 0x00;
+	eval->val[2] = (as << 6) & 0xff;
 	eval->val[3] = 0x00;
 	eval->val[4] = (color_id >> 24) & 0xff;
 	eval->val[5] = (color_id >> 16) & 0xff;
@@ -372,7 +372,8 @@ extern void bgp_remove_ecomm_from_aggregate_hash(
 extern void bgp_aggr_ecommunity_remove(void *arg);
 extern const uint8_t *ecommunity_linkbw_present(struct ecommunity *ecom,
 						uint32_t *bw);
-extern void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint32_t *backup_color);
+extern void ecommunity_select_color(struct ecommunity *ecom, uint32_t *color, uint8_t *srte_color_flag, 
+											uint32_t *backup_color, uint8_t *srte_color_backup_flag);
 
 extern struct ecommunity *ecommunity_replace_linkbw(as_t as,
 						    struct ecommunity *ecom,

@@ -360,7 +360,10 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 		static_nht_hash_free(nhtd);
 	}
 	if (nh->color) {
-		if (zclient_send_rnh(zclient, cmd, &p, false, false, nh->nh_vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &nh->color)
+		struct zapi_color_para tmp = {0};
+		tmp.srte_color = nh->color;
+		tmp.srte_color_flag = 1;
+		if (zclient_send_rnh(zclient, cmd, &p, false, false, nh->nh_vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &tmp)
 		    == ZCLIENT_SEND_FAILURE)
 			zlog_warn("%s: Failure to send nexthop to zebra", __func__);
 	}
@@ -541,7 +544,8 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
 		if (nh->color != 0) {
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
-            api_nh->srte_color = nh->color;
+			api_nh->srte_color = nh->color;
+			api_nh->srte_color_flag = 1;
 		}
 
 		nh->state = STATIC_SENT_TO_ZEBRA;

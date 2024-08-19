@@ -56,6 +56,7 @@ struct rnh {
     struct rnh *prev;
 
 	uint8_t flags;
+	uint8_t srte_color_flag;
 
 #define ZEBRA_NHT_CONNECTED 0x1
 #define ZEBRA_NHT_DELETED 0x2

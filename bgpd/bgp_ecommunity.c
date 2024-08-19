@@ -383,10 +383,15 @@ static void ecommunity_color_str(char *buf, size_t bufsz, uint8_t *ptr)
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
 	uint32_t colorid;
+	uint8_t color_type;
+	/* get the color type */
+	ptr++;
+	color_type = (*ptr) >> 6;
 
-	memcpy(&colorid, ptr + 3, 4);
+	memcpy(&colorid, ptr + 2, 4);
 	colorid = ntohl(colorid);
-	snprintf(buf, bufsz, "Color:%d", colorid);
+	snprintf(buf, bufsz, "Color:%d%d:%d", 
+		(color_type & 0x2) >> 1, color_type & 0x1, colorid);
 }
 
 /* Initialize Extended Comminities related hash. */
@@ -514,7 +519,7 @@ static int ecommunity_encode_internal(uint8_t type, uint8_t sub_type,
 		eval6->val[19] = val & 0xff;
 	} else if (type == ECOMMUNITY_ENCODE_OPAQUE &&
 		   sub_type == ECOMMUNITY_COLOR) {
-		encode_color(val, eval);
+		encode_color(val, as, eval);
 	} else {
 		eval->val[2] = (as >> 24) & 0xff;
 		eval->val[3] = (as >> 16) & 0xff;
@@ -547,7 +552,6 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 	int dot = 0;
 	int digit = 0;
 	int separator = 0;
-	int i;
 	const char *p = str;
 	char *endptr;
 	struct in_addr ip;
@@ -559,7 +563,6 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 	uint8_t sub_type = 0;
 	char buf[INET_ADDRSTRLEN + 1];
 	struct ecommunity_val *eval = (struct ecommunity_val *)eval_ptr;
-	uint64_t tmp_as = 0;
 	static const char str_color[5] = "color";
 	const char *ptr_color;
 	bool val_color_set = false;
@@ -628,28 +631,19 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 				return p;
 			}
 			goto error;
-		} else if (tolower((unsigned char)*p) == 'c') {
-			/* "color" match check.
-			 * 'c', 'co', 'col', 'colo' are also accepted
-			 */
-			for (i = 0; i < 5; i++) {
-				ptr_color = &str_color[0];
-				if (tolower((unsigned char)*p) == *ptr_color) {
-					p++;
-					ptr_color++;
-				} else if (i > 0) {
-					if (isspace((unsigned char)*p) ||
-					    *p == '\0') {
-						*token = ecommunity_token_color;
-						return p;
-					}
-					goto error;
-				}
-				if (isspace((unsigned char)*p) || *p == '\0') {
-					*token = ecommunity_token_color;
-					return p;
-				}
-				goto error;
+		} 
+		if (tolower((unsigned char)*p) == 'c') {
+			ptr_color = &str_color[0];
+			for (unsigned int i = 0; i < 5; i++) {
+				if (tolower((unsigned char)*p) != *ptr_color)
+					break;
+
+				p++;
+				ptr_color++;
+			}
+			if (isspace((unsigned char)*p) || *p == '\0') {
+				*token = ecommunity_token_color;
+				return p;
 			}
 			goto error;
 		}
@@ -721,10 +715,19 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 				ret = inet_aton(buf, &ip);
 				if (ret == 0)
 					goto error;
+			} else if (type == ECOMMUNITY_COLOR) {
+				/* If extcommunity is color, only support 00/01/10/11, max value is 3 */
+				/* color value */
+				as = strtoul(buf, &endptr, 2);
+				if (*endptr != '\0' || as > 3)
+					goto error;
+				val_color = 0;
 			} else {
 				/* ASN */
 				as = strtoul(buf, &endptr, 10);
 				if (*endptr != '\0' || as == BGP_AS4_MAX)
+					goto error;
+				if (*token == ecommunity_token_color || as > 3)
 					goto error;
 			}
 		} else if (*p == '.') {
@@ -761,13 +764,16 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 		ecomm_type = ECOMMUNITY_ENCODE_IP;
 	else if (as > BGP_AS_MAX)
 		ecomm_type = ECOMMUNITY_ENCODE_AS4;
-	else if (as > 0)
-		ecomm_type = ECOMMUNITY_ENCODE_AS;
-	else if (val_color) {
+	if (type == ECOMMUNITY_COLOR) {
 		ecomm_type = ECOMMUNITY_ENCODE_OPAQUE;
 		sub_type = ECOMMUNITY_COLOR;
-		val = val_color;
+		if (val_color) {
+			val = val_color;
+			as = 1;
+		}
 	}
+	else if (as > 0)
+		ecomm_type = ECOMMUNITY_ENCODE_AS;
 
 	if (ecommunity_encode(ecomm_type, sub_type, 1, as, ip, val, eval))
 		goto error;
@@ -825,6 +831,9 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 			if (ecom == NULL)
 				ecom = ecommunity_new();
 			eval.val[1] = type;
+			if (type == ECOMMUNITY_COLOR) {
+				eval.val[0] = ECOMMUNITY_ENCODE_OPAQUE;
+			}
 			ecommunity_add_val_internal(ecom, (void *)&eval,
 						    false, false,
 						    ecom->unit_size);
@@ -1318,10 +1327,12 @@ char *ecommunity_ecom2str(struct ecommunity *ecom, int format, int filter)
 						  ecom->disable_ieee_floating);
 			else if (sub_type == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
 				uint32_t color;
-                memcpy(&color, pnt + 2, 4);
+				/* get the color type */
+				uint8_t color_type = (*pnt) >> 6;
+				memcpy(&color, pnt + 2, 4);
 				color = ntohl(color);
-				snprintf(encbuf, sizeof(encbuf), "Color:%u",
-					 color);
+				snprintf(encbuf, sizeof(encbuf), "Color:%d%d:%u",
+					 (color_type & 0x2) >> 1, color_type & 0x1, color);
 			} else
 				unk_ecom = 1;
 		} else if (type == ECOMMUNITY_ENCODE_IP_NON_TRANS) {

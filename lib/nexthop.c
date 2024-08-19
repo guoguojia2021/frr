@@ -195,6 +195,10 @@ static int _nexthop_cmp_no_labels(const struct nexthop *next1,
 		return -1;
 	if (next1->srte_color > next2->srte_color)
 		return 1;
+	if (next1->srte_color_flag < next2->srte_color_flag)
+		return -1;
+	if (next1->srte_color_flag > next2->srte_color_flag)
+		return 1;
 
 	ret = _nexthop_source_cmp(next1, next2);
 	if (ret != 0)
@@ -814,6 +818,7 @@ uint32_t nexthop_hash_quick(const struct nexthop *nexthop)
 			    sizeof(nexthop->nh_srv6->seg6_segs), key);
 	}
 	key = jhash_1word(nexthop->srte_color, key);
+	key = jhash_1word(nexthop->srte_color_flag, key);
 	key = jhash(nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH, key);
 	return key;
 }
@@ -858,6 +863,7 @@ void nexthop_copy_no_context(struct nexthop *copy,
 		memcpy(copy->backup_idx, nexthop->backup_idx, copy->backup_num);
 
 	copy->srte_color = nexthop->srte_color;
+	copy->srte_color_flag = nexthop->srte_color_flag;
 	memcpy(&copy->gate, &nexthop->gate, sizeof(nexthop->gate));
 	memcpy(&copy->src, &nexthop->src, sizeof(nexthop->src));
 	memcpy(&copy->rmap_src, &nexthop->rmap_src, sizeof(nexthop->rmap_src));
@@ -890,6 +896,7 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 		memcpy(copy->backup_idx, nexthop->backup_idx, copy->backup_num);
 
 	copy->srte_color = nexthop->srte_color;
+	copy->srte_color_flag = nexthop->srte_color_flag;
 	memcpy(&copy->gate, &nexthop->gate, sizeof(nexthop->gate));
 	memcpy(&copy->src, &nexthop->src, sizeof(nexthop->src));
 	memcpy(&copy->rmap_src, &nexthop->rmap_src, sizeof(nexthop->rmap_src));

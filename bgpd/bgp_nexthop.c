@@ -56,6 +56,11 @@ int bgp_nexthop_cache_compare(const struct bgp_nexthop_cache *a,
 	if (a->srte_color > b->srte_color)
 		return 1;
 
+	if (a->srte_color_flag < b->srte_color_flag)
+		return -1;
+	if (a->srte_color_flag > b->srte_color_flag)
+		return 1;
+
 	return prefix_cmp(&a->prefix, &b->prefix);
 }
 
@@ -70,7 +75,7 @@ void bnc_nexthop_free(struct bgp_nexthop_cache *bnc)
 }
 
 struct bgp_nexthop_cache *bnc_new(struct bgp_nexthop_cache_head *tree,
-				  struct prefix *prefix, uint32_t srte_color)
+				  struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag)
 {
 	struct bgp_nexthop_cache *bnc;
 
@@ -78,6 +83,7 @@ struct bgp_nexthop_cache *bnc_new(struct bgp_nexthop_cache_head *tree,
 		      sizeof(struct bgp_nexthop_cache));
 	bnc->prefix = *prefix;
 	bnc->srte_color = srte_color;
+	bnc->srte_color_flag = srte_color_flag;
 	bnc->tree = tree;
 	LIST_INIT(&(bnc->paths));
     LIST_INIT(&(bnc->peer_filters));
@@ -93,7 +99,8 @@ bool bnc_existing_for_prefix(struct bgp_nexthop_cache *bnc)
 	frr_each (bgp_nexthop_cache, bnc->tree, bnc_tmp) {
 		if (bnc_tmp == bnc)
 			continue;
-		if ((prefix_cmp(&bnc->prefix, &bnc_tmp->prefix) == 0) && (bnc->srte_color == bnc_tmp->srte_color))
+		if ((prefix_cmp(&bnc->prefix, &bnc_tmp->prefix) == 0) && (bnc->srte_color == bnc_tmp->srte_color) 
+			&& (bnc->srte_color_flag == bnc_tmp->srte_color_flag))
 			return true;
 	}
 	return false;
@@ -107,7 +114,7 @@ void bnc_free(struct bgp_nexthop_cache *bnc)
 }
 
 struct bgp_nexthop_cache *bnc_find(struct bgp_nexthop_cache_head *tree,
-				   struct prefix *prefix, uint32_t srte_color)
+				   struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag)
 {
 	struct bgp_nexthop_cache bnc = {};
 
@@ -116,6 +123,7 @@ struct bgp_nexthop_cache *bnc_find(struct bgp_nexthop_cache_head *tree,
 
 	bnc.prefix = *prefix;
 	bnc.srte_color = srte_color;
+	bnc.srte_color_flag = srte_color_flag;
 	return bgp_nexthop_cache_find(tree, &bnc);
 }
 
@@ -851,7 +859,7 @@ static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 	peer = (struct peer *)bnc->nht_info;
 
 	if (bnc->srte_color)
-		vty_out(vty, " SR-TE color %u -", bnc->srte_color);
+		vty_out(vty, " SR-TE color: %d%d:%u", (bnc->srte_color_flag & 0x2) >> 1, bnc->srte_color_flag & 0x1, bnc->srte_color);
 	if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_VALID)) {
 		vty_out(vty, " %s valid [IGP metric %d], #paths %d",
 			inet_ntop(bnc->prefix.family, &bnc->prefix.u.prefix,

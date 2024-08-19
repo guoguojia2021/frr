@@ -1010,13 +1010,11 @@ static void zebra_nhe_seg_debug_info(struct nhg_hash_entry *nhe)
 	}
 }
 
-static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop, struct route_node **prn)
+static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop)
 {
 
 	struct prefix endpoint = {0};
 	struct zebra_sr_policy *policy;
-	afi_t afi = AFI_IP;
-	struct route_node *node = NULL;
 
 	if (nexthop == NULL)
 		return NULL;
@@ -1026,11 +1024,15 @@ static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *
 
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-		afi = AFI_IP;
+		endpoint.family = AF_INET;
+		endpoint.prefixlen = IPV4_MAX_BITLEN;
+		endpoint.u.prefix4 = nexthop->gate.ipv4;
 		break;
 
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		afi = AFI_IP6;
+		endpoint.family = AF_INET6;
+		endpoint.prefixlen = IPV6_MAX_BITLEN;
+		endpoint.u.prefix6 = nexthop->gate.ipv6;
 		break;
 	default:
 		flog_err(EC_LIB_DEVELOPMENT,
@@ -1038,23 +1040,16 @@ static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *
 		return NULL;
 	}
 
-	switch (afi) {
-	case AFI_IP:
-		endpoint.family = AF_INET;
-		endpoint.prefixlen = IPV4_MAX_BITLEN;
-		endpoint.u.prefix4 = nexthop->gate.ipv4;
-		break;
-	case AFI_IP6:
+	if (nexthop->srte_color_flag == 0)
+		policy = zebra_sr_policy_lookup_by_prefix(&endpoint, nexthop->srte_color);
+	else if (nexthop->srte_color_flag == 1 || nexthop->srte_color_flag == 3)
+		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color);
+	else if (nexthop->srte_color_flag == 2) {
+		struct prefix endpoint = {0};
 		endpoint.family = AF_INET6;
-		endpoint.prefixlen = IPV6_MAX_BITLEN;
-		endpoint.u.prefix6 = nexthop->gate.ipv6;
-		break;
-	default:
-		return NULL;
+		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color);
 	}
-	policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color, &node);
 	if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
-		*prn = node;
 		return policy;
 	}
 	else
@@ -1074,11 +1069,11 @@ void zebra_nhe_change_gateway_address(struct nexthop *nexthop)
 	if (nexthop->srte_color == 0)
 		return NULL;
 
-	policy = zebra_sr_policy_match_by_nexthop(nexthop, &prn);
+	policy = zebra_sr_policy_match_by_nexthop(nexthop);
 
 	if (policy == NULL)
 		return;
-
+	prn = policy->node;
 	if (prn)
 		family = prn->p.family;
 	else
@@ -3129,8 +3124,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	 */
 	if (nexthop->srte_color) {
 		struct zebra_sr_policy *policy;
-		struct route_node *prn = NULL;
-		policy = zebra_sr_policy_match_by_nexthop(nexthop, &prn);
+		policy = zebra_sr_policy_match_by_nexthop(nexthop);
 
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 			if (policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
@@ -3413,6 +3407,7 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
 	uint32_t path_num = 0;
+	struct prefix endpoint = {0};
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	nexthop->ifindex = 0;
@@ -3421,54 +3416,6 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	nexthops_free(nexthop->resolved);
 	nexthop->resolved = NULL;
 
-	/*
-	 * Set afi based on nexthop type.
-	 * Some nexthop types get special handling, possibly skipping
-	 * the normal processing.
-	 */
-    switch (nexthop->type) {
-    case NEXTHOP_TYPE_IFINDEX:
-	case NEXTHOP_TYPE_IPV6_IFINDEX:
-	case NEXTHOP_TYPE_IPV4:
-	case NEXTHOP_TYPE_IPV4_IFINDEX:
-	case NEXTHOP_TYPE_IPV6:
-	case NEXTHOP_TYPE_BLACKHOLE:
-		return 0;
-
-	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-		afi = AFI_IP;
-		break;
-
-	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		afi = AFI_IP6;
-		break;
-
-	default:
-		return 0;
-	}
-
-	if (top
-	    && ((top->family == AF_INET && top->prefixlen == IPV4_MAX_BITLEN
-		 && nexthop->gate.ipv4.s_addr == top->u.prefix4.s_addr)
-		|| (top->family == AF_INET6 && top->prefixlen == IPV6_MAX_BITLEN
-		    && memcmp(&nexthop->gate.ipv6, &top->u.prefix6,
-			      IPV6_MAX_BYTELEN)
-			       == 0))) {
-		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-			zlog_debug(
-				"        :%s: Attempting to install a max prefixlength route through itself",
-				__func__);
-		return 0;
-	}
-
-	/* Validation for ipv4 mapped ipv6 nexthop. */
-	if (IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
-		afi = AFI_IP;
-		ipv4 = &local_ipv4;
-		ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
-	} else {
-		ipv4 = &nexthop->gate.ipv4;
-	}
 
 	/* Processing for nexthops with SR 'color' attribute, using
 	 * the corresponding SR policy object.
@@ -3476,9 +3423,8 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	if (nexthop->srte_color) {
 
 		struct zebra_sr_policy *policy;
-		struct route_node *prn = NULL;
-
-		policy = zebra_sr_policy_match_by_nexthop(nexthop, &prn);
+		policy = zebra_sr_policy_match_by_nexthop(nexthop);
+		
 		if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
 
 			resolved = 0;

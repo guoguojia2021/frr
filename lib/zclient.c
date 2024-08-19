@@ -774,6 +774,7 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 {
 	struct stream *s;
     uint8_t flags = 0;
+	struct zapi_color_para *para;
 
 	s = zclient->obuf;
 	stream_reset(s);
@@ -802,8 +803,10 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 	{
 		switch (type) {
 		case NEXTHOP_REGISTER_TYPE_COLOR:
+			para = userdata;
 			stream_putl(s, type);
-			stream_putl(s, *(uint32_t *)userdata);
+			stream_putl(s, para->srte_color);
+			stream_putc(s, para->srte_color_flag);
 			break;
 		default:
 			zlog_err("error type with userdate:%u", type);
@@ -1073,8 +1076,10 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 	}
 
 	/* Color for Segment Routing TE. */
-	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE)) {
 		stream_putl(s, api_nh->srte_color);
+		stream_putc(s, api_nh->srte_color_flag);
+	}
 
 	/* Index of backup nexthop */
 	if (CHECK_FLAG(nh_flags, ZAPI_NEXTHOP_FLAG_HAS_BACKUP)) {
@@ -1575,8 +1580,10 @@ int zapi_nexthop_decode(struct stream *s, struct zapi_nexthop *api_nh,
 	}
 
 	/* Color for Segment Routing TE. */
-	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE))
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE)) {
 		STREAM_GETL(s, api_nh->srte_color);
+		STREAM_GETC(s, api_nh->srte_color_flag);
+	}
 
 	/* Backup nexthop index */
 	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_HAS_BACKUP)) {
@@ -1960,6 +1967,7 @@ struct nexthop *nexthop_from_zapi_nexthop(const struct zapi_nexthop *znh)
 	n->ifindex = znh->ifindex;
 	n->gate = znh->gate;
 	n->srte_color = znh->srte_color;
+	n->srte_color_flag = znh->srte_color_flag;
 
 	/*
 	 * This function currently handles labels
@@ -2137,8 +2145,10 @@ bool zapi_nexthop_update_decode(struct stream *s, struct prefix *match,
 	default:
 		break;
 	}
-	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE))
+	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE)) {
 		STREAM_GETL(s, nhr->srte_color);
+		STREAM_GETC(s, nhr->srte_color_flag);
+	}
 
 	STREAM_GETC(s, nhr->type);
 	STREAM_GETW(s, nhr->instance);
