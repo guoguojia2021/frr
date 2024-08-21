@@ -1313,8 +1313,14 @@ static bool zebra_nhe_find(struct nhg_hash_entry **nhe, /* return value */
 			   (*nhe) ? (*nhe)->id : 0);
 
 	/* If we found an existing object, we're done */
-	if (*nhe)
+	if (*nhe) {
+		/* Maintain the inactive_reason in *nhe. */
+		if((*nhe)->nhg.nexthop != NULL && (*nhe)->nhg.nexthop->next == NULL	&& 	\
+			lookup != NULL && lookup->nhg.nexthop != NULL && lookup->nhg.nexthop->next == NULL) {
+			(*nhe)->nhg.nexthop->inactive_reason = lookup->nhg.nexthop->inactive_reason;
+		}
 		goto done;
+	}
 
 	/* We're going to create/insert a new nhe:
 	 * assign the next global id value if necessary.
@@ -3042,8 +3048,10 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			    && (type == ZEBRA_ROUTE_KERNEL
 				|| type == ZEBRA_ROUTE_SYSTEM))))
 			return 1;
-		else
+		else {
+			nexthop->inactive_reason = 11;
 			return 0;
+		}
 		break;
 
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
@@ -3054,8 +3062,10 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 						 nexthop->vrf_id);
 			if (ifp && if_is_operative(ifp))
 				return 1;
-			else
+			else {
+				nexthop->inactive_reason = 12;
 				return 0;
+			}
 		}
 		break;
 
@@ -3085,12 +3095,14 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("nexthop %pNHv marked onlink but nhif %u doesn't exist",
 					   nexthop, nexthop->ifindex);
+			nexthop->inactive_reason = 13;
 			return 0;
 		}
 		if (!if_is_operative(ifp)) {
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("nexthop %pNHv marked onlink but nhif %s is not operational",
 					   nexthop, ifp->name);
+			nexthop->inactive_reason = 14;
 			return 0;
 		}
 		return 1;
@@ -3107,6 +3119,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			zlog_debug(
 				"        :%s: Attempting to install a max prefixlength route through itself",
 				__func__);
+		nexthop->inactive_reason = 15;
 		return 0;
 	}
 
@@ -3173,6 +3186,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	if (!table || !zvrf) {
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("        %s: Table not found", __func__);
+		nexthop->inactive_reason = 16;
 		return 0;
 	}
 
@@ -3194,6 +3208,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 					zlog_debug(
 						"        %s: Matched against ourself and prefix length is not max bit length",
 						__func__);
+				nexthop->inactive_reason = 17;
 				return 0;
 			}
 
@@ -3207,6 +3222,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 				zlog_debug(
 					"        :%s: Resolved against default route",
 					__func__);
+			nexthop->inactive_reason = 18;
 			return 0;
 		}
 
@@ -3248,6 +3264,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 				 * NEXTHOP_TYPE_*_IFINDEX but ifindex
 				 * doesn't match what we found.
 				 */
+				nexthop->inactive_reason = 19;
 				return 0;
 			}
 
@@ -3384,12 +3401,14 @@ done_with_match:
 					zlog_debug(
 						"        EBGP: see \"disable-ebgp-connected-route-check\" or \"disable-connected-check\"");
 			}
+			nexthop->inactive_reason = 20;
 			return 0;
 		}
 	}
 	if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 		zlog_debug("        %s: Nexthop did not lookup in table",
 			   __func__);
+	nexthop->inactive_reason = 21;
 	return 0;
 }
 
@@ -3416,6 +3435,55 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	nexthops_free(nexthop->resolved);
 	nexthop->resolved = NULL;
 
+	/*
+	 * Set afi based on nexthop type.
+	 * Some nexthop types get special handling, possibly skipping
+	 * the normal processing.
+	 */
+    switch (nexthop->type) {
+    case NEXTHOP_TYPE_IFINDEX:
+	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV4:
+	case NEXTHOP_TYPE_IPV4_IFINDEX:
+	case NEXTHOP_TYPE_IPV6:
+	case NEXTHOP_TYPE_BLACKHOLE:
+		return 0;
+
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		afi = AFI_IP;
+		break;
+
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		afi = AFI_IP6;
+		break;
+
+	default:
+		return 0;
+	}
+
+	if (top
+	    && ((top->family == AF_INET && top->prefixlen == IPV4_MAX_BITLEN
+		 && nexthop->gate.ipv4.s_addr == top->u.prefix4.s_addr)
+		|| (top->family == AF_INET6 && top->prefixlen == IPV6_MAX_BITLEN
+		    && memcmp(&nexthop->gate.ipv6, &top->u.prefix6,
+			      IPV6_MAX_BYTELEN)
+			       == 0))) {
+		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			zlog_debug(
+				"        :%s: Attempting to install a max prefixlength route through itself",
+				__func__);
+		nexthop->inactive_reason = 22;
+		return 0;
+	}
+
+	/* Validation for ipv4 mapped ipv6 nexthop. */
+	if (IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
+		afi = AFI_IP;
+		ipv4 = &local_ipv4;
+		ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
+	} else {
+		ipv4 = &nexthop->gate.ipv4;
+	}
 
 	/* Processing for nexthops with SR 'color' attribute, using
 	 * the corresponding SR policy object.
@@ -3441,12 +3509,17 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 			if (resolved)
 				return 1;
 		}
+		/* Coming here indicates the policy is not matching. */
+		nexthop->inactive_reason = 23;		
 	}
 
 	if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 		zlog_debug("        %s: Nexthop did not lookup in table",
 			   __func__);
 
+	/* If the policy matches, it means no lookup. */
+	if (nexthop->inactive_reason!=23)
+		nexthop->inactive_reason = 24;
 	return 0;
 }
 
@@ -3504,8 +3577,10 @@ static unsigned nexthop_active_check(struct route_node *rn,
 		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
 				   re->flags, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason += 100;
+		}
 		break;
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
@@ -3513,16 +3588,20 @@ static unsigned nexthop_active_check(struct route_node *rn,
 		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
 				   re->flags, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason += 200;
+		}
 		break;
 	case NEXTHOP_TYPE_IPV6:
 		family = AFI_IP6;
 		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
 				   re->flags, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason += 300;
+		}
 		break;
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
 		/* RFC 5549, v4 prefix with v6 NH */
@@ -3532,8 +3611,10 @@ static unsigned nexthop_active_check(struct route_node *rn,
 		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
 				   re->flags, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason += 400;
+		}
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
 		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
@@ -3543,16 +3624,20 @@ static unsigned nexthop_active_check(struct route_node *rn,
 
 		if (nexthop_seg_active(nexthop, nhe, &rn->p))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason += 500;
+		}
 		break;
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		family = AFI_IP6;
 
 		if (nexthop_seg_active(nexthop, nhe, &rn->p))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason += 600;
+		}
 		break;
 	default:
 		break;
@@ -3564,6 +3649,7 @@ skip_check:
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("        %s: Unable to find active nexthop",
 				   __func__);
+		nexthop->inactive_reason = 8;
 		return 0;
 	}
 
@@ -3583,8 +3669,12 @@ skip_check:
 	 * e.g. IPv4 routes with IPv6 nexthops or vice versa?
 	 */
 	if (RIB_SYSTEM_ROUTE(re) || (family == AFI_IP && p->family != AF_INET)
-	    || (family == AFI_IP6 && p->family != AF_INET6))
+	    || (family == AFI_IP6 && p->family != AF_INET6)) 
+	{
+		nexthop->inactive_reason = 9;
 		return CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+	}
+
 
 	/* The original code didn't determine the family correctly
 	 * e.g. for NEXTHOP_TYPE_IFINDEX. Retrieve the correct afi
@@ -3605,6 +3695,7 @@ skip_check:
 	if (!zvrf) {
 		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 			zlog_debug("        %s: zvrf is NULL", __func__);
+		nexthop->inactive_reason = 10;
 		return CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 	}
 
@@ -3619,6 +3710,7 @@ skip_check:
 					       nexthop->vrf_id));
 		}
 		UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+		nexthop->inactive_reason = 7;		
 	}
 	return CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 }
@@ -3731,8 +3823,11 @@ static uint32_t nexthop_list_active_update(struct route_node *rn,
 			struct nexthop *nh;
 
 			/* Set it and its resolved nexthop as inactive. */
-			for (nh = nexthop; nh; nh = nh->resolved)
+			for (nh = nexthop; nh; nh = nh->resolved){
 				UNSET_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE);
+				nh->inactive_reason = 11;
+			}
+
 
 			new_active = 0;
 		}
@@ -3846,6 +3941,19 @@ backups_done:
 		if (rt_afi == AFI_IP6 && IN6_IS_ADDR_LINKLOCAL(&rn->p.u.prefix6))
 			SET_FLAG(new_nhe->flags, NEXTHOP_GROUP_LINKLOCAL);
 	}
+	/* If there's no change in the curr_nhe, it would not create new_nhe,
+	 * then keep the original nhe and free the curr and nothing updated though the inactive reason may
+	 * be changed already.
+	 * To avoid the situation that the inactive_reason will gone after freeing the curr_nhe, value the nhe
+	 * while the nexthop status not changed.
+	 */
+	else
+	{
+		if(re->nhe->nhg.nexthop != NULL && re->nhe->nhg.nexthop->next == NULL	&& 	\
+			curr_nhe != NULL && curr_nhe->nhg.nexthop != NULL && curr_nhe->nhg.nexthop->next == NULL) {
+			re->nhe->nhg.nexthop->inactive_reason = curr_nhe->nhg.nexthop->inactive_reason;
+		}
+	}
 
 	/* Walk the NHE depends tree and toggle NEXTHOP_GROUP_VALID
 	 * flag where appropriate.
@@ -3856,7 +3964,7 @@ backups_done:
 		else
 			zebra_nhg_set_valid_if_active(re->nhe);
 	}
-
+	
 	/*
 	 * Do not need the old / copied nhe anymore since it
 	 * was either copied over into a new nhe or not

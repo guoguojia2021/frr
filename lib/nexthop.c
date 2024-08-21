@@ -856,6 +856,7 @@ void nexthop_copy_no_context(struct nexthop *copy,
 	copy->type = nexthop->type;
 	copy->flags = nexthop->flags;
 	copy->weight = nexthop->weight;
+	copy->inactive_reason = nexthop->inactive_reason;
 
 	assert(nexthop->backup_num < NEXTHOP_MAX_BACKUPS);
 	copy->backup_num = nexthop->backup_num;
@@ -889,6 +890,7 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 	copy->type = nexthop->type;
 	copy->flags = nexthop->flags;
 	copy->weight = nexthop->weight;
+	copy->inactive_reason = nexthop->inactive_reason;
 
 	assert(nexthop->backup_num < NEXTHOP_MAX_BACKUPS);
 	copy->backup_num = nexthop->backup_num;

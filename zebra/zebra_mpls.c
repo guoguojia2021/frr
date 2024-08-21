@@ -721,22 +721,28 @@ static int nhlfe_nexthop_active(struct zebra_nhlfe *nhlfe)
 		ifp = if_lookup_by_index_per_ns(zns, nexthop->ifindex);
 		if (ifp && if_is_operative(ifp))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason = 1;
+		}
 		break;
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
 		if (nhlfe_nexthop_active_ipv4(nhlfe, nexthop))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason = 2;
+		}
 		break;
 
 	case NEXTHOP_TYPE_IPV6:
 		if (nhlfe_nexthop_active_ipv6(nhlfe, nexthop))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else
+		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason = 3;
+		}
 		break;
 
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
@@ -745,13 +751,17 @@ static int nhlfe_nexthop_active(struct zebra_nhlfe *nhlfe)
 						 nexthop->vrf_id);
 			if (ifp && if_is_operative(ifp))
 				SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-			else
+			else {
 				UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+				nexthop->inactive_reason = 4;
+			}
 		} else {
 			if (nhlfe_nexthop_active_ipv6(nhlfe, nexthop))
 				SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-			else
+			else {
 				UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+				nexthop->inactive_reason = 5;
+			}
 		}
 		break;
 
@@ -2050,6 +2060,7 @@ static int update_nhlfes_from_ctx(struct nhlfe_list_head *nhlfe_head,
 			UNSET_FLAG(nhlfe->flags, NHLFE_FLAG_SELECTED);
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_FIB);
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			nexthop->inactive_reason = 6;			
 		}
 	}
 

@@ -100,6 +100,8 @@ static void show_ip_route_dump_vty(struct vty *vty, struct route_table *table);
 static void show_ip_route_nht_dump(struct vty *vty, struct nexthop *nexthop,
 				   struct route_entry *re, unsigned int num);
 
+static void vty_show_inactive_route_debug_info(struct vty *vty, const struct nexthop *nexthop);
+
 DEFUN (ip_multicast_mode,
        ip_multicast_mode_cmd,
        "ip multicast rpf-lookup-mode <urib-only|mrib-only|mrib-then-urib|lower-distance|longer-prefix>",
@@ -297,6 +299,137 @@ static void show_nh_backup_helper(struct vty *vty,
 }
 
 /*
+ * Print the debug info for the inactive routes.
+ * The format is "1st-layer_func:: 2nd-layer_func:: explicit reason."
+ * Currently theres at most two layers' calling.
+ */
+static void vty_show_inactive_route_debug_info(struct vty *vty,
+								const struct nexthop *nexthop)
+{	
+	/* Print the Only One-Layer funcs calling. */
+	switch (nexthop->inactive_reason)
+	{
+		case 1:
+			vty_out(vty, "\tnhlfe_nexthop_active:: IFINDEX: Interface does not exist or is not operative.\n");
+			break;
+		case 2:
+			vty_out(vty, "\tnhlfe_nexthop_active:: IPv4/IPv4_IFINDEX: IPv4 nexthop for a NHLFE is inactive.\n");
+			break;
+		case 3:
+			vty_out(vty, "\tnhlfe_nexthop_active:: IPV6: IPv6 nexthop for a NHLFE is inactive.\n");
+			break;
+		case 4:
+			vty_out(vty, "\tnhlfe_nexthop_active:: IPV6_INFINDEX: Interface does not exist or is not operative.\n");
+			break;
+		case 5:
+			vty_out(vty, "\tnhlfe_nexthop_active:: IPV6_INFINDEX: IPv6 nexthop for a NHLFE is inactive.\n");
+			break;
+		case 6:
+			vty_out(vty, "\tupdate_nhlfes_from_ctx:: Not mentioned in lfib.\n");
+			break;
+		case 7:
+			vty_out(vty, "\tnexthop_active_check:: Filtering out with NH out due to route map.\n");
+			break;
+		case 8:
+			vty_out(vty, "\tnexthop_active_check:: skip_check: Unable to find active nexthop.\n");
+			break;
+		case 9:
+			vty_out(vty, "\tnexthop_active_check:: IPv4 routes with IPv6 nexthops or vice versa.\n");
+			break;
+		case 10:
+			vty_out(vty, "\tnexthop_active_check:: zvrf is NULL.\n");
+			break;
+		case 11:
+			vty_out(vty, "\tnexthop_active_update:: nexthop_list_active_update:: it's updated to  be inactive.\n");
+			break;
+		default:
+			vty_out(vty, "\tMissed out!, inactive_reason:%u\n", nexthop->inactive_reason);
+			break;
+	}
+
+	/* Print the Two-Layers funcs calling.
+	 * 
+	 * If the inactive_reason is larger than 100,
+	 * it indicates theres a Multi-Layer calling relationship.
+	 */
+	if(nexthop->inactive_reason>100){
+		/* For the first layer. 
+		 * Currently theres only nexthop_active_check as the 1st-layer 
+		 * in the Two-Layer calling case.
+		 */
+		vty_out(vty, "\tnexthop_active_check:: ");
+
+		/* For the seconde layer. 
+		 * Focusing on the hundred-position number.
+		 */
+		switch (nexthop->inactive_reason / 100)
+		{
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+				vty_out(vty, "\tnexthop_active:: ");
+				break;
+			case 5:
+			case 6:
+				vty_out(vty, "\tnexthop_seg_active:: ");
+				break;
+			default:
+				vty_out(vty, "\tMissed out!, inactive_reason:%u\n", nexthop->inactive_reason);
+				break;
+		}
+		/* For the explicit reasons. */
+		switch (nexthop->inactive_reason % 100)
+		{
+			case 11:
+				vty_out(vty, "NEXTHOP_TYPE_IFINDEX: Interface does not exist or is not operative or the interface is down.\n");
+				break;
+			case 12:
+				vty_out(vty, "NEXTHOP_TYPE_IPV6_IFINDEX: Interface does not exist or is not operative or the interface is down.\n");
+				break;
+			case 13:
+				vty_out(vty, "Nexthop marked onlink but nhif doesn't exist.\n");
+				break;
+			case 14:
+				vty_out(vty, "Nexthop marked onlink but nhif is not operational.\n");
+				break;
+			case 15:
+			case 22:
+				vty_out(vty, "Attempting to install a max prefixlength route through itself.\n");
+				break;
+			case 16:
+				vty_out(vty, "Table not found.\n");
+				break;
+			case 17:
+				vty_out(vty, "Matched against ourself and prefix length is not max bit length.\n");
+				break;
+			case 18:
+				vty_out(vty, "Resolved against default route.\n");
+				break;
+			case 19:
+				vty_out(vty, "NEXTHOP_TYPE_*_IFINDEX but ifindex doesn't match what was found.\n");
+				break;
+			case 20:
+				vty_out(vty, "Route Type has not turned on recursion.\n");
+				break;
+			case 21:
+			case 24:
+				vty_out(vty, "Nexthop did not look up in table.\n");
+				break;
+			//case 22 is merged with case 15
+			case 23:
+				vty_out(vty, "Policy is not matching.\n");
+				break;
+			//case 24 is merged with case 21
+			default:
+				vty_out(vty, "\tMissed out!, inactive_reason:%u\n", nexthop->inactive_reason);
+				break;
+		}
+	}
+	vty_out(vty, "\tfor more: inactive_reason: %u\n", nexthop->inactive_reason);
+}
+
+/*
  * Helper api to format output for a nexthop, used in the 'detailed'
  * output path.
  */
@@ -465,6 +598,14 @@ static void show_nexthop_detail_helper(struct vty *vty,
         else
             vty_out(vty, ", srv6tunnel(endpoint|color):unknown tunnel");
     }
+
+	/* Print the supplementary debug info for inactive routes
+	 */
+	if (!CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE))
+	{
+		vty_out(vty, "\ndebug: \n");
+		vty_show_inactive_route_debug_info(vty, nexthop);
+	}	
 }
 
 static void zebra_show_ip_route_opaque(struct vty *vty, struct route_entry *re,

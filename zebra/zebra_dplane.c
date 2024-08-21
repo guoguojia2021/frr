@@ -2752,6 +2752,7 @@ int dplane_ctx_lsp_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 		/* Need to copy flags and backup info too */
 		new_nhlfe->flags = nhlfe->flags;
 		new_nhlfe->nexthop->flags = nhlfe->nexthop->flags;
+		new_nhlfe->nexthop->inactive_reason = nhlfe->nexthop->inactive_reason;
 
 		if (CHECK_FLAG(new_nhlfe->nexthop->flags,
 			       NEXTHOP_FLAG_HAS_BACKUP)) {
@@ -2786,6 +2787,7 @@ int dplane_ctx_lsp_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 		/* Need to copy flags too */
 		new_nhlfe->flags = nhlfe->flags;
 		new_nhlfe->nexthop->flags = nhlfe->nexthop->flags;
+		new_nhlfe->nexthop->inactive_reason = nhlfe->nexthop->inactive_reason;
 	}
 
 	/* On error the ctx will be cleaned-up, so we don't need to
@@ -3652,6 +3654,7 @@ dplane_lsp_notif_update(struct zebra_lsp *lsp, enum dplane_op_e op,
 			/* Need to copy flags too */
 			new_nhlfe->flags = nhlfe->flags;
 			new_nhlfe->nexthop->flags = nhlfe->nexthop->flags;
+			new_nhlfe->nexthop->inactive_reason = nhlfe->nexthop->inactive_reason;
 		}
 	}
 
