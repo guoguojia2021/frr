@@ -727,7 +727,7 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 				as = strtoul(buf, &endptr, 10);
 				if (*endptr != '\0' || as == BGP_AS4_MAX)
 					goto error;
-				if (*token == ecommunity_token_color || as > 3)
+				if (*token == ecommunity_token_color && as > 3)
 					goto error;
 			}
 		} else if (*p == '.') {
