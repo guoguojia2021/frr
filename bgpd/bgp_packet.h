@@ -86,6 +86,10 @@ extern int bgp_process_packet(struct thread *);
 
 extern void bgp_send_delayed_eor(struct bgp *bgp);
 
+void bgp_packet_record_queue_enque(struct packet_queue *que, struct stream *stream_ptk);
+void bgp_packet_record_queue_show(struct peer *pstpeer, bool isoutque);
+void bgp_packet_record_queue_init(struct peer *pstpeer);
+
 /* Task callback to handle socket error encountered in the io pthread */
 int bgp_packet_process_error(struct thread *thread);
 

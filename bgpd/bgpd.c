@@ -1827,6 +1827,7 @@ struct peer *peer_create(union sockunion *su, const char *conf_if,
 				   ? BGP_DEFAULT_IBGP_ROUTEADV
 				   : BGP_DEFAULT_EBGP_ROUTEADV;
 
+	bgp_packet_record_queue_init(peer);
 	peer = peer_lock(peer); /* bgp peer list reference */
 	peer->group = group;
 	listnode_add_sort(bgp->peer, peer);

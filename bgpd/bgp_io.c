@@ -397,6 +397,8 @@ static uint16_t bgp_write(struct peer *peer)
 			s = stream_fifo_pop(peer->obuf_hprio);
 		else
 			s = stream_fifo_pop(peer->obuf);
+		
+		bgp_packet_record_queue_enque(&peer->outque, s);
 
 		assert(s == ostreams[i]);
 

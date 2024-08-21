@@ -1156,6 +1156,14 @@ struct llgr_info {
 	uint8_t flags;
 };
 
+#define PACKET_QUEUE_MAXSIZE 5
+struct packet_queue {
+	int head;
+	int tail;
+	char buf[PACKET_QUEUE_MAXSIZE][BGP_MAX_PACKET_SIZE];
+	time_t pkt_time[PACKET_QUEUE_MAXSIZE];
+};
+
 /* BGP neighbor structure. */
 struct peer {
 	/* BGP structure.  */
@@ -1204,6 +1212,10 @@ struct peer {
 			     * BGP_READ_PACKET_MAX];
 	struct ringbuf *ibuf_work; // WiP buffer used by bgp_read() only
 	struct stream *obuf_work;  // WiP buffer used to construct packets
+
+	/* using inque and outque to record peer packet for debugging */
+	struct packet_queue inque;
+	struct packet_queue outque;
 
 	struct stream *curr; // the current packet being parsed
 

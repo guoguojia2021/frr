@@ -1488,6 +1488,12 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 			   bgp->established_peers);
 	}
 
+	if ((status != Established) && (peer->status == Established)) {
+		bgp_packet_record_queue_show(peer, true);
+		bgp_packet_record_queue_show(peer, false);
+		bgp_packet_record_queue_init(peer);
+	}
+
 	/* Set to router ID to the value provided by RIB if there are no peers
 	 * in the established state and peer count did not change
 	 */

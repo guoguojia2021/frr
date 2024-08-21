@@ -2872,6 +2872,7 @@ int bgp_process_packet(struct thread *thread)
 
 		frr_with_mutex(&peer->io_mtx) {
 			peer->curr = stream_fifo_pop(peer->ibuf);
+			bgp_packet_record_queue_enque(&peer->inque, peer->curr);
 		}
 
 		if (peer->curr == NULL) // no packets to process, hmm...
@@ -3052,4 +3053,105 @@ int bgp_packet_process_error(struct thread *thread)
 	bgp_event_update(peer, code);
 
 	return 0;
+}
+
+void bgp_packet_record_queue_enque(struct packet_queue *que, struct stream *stream_pkt)
+{
+	if (NULL == stream_pkt)	return;
+	que->tail ++;
+	que->tail = que->tail % PACKET_QUEUE_MAXSIZE;
+	que->pkt_time[que->tail] = monotime(NULL);
+	memcpy(que->buf[que->tail], stream_pkt->data, stream_pkt->endp);
+	if (-1 == que->head) {
+		que->head = 0;
+	}
+	else if (que->tail == que->head) {
+		que->head ++;
+		que->head = que->head % PACKET_QUEUE_MAXSIZE;
+	}
+	return;
+}
+
+void bgp_packet_record_queue_init(struct peer *pstpeer)
+{
+	memset(&pstpeer->inque, 0, sizeof(pstpeer->inque));
+	memset(&pstpeer->outque, 0, sizeof(pstpeer->outque));
+	pstpeer->inque.tail = -1;
+	pstpeer->inque.head = -1;
+	pstpeer->outque.tail = -1;
+	pstpeer->outque.head = -1;
+	return;
+}
+
+void bgp_packet_record_queue_show(struct peer *pstpeer, bool isoutque)
+{
+	struct packet_queue *pstqueue = NULL;
+	uint8_t *pbuf = NULL;
+	const char *tmpstr = NULL;
+	const char *tmpstr1 = NULL;
+	char timebuf[MONOTIME_STRLEN];
+	char str_pkt[BGP_MAX_PACKET_SIZE*4];
+	uint8_t type = 0;
+	uint16_t size = 0;
+	uint32_t tmp_index = 0;
+	int strlenth = 0;
+	int tmphead = 0;
+
+	if (isoutque) {
+		tmpstr = "send";
+		tmpstr1 = "to";
+		pstqueue = &pstpeer->outque;
+	}
+	else {
+		tmpstr = "reveive";
+		tmpstr1 = "from";
+		pstqueue = &pstpeer->inque;
+	}
+
+	tmphead = pstqueue->head;
+	if (-1 == tmphead)	return;
+
+	for ( ; ; ) {
+		pbuf = (uint8_t*)pstqueue->buf[tmphead];
+		size = pbuf[BGP_MARKER_SIZE] << 8;
+		size |= pbuf[BGP_MARKER_SIZE + 1];
+		type = pbuf[BGP_MARKER_SIZE + 2];
+		memset(str_pkt, 0, sizeof(str_pkt));
+		tmp_index = 0;
+		time_to_string(pstqueue->pkt_time[tmphead], timebuf);
+
+		switch (type) {
+			case BGP_MSG_OPEN:
+				strlenth = snprintf(str_pkt, sizeof(str_pkt), "%s : %s  open packet %s peer %s\n", timebuf, tmpstr, tmpstr1, pstpeer->host);
+				break;
+			case BGP_MSG_UPDATE:
+				strlenth = snprintf(str_pkt, sizeof(str_pkt), "%s : %s  update packet %s peer %s\n", timebuf, tmpstr, tmpstr1, pstpeer->host);
+				break;
+			case BGP_MSG_KEEPALIVE:
+				strlenth = snprintf(str_pkt, sizeof(str_pkt), "%s : %s  keepalive packet %s peer %s\n", timebuf, tmpstr, tmpstr1, pstpeer->host);
+				break;
+			case BGP_MSG_NOTIFY:
+				strlenth = snprintf(str_pkt, sizeof(str_pkt), "%s : %s  notification packet %s peer %s\n", timebuf, tmpstr, tmpstr1, pstpeer->host);
+				break;
+			default:
+				break;
+		}
+		for (int j = 0; j < size; j ++) {
+			strlenth += snprintf(str_pkt + strlenth, sizeof(str_pkt), "%.2x", pbuf[j]);
+			tmp_index ++;
+			if (tmp_index == 16) {
+				strlenth += snprintf(str_pkt + strlenth, sizeof(str_pkt), "%c", '\n');
+				tmp_index = 0;
+			}
+		}
+		if (size > 0) {
+			zlog_info("%s", str_pkt);
+		}
+		if (tmphead == pstqueue->tail) {
+			break;
+		}
+		tmphead ++;
+		tmphead %= PACKET_QUEUE_MAXSIZE;
+		strlenth = 0;
+	}
 }
