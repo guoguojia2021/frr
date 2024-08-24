@@ -1359,11 +1359,10 @@ static const char *metric_type_name(enum srte_candidate_metric_type type)
 
 DEFPY(show_segment_list_detail,
       show_segment_list_detail_cmd,
-      "show sr-te segment-list detail",
+      "show sr-te segment-list",
       SHOW_STR
       "SR-TE info\n"
-      "Segment List\n"
-      "Show a detailed summary\n")
+      "Segment List\n")
 {
 	struct srte_segment_list *s_list;
 	struct srte_segment_entry *s_entry;
