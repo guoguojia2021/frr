@@ -153,7 +153,7 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 	peer = UPDGRP_PEER(updgrp);
 	addpath_capable = bgp_addpath_encode_tx(peer, afi, safi);
 
-	if (BGP_DEBUG(update, UPDATE_OUT))
+	if (bgp_debug_update(NULL, bgp_dest_get_prefix(ctx->dest), updgrp, 0))
 		zlog_debug("%s: afi=%s, safi=%s, p=%pRN", __func__,
 			   afi2str(afi), safi2str(safi),
 			   bgp_dest_to_rnode(ctx->dest));
@@ -539,13 +539,13 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 	    && !CHECK_FLAG(subgrp->sflags, SUBGRP_STATUS_FORCE_UPDATES)
 	    && adj->attr_hash == attr_hash) {
 		if (!CHECK_FLAG(bgp->alibgp_flags, BGP_FLAG_ADV_FORCE_UPDATES)) {
-			if (BGP_DEBUG(update, UPDATE_OUT)) {
+			if (bgp_debug_update(NULL, bgp_dest_get_prefix(dest), subgrp->update_group, 0)) {
 				char attr_str[BUFSIZ] = {0};
 
 				bgp_dump_attr(attr, attr_str, sizeof(attr_str));
 
-				zlog_debug("%s suppress UPDATE w/ attr: %s-%u", peer->host,
-					attr_str, bgp->alibgp_flags);
+				zlog_debug("%s suppress UPDATE dest %p tx_id %d p %pFX  w/ attr: %s-%u", peer->host, dest,
+					adj->addpath_tx_id, bgp_dest_get_prefix(dest), attr_str, bgp->alibgp_flags);
 			}
 			return;
 		}

@@ -334,7 +334,7 @@ static int bgp_dest_set_defer_flag(struct bgp_dest *dest, bool delete)
 		return 0;
 
 	if (CHECK_FLAG(dest->flags, BGP_NODE_PROCESS_SCHEDULED)) {
-		if (BGP_DEBUG(update, UPDATE_OUT))
+		if (bgp_debug_bestpath(dest))
 			zlog_debug(
 				"Route %pBD is in workqueue and being processed, not deferred.",
 				dest);
@@ -384,7 +384,7 @@ static int bgp_dest_set_defer_flag(struct bgp_dest *dest, bool delete)
 			if (!CHECK_FLAG(dest->flags, BGP_NODE_SELECT_DEFER))
 				bgp->gr_info[afi][safi].gr_deferred++;
 			SET_FLAG(dest->flags, BGP_NODE_SELECT_DEFER);
-			if (BGP_DEBUG(update, UPDATE_OUT))
+			if (bgp_debug_bestpath(dest))
 				zlog_debug("DEFER route %pBD, dest %p", dest,
 					   dest);
 			return 0;
@@ -1555,13 +1555,13 @@ static enum filter_type bgp_in_filter_run(struct peer *peer, const struct prefix
 					 struct attr *attr, struct bgp_filter *filter)
 {
 	enum filter_type ret = FILTER_PERMIT;
-#define FILTER_EXIST_WARN(F, f, filter)                                        \
-	if (BGP_DEBUG(update, UPDATE_IN) && !(F##_IN(filter)))                 \
+#define FILTER_EXIST_WARN(F, f, filter, p)                                        \
+	if (bgp_debug_update(peer, p, NULL, 1) && !(F##_IN(filter)))                 \
 		zlog_debug("%s: Could not find configured input %s-list %s!",  \
 			   peer->host, #f, F##_IN_NAME(filter));
 
 	if (DISTRIBUTE_IN_NAME(filter)) {
-		FILTER_EXIST_WARN(DISTRIBUTE, distribute, filter);
+		FILTER_EXIST_WARN(DISTRIBUTE, distribute, filter, p);
 
 		if (access_list_apply(DISTRIBUTE_IN(filter), p)
 		    == FILTER_DENY) {
@@ -1571,7 +1571,7 @@ static enum filter_type bgp_in_filter_run(struct peer *peer, const struct prefix
 	}
 
 	if (PREFIX_LIST_IN_NAME(filter)) {
-		FILTER_EXIST_WARN(PREFIX_LIST, prefix, filter);
+		FILTER_EXIST_WARN(PREFIX_LIST, prefix, filter, p);
 
 		if (prefix_list_apply(PREFIX_LIST_IN(filter), p)
 		    == PREFIX_DENY) {
@@ -1581,7 +1581,7 @@ static enum filter_type bgp_in_filter_run(struct peer *peer, const struct prefix
 	}
 
 	if (FILTER_LIST_IN_NAME(filter)) {
-		FILTER_EXIST_WARN(FILTER_LIST, as, filter);
+		FILTER_EXIST_WARN(FILTER_LIST, as, filter, p);
 
 		if (as_list_apply(FILTER_LIST_IN(filter), attr->aspath)
 		    == AS_FILTER_DENY) {
@@ -1621,13 +1621,13 @@ static enum filter_type bgp_out_filter_run(struct peer *peer, const struct prefi
 					 struct attr *attr, struct bgp_filter *filter)
 {
 	enum filter_type ret = FILTER_PERMIT;
-#define FILTER_EXIST_WARN(F, f, filter)                                        \
-	if (BGP_DEBUG(update, UPDATE_OUT) && !(F##_OUT(filter)))               \
+#define FILTER_EXIST_WARN(F, f, filter, p)                                        \
+	if (bgp_debug_update(peer, p, NULL, 0) && !(F##_OUT(filter)))               \
 		zlog_debug("%s: Could not find configured output %s-list %s!", \
 			   peer->host, #f, F##_OUT_NAME(filter));
 
 	if (DISTRIBUTE_OUT_NAME(filter)) {
-		FILTER_EXIST_WARN(DISTRIBUTE, distribute, filter);
+		FILTER_EXIST_WARN(DISTRIBUTE, distribute, filter, p);
 
 		if (access_list_apply(DISTRIBUTE_OUT(filter), p)
 		    == FILTER_DENY) {
@@ -1637,7 +1637,7 @@ static enum filter_type bgp_out_filter_run(struct peer *peer, const struct prefi
 	}
 
 	if (PREFIX_LIST_OUT_NAME(filter)) {
-		FILTER_EXIST_WARN(PREFIX_LIST, prefix, filter);
+		FILTER_EXIST_WARN(PREFIX_LIST, prefix, filter, p);
 
 		if (prefix_list_apply(PREFIX_LIST_OUT(filter), p)
 		    == PREFIX_DENY) {
@@ -1647,7 +1647,7 @@ static enum filter_type bgp_out_filter_run(struct peer *peer, const struct prefi
 	}
 
 	if (FILTER_LIST_OUT_NAME(filter)) {
-		FILTER_EXIST_WARN(FILTER_LIST, as, filter);
+		FILTER_EXIST_WARN(FILTER_LIST, as, filter, p);
 
 		if (as_list_apply(FILTER_LIST_OUT(filter), attr->aspath)
 		    == AS_FILTER_DENY) {
@@ -2086,8 +2086,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	if (CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX_OUT) &&
 	    peer->pmax_out[afi][safi] != 0 &&
 	    subgrp->pscount >= peer->pmax_out[afi][safi]) {
-		if (BGP_DEBUG(update, UPDATE_OUT) ||
-		    BGP_DEBUG(update, UPDATE_PREFIX)) {
+		if (bgp_debug_update(NULL, bgp_dest_get_prefix(dest), subgrp->update_group, 0)) {
 			zlog_debug("%s reached maximum prefix to be send (%u)",
 				   peer->host, peer->pmax_out[afi][safi]);
 		}
@@ -3285,8 +3284,8 @@ void subgroup_process_announce_selected(struct update_subgroup *subgrp,
 	onlypeer = ((SUBGRP_PCOUNT(subgrp) == 1) ? (SUBGRP_PFIRST(subgrp))->peer
 						 : NULL);
 
-	if (BGP_DEBUG(update, UPDATE_OUT))
-		zlog_debug("%s: p=%pFX, selected=%p", __func__, p, selected);
+	if (bgp_debug_update(NULL, p, subgrp->update_group, 0))
+		zlog_debug("%s: des %p flags %x p=%pFX, selected=%p", __func__, dest, dest->flags, p, selected);
 
 	/* First update is deferred until ORF or ROUTE-REFRESH is received */
 	if (onlypeer && CHECK_FLAG(onlypeer->af_sflags[afi][safi],
@@ -3706,7 +3705,7 @@ static void bgp_process_main_one(struct bgp *bgp, struct bgp_dest *dest,
 	 * BGP_NODE_SELECT_DEFER is set
 	 */
 	if (CHECK_FLAG(dest->flags, BGP_NODE_SELECT_DEFER)) {
-		if (BGP_DEBUG(update, UPDATE_OUT))
+		if (debug)
 			zlog_debug("SELECT_DEFER flag set for route %p", dest);
 		return;
 	}
@@ -4083,7 +4082,7 @@ void bgp_process(struct bgp *bgp, struct bgp_dest *dest, afi_t afi, safi_t safi)
 	 * the workqueue
 	 */
 	if (CHECK_FLAG(dest->flags, BGP_NODE_SELECT_DEFER)) {
-		if (BGP_DEBUG(update, UPDATE_OUT))
+		if (bgp_debug_bestpath(dest))
 			zlog_debug("BGP_NODE_SELECT_DEFER set for route %p",
 				   dest);
 		return;
@@ -6440,8 +6439,7 @@ void bgp_set_stale_route(struct peer *peer, afi_t afi, safi_t safi)
 					    && !CHECK_FLAG(
 						       pi->flags,
 						       BGP_PATH_UNUSEABLE)) {
-						if (bgp_debug_neighbor_events(
-							    peer))
+						if (bgp_debug_update(peer, bgp_dest_get_prefix(ndest), NULL, 1))
 							zlog_debug(
 								"%s: route-refresh for %s/%s, marking prefix %pFX as stale",
 								peer->host,
@@ -8049,7 +8047,7 @@ static bool aggr_suppress_path(struct bgp_aggregate *aggregate,
 
 	/* Only mark for processing if suppressed. */
 	if (listcount(pie->aggr_suppressors) == 1) {
-		if (BGP_DEBUG(update, UPDATE_OUT))
+		if (bgp_debug_bestpath(pi->net))
 			zlog_debug("aggregate-address suppressing: %pFX",
 				   bgp_dest_get_prefix(pi->net));
 
@@ -8076,7 +8074,7 @@ static bool aggr_unsuppress_path(struct bgp_aggregate *aggregate,
 
 	/* Unsuppress and free extra memory if last item. */
 	if (listcount(pi->extra->aggr_suppressors) == 0) {
-		if (BGP_DEBUG(update, UPDATE_OUT))
+		if (bgp_debug_bestpath(pi->net))
 			zlog_debug("aggregate-address unsuppressing: %pFX",
 				   bgp_dest_get_prefix(pi->net));
 

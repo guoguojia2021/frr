@@ -778,8 +778,7 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 				return NULL;
 			}
 
-			if (BGP_DEBUG(update, UPDATE_OUT)
-			    || BGP_DEBUG(update, UPDATE_PREFIX)) {
+			if (bgp_debug_update(NULL, dest_p, subgrp->update_group, 0)) {
 				memset(send_attr_str, 0, BUFSIZ);
 				send_attr_printed = 0;
 				bgp_dump_attr(adv->baa->attr, send_attr_str,

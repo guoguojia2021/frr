@@ -54,10 +54,10 @@ bgp_check_rmap_prefixes_in_bgp_table(struct bgp_table *table,
 
 			if (ret == RMAP_PERMITMATCH) {
 				bgp_dest_unlock_node(dest);
-				if (BGP_DEBUG(update, UPDATE_OUT))
+				if (bgp_debug_update(NULL, dest_p, NULL, 1))
 					zlog_debug(
-						"%s: Condition map routes present in BGP table",
-						__func__);
+						"%s: Prefix %pFX, path %p, Condition map routes present in BGP table",
+						__func__, dest_p, pi);
 
 				return ret;
 			}

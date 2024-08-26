@@ -2911,11 +2911,14 @@ int bgp_process_packet(struct thread *thread)
 						  memory_order_relaxed);
 			peer->readtime = monotime(NULL);
 			mprc = bgp_update_receive(peer, size);
-			if (mprc == BGP_Stop)
-				flog_err(
-					EC_BGP_UPDATE_RCV,
-					"%s: BGP UPDATE receipt failed for peer: %s",
-					__func__, peer->host);
+			if (mprc == BGP_Stop) {
+				if(bgp_debug_update(peer, NULL, NULL, 1)) {
+					flog_err(
+						EC_BGP_UPDATE_RCV,
+							"%s: BGP UPDATE receipt failed for peer: %s",
+							__func__, peer->host);
+				}
+			}		
 			break;
 		case BGP_MSG_NOTIFY:
 			frrtrace(2, frr_bgp, notification_process, peer, size);
