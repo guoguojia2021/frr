@@ -661,6 +661,8 @@ AC_ARG_ENABLE([ospfclient],
                           (this is the default if --disable-ospfapi is set)]))
 AC_ARG_ENABLE([multipath],
   AS_HELP_STRING([--enable-multipath=ARG], [enable multipath function, ARG must be digit]))
+AC_ARG_ENABLE([localvrfleak],
+  AS_HELP_STRING([--enable-localvrfleak=ARG], [enable localvrfleak function, ARG must be digit]))
 AC_ARG_WITH([service_timeout],
   AS_HELP_STRING([--with-service-timeout=ARG], [set service timeout value (2 minutes by default), ARG must be digit]))
 AC_ARG_ENABLE([user],
@@ -931,6 +933,14 @@ case "${enable_multipath}" in
 esac
 
 AC_DEFINE_UNQUOTED([MULTIPATH_NUM], [$MPATH_NUM], [Maximum number of paths for a route])
+
+LOCAL_VRF_LEAK_ENABLE=1
+
+if test "$CONFIGURED_PLATFORM" == "cisco";then
+    LOCAL_VRF_LEAK_ENABLE=0
+fi
+
+AC_DEFINE_UNQUOTED([LOCAL_VRF_IMPORT_ENABLE], [$LOCAL_VRF_LEAK_ENABLE], [Disable the default function of importing routes between local VRFs through RTs.])
 
 AC_DEFINE_UNQUOTED([VTYSH_PAGER], ["$VTYSH_PAGER"], [What pager to use])
 

@@ -2138,11 +2138,17 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 	struct ecommunity_val *eval;
 	struct ecommunity *ecom;
 	struct bgp_irt_node *irt;
+	char buf_prefix[PREFIX_STRLEN];
+
+	if (info_vpn->extra && info_vpn->extra->parent && !bm->local_vrf_leak_enable) {
+		prefix2str(&info_vpn->net->p, buf_prefix, sizeof(buf_prefix));
+		zlog_debug("local vrf import is disable: prefix: %s", buf_prefix);
+		return;
+	}
 
 	memset(bitmap, 0, ROUND_UP(BGP_VRF_RANGE, BITMAP_ULONG_BITS));
 
 	if (!info_vpn->attr || !info_vpn->attr->ecommunity) {
-		char buf_prefix[PREFIX_STRLEN];
 		prefix2str(&info_vpn->net->p, buf_prefix, sizeof(buf_prefix));
 		zlog_debug("none attr error (info_vpn=%s)", buf_prefix);
 		return;

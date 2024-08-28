@@ -1628,6 +1628,18 @@ DEFPY(bgp_community_alias, bgp_community_alias_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFPY (bgp_local_vrf_leak_enable,
+       bgp_local_vrf_leak_enable_cmd,
+       "[no] bgp local-vrf-leak-enable",
+       NO_STR
+       BGP_STR
+       "Advertise only routes that are programmed in kernel to peers globally\n")
+{
+	bgp_local_vrf_leak_enable_set(!no);
+
+	return CMD_SUCCESS;
+}
+
 DEFPY (bgp_global_suppress_fib_pending,
        bgp_global_suppress_fib_pending_cmd,
        "[no] bgp suppress-fib-pending",
@@ -18178,6 +18190,9 @@ int bgp_config_write(struct vty *vty)
 	if (bm->wait_for_fib)
 		vty_out(vty, "bgp suppress-fib-pending\n");
 
+	if (!bm->local_vrf_leak_enable)
+		vty_out(vty, "no bgp local-vrf-leak-enable\n");
+
 	if (CHECK_FLAG(bm->flags, BM_FLAG_GRACEFUL_SHUTDOWN))
 		vty_out(vty, "bgp graceful-shutdown\n");
 
@@ -18818,6 +18833,7 @@ void bgp_vty_init(void)
 
 	/* "bgp suppress-fib-pending" global */
 	install_element(CONFIG_NODE, &bgp_global_suppress_fib_pending_cmd);
+	install_element(CONFIG_NODE, &bgp_local_vrf_leak_enable_cmd);
 
 	/* bgp route-map delay-timer commands. */
 	install_element(CONFIG_NODE, &bgp_set_route_map_delay_timer_cmd);

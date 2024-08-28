@@ -195,6 +195,8 @@ struct bgp_master {
     struct hash *vrf_import_rt_hash;
     unsigned long *bitmap_leakvrf;
 
+	bool local_vrf_leak_enable;
+
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(bgp_master);

@@ -406,6 +406,14 @@ void bgp_router_id_static_set(struct bgp *bgp, struct in_addr id)
 			  true /* is config */);
 }
 
+void bgp_local_vrf_leak_enable_set(bool set)
+{
+	if (bm->local_vrf_leak_enable == set)
+		return;
+
+	bm->local_vrf_leak_enable = set;
+}
+
 void bm_wait_for_fib_set(bool set)
 {
 	bool send_msg = false;
@@ -8554,6 +8562,7 @@ void bgp_master_init(struct thread_master *master, const int buffer_size,
 	bm->terminating = false;
 	bm->socket_buffer = buffer_size;
 	bm->wait_for_fib = false;
+	bm->local_vrf_leak_enable = LOCAL_VRF_IMPORT_ENABLE;
 
 	bgp_mac_init();
 	/* init the rd id space.
