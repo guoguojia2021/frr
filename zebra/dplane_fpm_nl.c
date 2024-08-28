@@ -897,7 +897,11 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 	if (obytes_peak < obytes)
 		atomic_store_explicit(&fnc->counters.obuf_peak, obytes,
 				      memory_order_relaxed);
-
+	if (IS_ZEBRA_DEBUG_FPMSYNCD) {
+		zlog_debug("%s: op(%d) %s socket(%d) buffer(%zu) write(%zu)", __func__,
+			dplane_ctx_get_op(ctx), dplane_op2str(dplane_ctx_get_op(ctx)),
+			fnc->socket, STREAM_WRITEABLE(fnc->obuf), nl_buf_len + FPM_HEADER_SIZE);
+	}
 	/* Tell the thread to start writing. */
 	thread_add_write(fnc->fthread->master, fpm_write, fnc, fnc->socket,
 			 &fnc->t_write);

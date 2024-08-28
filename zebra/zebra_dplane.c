@@ -3195,6 +3195,10 @@ dplane_route_update_internal(struct route_node *rn,
 		if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
 			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 		}
+		if (nexthop && CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)
+			&& re->type == ZEBRA_ROUTE_STATIC)
+			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
+
 		dplane_ctx_set_flags(ctx, flags);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.

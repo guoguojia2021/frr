@@ -2131,7 +2131,7 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 			return 0;
 	}
 
-	if (IS_ZEBRA_DEBUG_KERNEL)
+	if (IS_ZEBRA_DEBUG_FPMSYNCD)
 		zlog_debug(
 			"%s: %s %pFX vrf %u(%u), fpm:%d", __func__,
 			nl_msg_type_to_str(cmd), p, dplane_ctx_get_vrf(ctx),

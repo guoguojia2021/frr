@@ -2779,6 +2779,14 @@ static struct nexthop *nexthop_set_resolved(afi_t afi,
 		nexthop_add_srv6_seg6(resolved_hop,
 				      &nexthop->nh_srv6->seg6_segs,
 				      &nexthop->nh_srv6->seg6_src);
+	} else if (newhop->nh_srv6) {
+		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+		nexthop_add_srv6_seg6local(resolved_hop,
+					   newhop->nh_srv6->seg6local_action,
+					   &newhop->nh_srv6->seg6local_ctx);
+		nexthop_add_srv6_seg6(resolved_hop,
+				      &newhop->nh_srv6->seg6_segs,
+				      &newhop->nh_srv6->seg6_src);
 	}
 	resolved_hop->rparent = nexthop;
 	_nexthop_add(&nexthop->resolved, resolved_hop);
@@ -2795,7 +2803,14 @@ static struct nexthop *nexthop_seg_set_resolved(afi_t afi,
 	struct nexthop *resolved_hop;
 
 	resolved_hop = nexthop_new();
-	nexthop_copy_no_recurse(resolved_hop, nexthop, nexthop);
+	if (policy == NULL && policy_num == 0) {
+		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+		nexthop_copy(resolved_hop, newhop, nexthop);
+		_nexthop_add(&nexthop->resolved, resolved_hop);
+		return resolved_hop;
+	}
+	else
+		nexthop_copy_no_recurse(resolved_hop, nexthop, nexthop);
 
 	if (policy) {
 		if (policy_num < policy->srv6_segment_list.path_num) {
@@ -3329,7 +3344,12 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 
 				SET_FLAG(nexthop->flags,
 					 NEXTHOP_FLAG_RECURSIVE);
-				resolver = nexthop_set_resolved(afi, newhop,
+				if (newhop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+					|| newhop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
+					nexthop_seg_set_resolved(afi,
+								newhop, nexthop, NULL, 0);
+				else
+					resolver = nexthop_set_resolved(afi, newhop,
 								nexthop, NULL);
 				resolved = 1;
 
@@ -3365,7 +3385,12 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 
 				SET_FLAG(nexthop->flags,
 					 NEXTHOP_FLAG_RECURSIVE);
-				nexthop_set_resolved(afi, newhop, nexthop,
+				if (newhop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+					|| newhop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
+					nexthop_seg_set_resolved(afi,
+							newhop, nexthop, NULL, 0);
+				else
+					nexthop_set_resolved(afi, newhop, nexthop,
 						     NULL);
 				resolved = 1;
 			}
