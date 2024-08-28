@@ -551,6 +551,13 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 		}
 	}
 
+	if (bgp_debug_update(NULL, bgp_dest_get_prefix(dest), subgrp->update_group, 0)) {
+		char attr_str[BUFSIZ] = {0};
+		bgp_dump_attr(attr, attr_str, sizeof(attr_str));
+		zlog_debug("%s: %s UPDATE dest %p tx_id %d p %pFX  w/ attr: %s flags %x", 
+					__func__, peer->host, dest, adj->addpath_tx_id, bgp_dest_get_prefix(dest), attr_str, dest->flags);
+	}
+
 	if (adj->adv)
 		bgp_advertise_clean_subgroup(subgrp, adj);
 	adj->adv = bgp_advertise_new();
@@ -606,15 +613,21 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 				uint32_t addpath_tx_id,
 				uint32_t wait_addpath_tx_id)
 {
-	struct bgp_adj_out *adj;
+	struct bgp_adj_out *adj = adj_lookup(dest, subgrp, addpath_tx_id);
 	struct bgp_advertise *adv;
+	struct peer *peer = SUBGRP_PEER(subgrp);
 	bool trigger_write;
 
 	if (DISABLE_BGP_ANNOUNCE)
 		return;
 
-	/* Lookup existing adjacency */
-	adj = adj_lookup(dest, subgrp, addpath_tx_id);
+	if (bgp_debug_update(NULL, bgp_dest_get_prefix(dest), subgrp->update_group, 0)) {
+		char attr_str[BUFSIZ] = {0};
+		zlog_debug("%s: %s Withdraw dest %p tx_id %d p %pFX flags %x adj %s", 
+					__func__, peer->host, dest, addpath_tx_id, bgp_dest_get_prefix(dest), dest->flags, 
+					(adj == NULL)? "Null" : "Not null");
+	}
+
 	if (adj != NULL) {
 		/* Clean up previous advertisement.  */
 		if (adj->adv)
