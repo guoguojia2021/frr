@@ -1161,7 +1161,8 @@ static void bmp_eor(struct bmp *bmp, afi_t afi, safi_t safi, uint8_t flags, stru
 
 static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 				 struct peer *peer, struct attr *attr,
-				 afi_t afi, safi_t safi, int addpath_encode, uint32_t addpath_rx_id)
+				 afi_t afi, safi_t safi, int addpath_encode, uint32_t addpath_rx_id,
+				 mpls_label_t *label, uint32_t num_labels)
 {
 	struct bpacket_attr_vec_arr vecarr;
 	struct stream *s;
@@ -1196,7 +1197,7 @@ static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 
 		mpattrlen_pos = bgp_packet_mpattr_start(s, peer, afi, safi,
 				&vecarr, attr);
-		bgp_packet_mpattr_prefix(s, afi, safi, p, prd, NULL, 0, addpath_encode, addpath_rx_id,
+		bgp_packet_mpattr_prefix(s, afi, safi, p, prd, label, num_labels, addpath_encode, addpath_rx_id,
 					 attr);
 		bgp_packet_mpattr_end(s, mpattrlen_pos);
 		total_attr_len += stream_get_endp(s) - p1;
@@ -1210,7 +1211,8 @@ static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 
 static struct stream *bmp_withdraw(const struct prefix *p,
 				   struct prefix_rd *prd, afi_t afi,
-				   safi_t safi, int addpath_encode, uint32_t addpath_rx_id)
+				   safi_t safi, int addpath_encode, uint32_t addpath_rx_id,
+				   mpls_label_t *label, uint32_t num_labels)
 {
 	struct stream *s;
 	size_t attrlen_pos = 0, mp_start, mplen_pos;
@@ -1235,7 +1237,7 @@ static struct stream *bmp_withdraw(const struct prefix *p,
 		mp_start = stream_get_endp(s);
 		mplen_pos = bgp_packet_mpunreach_start(s, afi, safi);
 
-		bgp_packet_mpunreach_prefix(s, p, afi, safi, prd, NULL, 0, addpath_encode, addpath_rx_id,
+		bgp_packet_mpunreach_prefix(s, p, afi, safi, prd, label, num_labels, addpath_encode, addpath_rx_id,
 					    NULL);
 		/* Set the mp_unreach attr's length */
 		bgp_packet_mpunreach_end(s, mplen_pos);
@@ -1252,7 +1254,8 @@ static struct stream *bmp_withdraw(const struct prefix *p,
 static void bmp_monitor(struct bmp *bmp, struct peer *peer, uint8_t flags,
 			const struct prefix *p, struct prefix_rd *prd,
 			struct attr *attr, afi_t afi, safi_t safi,
-			time_t uptime, uint32_t addpath_rx_id)
+			time_t uptime, uint32_t addpath_rx_id, mpls_label_t *label,
+			uint32_t num_labels)
 {
 	struct stream *hdr, *msg;
 	struct timeval tv = { .tv_sec = uptime, .tv_usec = 0 };
@@ -1268,12 +1271,12 @@ static void bmp_monitor(struct bmp *bmp, struct peer *peer, uint8_t flags,
 	monotime_to_realtime(&tv, &uptime_real);
 	if (attr)
 	{
-		msg = bmp_update(p, prd, peer, attr, afi, safi, addpath_encode, addpath_rx_id);
+		msg = bmp_update(p, prd, peer, attr, afi, safi, addpath_encode, addpath_rx_id, label, num_labels);
 		bmp->bmp_stat.bmp_stat_rm_update++;
 	}
 	else
 	{
-		msg = bmp_withdraw(p, prd, afi, safi, addpath_encode, addpath_rx_id);
+		msg = bmp_withdraw(p, prd, afi, safi, addpath_encode, addpath_rx_id, label, num_labels);
 		bmp->bmp_stat.bmp_stat_rm_withdraw++;
 	}
 
@@ -1442,7 +1445,9 @@ static bool bmp_wrsync_monitor(struct bgp *bgp, struct bmp *bmp, afi_t afi, safi
 
 	if (bpi)
 		bmp_monitor(bmp, bpi->peer, BMP_PEER_FLAG_L, bn_p, prd, bpi->attr,
-			    afi, safi, bpi->uptime, bpi->addpath_rx_id);
+			    afi, safi, bpi->uptime, bpi->addpath_rx_id,
+			    bpi->extra ? bpi->extra->label : NULL,
+			    bpi->extra ? bpi->extra->num_labels : 0);
 	return true;
 }
 
@@ -1659,7 +1664,9 @@ static bool bmp_wrqueue(struct bmp *bmp, struct pullwr *pullwr)
 		bmp_monitor(bmp, peer, BMP_PEER_FLAG_L, &bqe->p, prd,
 			    bpi ? bpi->attr : NULL, afi, safi,
 			    bpi ? bpi->uptime : monotime(NULL), 
-			    bpi ? bpi->addpath_rx_id : 0);
+			    bpi ? bpi->addpath_rx_id : 0,
+			    bpi && bpi->extra ? bpi->extra->label : NULL,
+			    bpi && bpi->extra ? bpi->extra->num_labels : 0);
 		
 		bmp->bmp_stat.bmp_stat_rm_adj_in_post_policy++;
 		written = true;
