@@ -540,7 +540,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
 
 
 void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *vrf_name,
-    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct ipaddr *nexthop)
+    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct ipaddr *nexthop, const bool sidmarking)
 {
     int ret;
     char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
@@ -558,6 +558,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     DB_FieldValue_List *pstDataLst_argu_len = NULL;
     DB_FieldValue_List *pstDataLst_action = NULL;
     DB_FieldValue_List *pstDataLst_vrf = NULL;
+    DB_FieldValue_List *pstDataLst_sidmarking = NULL;
     DB_FieldValue_List *pstDataLst_ifname = NULL;
     DB_FieldValue_List *pstDataLst_nhp = NULL;
 
@@ -651,6 +652,19 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     }
     pstDataLst_action->next = pstDataLst_vrf;
 
+    /* sidmarking */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "sidmarking");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%d", sidmarking);
+    pstDataLst_sidmarking = create_DB_Data(key, field, value);
+    if (pstDataLst_sidmarking == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create sidmarking field segment failed.");
+        return;
+    }
+    pstDataLst_vrf->next = pstDataLst_sidmarking;
+
     /* ifname */
     snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "ifname");
@@ -662,7 +676,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
         zlog_err("create vrf field segment failed.");
         return;
     }
-    pstDataLst_vrf->next = pstDataLst_ifname;
+    pstDataLst_sidmarking->next = pstDataLst_ifname;
 
     /* nexthop */
     if (nexthop)

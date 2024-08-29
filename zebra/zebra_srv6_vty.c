@@ -529,6 +529,8 @@ DEFUN (show_srv6_locator_detail,
 				vty_out(vty, "    nexthop %s\n", ifbuf);
 			}
 			vty_out(vty, "    vrf %s\n", sid->vrfName);
+			if(ZEBRA_SEG6_ACTION_IS_END_DT46(sid->sidaction))
+				vty_out(vty, "    service-sid-marking %d\n", sid->sidmarking);
 		}
 
 		vty_out(vty, "  end-x ecmp:\n");
@@ -832,7 +834,7 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 DEFPY (locator_prefix,
 		locator_prefix_cmd,
 		"opcode WORD \
-		 <end | end-dt46 vrf VIEWVRFNAME | end-dt4 vrf VIEWVRFNAME | end-dt6 vrf VIEWVRFNAME | \
+		 <end | end-dt46 vrf VIEWVRFNAME [service-sid-marking] | end-dt4 vrf VIEWVRFNAME [service-sid-marking] | end-dt6 vrf VIEWVRFNAME [service-sid-marking] | \
 		 end-x interface IFNAME$ifname nexthop <A.B.C.D|X:X::X:X>$nhp>",
 		"Configure SRv6 locator prefix\n"
 		"Specify SRv6 locator hex opcode\n"
@@ -840,12 +842,15 @@ DEFPY (locator_prefix,
 		"Apply the code to an End.DT46 SID\n"
 		"vrf\n"
 		"vrf\n"
+		"sid marking\n"
 		"Apply the code to an End.DT4 SID\n"
 		"vrf\n"
 		"vrf\n"
+		"sid marking\n"
 		"Apply the code to an End.DT6 SID\n"
 		"vrf\n"
 		"vrf\n"
+		"sid marking\n"
 		"Apply the code to an End.X SID\n"
 		"Select an interface to configure\n"
 		"Interface's name\n"
@@ -877,6 +882,7 @@ DEFPY (locator_prefix,
 	bool is_found_ua_param = false;
 	bool is_found_unua_param = false;
 	bool is_found_endx_param = false;
+	bool sidmarking = false;
 
 	char buf[BUFSIZ] = {0};
 	enum seg6local_action_t sidaction = ZEBRA_SEG6_LOCAL_ACTION_UNSPEC;
@@ -924,6 +930,10 @@ DEFPY (locator_prefix,
 			vty_out(vty, "%% Malformed address\n");
 			return CMD_WARNING;
 		}
+	}
+
+	if (argv_find(argv, argc, "service-sid-marking", &idx)) {
+		sidmarking = true;
 	}
 
 	prefix = argv[1]->arg;
@@ -1163,6 +1173,7 @@ DEFPY (locator_prefix,
 		sid = srv6_locator_sid_alloc();
 		sid->sidaction = sidaction;
 		sid->sidtype = ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT;
+		sid->sidmarking = sidmarking;
 
 		if (vrfName != NULL)
 			strlcpy(sid->vrfName, vrfName, VRF_ALIASNAMESIZ);
@@ -1634,14 +1645,20 @@ static int zebra_sr_config(struct vty *vty)
 				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT4) {
 					vty_out(vty, " end-dt4");
 					vty_out(vty, " vrf %s", sid->vrfName);
+					if (sid->sidmarking)
+						vty_out(vty, " service-sid-marking");
 				}
 				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT6) {
 					vty_out(vty, " end-dt6");
 					vty_out(vty, " vrf %s", sid->vrfName);
+					if (sid->sidmarking)
+						vty_out(vty, " service-sid-marking");
 				}
 				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_DT46) {
 					vty_out(vty, " end-dt46");
 					vty_out(vty, " vrf %s", sid->vrfName);
+					if (sid->sidmarking)
+						vty_out(vty, " service-sid-marking");
 				}
 				else if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
 					vty_out(vty, " end-x");

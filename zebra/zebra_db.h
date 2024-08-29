@@ -20,7 +20,8 @@ extern void zebra_db_init(void);
 extern int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen);
 
 extern void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *vrf_name,
-                    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct ipaddr *nexthop);
+                    enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct ipaddr *nexthop,
+                    const bool sidmarking);
 extern void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct seg6local_context *ctx);
 
 

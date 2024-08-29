@@ -664,7 +664,7 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 		if (act == ZEBRA_SEG6_LOCAL_ACTION_END_X)
 			zebra_Db_Set_SRV6_LOCAL_ENDX_SID(&result_sid, vrf->name, act, &ctx, sid_endx_ecmp->sid_endx_params);
 		else
-        	zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx, sid->ifname, &sid->nexthop);
+			zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx, sid->ifname, &sid->nexthop, sid->sidmarking);
 		if ((locator->compress == false && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT) ||
 			(locator->compress == true && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN)) {
 			zebra_route_add(&result_sid, vrf, act, &ctx);

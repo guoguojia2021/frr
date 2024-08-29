@@ -181,6 +181,7 @@ struct seg6_sid {
 	char ifname[INTERFACE_NAMSIZ];
 	struct ipaddr nexthop;
 	enum seg6local_sid_type_t sidtype;
+	bool sidmarking;
 };
 
 struct seg6_sid_msg {
