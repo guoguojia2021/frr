@@ -6478,7 +6478,7 @@ void bgp_set_stale_route(struct peer *peer, afi_t afi, safi_t safi)
 				    && !CHECK_FLAG(pi->flags, BGP_PATH_STALE)
 				    && !CHECK_FLAG(pi->flags,
 						   BGP_PATH_UNUSEABLE)) {
-					if (bgp_debug_neighbor_events(peer))
+					if (bgp_debug_update(peer, bgp_dest_get_prefix(dest), NULL, 1))
 						zlog_debug(
 							"%s: route-refresh for %s/%s, marking prefix %pFX as stale",
 							peer->host,
