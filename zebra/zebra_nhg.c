@@ -3009,7 +3009,7 @@ static int resolve_backup_nexthops(const struct nexthop *nexthop,
  * Set the nexthop->ifindex and resolution info as appropriate.
  */
 static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
-			  const struct prefix *top, int type, uint32_t flags,
+			  const struct prefix *top, struct route_entry *re,
 			  uint32_t *pmtu)
 {
 	struct prefix p;
@@ -3025,6 +3025,8 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 	struct in_addr local_ipv4;
 	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
+	int type = re->type;
+	uint32_t flags = re->flags;
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	if ((nexthop->type == NEXTHOP_TYPE_IPV4)
@@ -3123,7 +3125,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 		return 1;
 	}
 
-	if (top
+	if ((re->vrf_id == nexthop->vrf_id) && top
 	    && ((top->family == AF_INET && top->prefixlen == IPV4_MAX_BITLEN
 		 && nexthop->gate.ipv4.s_addr == top->u.prefix4.s_addr)
 		|| (top->family == AF_INET6 && top->prefixlen == IPV6_MAX_BITLEN
@@ -3214,7 +3216,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 		 * resolved by a route NH1. The exception is if the route is a
 		 * host route.
 		 */
-		if (prefix_same(&rn->p, top))
+		if ((re->vrf_id == nexthop->vrf_id) && prefix_same(&rn->p, top))
 			if (((afi == AFI_IP)
 			     && (rn->p.prefixlen != IPV4_MAX_BITLEN))
 			    || ((afi == AFI_IP6)
@@ -3599,8 +3601,7 @@ static unsigned nexthop_active_check(struct route_node *rn,
 
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IFINDEX:
-		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
-				   re->flags, &mtu))
+		if (nexthop_active(nexthop, nhe, &rn->p, re, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
@@ -3610,8 +3611,7 @@ static unsigned nexthop_active_check(struct route_node *rn,
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
 		family = AFI_IP;
-		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
-				   re->flags, &mtu))
+		if (nexthop_active(nexthop, nhe, &rn->p, re, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
@@ -3620,8 +3620,7 @@ static unsigned nexthop_active_check(struct route_node *rn,
 		break;
 	case NEXTHOP_TYPE_IPV6:
 		family = AFI_IP6;
-		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
-				   re->flags, &mtu))
+		if (nexthop_active(nexthop, nhe, &rn->p, re, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
@@ -3633,8 +3632,7 @@ static unsigned nexthop_active_check(struct route_node *rn,
 		if (rn->p.family != AF_INET)
 			family = AFI_IP6;
 
-		if (nexthop_active(nexthop, nhe, &rn->p, re->type,
-				   re->flags, &mtu))
+		if (nexthop_active(nexthop, nhe, &rn->p, re, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
