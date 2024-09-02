@@ -94,6 +94,26 @@ static void bgp_unlink_nexthop_check(struct bgp_nexthop_cache *bnc)
 	}
 }
 
+const char *bgp_path_info_nht_debug(struct bgp_path_info *path, char *str, int size)
+{
+	char buf[PREFIX2STR_BUFFER];
+	char peer_buf[SU_ADDRSTRLEN] = "null";
+
+	if ((path == NULL) || (path->net == NULL)) {
+		snprintf(str, size, "NHT path info error, path or path->net is null.");
+		return str;
+	}
+
+	if (path->peer && path->peer->su_remote) {
+		sockunion2str(path->peer->su_remote, peer_buf, sizeof(peer_buf));
+	}
+
+	snprintf(str, size, "NHT path info %s (id: %d) from %s.", 
+			 prefix2str(bgp_dest_get_prefix(path->net), buf, sizeof(buf)), path->addpath_rx_id, peer_buf);
+
+	return str;
+}
+
 void bgp_unlink_nexthop(struct bgp_path_info *path)
 {
 	struct bgp_nexthop_cache *bnc = path->nexthop;
@@ -196,6 +216,17 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	ifindex_t ifindex = 0;
 	bool isServiceRoute = false;
 
+	// if we need print nht log for prefix, format msg here
+	bool nht_debug_print = false;
+	char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";
+
+	if (pi && pi->net) {
+		nht_debug_print = bgp_debug_nht_per_prefix(bgp_dest_get_prefix(pi->net));
+		if (nht_debug_print) {
+			bgp_path_info_nht_debug(pi, nht_debug_buf, sizeof(nht_debug_buf));
+		}
+	}
+
 	if (pi && (pi->attr->srv6_l3vpn || pi->attr->srv6_vpn))
 		isServiceRoute = true;
 
@@ -245,10 +276,10 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 			ifindex = peer->su.sin6.sin6_scope_id;
 
 		if (!sockunion2hostprefix(&peer->su, &p)) {
-			if (BGP_DEBUG(nht, NHT)) {
+			if (nht_debug_print) {
 				zlog_debug(
-					"%s: Attempting to register with unknown AFI %d (not %d or %d)",
-					__func__, afi, AFI_IP, AFI_IP6);
+					"%s: %s Attempting to register with unknown AFI %d (not %d or %d)",
+					__func__, nht_debug_buf, afi, AFI_IP, AFI_IP6);
 			}
 			return 0;
 		}
@@ -265,20 +296,22 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		bnc = bnc_new(tree, &p, 0, 0);
 		bnc->bgp = bgp_nexthop;
 		bnc->ifindex = ifindex;
-		if (BGP_DEBUG(nht, NHT)) {
+		if (nht_debug_print) {
 			char buf[PREFIX2STR_BUFFER];
 
-			zlog_debug("Allocated bnc %s(%u)(%s) peer %p",
+			zlog_debug("%s: %s Allocated bnc %s(%u)(%s) peer %p",
+				   __func__, nht_debug_buf, 
 				   bnc_str(bnc, buf, PREFIX2STR_BUFFER),
 				   bnc->srte_color, bnc->bgp->name_pretty,
 				   peer);
 		}
 	} else {
-		if (BGP_DEBUG(nht, NHT)) {
+		if (nht_debug_print) {
 			char buf[PREFIX2STR_BUFFER];
 
 			zlog_debug(
-				"Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p",
+				"%s: %s Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p",
+				__func__, nht_debug_buf, 
 				bnc_str(bnc, buf, PREFIX2STR_BUFFER),
 				bnc->bgp->name_pretty, bnc->flags, bnc->ifindex,
 				bnc->path_count, bnc->nht_info);
@@ -291,19 +324,21 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		if (!te_bnc) {
 			te_bnc = bnc_new(tree, &p, srte_color, srte_color_flag);
 			te_bnc->bgp = bgp_nexthop;
-			if (BGP_DEBUG(nht, NHT)) {
+			if (nht_debug_print) {
 				char buf[PREFIX2STR_BUFFER];
 
-				zlog_debug("Allocated bnc %s(%u)(%s) peer %p",
+				zlog_debug("%s: %s Allocated bnc %s(%u)(%s) peer %p",
+						__func__, nht_debug_buf, 
 						bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
 						te_bnc->srte_color, te_bnc->bgp->name_pretty,
 						peer);
 			}
 		} else {
-			if (BGP_DEBUG(nht, NHT)) {
+			if (nht_debug_print) {
 				char buf[PREFIX2STR_BUFFER];
 				zlog_debug(
-					"Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
+					"%s: %s Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
+					__func__, nht_debug_buf,
 					bnc_str(te_bnc, buf, PREFIX2STR_BUFFER),
 					te_bnc->bgp->name_pretty, te_bnc->flags, te_bnc->ifindex,
 					te_bnc->path_count, te_bnc->nht_info, te_bnc->srte_color);
@@ -316,19 +351,21 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		if (!te_bnc_backup) {
 			te_bnc_backup = bnc_new(tree, &p, srte_color_backup, srte_color_backup_flag);
 			te_bnc_backup->bgp = bgp_nexthop;
-			if (BGP_DEBUG(nht, NHT)) {
+			if (nht_debug_print) {
 				char buf[PREFIX2STR_BUFFER];
 
-				zlog_debug("Allocated bnc %s(%u)(%s) peer %p",
+				zlog_debug("%s: %s Allocated bnc %s(%u)(%s) peer %p",
+						__func__, nht_debug_buf,
 						bnc_str(te_bnc_backup, buf, PREFIX2STR_BUFFER),
 						te_bnc_backup->srte_color, te_bnc_backup->bgp->name_pretty,
 						peer);
 			}
 		} else {
-			if (BGP_DEBUG(nht, NHT)) {
+			if (nht_debug_print) {
 				char buf[PREFIX2STR_BUFFER];
 				zlog_debug(
-					"Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
+					"%s: %s Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p, color %d",
+					__func__, nht_debug_buf,
 					bnc_str(te_bnc_backup, buf, PREFIX2STR_BUFFER),
 					te_bnc_backup->bgp->name_pretty, te_bnc_backup->flags, te_bnc_backup->ifindex,
 					te_bnc_backup->path_count, te_bnc_backup->nht_info, te_bnc_backup->srte_color);
@@ -1032,10 +1069,17 @@ static int make_prefix(int afi, struct bgp_path_info *pi, struct prefix *p)
 		}
 		break;
 	default:
-		if (BGP_DEBUG(nht, NHT)) {
-			zlog_debug(
-				"%s: Attempting to make prefix with unknown AFI %d (not %d or %d)",
-				__func__, afi, AFI_IP, AFI_IP6);
+		{
+			// If we need print nht log for prefix, format msg here
+			char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";
+			if ((pi && pi->net)) {
+				if (bgp_debug_nht_per_prefix(bgp_dest_get_prefix(pi->net))) {
+					bgp_path_info_nht_debug(pi, nht_debug_buf, sizeof(nht_debug_buf));
+					zlog_debug(
+						"%s: %s Attempting to make prefix with unknown AFI %d (not %d or %d)",
+						__func__, nht_debug_buf, afi, AFI_IP, AFI_IP6);
+				}
+			}
 		}
 		break;
 	}
@@ -1172,6 +1216,17 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 	table = bgp_dest_table(dest);
 	safi = table->safi;
 
+	// If we need print nht log for prefix, format msg here
+	bool nht_debug_print = false;
+	char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";
+	nht_debug_buf[0] = '\0';
+	if (path && path->net) {
+		nht_debug_print = bgp_debug_nht_per_prefix(bgp_dest_get_prefix(path->net));
+		if (nht_debug_print) {
+			bgp_path_info_nht_debug(path, nht_debug_buf, sizeof(nht_debug_buf));
+		}
+	}
+
 	/*
 		* handle routes from other VRFs (they can have a
 		* nexthop in THIS VRF). bgp_path is the bgp instance
@@ -1223,31 +1278,33 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 		if (bgp_update_martian_nexthop(
 				bnc->bgp, afi, safi, path->type,
 				path->sub_type, path->attr, dest)) {
-			if (BGP_DEBUG(nht, NHT))
+			if (nht_debug_print)
 				zlog_debug(
-					"%s: prefix %pBD (vrf %s), ignoring path due to martian or self-next-hop",
-					__func__, dest, bgp_path->name);
+					"%s: %s prefix %pBD (vrf %s), ignoring path due to martian or self-next-hop",
+					__func__, nht_debug_buf, dest, bgp_path->name);
 		} else {
 			bnc_is_valid_nexthop =
 				bgp_isvalid_nexthop(bnc) ? true : false;
 		}
 	}
 
-	if (BGP_DEBUG(nht, NHT)) {
+	if (nht_debug_print) {
 		char buf1[RD_ADDRSTRLEN];
 
 		if (dest->pdest) {
 			prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
 				buf1, sizeof(buf1));
 			zlog_debug(
-				"... eval path %d/%d %pBD RD %s %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
+				"%s: %s ... eval path %d/%d %pBD RD %s %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
+				__func__, nht_debug_buf,
 				afi, safi, dest, buf1,
 				bgp_path->name_pretty, path->flags, bnc->change_flags, path->sub_type,
 				bnc_is_valid_nexthop ? "valid" : "invalid",
 				isServiceRoute ? "yes" : "no", isSrv6TeBnc ? "yes" : "no");
 		} else
 			zlog_debug(
-				"... eval path %d/%d %pBD %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
+				"%s: %s ... eval path %d/%d %pBD %s flags 0x%x chgflags 0x%x subtype%d bnc %s serviceroute %s te %s",
+				__func__, nht_debug_buf,
 				afi, safi, dest, bgp_path->name_pretty,
 				path->flags, bnc->change_flags, path->sub_type,
 				bnc_is_valid_nexthop ? "valid" : "invalid",
@@ -1358,6 +1415,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			bgp_nexthop_dump_bnc_change_flags(bnc, chg_buf,
 							  sizeof(bnc_buf)));
 	}
+	
 	if (bnc->srte_color == 0) {
 		LIST_FOREACH (path, &(bnc->paths), nh_thread) {
 			if (!(path->type == ZEBRA_ROUTE_BGP

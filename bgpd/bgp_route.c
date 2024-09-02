@@ -5180,10 +5180,15 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 				    bgp_path_info_set_flag(dest, pi, BGP_PATH_VALID);
 		    } 
 			else {
-				if (BGP_DEBUG(nht, NHT)) {
-					zlog_debug("%s(%pI4): NH unresolved",
-						   __func__,
+				// If we need print nht log for prefix, format msg here
+				char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";
+				if (pi && pi->net) {
+					if (bgp_debug_nht_per_prefix(bgp_dest_get_prefix(pi->net))) {
+						bgp_path_info_nht_debug(pi, nht_debug_buf, sizeof(nht_debug_buf));
+						zlog_debug("%s: %s (%pI4): NH unresolved",
+						   __func__, nht_debug_buf,
 						   (in_addr_t *)&attr_new->nexthop);
+					}
 				}
 				bgp_path_info_unset_flag(dest, pi,
 							 BGP_PATH_VALID);
@@ -5372,13 +5377,18 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		    if (!CHECK_FLAG(new->extFlags, BGP_PATH_SUPERNET))
 			    bgp_path_info_set_flag(dest, new, BGP_PATH_VALID);
 		else {
-			if (BGP_DEBUG(nht, NHT)) {
-				char buf1[INET6_ADDRSTRLEN];
-				inet_ntop(AF_INET,
-						(const void *)&attr_new->nexthop,
-						buf1, INET6_ADDRSTRLEN);
-				zlog_debug("%s(%s): NH unresolved", __func__,
-						buf1);
+			// If we need print nht log for prefix, format msg here
+			char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";
+			if (new && new->net) {
+				if (bgp_debug_nht_per_prefix(bgp_dest_get_prefix(new->net))) {
+					bgp_path_info_nht_debug(new, nht_debug_buf, sizeof(nht_debug_buf));
+					char buf1[INET6_ADDRSTRLEN];
+					inet_ntop(AF_INET,
+							(const void *)&attr_new->nexthop,
+							buf1, INET6_ADDRSTRLEN);
+					zlog_debug("%s: %s (%s): NH unresolved", __func__, nht_debug_buf,
+							buf1);
+				}
 			}
 			bgp_path_info_unset_flag(dest, new, BGP_PATH_VALID);
 		}

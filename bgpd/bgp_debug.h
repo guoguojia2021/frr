@@ -108,6 +108,7 @@ extern struct list *bgp_debug_update_out_peers;
 extern struct list *bgp_debug_update_prefixes;
 extern struct list *bgp_debug_bestpath_prefixes;
 extern struct list *bgp_debug_zebra_prefixes;
+extern struct list *bgp_debug_nht_prefixes;
 
 /* alibaba begin */
 extern unsigned int conf_bgp_debug_update_strict;
@@ -189,6 +190,7 @@ extern bool bgp_debug_update(const struct peer *peer, const struct prefix *p,
 			     struct update_group *updgrp, unsigned int inbound);
 extern bool bgp_debug_bestpath(struct bgp_dest *dest);
 extern bool bgp_debug_zebra(const struct prefix *p);
+extern bool bgp_debug_nht_per_prefix(const struct prefix *p);
 
 extern const char *bgp_debug_rdpfxpath2str(
 	afi_t afi, safi_t safi, const struct prefix_rd *prd,

@@ -99,6 +99,7 @@ struct list *bgp_debug_update_in_peers = NULL;
 struct list *bgp_debug_update_prefixes = NULL;
 struct list *bgp_debug_bestpath_prefixes = NULL;
 struct list *bgp_debug_zebra_prefixes = NULL;
+struct list *bgp_debug_nht_prefixes = NULL;
 
 /* alibaba begin */
 unsigned int conf_bgp_debug_update_strict;
@@ -880,6 +881,46 @@ DEFUN (debug_bgp_nht,
 	return CMD_SUCCESS;
 }
 
+DEFUN (debug_bgp_nht_prefix, 
+	   debug_bgp_nht_prefix_cmd, 
+	   "debug bgp nht prefix <A.B.C.D/M|X:X::X:X/M>", 
+	   DEBUG_STR 
+	   BGP_STR 
+	   "BGP nexthop tracking events\n" 
+	   "Specify a prefix to debug\n" 
+	   "IPv4 prefix\n" 
+	   "IPv6 prefix\n")
+{
+	int idx_ipv4_ipv6_prefixlen = 4;
+	struct prefix *argv_p;
+
+	argv_p = prefix_new();
+	(void)str2prefix(argv[idx_ipv4_ipv6_prefixlen]->arg, argv_p);
+	apply_mask(argv_p);
+
+	if (!bgp_debug_nht_prefixes)
+		bgp_debug_nht_prefixes = list_new();
+
+	if (bgp_debug_list_has_entry(bgp_debug_nht_prefixes, NULL, argv_p)) {
+		vty_out(vty, "BGP nht debugging is already enabled for %s\n", 
+				argv[idx_ipv4_ipv6_prefixlen]->arg);
+		return CMD_SUCCESS;
+	}
+
+	bgp_debug_list_add_entry(bgp_debug_nht_prefixes, NULL, argv_p);
+
+	if (vty->node == CONFIG_NODE) {
+		DEBUG_ON(nht, NHT);
+	}
+	else {
+		TERM_DEBUG_ON(nht, NHT);
+		vty_out(vty, "BGP nht debugging is on for %s\n", 
+				argv[idx_ipv4_ipv6_prefixlen]->arg);
+	}
+
+	return CMD_SUCCESS;
+}
+
 DEFUN (no_debug_bgp_nht,
        no_debug_bgp_nht_cmd,
        "no debug bgp nht",
@@ -888,12 +929,60 @@ DEFUN (no_debug_bgp_nht,
        BGP_STR
        "BGP nexthop tracking events\n")
 {
+	bgp_debug_list_free(bgp_debug_nht_prefixes);
+
 	if (vty->node == CONFIG_NODE)
 		DEBUG_OFF(nht, NHT);
 	else {
 		TERM_DEBUG_OFF(nht, NHT);
 		vty_out(vty, "BGP nexthop tracking debugging is off\n");
 	}
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_bgp_nht_prefix, 
+	   no_debug_bgp_nht_prefix_cmd, 
+	   "no debug bgp nht prefix <A.B.C.D/M|X:X::X:X/M>", 
+	   NO_STR 
+	   DEBUG_STR 
+	   BGP_STR 
+	   "BGP nexthop tracking events\n" 
+	   "Specify a prefix to debug\n" 
+	   "IPv4 prefix\n" 
+	   "IPv6 prefix\n")
+{
+	int idx_ipv4_ipv6_prefixlen = 5;
+	struct prefix *argv_p;
+	int found_prefix = 0;
+
+	argv_p = prefix_new();
+	(void)str2prefix(argv[idx_ipv4_ipv6_prefixlen]->arg, argv_p);
+	apply_mask(argv_p);
+
+	if (bgp_debug_nht_prefixes && 
+		!list_isempty(bgp_debug_nht_prefixes)) {
+			found_prefix = bgp_debug_list_remove_entry(bgp_debug_nht_prefixes, NULL, argv_p);
+
+			if (list_isempty(bgp_debug_nht_prefixes)) {
+				if (vty->node == CONFIG_NODE) {
+					DEBUG_OFF(nht, NHT);
+				}
+				else {
+					TERM_DEBUG_OFF(nht, NHT);
+					vty_out(vty, "BGP nht debugging is off\n");
+				}
+			}
+	}
+
+	if (found_prefix) {
+		vty_out(vty, "BGP nht debugging if off for %s\n", 
+				argv[idx_ipv4_ipv6_prefixlen]->arg);
+	}
+	else {
+		vty_out(vty, "BGP nht debugging was not enabled for %s\n", 
+				argv[idx_ipv4_ipv6_prefixlen]->arg);
+	}
+
 	return CMD_SUCCESS;
 }
 
@@ -2301,7 +2390,8 @@ DEFUN_NOSH (show_debugging_bgp,
 				     bgp_debug_neighbor_events_peers);
 
 	if (BGP_DEBUG(nht, NHT))
-		vty_out(vty, "  BGP next-hop tracking debugging is on\n");
+		bgp_debug_list_print(vty, "  BGP next-hop tracking debugging is on",
+					 bgp_debug_nht_prefixes);
 
 	if (BGP_DEBUG(update_groups, UPDATE_GROUPS))
 		vty_out(vty, "  BGP update-groups debugging is on\n");
@@ -2400,7 +2490,15 @@ static int bgp_config_write_debug(struct vty *vty)
 	}
 
 	if (CONF_BGP_DEBUG(nht, NHT)) {
-		vty_out(vty, "debug bgp nht\n");
+		if (!bgp_debug_nht_prefixes || 
+			list_isempty(bgp_debug_nht_prefixes)) {
+				vty_out(vty, "debug bgp nht\n");
+				write++;
+		}
+		else {
+			write += bgp_debug_list_conf_print(vty, "debug bgp nht prefix", 
+												bgp_debug_nht_prefixes);
+		}
 		write++;
 	}
 
@@ -2536,8 +2634,6 @@ void bgp_debug_init(void)
 
 	install_element(ENABLE_NODE, &debug_bgp_neighbor_events_cmd);
 	install_element(CONFIG_NODE, &debug_bgp_neighbor_events_cmd);
-	install_element(ENABLE_NODE, &debug_bgp_nht_cmd);
-	install_element(CONFIG_NODE, &debug_bgp_nht_cmd);
 	install_element(ENABLE_NODE, &debug_bgp_keepalive_cmd);
 	install_element(CONFIG_NODE, &debug_bgp_keepalive_cmd);
 	install_element(ENABLE_NODE, &debug_bgp_update_cmd);
@@ -2607,10 +2703,18 @@ void bgp_debug_init(void)
 	install_element(ENABLE_NODE, &no_debug_bgp_keepalive_peer_cmd);
 	install_element(CONFIG_NODE, &no_debug_bgp_keepalive_peer_cmd);
 
-	install_element(ENABLE_NODE, &no_debug_bgp_neighbor_events_cmd);
-	install_element(CONFIG_NODE, &no_debug_bgp_neighbor_events_cmd);
+	/* debug bgp nht prefix A.B.C.D/M */
+	install_element(ENABLE_NODE, &debug_bgp_nht_cmd);
+	install_element(CONFIG_NODE, &debug_bgp_nht_cmd);
+	install_element(ENABLE_NODE, &debug_bgp_nht_prefix_cmd);
+	install_element(CONFIG_NODE, &debug_bgp_nht_prefix_cmd);
 	install_element(ENABLE_NODE, &no_debug_bgp_nht_cmd);
 	install_element(CONFIG_NODE, &no_debug_bgp_nht_cmd);
+	install_element(ENABLE_NODE, &no_debug_bgp_nht_prefix_cmd);
+	install_element(CONFIG_NODE, &no_debug_bgp_nht_prefix_cmd);
+
+	install_element(ENABLE_NODE, &no_debug_bgp_neighbor_events_cmd);
+	install_element(CONFIG_NODE, &no_debug_bgp_neighbor_events_cmd);
 	install_element(ENABLE_NODE, &no_debug_bgp_keepalive_cmd);
 	install_element(CONFIG_NODE, &no_debug_bgp_keepalive_cmd);
 	install_element(ENABLE_NODE, &no_debug_bgp_update_cmd);
@@ -2852,6 +2956,16 @@ bool bgp_debug_zebra(const struct prefix *p)
 			return true;
 	}
 
+	return false;
+}
+
+bool bgp_debug_nht_per_prefix(const struct prefix *p)
+{
+	if (bgp_debug_per_prefix(p, term_bgp_debug_nht, 
+							 BGP_DEBUG_NHT, 
+							 bgp_debug_nht_prefixes))
+		return true;
+	
 	return false;
 }
 

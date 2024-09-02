@@ -21,6 +21,8 @@
 #ifndef _BGP_NHT_H
 #define _BGP_NHT_H
 
+extern const char *bgp_path_info_nht_debug(struct bgp_path_info *path, char *str, int size);
+
 /**
  * bgp_parse_nexthop_update() - parse a nexthop update message from Zebra.
  */
