@@ -47,6 +47,11 @@
 #define ACCEPT_LOCAL_PATH "/proc/sys/net/ipv4/conf/all/accept_local"
 
 #define SOCK_OPT_PRIO_HIGH 6
+// for bfdd server, a read socket will process all bfd pakcets.
+// when bfdd peer has lager, such as 480 peers, or cpu schedule busy
+// bfd packet will be lost for no enough buffer. so expand buffer to 4259840(default 212992).
+#define SOCK_RECV_BUF_SIZE 4259840
+
 /*
  * Prototypes
  */
@@ -83,6 +88,7 @@ static void bp_set_ipopts(int sd);
 static void bp_bind_ip(int sd, uint16_t port);
 static void bp_set_ipv6opts(int sd);
 static void bp_bind_ipv6(int sd, uint16_t port);
+static void bp_set_recv_buffer(int sd, int len);
 
 extern int hardwareBFD;
 
@@ -1272,6 +1278,14 @@ static void bp_bind_ip(int sd, uint16_t port)
 		zlog_fatal("bind-ip: bind: %s", strerror(errno));
 }
 
+static void bp_set_recv_buffer(int sd, int len)
+{
+	setsockopt_so_recvbuf(sd, len);
+	
+	zlog_notice("update socket: %d len %d", sd, len);
+	return;
+}
+
 void bp_set_prio(int sd, int value)
 {
 	int priority = value;
@@ -1294,6 +1308,8 @@ int bp_udp_shop(const struct vrf *vrf)
 
 	bp_set_ipopts(sd);
 	bp_bind_ip(sd, BFD_DEFDESTPORT);
+	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
+
 	return sd;
 }
 
@@ -1310,6 +1326,7 @@ int bp_udp_mhop(const struct vrf *vrf)
 
 	bp_set_ipopts(sd);
 	bp_bind_ip(sd, BFD_DEF_MHOP_DEST_PORT);
+	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
 
 	return sd;
 }
@@ -1623,6 +1640,7 @@ int bp_udp6_shop(const struct vrf *vrf)
 	bp_set_ipv6opts(sd);
 	bp_bind_ipv6(sd, BFD_DEFDESTPORT);
     bp_set_udp6_no_check6(sd);
+	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
 
 	return sd;
 }
@@ -1647,6 +1665,7 @@ int bp_udp6_mhop(const struct vrf *vrf)
 	bp_set_ipv6opts(sd);
 	bp_bind_ipv6(sd, BFD_DEF_MHOP_DEST_PORT);
     bp_set_udp6_no_check6(sd);
+	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
 
 	return sd;
 }
