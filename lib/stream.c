@@ -109,6 +109,8 @@ struct stream *stream_new(size_t size)
 
 	s = XMALLOC(MTYPE_STREAM, sizeof(struct stream) + size);
 
+	s->ddval = 0xD0D0D0D0D0D0D0D0;
+	s->eeval = 0xE0E0E0E0E0E0E0E0;
 	s->getp = s->endp = 0;
 	s->next = NULL;
 	s->size = size;
