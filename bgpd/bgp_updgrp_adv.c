@@ -168,6 +168,8 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 		if (!subgrp->t_coalesce) {
 			/* An update-group that uses addpath */
 			if (addpath_capable) {
+				subgrp_withdraw_stale_addpath(ctx, subgrp);
+
 				/* Process the bestpath last so the "show [ip]
 				 * bgp neighbor x.x.x.x advertised"
 				 * output shows the attributes from the bestpath
@@ -178,7 +180,6 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 						bgp_addpath_id_for_peer(
 							peer, afi, safi,
 							&ctx->pi->tx_addpath), IDALLOC_INVALID);
-				subgrp_withdraw_stale_addpath(ctx, subgrp);
 
 				for (pi = bgp_dest_get_bgp_path_info(ctx->dest);
 				     pi; pi = pi->next) {
@@ -186,10 +187,13 @@ static int group_announce_route_walkcb(struct update_group *updgrp, void *arg)
 					if (pi == ctx->pi)
 						continue;
 
-					adj = adj_lookup(
-					ctx->dest, subgrp,bgp_addpath_id_for_peer(peer, afi, safi, &ctx->pi->tx_addpath));
-					if ((adj != NULL ) && (adj->adv == NULL)  && (CHECK_FLAG(adj->adv->flags, ADV_IN_QUEUE))) {
+					if ((ctx->pi != NULL) &&
+						(CHECK_FLAG(ctx->pi->flags, BGP_PATH_SELECTED))  ) {
 						wait_addpath_tx_id = bgp_addpath_id_for_peer(peer, afi, safi, &ctx->pi->tx_addpath);
+						adj = adj_lookup(ctx->dest, subgrp, wait_addpath_tx_id);
+						if ((adj == NULL) || (adj->adv == NULL)) {
+							wait_addpath_tx_id = IDALLOC_INVALID;
+						}
 					}
 
 					subgroup_process_announce_selected(
