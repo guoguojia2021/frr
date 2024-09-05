@@ -1615,6 +1615,11 @@ void peer_xfer_config(struct peer *peer_dst, struct peer *peer_src)
 			XSTRDUP(MTYPE_BGP_PEER_IFNAME, peer_src->ifname);
 	}
     peer_dst->ttl = peer_src->ttl;
+
+	// Record the last reset reason
+	peer_dst->last_reset = peer_src->last_reset;
+	peer_dst->notify.code = peer_src->notify.code;
+	peer_dst->notify.subcode = peer_src->notify.subcode;
 }
 
 static int bgp_peer_conf_if_to_su_update_v4(struct peer *peer,
@@ -1850,12 +1855,6 @@ struct peer *peer_create(union sockunion *su, const char *conf_if,
 	}
 
 	active = peer_active(peer);
-	if (!active) {
-		if (peer->su.sa.sa_family == AF_UNSPEC)
-			peer->last_reset = PEER_DOWN_NBR_ADDR;
-		else
-			peer->last_reset = PEER_DOWN_NOAFI_ACTIVATED;
-	}
 
 	/* Last read and reset time set */
 	peer->readtime = peer->resettime = bgp_clock();
@@ -1878,6 +1877,13 @@ struct peer *peer_create(union sockunion *su, const char *conf_if,
 			peer->afc[afi][safi] = 1;
 			peer_af_create(peer, afi, safi);
 		}
+	}
+
+	if (!peer_active(peer)) {
+		if (peer->su.sa.sa_family == AF_UNSPEC)
+			peer->last_reset = PEER_DOWN_NBR_ADDR;
+		else
+			peer->last_reset = PEER_DOWN_NOAFI_ACTIVATED;
 	}
 
 	/* auto shutdown if configured */
@@ -8389,9 +8395,11 @@ int peer_clear(struct peer *peer, struct listnode **nnode)
 			return 0;
 
 		peer->v_start = peer->bgp->default_start;
-		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status))
+		if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->status)) {
+			peer->last_reset = PEER_DOWN_USER_RESET;
 			bgp_notify_send(peer, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_ADMIN_RESET);
+		}
 		else
 			bgp_session_reset_safe(peer, nnode);
 	}
