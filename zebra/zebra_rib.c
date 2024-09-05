@@ -645,8 +645,7 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 	 * Make sure we update the FPM any time we send new information to
 	 * the kernel.
 	 */
-	if (old && check_update_fib(old, re))
-		hook_call(rib_update, rn, "installing in kernel");
+	hook_call(rib_update, rn, "installing in kernel");
 
 	/* Send add or update */
 	if (old)
@@ -1399,8 +1398,7 @@ static void rib_process_update_fib(struct zebra_vrf *zvrf,
 #endif
 	}
 	if (new != old || CHECK_FLAG(new->status, ROUTE_ENTRY_CHANGED)) {
-		if (check_update_fib(new, old))
-			hook_call(rib_update, rn, "updating existing route");
+		hook_call(rib_update, rn, "updating existing route");
 		/* Update the nexthop; we could determine here that nexthop is
 		 * inactive. */
 		uint32_t active_nh_num = nexthop_group_active_nexthop_num(&(new->nhe->nhg));
