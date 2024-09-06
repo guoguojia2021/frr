@@ -419,9 +419,10 @@ struct srte_candidate_group {
 	enum detection_status status;
 
 	uint32_t flags;
-#define F_CPATH_GROUP_BEST 0x0001
-#define F_CPATH_GROUP_MODIFIED 0x0002
-#define F_CPATH_GROUP_STATE_CHANGE 0x0004
+#define F_CPATH_GROUP_BEST             0x00000001
+#define F_CPATH_GROUP_BACKUP           0x00000002
+#define F_CPATH_GROUP_MODIFIED         0x00000004
+#define F_CPATH_GROUP_STATE_CHANGE     0x00000008
 };
 
 RB_HEAD(srte_candidate_group_head, srte_candidate_group);
@@ -513,6 +514,9 @@ struct srte_policy {
 
 	/* Best candidate path. */
 	struct srte_candidate_group *best_candidate_group;
+
+	/* Backup candidate path. */
+	struct srte_candidate_group *backup_candidate_group;
 
 	/* Candidate Paths */
 	struct srte_candidate_head candidate_paths;

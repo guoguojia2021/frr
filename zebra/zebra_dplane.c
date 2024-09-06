@@ -2606,21 +2606,13 @@ static void dplane_ctx_nexthop_fill_routeinfo(struct zebra_dplane_ctx *ctx, stru
 	struct nhg_connected *rb_node_dep = NULL;
 
 	nh = nhe->nhg.nexthop;
-	if (nh->nh_srv6 || CHECK_FLAG(nh->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
-		SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NON_RECURSIVE))
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS))
 		SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 
 	nexthop_group_copy(&(ctx->u.rinfo.nhe.ng), &(nhe->nhg));
 
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN)) {
-		SET_FLAG(flags, ZEBRA_FLAG_POLICY_TO_VPN);
-		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN);
-	}
-
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
 	{
-		SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 		if (!zebra_nhg_segdepends_is_empty(nhe))
 			ctx->u.rinfo.nhe.nh_grp_count = zebra_nhg_seg_nhe2grp(
 				ctx->u.rinfo.nhe.nh_grp, nhe, MULTIPATH_NUM);
@@ -3187,18 +3179,13 @@ dplane_route_update_internal(struct route_node *rn,
 	if (ret == AOK) {
 		nexthop = re->nhe->nhg.nexthop;
 		flags = re->flags;
-		if ((nexthop && CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
-			|| CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)
+		if (CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)
 			|| (nexthop->srte_color && re->type == ZEBRA_ROUTE_STATIC)) {
 				SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 		}
-		if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
+		if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS)) {
 			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 		}
-		if (nexthop && CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)
-			&& re->type == ZEBRA_ROUTE_STATIC)
-			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
-
 		dplane_ctx_set_flags(ctx, flags);
 		/* Capture some extra info for update case
 		 * where there's a different 'old' route.
@@ -3209,11 +3196,10 @@ dplane_route_update_internal(struct route_node *rn,
 			old_nexthop = old_re->nhe->nhg.nexthop;
 			old_flags = old_re->flags;
 			/* Assign ZEBRA_FLAG_KERNEL_BYPASS to dplane route info */
-			if ((old_nexthop && CHECK_FLAG(old_nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
-				|| CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
+			if (CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
 					SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
 			}
-			if (CHECK_FLAG(old_re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
+			if (CHECK_FLAG(old_re->nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS)) {
 				SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
 			}
 			dplane_ctx_set_old_flags(ctx, old_flags);

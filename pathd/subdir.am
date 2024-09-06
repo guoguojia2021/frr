@@ -9,6 +9,7 @@ vtysh_scan += \
 	pathd/path_cli.c \
 	pathd/path_ted.c \
 	pathd/path_sbfd.c \
+	pathd/path_debug.c \
 	#end
 vtysh_daemons += pathd
 # TODO add man page

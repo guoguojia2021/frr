@@ -60,10 +60,12 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.",
-				__func__, candidate->preference, candidate->name,
-				CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
-				candidate->status);
+			if (IS_PATHD_DEBUG_SBFD) {
+				zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.",
+					__func__, candidate->preference, candidate->name,
+					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
+					candidate->status);
+			}
 
             if (!candidate->segment_list)
 			{
@@ -73,11 +75,12 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 			{
 				cpath_status_refresh(candidate, status);
 			}
-
-			zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.",
-				__func__, candidate->preference, candidate->name,
-				CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
-				candidate->status);
+			if (IS_PATHD_DEBUG_SBFD) {
+				zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.",
+					__func__, candidate->preference, candidate->name,
+					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
+					candidate->status);
+			}
 
 			if (candidate->status == SRTE_DETECT_UP)
 			{
@@ -238,10 +241,12 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	struct prefix endpoint;
 	memset(&endpoint, 0, sizeof(struct ipaddr));
 
-	zlog_debug("%s:  vrf %s(%u) bfd state %s -> %s",
-			__func__, bfd_sess_vrf(bsp), bfd_sess_vrf_id(bsp),
-			bfd_get_status_str(bss->previous_state),
-			bfd_get_status_str(bss->state));
+	if (IS_PATHD_DEBUG_SBFD) {
+		zlog_debug("%s:  vrf %s(%u) bfd state %s -> %s",
+				__func__, bfd_sess_vrf(bsp), bfd_sess_vrf_id(bsp),
+				bfd_get_status_str(bss->previous_state),
+				bfd_get_status_str(bss->state));
+	}
 	endpoint.family = AF_INET6;
 	endpoint.prefixlen = IPV6_MAX_BITLEN;
 	endpoint.u.prefix6 = bsp->args.sr_endpoint;
@@ -263,13 +268,15 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	}
 
 	if (bss->state == BSS_DOWN && bss->previous_state == BSS_UP) {
-		zlog_debug( "%s:  sidlist %s SBFD DOWN", __func__, segl->name);
+		if (IS_PATHD_DEBUG_SBFD)
+			zlog_debug( "%s:  sidlist %s SBFD DOWN", __func__, segl->name);
 		// seglist sbfd down event
         thread_add_event(master, sbfd_status_event, sbfd_event, BSS_DOWN, NULL);     		
 	}
 
 	if (bss->state == BSS_UP && bss->previous_state != BSS_UP) {
-		zlog_debug( "%s:  sidlist %s SBFD UP", __func__, segl->name);
+		if (IS_PATHD_DEBUG_SBFD)
+			zlog_debug( "%s:  sidlist %s SBFD UP", __func__, segl->name);
 		// seglist sbfd up event
         thread_add_event(master, sbfd_status_event, sbfd_event, BSS_UP, NULL);     		
 	}
@@ -1051,7 +1058,9 @@ static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)
 	if (candidate->status == SRTE_DETECT_DOWN 
 		&& status == BFD_STATUS_UP)
 	{
-		zlog_debug( "%s:  cpath %s's status change to up.", __func__, candidate->name);
+		if (IS_PATHD_DEBUG_SBFD)
+			zlog_debug( "%s:  cpath %s's status change to up.", __func__, candidate->name);
+
 		candidate->status = SRTE_DETECT_UP;
 
 		srv6_refresh_policy_state(candidate->policy);
@@ -1114,8 +1123,9 @@ static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr
 		candidate->my_discriminator = my_discr;
 		if(candidate->status == new_status)
 		    continue;
+		if (IS_PATHD_DEBUG_SBFD)
+			zlog_debug( "cpath:%s state update:%d -> %d", candidate->name, candidate->status, new_status);
 
-        zlog_info( "cpath:%s state update:%d -> %d", candidate->name, candidate->status, new_status);
 		cpath_status_refresh(candidate, new_status);
 		//mark cpath group as changed
 		SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);

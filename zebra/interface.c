@@ -84,7 +84,7 @@ static int if_zebra_speed_update(struct thread *thread)
 		return 1;
 
 	if (new_speed != ifp->speed) {
-		zlog_info("%s: %s old speed: %u new speed: %u", __func__,
+		zlog_debug("%s: %s old speed: %u new speed: %u", __func__,
 			  ifp->name, ifp->speed, new_speed);
 		ifp->speed = new_speed;
 		if_add_update(ifp);

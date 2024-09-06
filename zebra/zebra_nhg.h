@@ -138,14 +138,13 @@ struct nhg_hash_entry {
  */
 #define NEXTHOP_GROUP_FPM (1 << 6)
 
-#define NEXTHOP_GROUP_BYPASS_KERNEL (1 << 7)
+#define NEXTHOP_GROUP_KERNEL_BYPASS (1 << 7)
 
 #define NEXTHOP_GROUP_PIC_NHT           (1 << 8)
 #define NEXTHOP_GROUP_PIC_NON_RECURSIVE (1 << 9)
 #define NEXTHOP_GROUP_SEGMENTLIST       (1 << 10)
 #define NEXTHOP_GROUP_UPDATE            (1 << 11)
 #define NEXTHOP_GROUP_DELETE            (1 << 12)
-#define NEXTHOP_GROUP_POLICY_TO_VPN     (1 << 13)
 #define NEXTHOP_GROUP_LINKLOCAL         (1 << 15)
 };
 
@@ -367,7 +366,6 @@ extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free);
 extern void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);
-extern void zebra_nhg_seg_policy_to_vpn(struct nhg_hash_entry *nhe);
 /* Forward ref of dplane update context type */
 struct zebra_dplane_ctx;
 extern void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx);

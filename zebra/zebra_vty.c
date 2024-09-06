@@ -863,15 +863,23 @@ static void show_route_nexthop_helper(struct vty *vty,
 		}
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-		vty_out(vty, " via %pI4", &nexthop->gate.ipv4);
+		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP))
+			vty_out(vty, " via %pI4(backup)", &nexthop->gate.ipv4);
+		else
+			vty_out(vty, " via %pI4", &nexthop->gate.ipv4);
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
 		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		vty_out(vty, " color %d", nexthop->srte_color);
 		break;
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		vty_out(vty, " via %s",
-			inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
-				  sizeof(buf)));
+		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP))
+			vty_out(vty, " via %s(backup)",
+				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+					sizeof(buf)));
+		else
+			vty_out(vty, " via %s",
+				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+					sizeof(buf)));
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
 		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		vty_out(vty, " color %d", nexthop->srte_color);

@@ -674,20 +674,14 @@ enum zapi_srte_segment_sid_type {
 	ZAPI_SRTE_SEGMENT_SID_TYPE_V6 = 1,
 	ZAPI_SRTE_SEGMENT_SID_TYPE_MPLS = 2,
 };
-struct zapi_srte_segment_entry {
-	uint32_t index;
-    enum zapi_srte_segment_sid_type sid_type;
-	mpls_label_t sid_value;
-	struct ipaddr srv6_sid_value;
-};
 struct zapi_srv6_active_sidlist{
 	char sidlist_name[SRTE_SEGMENTLIST_NAME_MAX_LENGTH];
-	uint32_t segment_count;
-	struct zapi_srte_segment_entry segments[ZEBRA_SID_INDEX_MAX_NUM];
-	uint32_t type;
-#define SRV6_SID_LIST_ADD 0x01
-#define SRV6_SID_LIST_UPDATE 0x02
-#define SRV6_SID_LIST_DEL 0x04
+	uint32_t flags;
+#define SRV6_SID_LIST_ADD        0x01
+#define SRV6_SID_LIST_UPDATE     0x02
+#define SRV6_SID_LIST_DEL        0x04
+#define SRV6_SID_LIST_BEST       0x08
+#define SRV6_SID_LIST_BACKUP     0x10
 	uint8_t weight;
 	uint32_t my_discriminator;
 };

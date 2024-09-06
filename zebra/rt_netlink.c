@@ -1370,13 +1370,13 @@ static ssize_t fill_seg6ipt_encap(char *buffer, size_t buflen,
 	return srhlen + 4;
 }
 
-static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
+static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen, bool is_backup,
 				  const struct in6_addr *seg, const struct in6_addr *src,
 				  const char *segment_name, unsigned int discriminator)
 {
 	struct seg6_iptunnel_encap_pri *ipt;
 	struct ipv6_sr_hdr *srh;
-	const size_t srhlen = 40 + 8 + 64;
+	const size_t srhlen = 8 + 16;
 
 	/*
 	 * Caution: Support only SINGLE-SID, not MULTI-SID
@@ -1387,14 +1387,14 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 	 * argument of the Transit Behavior, we must support variable
 	 * boundary check for buflen.
 	 */
-	if (buflen < (sizeof(struct seg6_iptunnel_encap_pri) +
-		      sizeof(struct ipv6_sr_hdr) + 16))
+	if (buflen < (sizeof(struct seg6_iptunnel_encap_pri) + srhlen))
 		return -1;
 
 	memset(buffer, 0, buflen);
 
 	ipt = (struct seg6_iptunnel_encap_pri *)buffer;
 	ipt->mode = SEG6_IPTUN_MODE_ENCAP;
+	ipt->is_backup = is_backup;
 	srh = ipt->srh;
 	srh->hdrlen = (srhlen >> 3) - 1;
 	srh->type = 4;
@@ -1408,7 +1408,7 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 		ipt->discriminator = discriminator;
 	}
 
-	return srhlen + 4;
+	return sizeof(struct seg6_iptunnel_encap_pri) + srhlen;
 }
 
 /* This function takes a nexthop as argument and adds
@@ -2131,7 +2131,7 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 			return 0;
 	}
 
-	if (IS_ZEBRA_DEBUG_FPMSYNCD)
+	if (IS_ZEBRA_DEBUG_KERNEL)
 		zlog_debug(
 			"%s: %s %pFX vrf %u(%u), fpm:%d", __func__,
 			nl_msg_type_to_str(cmd), p, dplane_ctx_get_vrf(ctx),
@@ -2780,7 +2780,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						return 0;
 					if (fpm) {
 						tun_len = fill_seg6ipt_encap_private(tun_buf,
-						    sizeof(tun_buf),
+						    sizeof(tun_buf), false,
 						    &nh->nh_srv6->seg6_segs,
 						    &nh->nh_srv6->seg6_src, NULL, 0);
 					}
@@ -2803,6 +2803,9 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 					ssize_t tun_len;
 					struct rtattr *nest;
 					struct in6_addr segs = {0};
+					bool is_backup = false;
+					if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_IS_BACKUP))
+						is_backup = true;
 
 					if (!nl_attr_put16(&req->n, buflen,
 						NHA_ENCAP_TYPE,
@@ -2813,21 +2816,17 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 
 					if (!nest)
 						return 0;
-					if (CHECK_FLAG(flag, ZEBRA_FLAG_POLICY_TO_VPN)) {
-						tun_len = fill_seg6ipt_encap_private(tun_buf,
-								sizeof(tun_buf), &segs,
-								&nh->seg6_src, NULL, 0);
-					} else {
-						tun_len = fill_seg6ipt_encap_private(tun_buf,
-								sizeof(tun_buf), &segs,
-								&nh->seg6_src, nh->sidlist_name, nh->my_discriminator);
-					}
+
+					tun_len = fill_seg6ipt_encap_private(tun_buf,
+							sizeof(tun_buf), is_backup, &segs,
+							&nh->seg6_src, nh->sidlist_name, nh->my_discriminator);
 
 					if (tun_len < 0)
 						return 0;
 
 					if (IS_ZEBRA_DEBUG_KERNEL)
-						zlog_debug("%s: id %d src %pI6 segment %s flag %d discriminator %u", __func__, id,
+						zlog_debug("%s: id %d(%s) src %pI6 segment %s flag %d discriminator %u",
+							__func__, id, is_backup ? "backup" : "master",
 							&nh->seg6_src, nh->sidlist_name, flag, nh->my_discriminator);
 
 					if (!nl_attr_put(&req->n, buflen,

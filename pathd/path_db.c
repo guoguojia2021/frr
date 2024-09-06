@@ -10,6 +10,7 @@
 #include "monotime.h"       // for monotime, monotime_since
 
 #include "path_db.h"
+#include "path_debug.h"
 
 #define SRV6_SID_LIST_TABLE "SRV6_SID_LIST_TABLE"
 #define TAG   "0"
@@ -88,13 +89,15 @@ void path_db_init(void)
     if (ret == 0)
     {
         g_bPathRedisInUse = true;
-        zlog_info("Path redis connect success");
+        if (IS_PATHD_DEBUG_DB)
+            zlog_debug("Path redis connect success");
     }
     else
     {
         zlog_err("Path redis connect fail:%s", dbErrMsg);
     }
-    zlog_info("Path redis init end");
+    if (IS_PATHD_DEBUG_DB)
+        zlog_debug("Path redis init end");
 
     return;
 }
@@ -239,7 +242,8 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     }
 
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %s", channel);
+    if (IS_PATHD_DEBUG_DB)
+        zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {
@@ -298,7 +302,8 @@ void sidlist_Db_DelEntry(struct srte_segment_list *segl)
 
     /*publish*/
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %s", channel);
+    if (IS_PATHD_DEBUG_DB)
+        zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
     if (ret)
     {

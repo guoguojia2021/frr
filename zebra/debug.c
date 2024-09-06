@@ -43,6 +43,7 @@ unsigned long zebra_debug_nexthop;
 unsigned long zebra_debug_evpn_mh;
 unsigned long zebra_debug_pbr;
 unsigned long zebra_debug_fpmsyncd;
+unsigned long zebra_debug_srv6;
 
 DEFINE_HOOK(zebra_debug_show_debugging, (struct vty *vty), (vty));
 
@@ -132,6 +133,9 @@ DEFUN_NOSH (show_debugging_zebra,
 
 	if (IS_ZEBRA_DEBUG_FPMSYNCD)
 		vty_out(vty, "  Zebra FPMSYNCD debugging is on\n");
+
+	if (IS_ZEBRA_DEBUG_SRV6)
+		vty_out(vty, "  Zebra SRV6 debugging is on\n");
 
 	hook_call(zebra_debug_show_debugging, vty);
 	return CMD_SUCCESS;
@@ -339,6 +343,17 @@ DEFUN (debug_zebra_fpmsyncd,
        "Debug zebra fpmsyncd events\n")
 {
 	SET_FLAG(zebra_debug_fpmsyncd, ZEBRA_DEBUG_FPMSYNCD);
+	return CMD_SUCCESS;
+}
+
+DEFUN (debug_zebra_srv6,
+       debug_zebra_srv6_cmd,
+       "debug zebra srv6",
+       DEBUG_STR
+       "Zebra configuration\n"
+       "Debug zebra srv6\n")
+{
+	SET_FLAG(zebra_debug_srv6, ZEBRA_DEBUG_SRV6);
 	return CMD_SUCCESS;
 }
 
@@ -570,6 +585,19 @@ DEFUN (no_debug_zebra_fpmsyncd,
 	return CMD_SUCCESS;
 }
 
+DEFUN (no_debug_zebra_srv6,
+       no_debug_zebra_srv6_cmd,
+       "no debug zebra srv6",
+       NO_STR
+       DEBUG_STR
+       "Zebra configuration\n"
+       "Debug zebra srv6\n")
+{
+	zebra_debug_srv6 = 0;
+	return CMD_SUCCESS;
+}
+
+
 DEFPY (debug_zebra_nexthop,
        debug_zebra_nexthop_cmd,
        "[no$no] debug zebra nexthop [detail$detail]",
@@ -724,7 +752,10 @@ static int config_write_debug(struct vty *vty)
 		vty_out(vty, "debug zebra fpmsyncd\n");
 		write++;
 	}
-
+	if (IS_ZEBRA_DEBUG_SRV6) {
+		vty_out(vty, "debug zebra srv6\n");
+		write++;
+	}
 	return write;
 }
 
@@ -745,6 +776,7 @@ void zebra_debug_init(void)
 	zebra_debug_nexthop = 0;
 	zebra_debug_pbr = 0;
 	zebra_debug_fpmsyncd = 0;
+	zebra_debug_srv6 = 0;
 
 	install_node(&debug_node);
 
@@ -773,6 +805,7 @@ void zebra_debug_init(void)
 	install_element(ENABLE_NODE, &no_debug_zebra_packet_cmd);
 	install_element(ENABLE_NODE, &no_debug_zebra_kernel_cmd);
 	install_element(ENABLE_NODE, &debug_zebra_fpmsyncd_cmd);
+	install_element(ENABLE_NODE, &debug_zebra_srv6_cmd);
 #if defined(HAVE_NETLINK)
 	install_element(ENABLE_NODE, &no_debug_zebra_kernel_msgdump_cmd);
 #endif
@@ -782,6 +815,7 @@ void zebra_debug_init(void)
 	install_element(ENABLE_NODE, &no_debug_zebra_pbr_cmd);
 	install_element(ENABLE_NODE, &debug_zebra_evpn_mh_cmd);
 	install_element(ENABLE_NODE, &no_debug_zebra_fpmsyncd_cmd);
+	install_element(ENABLE_NODE, &no_debug_zebra_srv6_cmd);
 
 	install_element(CONFIG_NODE, &debug_zebra_events_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_nht_cmd);
@@ -799,6 +833,7 @@ void zebra_debug_init(void)
 	install_element(CONFIG_NODE, &debug_zebra_nexthop_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_pbr_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_fpmsyncd_cmd);
+	install_element(CONFIG_NODE, &debug_zebra_srv6_cmd);
 
 	install_element(CONFIG_NODE, &no_debug_zebra_events_cmd);
 	install_element(CONFIG_NODE, &no_debug_zebra_nht_cmd);
@@ -814,6 +849,7 @@ void zebra_debug_init(void)
 	install_element(CONFIG_NODE, &no_debug_zebra_dplane_cmd);
 	install_element(CONFIG_NODE, &no_debug_zebra_pbr_cmd);
 	install_element(CONFIG_NODE, &no_debug_zebra_fpmsyncd_cmd);
+	install_element(CONFIG_NODE, &no_debug_zebra_srv6_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_mlag_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_evpn_mh_cmd);
 }

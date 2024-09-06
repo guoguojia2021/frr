@@ -37,6 +37,7 @@
 #include "lib/command.h"
 #include "lib/link_state.h"
 #include "pathd/path_db.h"
+#include "pathd/path_debug.h"
 
 static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS);
 
@@ -165,7 +166,8 @@ static int path_zebra_router_id_update(ZAPI_CALLBACK_ARGS)
 			  vrf_id, pref.family);
 		return 0;
 	}
-	zlog_debug("%s Router Id updated for VRF %u: %s", family, vrf_id, buf);
+	if (IS_PATHD_DEBUG_ZEBRA)
+		zlog_debug("%s Router Id updated for VRF %u: %s", family, vrf_id, buf);
 	return 0;
 }
 
@@ -215,42 +217,28 @@ void path_zebra_delete_sr_policy(struct srte_policy *policy)
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SR_POLICY_DELETE, &zp);
 }
 
-/**
- * Adds a segment routing policy to Zebra.
- *
- * @param policy The policy to add
- * @param segment_list The segment list for the policy
- */
-void path_zebra_add_srv6_policy(struct srte_policy *policy,
-			      struct srte_candidate_group *candidate_group)
+void path_zebra_encode_srv6_policy(struct srte_policy *policy,
+	struct srte_candidate_group *candidate_group, struct zapi_sr_policy *zp)
 {
-	struct zapi_sr_policy zp = {};
-	struct srte_candidate *candidate;
-	uint32_t count = 0;
-	struct srte_segment_entry *s_entry;
-	uint32_t segment_count = 0;
+	char endpoint[46] = {0};
+	struct srte_candidate *candidate, *safe_cpath;
+	uint8_t cpath_count = zp->srv6_tunnel.path_num;
 
-	zp.color = policy->color;
-	zp.endpoint = policy->endpoint;
-	strlcpy(zp.name, policy->name, sizeof(zp.name));
-	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
-	zp.binding_v6sid = policy->binding_v6_sid;
+	if (policy == NULL || candidate_group == NULL)
+		return;
 
-	char endpoint[46], binding_sid[46];
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
-	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
-	RB_FOREACH (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths) {
-
-		if (candidate->segment_list == NULL ) 
+	RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &candidate_group->candidate_paths, safe_cpath) {
+		if (candidate->segment_list == NULL)
 		{
 			continue;
 		}
 
-		if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) 
-		    && candidate->status == SRTE_DETECT_DOWN)
+		if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
+			&& candidate->status == SRTE_DETECT_DOWN)
 		{
-            continue;
+			continue;
 		}
 
 		if (candidate->bfd_name[0] && candidate->status == SRTE_DETECT_DOWN)
@@ -263,37 +251,64 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy,
 			continue;
 		}
 
-		if (count < candidate_group->up_cpath_num)
+		if (cpath_count < candidate_group->up_cpath_num + zp->srv6_tunnel.path_num)
 		{
-			zlog_info("collect UP cpath, color:%u, endpoint:%s, group:%u, cpath:%s, sidlist:%s, bfd_name:%s(%u)",
-				zp.color, endpoint, candidate_group->preference, candidate->name, candidate->segment_list->name,
-				candidate->bfd_name, candidate->my_discriminator);
-
-			strlcpy(zp.srv6_tunnel.sidlists[count].sidlist_name, candidate->segment_list->name,
-				sizeof(zp.srv6_tunnel.sidlists[count].sidlist_name));
-			segment_count = 0;
-			RB_FOREACH (s_entry, srte_segment_entry_head, &candidate->segment_list->segments) {
-				zp.srv6_tunnel.sidlists[count].segments[segment_count].index = s_entry->index;
-				zp.srv6_tunnel.sidlists[count].segments[segment_count].sid_type = s_entry->sid_type;
-				memcpy(&zp.srv6_tunnel.sidlists[count].segments[segment_count].srv6_sid_value, &s_entry->srv6_sid_value, sizeof(struct ipaddr));
-				segment_count++;
+			if (IS_PATHD_DEBUG_ZEBRA) {
+				zlog_debug("collect UP cpath, color:%u, endpoint:%s, group:%u, flags:0x%x, cpathcount:%d, cpath:%s, sidlist:%s, bfd_name:%s(%u)",
+					zp->color, endpoint, candidate_group->preference, candidate_group->flags, cpath_count,
+					candidate->name, candidate->segment_list->name,
+					candidate->bfd_name, candidate->my_discriminator);
 			}
-			zp.srv6_tunnel.sidlists[count].segment_count = segment_count;
-			zp.srv6_tunnel.sidlists[count].weight = candidate->weight;
-			zp.srv6_tunnel.sidlists[count].my_discriminator = candidate->my_discriminator;
-			count++;
+
+			strlcpy(zp->srv6_tunnel.sidlists[cpath_count].sidlist_name, candidate->segment_list->name,
+				sizeof(candidate->segment_list->name));
+
+			zp->srv6_tunnel.sidlists[cpath_count].weight = candidate->weight;
+			zp->srv6_tunnel.sidlists[cpath_count].my_discriminator = candidate->my_discriminator;
+
+			if (CHECK_FLAG(candidate_group->flags, F_CPATH_GROUP_BEST))
+				zp->srv6_tunnel.sidlists[cpath_count].flags |= SRV6_SID_LIST_BEST;
+
+			if (CHECK_FLAG(candidate_group->flags, F_CPATH_GROUP_BACKUP))
+				zp->srv6_tunnel.sidlists[cpath_count].flags |= SRV6_SID_LIST_BACKUP;
+			cpath_count++;
 		}
 	}
+	zp->srv6_tunnel.path_num = cpath_count;
+	return;
+}
+/**
+ * Adds a segment routing policy to Zebra.
+ *
+ * @param policy The policy to add
+ * @param segment_list The segment list for the policy
+ */
+void path_zebra_add_srv6_policy(struct srte_policy *policy)
+{
+	struct zapi_sr_policy zp = {0};
+	struct srte_candidate_group *candidate_group = NULL;
 
-    zp.srv6_tunnel.path_num = count;
+	zp.color = policy->color;
+	zp.endpoint = policy->endpoint;
+	strlcpy(zp.name, policy->name, sizeof(zp.name));
+	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
+	zp.binding_v6sid = policy->binding_v6_sid;
+	zp.srv6_tunnel.path_num = 0;
 
+	char endpoint[46], binding_sid[46];
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
-	zlog_info("notify policy set to zebra, color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
-		zp.color, endpoint, zp.name[0]?zp.name : "-",
-		zp.tunnel_type, zp.srv6_tunnel.path_num,
-		policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
+	candidate_group = policy->best_candidate_group;
+	path_zebra_encode_srv6_policy(policy, candidate_group, &zp);
+	candidate_group = policy->backup_candidate_group;
+	path_zebra_encode_srv6_policy(policy, candidate_group, &zp);
+	if (IS_PATHD_DEBUG_ZEBRA) {
+		zlog_debug("notify policy set to zebra, color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
+			zp.color, endpoint, zp.name[0]?zp.name : "-",
+			zp.tunnel_type, zp.srv6_tunnel.path_num,
+			policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
+	}
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
 }
@@ -318,16 +333,13 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
     char endpoint[60], binding_sid[46];
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
-
-	zlog_info("notify policy del to zebra, color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
-		zp.color, endpoint, zp.name[0]?zp.name : "-",
-		zp.tunnel_type, zp.srv6_tunnel.path_num, 
-		policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
-
+	if (IS_PATHD_DEBUG_ZEBRA) {
+		zlog_debug("notify policy del to zebra, color:%u, endpoint:%s, name:%s, tunnel_type:%u, path_num:%u, binding_sid:%s.",
+			zp.color, endpoint, zp.name[0]?zp.name : "-",
+			zp.tunnel_type, zp.srv6_tunnel.path_num, 
+			policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
+	}
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_DELETE, &zp);
-
-	// char policy_id[128] = {0};
-	// snprintf(policy_id, 128, "%s_%u", endpoint, policy->color);
 
 }
 
@@ -409,13 +421,15 @@ static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS)
 		struct ls_message *msg = ls_parse_msg(s);
 
 		if (msg) {
-			zlog_debug("%s: [rcv ted] ls (%s) msg (%s)-(%s) !",
-				   __func__,
-				   info.type == LINK_STATE_UPDATE
-					   ? "LINK_STATE_UPDATE"
-					   : "LINK_STATE_SYNC",
-				   LS_MSG_TYPE_PRINT(msg->type),
-				   LS_MSG_EVENT_PRINT(msg->event));
+			if (IS_PATHD_DEBUG_ZEBRA) {
+				zlog_debug("%s: [rcv ted] ls (%s) msg (%s)-(%s) !",
+					__func__,
+					info.type == LINK_STATE_UPDATE
+						? "LINK_STATE_UPDATE"
+						: "LINK_STATE_SYNC",
+					LS_MSG_TYPE_PRINT(msg->type),
+					LS_MSG_EVENT_PRINT(msg->event));
+			}
 		} else {
 			zlog_err(
 				"%s: [rcv ted] Could not parse LinkState stream message.",
@@ -429,8 +443,10 @@ static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS)
 		path_ted_segment_list_refresh();
 		break;
 	default:
-		zlog_debug("%s: [rcv ted] unknown opaque event (%d) !",
-			   __func__, info.type);
+		if (IS_PATHD_DEBUG_ZEBRA) {
+			zlog_debug("%s: [rcv ted] unknown opaque event (%d) !",
+				__func__, info.type);
+		}
 		break;
 	}
 

@@ -151,9 +151,9 @@ int main(int argc, char **argv, char **envp)
 	path_zebra_init(master);
 	path_cli_init();
 	path_db_init();
+	pathd_debug_init();
 	sr_sbfd_init();
 	path_ted_init(master);
-
 	frr_config_fork();
 	frr_run(master);
 

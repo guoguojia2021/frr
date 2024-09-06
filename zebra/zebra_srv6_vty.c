@@ -307,27 +307,35 @@ static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
 		char binding_sid[16] = "-";
 		char segmentlist_old[4096] = {0};
 		char segmentlist[4096] = {0};
-		strcat(segmentlist_old, "[ ");
+		strcat(segmentlist_old, "[");
 		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num_old; i++) {
 			char buf[80] = {0};
-			sprintf(buf, "(%s-%d-%u-0x%x)", policy->srv6_segment_list.sidlists_old[i].sidlist_name,
-				policy->srv6_segment_list.sidlists_old[i].weight,
-				policy->srv6_segment_list.sidlists[i].my_discriminator,
-				policy->srv6_segment_list.sidlists_old[i].type);
+			char typebuf[2] = {0};
+			if (CHECK_FLAG(policy->srv6_segment_list.sidlists_old[i].flags, SRV6_SID_LIST_BACKUP))
+				strcat(typebuf, "B");
+			else
+				strcat(typebuf, "M");
+
+			sprintf(buf, "(%s-%u-%s)", policy->srv6_segment_list.sidlists_old[i].sidlist_name,
+				policy->srv6_segment_list.sidlists_old[i].my_discriminator, typebuf);
 			strcat(segmentlist_old, buf);
 		}
-		strcat(segmentlist_old, " ]");
+		strcat(segmentlist_old, "]");
 
-		strcat(segmentlist, "[ ");
+		strcat(segmentlist, "[");
 		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num; i++) {
 			char buf[80] = {0};
-			sprintf(buf, "(%s-%d-%u-0x%x)", policy->srv6_segment_list.sidlists[i].sidlist_name,
-				policy->srv6_segment_list.sidlists[i].weight,
-				policy->srv6_segment_list.sidlists[i].my_discriminator,
-				policy->srv6_segment_list.sidlists[i].type);
+			char typebuf[2] = {0};
+			if (CHECK_FLAG(policy->srv6_segment_list.sidlists[i].flags, SRV6_SID_LIST_BACKUP))
+				strcat(typebuf, "B");
+			else
+				strcat(typebuf, "M");
+
+			sprintf(buf, "(%s-%u-%s)", policy->srv6_segment_list.sidlists[i].sidlist_name,
+				policy->srv6_segment_list.sidlists[i].my_discriminator, typebuf);
 			strcat(segmentlist, buf);
 		}
-		strcat(segmentlist, " ]");
+		strcat(segmentlist, "]");
 		inet_ntop(rn->p.family, &rn->p.u.prefix, endpoint, 60);
 
 		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s|%s", endpoint, policy->color,
@@ -361,11 +369,6 @@ DEFUN (show_srv6_tunnel,
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
 	para.vty = vty;
 	para.tt = tt;
-
-	if (srv6_policy_te2be)
-		vty_out(vty, " SRv6 support TE2BE\n");
-	else
-		vty_out(vty, " SRv6 not support TE2BE\n");
 
 	hash_walk(srte_table_hash, zebra_show_sr_policy_walk, &para);
 	

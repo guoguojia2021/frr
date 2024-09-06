@@ -67,6 +67,7 @@ extern "C" {
 
 struct seg6_iptunnel_encap_pri {
 	int mode;
+	bool is_backup;
 	char segment_name[64];
 	struct in6_addr src;
 	unsigned int discriminator;

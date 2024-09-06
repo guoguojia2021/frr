@@ -3628,12 +3628,7 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 		stream_write(s, &zt->sidlists[i].sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
-		stream_putl(s, zt->sidlists[i].segment_count);
-		for(uint32_t j = 0; j < zt->sidlists[i].segment_count; j++) {
-			stream_putl(s, zt->sidlists[i].segments[j].index);
-			stream_putl(s, zt->sidlists[i].segments[j].sid_type);
-			stream_put_ipaddr(s, &zt->sidlists[i].segments[j].srv6_sid_value);
-		}
+		stream_putl(s, zt->sidlists[i].flags);
 		stream_putl(s, zt->sidlists[i].my_discriminator);
 		stream_putc(s, zt->sidlists[i].weight);
 	}
@@ -3667,19 +3662,13 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 	    STREAM_GET(&zt->sidlists[i].sidlist_name, s, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
-		STREAM_GETL(s, zt->sidlists[i].segment_count);
-		for (uint32_t j = 0; j < zt->sidlists[i].segment_count; j++) {
-			STREAM_GETL(s, zt->sidlists[i].segments[j].index);
-			STREAM_GETL(s, zt->sidlists[i].segments[j].sid_type);
-			STREAM_GET_IPADDR(s, &zt->sidlists[i].segments[j].srv6_sid_value);
-			char srv6_sid_value[46];
-			ipaddr2str(&zt->sidlists[i].segments[j].srv6_sid_value, srv6_sid_value, sizeof(srv6_sid_value));
-			zlog_debug("%s: policy %s, color %d, endpoint %s, sidlist_name %s, index %d, sid_type %d, srv6_sid_value %s, discriminator %u",
-				__func__, zp->name, zp->color, endpoint, zt->sidlists[i].sidlist_name, zt->sidlists[i].segments[j].index,
-				zt->sidlists[i].segments[j].sid_type, srv6_sid_value, zt->sidlists[i].my_discriminator);
-		}
+		STREAM_GETL(s, zt->sidlists[i].flags);
 		STREAM_GETL(s, zt->sidlists[i].my_discriminator);
 		STREAM_GETC(s, zt->sidlists[i].weight);
+		zlog_debug("%s: endpoint %s, color %u, path_num %u, sidlist_name %s, flags 0x%x, my_discriminator %u, weight %u",
+			__func__, endpoint, zp->color, zt->path_num,
+			zt->sidlists[i].sidlist_name, zt->sidlists[i].flags,
+			zt->sidlists[i].my_discriminator, zt->sidlists[i].weight);
 	}
 
 	return 0;

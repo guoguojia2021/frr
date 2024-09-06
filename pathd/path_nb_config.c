@@ -26,6 +26,8 @@
 #include "pathd/path_nb.h"
 #include "pathd/path_sbfd.h"
 #include "pathd/pathd.h"
+#include "pathd/path_debug.h"
+
 struct ipaddr encap_source_address = {
 	.ipa_type = IPADDR_NONE,
 	.ipaddr_v6 = IN6ADDR_ANY_INIT,
@@ -329,7 +331,8 @@ void pathd_srte_segment_list_segment_nai_apply_finish(
 		break;
 	}
 
-	zlog_debug(" Segment list name (%d) index (%s) ", segment->index,
+	if (IS_PATHD_DEBUG_SRV6)
+		zlog_debug(" Segment list name (%d) index (%s) ", segment->index,
 		   segment->segment_list->name);
 	if (srte_segment_entry_set_nai(segment, type, &local_addr, local_iface,
 				       &remote_addr, remote_iface, algo,

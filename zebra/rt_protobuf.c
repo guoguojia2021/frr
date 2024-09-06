@@ -311,7 +311,7 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 {
 	struct seg6_iptunnel_encap_proto *ipt;
 	struct ipv6_sr_hdr *srh;
-	const size_t srhlen = 40 + 8 + 64;
+	const size_t srhlen = 8 + 16;
 
 	/*
 	 * Caution: Support only SINGLE-SID, not MULTI-SID
@@ -322,8 +322,7 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 	 * argument of the Transit Behavior, we must support variable
 	 * boundary check for buflen.
 	 */
-	if (buflen < (sizeof(struct seg6_iptunnel_encap_proto) +
-		      sizeof(struct ipv6_sr_hdr) + 16))
+	if (buflen < (sizeof(struct seg6_iptunnel_encap_proto) + srhlen))
 		return -1;
 
 	memset(buffer, 0, buflen);
@@ -341,7 +340,7 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 	if (segment_name != NULL)
 		memcpy(ipt->segment_name, segment_name, 64);
 
-	return srhlen + 4;
+	return sizeof(struct seg6_iptunnel_encap_proto) + srhlen;
 }
 
 Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,

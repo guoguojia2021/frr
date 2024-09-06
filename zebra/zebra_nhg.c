@@ -641,11 +641,13 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 		}
 	}
 
-	if (nh && (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST || nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST))
+	if (nh && (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST || nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)) {
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
+	}
 
 	if (nh && nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
-		SET_FLAG(nhe->flags, NEXTHOP_GROUP_BYPASS_KERNEL);
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 }
 
 struct nhg_hash_entry *zebra_nhg_alloc(void)
@@ -684,6 +686,8 @@ struct nhg_hash_entry *zebra_nhe_copy(const struct nhg_hash_entry *orig,
 	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_SEGMENTLIST))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
 
+	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_KERNEL_BYPASS))
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 	/* Copy backup info also, if present */
 	if (orig->backup_info)
 		nhe->backup_info = nhg_backup_copy(orig->backup_info);
@@ -973,9 +977,9 @@ void handle_recursive_segdepend(struct nhg_segment_tree_head *nhg_segdepends,
 	for (nh = nexthop; nh; nh = nh->next) {
 
 		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-			zlog_debug("%s: head %p nh %pNHv sidlist_name %s discriminator %utype %d",
+			zlog_debug("%s: head %p nh %pNHv sidlist_name %s discriminator %u type %d flags 0x%x",
 				__func__, nhg_segdepends, nh, nh->sidlist_name,
-				nh->my_discriminator, type);
+				nh->my_discriminator, type, nh->flags);
 
 		segdepends_find_add(nhg_segdepends, nh, afi, type, false, pic);
 	}
@@ -1152,9 +1156,9 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 		(*nhe) = hash_lookup(zrouter.nhgs, lookup_tmp);
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-		zlog_debug("%s: lookup => %p (%u)",
-			   __func__, (*nhe),
-			   (*nhe) ? (*nhe)->id : 0);
+		zlog_debug("%s: lookup => %p (%u) nexthop flags 0x%x",
+			   __func__, (*nhe), (*nhe) ? (*nhe)->id : 0,
+			   nexthop ? nexthop->flags:0);
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 		zebra_nhe_seg_debug_info(lookup_tmp);
@@ -1238,11 +1242,8 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 		/* List of nexthops */
 		for (nh = lookup->nhg.nexthop; nh; nh = nh->next) {
 			if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-				zlog_debug("%s: depends NH %pNHv %s",
-					   __func__, nh,
-					   CHECK_FLAG(nh->flags,
-						      NEXTHOP_FLAG_RECURSIVE) ?
-					   "(R)" : "");
+				zlog_debug("%s: depends NH %pNHv 0x%x",
+					   __func__, nh, nh->flags);
 			if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_RECURSIVE))
 			segdepends_find_add(&newnhe->nhg_segdepends, nh, afi,
 					 newnhe->type, from_dplane, pic);
@@ -1253,7 +1254,7 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 		SET_FLAG(newnhe->flags, NEXTHOP_GROUP_RECURSIVE);
 
 	SET_FLAG(newnhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
-
+	SET_FLAG(newnhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 	/* Attach dependent backpointers to singletons */
 	zebra_nhg_segment_depends(newnhe, &newnhe->nhg_segdepends);
 
@@ -1383,6 +1384,9 @@ static bool zebra_nhe_find(struct nhg_hash_entry **nhe, /* return value */
 	if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE))
 		SET_FLAG(newnhe->flags, NEXTHOP_GROUP_VALID);
 
+	if (nh->nh_srv6 && !sid_zero(&nh->nh_srv6->seg6_segs))
+		SET_FLAG(newnhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+
 	if (nh->next == NULL && newnhe->id < ZEBRA_NHG_PROTO_LOWER) {
 		if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_RECURSIVE)) {
 			/* Single recursive nexthop */
@@ -1499,6 +1503,7 @@ bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value */
 	pic_nh_lookup.type = ZEBRA_ROUTE_NHG;
 	pic_nh_lookup.vrf_id = nhe->vrf_id;
 	SET_FLAG(pic_nh_lookup.flags, NEXTHOP_GROUP_PIC_NHT);
+	SET_FLAG(pic_nh_lookup.flags, NEXTHOP_GROUP_KERNEL_BYPASS);
     /* the nhg.nexthop is sorted */
 	for (nh = nhe->nhg.nexthop; nh; nh = nh->next) {
 		if (nh->type == NEXTHOP_TYPE_IFINDEX)
@@ -1638,8 +1643,8 @@ static struct nhg_hash_entry *zebra_nhg_find_nexthop(uint32_t id,
 	zebra_nhg_find(&nhe, id, &nhg, NULL, NULL, vrf_id, afi, type, from_dplane, pic);
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-		zlog_debug("%s: nh %pNHv => %p (%u)",
-			   __func__, nh, nhe, nhe ? nhe->id : 0);
+		zlog_debug("%s: nh %pNHv => %p (%u) flags 0x%x",
+			   __func__, nh, nhe, nhe ? nhe->id : 0, nh->flags);
 
 	return nhe;
 }
@@ -2780,7 +2785,8 @@ static struct nexthop *nexthop_set_resolved(afi_t afi,
 				      &nexthop->nh_srv6->seg6_segs,
 				      &nexthop->nh_srv6->seg6_src);
 	} else if (newhop->nh_srv6) {
-		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+		if (CHECK_FLAG(newhop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 		nexthop_add_srv6_seg6local(resolved_hop,
 					   newhop->nh_srv6->seg6local_action,
 					   &newhop->nh_srv6->seg6local_ctx);
@@ -2812,16 +2818,21 @@ static struct nexthop *nexthop_seg_set_resolved(afi_t afi,
 	else
 		nexthop_copy_no_recurse(resolved_hop, nexthop, nexthop);
 
+	resolved_hop->flags = 0;
+
 	if (policy) {
 		if (policy_num < policy->srv6_segment_list.path_num) {
 			memcpy(resolved_hop->sidlist_name, policy->srv6_segment_list.sidlists[policy_num].sidlist_name,
 				SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 			resolved_hop->my_discriminator = policy->srv6_segment_list.sidlists[policy_num].my_discriminator;
+
+			if (CHECK_FLAG(policy->srv6_segment_list.sidlists[policy_num].flags, SRV6_SID_LIST_BACKUP))
+				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_BACKUP);
+
 			SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 		}
 	}
 
-	resolved_hop->flags = 0;
 	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
 	_nexthop_add(&nexthop->resolved, resolved_hop);
 
@@ -4338,39 +4349,6 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 		case ZEBRA_DPLANE_REQUEST_SUCCESS:
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
 			zebra_nhg_seg_handle_install(nhe);
-			break;
-		}
-	}
-}
-
-
-void zebra_nhg_seg_policy_to_vpn(struct nhg_hash_entry *nhe)
-{
-	struct nhg_segment *rb_node_dep = NULL;
-	int ret = 0;
-	zlog_info("%s: nhe->id %d, flags %d", __func__, nhe->id, nhe->flags);
-	/* Make sure all depends are installed/queued */
-	frr_each(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
-		SET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_POLICY_TO_VPN);
-		UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
-		zebra_nhg_seg_policy_to_vpn(rb_node_dep->nhe);
-	}
-
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID)
-		&& !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)) {
-		ret = dplane_nexthop_add(nhe);
-		switch (ret) {
-		case ZEBRA_DPLANE_REQUEST_QUEUED:
-			SET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
-			break;
-		case ZEBRA_DPLANE_REQUEST_FAILURE:
-			flog_err(
-				EC_ZEBRA_DP_INSTALL_FAIL,
-				"Failed to install Nexthop ID (%u) into the kernel",
-				nhe->id);
-			break;
-		case ZEBRA_DPLANE_REQUEST_SUCCESS:
-			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
 			break;
 		}
 	}

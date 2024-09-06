@@ -30,6 +30,11 @@
 
 THREAD_DATA char _debug_buff[DEBUG_BUFF_SIZE];
 
+unsigned long pathd_debug_sbfd;
+unsigned long pathd_debug_srv6;
+unsigned long pathd_debug_db;
+unsigned long pathd_debug_zebra;
+
 /**
  * Gives the string representation of an srte_protocol_origin enum value.
  *
@@ -120,4 +125,178 @@ const char *objfun_type_name(enum objfun_type type)
 	default:
 		return "UNKNOWN";
 	}
+}
+
+DEFUN (debug_pathd_sbfd,
+       debug_pathd_sbfd_cmd,
+       "debug pathd sbfd",
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd sbfd\n")
+{
+	pathd_debug_sbfd = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_pathd_sbfd,
+       no_debug_pathd_sbfd_cmd,
+       "no debug pathd sbfd",
+       NO_STR
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd sbfd\n")
+{
+	pathd_debug_sbfd = 0;
+	return CMD_SUCCESS;
+}
+
+DEFUN (debug_pathd_srv6,
+       debug_pathd_srv6_cmd,
+       "debug pathd srv6",
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd srv6\n")
+{
+	pathd_debug_srv6 = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_pathd_srv6,
+       no_debug_pathd_srv6_cmd,
+       "no debug pathd srv6",
+       NO_STR
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd srv6\n")
+{
+	pathd_debug_srv6 = 0;
+	return CMD_SUCCESS;
+}
+
+DEFUN (debug_pathd_db,
+       debug_pathd_db_cmd,
+       "debug pathd db",
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd db\n")
+{
+	pathd_debug_db = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_pathd_db,
+       no_debug_pathd_db_cmd,
+       "no debug pathd db",
+       NO_STR
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd db\n")
+{
+	pathd_debug_db = 0;
+	return CMD_SUCCESS;
+}
+
+DEFUN (debug_pathd_zebra,
+       debug_pathd_zebra_cmd,
+       "debug pathd zebra",
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd zebra\n")
+{
+	pathd_debug_zebra = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_debug_pathd_zebra,
+       no_debug_pathd_zebra_cmd,
+       "no debug pathd zebra",
+       NO_STR
+       DEBUG_STR
+       "Pathd configuration\n"
+       "Debug option set for pathd zebra\n")
+{
+	pathd_debug_zebra = 0;
+	return CMD_SUCCESS;
+}
+
+DEFUN_NOSH (show_debugging_pathd,
+	   show_debugging_pathd_cmd,
+	   "show debugging [pathd]",
+	   SHOW_STR
+	   DEBUG_STR
+	   "Pathd daemon\n")
+{
+	vty_out(vty, "PATHD debugging status:\n");
+	if (pathd_debug_sbfd)
+		vty_out(vty, "  Pathd sbfd debugging is on.\n");
+	if (pathd_debug_srv6)
+		vty_out(vty, "  Pathd srv6 debugging is on.\n");
+	if (pathd_debug_db)
+		vty_out(vty, "  Pathd db debugging is on.\n");
+	if (pathd_debug_zebra)
+		vty_out(vty, "  Pathd zebra debugging is on.\n");
+
+	return CMD_SUCCESS;
+}
+
+/* Debug node. */
+static int config_write_debug(struct vty *vty);
+static struct cmd_node pathd_debug_node = {
+	.name = "debug",
+	.node = DEBUG_NODE,
+	.prompt = "",
+	.config_write = config_write_debug,
+};
+
+
+static int config_write_debug(struct vty *vty)
+{
+	int write = 0;
+
+	if (IS_PATHD_DEBUG_SBFD) {
+		vty_out(vty, "debug pathd sbfd\n");
+		write++;
+	}
+	if (IS_PATHD_DEBUG_SRV6) {
+		vty_out(vty, "debug pathd srv6\n");
+		write++;
+	}
+	if (IS_PATHD_DEBUG_DB) {
+		vty_out(vty, "debug pathd db\n");
+		write++;
+	}
+	if (IS_PATHD_DEBUG_ZEBRA) {
+		vty_out(vty, "debug pathd zebra\n");
+		write++;
+	}
+
+	return write;
+}
+void pathd_debug_init(void)
+{
+	pathd_debug_sbfd = 0;
+	pathd_debug_srv6 = 0;
+	pathd_debug_db = 0;
+	pathd_debug_zebra = 0;
+
+	install_node(&pathd_debug_node);
+
+	install_element(ENABLE_NODE, &debug_pathd_sbfd_cmd);
+	install_element(ENABLE_NODE, &no_debug_pathd_sbfd_cmd);
+	install_element(ENABLE_NODE, &debug_pathd_srv6_cmd);
+	install_element(ENABLE_NODE, &no_debug_pathd_srv6_cmd);
+	install_element(ENABLE_NODE, &debug_pathd_db_cmd);
+	install_element(ENABLE_NODE, &no_debug_pathd_db_cmd);
+	install_element(ENABLE_NODE, &debug_pathd_zebra_cmd);
+	install_element(ENABLE_NODE, &no_debug_pathd_zebra_cmd);
+	install_element(ENABLE_NODE, &show_debugging_pathd_cmd);
+
+	install_element(CONFIG_NODE, &debug_pathd_sbfd_cmd);
+	install_element(CONFIG_NODE, &no_debug_pathd_sbfd_cmd);
+	install_element(CONFIG_NODE, &debug_pathd_srv6_cmd);
+	install_element(CONFIG_NODE, &no_debug_pathd_srv6_cmd);
+	install_element(CONFIG_NODE, &debug_pathd_db_cmd);
+	install_element(CONFIG_NODE, &no_debug_pathd_db_cmd);
+	install_element(CONFIG_NODE, &debug_pathd_zebra_cmd);
+	install_element(CONFIG_NODE, &no_debug_pathd_zebra_cmd);
 }

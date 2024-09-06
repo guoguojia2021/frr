@@ -1297,15 +1297,6 @@ static const char *objfun_type_name(enum objfun_type type)
 	}
 }
 
-DEFPY_NOSH(show_debugging_pathd, show_debugging_pathd_cmd,
-	   "show debugging [pathd]",
-	   SHOW_STR
-	   "State of each debugging option\n"
-	   "pathd module debugging\n")
-{
-	/* nothing to do here */
-	return CMD_SUCCESS;
-}
 
 static const char *metric_type_name(enum srte_candidate_metric_type type)
 {
@@ -1608,7 +1599,6 @@ void path_cli_init(void)
 	install_default(SR_POLICY_NODE);
 	install_default(SR_CANDIDATE_DYN_NODE);
 
-	install_element(ENABLE_NODE, &show_debugging_pathd_cmd);
 	install_element(ENABLE_NODE, &show_srte_policy_cmd);
 	install_element(ENABLE_NODE, &show_srte_policy_detail_cmd);
 	install_element(ENABLE_NODE, &show_srte_filter_policy_detail_cmd);

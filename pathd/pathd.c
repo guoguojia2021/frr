@@ -601,26 +601,32 @@ srte_policy_best_candidate(const struct srte_policy *policy)
 	return NULL;
 }
 
-static struct srte_candidate_group *
-srte_policy_best_candidate_group(const struct srte_policy *policy)
+static int srte_policy_select_candidate_group(struct srte_policy *policy)
 {
 	struct srte_candidate_group *cpath_group;
 	struct srte_candidate *candidate;
-
-	// if (policy->status != SRTE_POLICY_STATUS_UP)
-	// {
-	// 	return NULL;
-	// }
+	bool select_bast = false;
 
 	RB_FOREACH_REVERSE (cpath_group, srte_candidate_group_head,
 			    &policy->candidate_groups) {
 		/* search for highest preference with existing segment list */
+		UNSET_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST);
+		UNSET_FLAG(cpath_group->flags, F_CPATH_GROUP_BACKUP);
 		if (cpath_group->status == SRTE_DETECT_UP && cpath_group->up_cpath_num > 0){
-			return cpath_group;
+			if (select_bast == false) {
+				SET_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST);
+				policy->best_candidate_group = cpath_group;
+				select_bast = true;
+			}
+			else {
+				SET_FLAG(cpath_group->flags, F_CPATH_GROUP_BACKUP);
+				policy->backup_candidate_group = cpath_group;
+				return 0;
+			}
 		}
 	}
 
-	return NULL;
+	return 1;
 }
 
 void srte_clean_zebra(void)
@@ -777,11 +783,13 @@ void srte_policy_apply_changes(struct srte_policy *policy)
 
 	if (new_best_candidate != old_best_candidate) {
 		/* TODO: add debug guard. */
-		zlog_debug(
-			"SR-TE(%s, %u): best candidate changed from %s to %s",
-			endpoint, policy->color,
-			old_best_candidate ? old_best_candidate->name : "none",
-			new_best_candidate ? new_best_candidate->name : "none");
+		if (IS_PATHD_DEBUG_SRV6) {
+			zlog_debug(
+				"SR-TE(%s, %u): best candidate changed from %s to %s",
+				endpoint, policy->color,
+				old_best_candidate ? old_best_candidate->name : "none",
+				new_best_candidate ? new_best_candidate->name : "none");
+		}
 
 		if (old_best_candidate) {
 			policy->best_candidate = NULL;
@@ -820,9 +828,11 @@ void srte_policy_apply_changes(struct srte_policy *policy)
 
 		if (candidate_changed || segment_list_changed) {
 			/* TODO: add debug guard. */
-			zlog_debug("SR-TE(%s, %u): best candidate %s changed",
-				   endpoint, policy->color,
-				   new_best_candidate->name);
+			if (IS_PATHD_DEBUG_SRV6) {
+				zlog_debug("SR-TE(%s, %u): best candidate %s changed",
+					endpoint, policy->color,
+					new_best_candidate->name);
+			}
 
 			path_zebra_add_sr_policy(
 				policy, new_best_candidate->lsp->segment_list);
@@ -852,9 +862,17 @@ void srte_policy_apply_changes(struct srte_policy *policy)
 
 static bool is_candidate_group_config_modified (struct srte_candidate_group *cpath_group)
 {
-	struct srte_candidate *candidate;
+	struct srte_candidate *candidate, *safe_cpath;
 
-	RB_FOREACH (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths) {
+	if(!cpath_group)
+		return false;
+
+	RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath) {
+		if (IS_PATHD_DEBUG_SRV6) {
+			zlog_debug("%s: group preference %u path %u flag 0x%x, candidate name %s flags 0x%x discriminator %u",
+				__func__, cpath_group->preference, cpath_group->up_cpath_num, cpath_group->flags,
+				candidate->name, candidate->flags, candidate->my_discriminator);
+		}
 		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_NEW)
 		    || CHECK_FLAG(candidate->flags, F_CANDIDATE_MODIFIED)
 			|| CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED)) {
@@ -866,77 +884,97 @@ static bool is_candidate_group_config_modified (struct srte_candidate_group *cpa
 
 static bool is_candidate_group_state_changed (struct srte_candidate_group *cpath_group)
 {
+	if(!cpath_group)
+		return false;
 	return CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_STATE_CHANGE);
 }
 
 static void reset_candidate_group_state_changed (struct srte_candidate_group *cpath_group)
 {
-	UNSET_FLAG(cpath_group->flags, F_CPATH_GROUP_STATE_CHANGE);
+	if (cpath_group)
+		UNSET_FLAG(cpath_group->flags, F_CPATH_GROUP_STATE_CHANGE);
 }
 
+static bool srv6_policy_state_changed(struct srte_policy *policy)
+{
+	bool state_changed = false;
+	state_changed = is_candidate_group_config_modified(policy->best_candidate_group);
+	if (state_changed)
+		return true;
+	state_changed = is_candidate_group_state_changed(policy->best_candidate_group);
+	if (state_changed)
+		return true;
+	state_changed = is_candidate_group_config_modified(policy->backup_candidate_group);
+	if (state_changed)
+		return true;
+	state_changed = is_candidate_group_state_changed(policy->backup_candidate_group);
+	return state_changed;
+}
 void srv6_choose_best_cpath_group(struct srte_policy *policy)
 {
 	struct srte_candidate_group *old_best_cpath_group;
-	struct srte_candidate_group *new_best_cpath_group;
+	struct srte_candidate_group *old_backup_cpath_group;
 	char endpoint[46];
+	bool state_changed = false;
 
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	/* Get old and new best candidate path. */
 	old_best_cpath_group = policy->best_candidate_group;
-	new_best_cpath_group = srte_policy_best_candidate_group(policy);
+	old_backup_cpath_group = policy->backup_candidate_group;
 
-    policy->status = new_best_cpath_group?SRTE_POLICY_STATUS_UP: SRTE_POLICY_STATUS_DOWN;
+	policy->best_candidate_group = NULL;
+	policy->backup_candidate_group = NULL;
 
-	if (new_best_cpath_group != old_best_cpath_group) {
-		zlog_info(
-			"SR-TE(%s, %u): best cpath group changed: %u -> %u",
-			endpoint, policy->color,
-			old_best_cpath_group ? old_best_cpath_group->preference : 0,
-			new_best_cpath_group ? new_best_cpath_group->preference : 0);
+	srte_policy_select_candidate_group(policy);
 
-		if (old_best_cpath_group) {
-			policy->best_candidate_group = NULL;
-			UNSET_FLAG(old_best_cpath_group->flags, F_CPATH_GROUP_BEST);
+    policy->status = policy->best_candidate_group?SRTE_POLICY_STATUS_UP:SRTE_POLICY_STATUS_DOWN;
 
-			/*
-			 * Rely on replace semantics if there's a new best
-			 * candidate.
-			 */
-			if (!new_best_cpath_group)
-				path_zebra_delete_srv6_policy(policy);
+	if (policy->best_candidate_group != old_best_cpath_group
+		|| policy->backup_candidate_group != old_backup_cpath_group) {
+		if (IS_PATHD_DEBUG_SRV6) {
+			zlog_debug(
+				"SR-TE(%s, %u): best cpath group changed: best:%u -> %u, backup:%u -> %u",
+				endpoint, policy->color,
+				old_best_cpath_group ? old_best_cpath_group->preference : 0,
+				policy->best_candidate_group ? policy->best_candidate_group->preference : 0,
+				old_backup_cpath_group ? old_backup_cpath_group->preference : 0,
+				policy->backup_candidate_group ? policy->backup_candidate_group->preference : 0);
 		}
-		if (new_best_cpath_group) {
-			policy->best_candidate_group = new_best_cpath_group;
-			SET_FLAG(new_best_cpath_group->flags, F_CPATH_GROUP_BEST);
-
-			path_zebra_add_srv6_policy(policy, new_best_cpath_group);
-
-			reset_candidate_group_state_changed(new_best_cpath_group);
+		if (policy->best_candidate_group == NULL) {
+			path_zebra_delete_srv6_policy(policy);
 		}
-	} else if (new_best_cpath_group) {
+		else {
+			path_zebra_add_srv6_policy(policy);
+			reset_candidate_group_state_changed(policy->best_candidate_group);
+			reset_candidate_group_state_changed(policy->backup_candidate_group);
+		}
+	} else if (policy->best_candidate_group) {
 		/* The best candidate path did not change, but some of its
 		 * attributes or its segment list may have changed.
 		 */
 
-		bool config_changed = is_candidate_group_config_modified(new_best_cpath_group);
-		bool state_changed = is_candidate_group_state_changed(new_best_cpath_group);
-
-		if (config_changed || state_changed || CHECK_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE)) {
-			zlog_info("SR-TE(%s, %u): best cpg:%u changed.",
-				   endpoint, policy->color,
-				   new_best_cpath_group->preference);
-
-			path_zebra_add_srv6_policy(policy, new_best_cpath_group);
+		state_changed = srv6_policy_state_changed(policy);
+		if (state_changed || CHECK_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE)) {
+			if (IS_PATHD_DEBUG_SRV6) {
+				zlog_debug("SR-TE(%s, %u): best cpg:%u flags 0x%x changed.",
+					endpoint, policy->color,
+					policy->best_candidate_group->preference,
+					policy->flags);
+			}
+			path_zebra_add_srv6_policy(policy);
 			UNSET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 
-			reset_candidate_group_state_changed(new_best_cpath_group);
+			reset_candidate_group_state_changed(policy->best_candidate_group);
+			reset_candidate_group_state_changed(policy->backup_candidate_group);
 		}
 		else
 		{
-			zlog_debug("SR-TE(%s, %u): best cpg:%u needn't to change.",
-				   endpoint, policy->color,
-				   new_best_cpath_group->preference);
+			if (IS_PATHD_DEBUG_SRV6) {
+				zlog_debug("SR-TE(%s, %u): best cpg:%u needn't to change.",
+					endpoint, policy->color,
+					policy->best_candidate_group->preference);
+			}
 		}
 	}
 }
@@ -953,11 +991,12 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			zlog_debug("%s:  cpath (pref:%u, name:%s) has_bfd:%u ,is_bfd_active:%u, status:%u.",
-					__func__, candidate->preference, candidate->name,
-					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
-					policy->bfd_config ? CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) : 0,
-					candidate->status);
+			if (IS_PATHD_DEBUG_SRV6) {
+				zlog_debug("%s:  cpath (pref:%u, name:%s) policy flags:0x%x ,is_bfd_active:%u, status:%u, flags:0x%x",
+						__func__, candidate->preference, candidate->name, policy->flags,
+						policy->bfd_config ? CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) : 0,
+						candidate->status, candidate->flags);
+			}
 
             if (!candidate->segment_list 
 			  || CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))
@@ -1198,10 +1237,12 @@ void srte_candidate_set_bandwidth(struct srte_candidate *candidate,
 	char endpoint[46];
 
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
-	zlog_debug(
-		"SR-TE(%s, %u): candidate %s %sconfig bandwidth set to %f B/s",
-		endpoint, policy->color, candidate->name,
-		required ? "required " : "", bandwidth);
+	if (IS_PATHD_DEBUG_SRV6) {
+		zlog_debug(
+			"SR-TE(%s, %u): candidate %s %sconfig bandwidth set to %f B/s",
+			endpoint, policy->color, candidate->name,
+			required ? "required " : "", bandwidth);
+	}
 	SET_FLAG(candidate->flags, F_CANDIDATE_HAS_BANDWIDTH);
 	COND_FLAG(candidate->flags, F_CANDIDATE_REQUIRED_BANDWIDTH, required);
 	candidate->bandwidth = bandwidth;
