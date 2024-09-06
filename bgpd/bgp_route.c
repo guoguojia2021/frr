@@ -2173,7 +2173,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 
 	/* Do not send back route to sender. */
 	if (onlypeer && from == onlypeer) {
-		if (add_path == 1) { /* Simply return error to stop the advertisement */
+		if (add_path == 1 || !check_best_path) { /* Simply return error to stop the advertisement */
 			return 0;
 		} else { /*
 				  * Send a different signal to caller, so that it can
