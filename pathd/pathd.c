@@ -1007,7 +1007,8 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 			if ((CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) 
 			    && policy->bfd_config
 			    && CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE)
-				&& !CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED)) || candidate->bfd_name[0])
+				&& !CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED))
+				|| candidate->bfd_name[0])
 			{
 				if (candidate->status == SRTE_DETECT_UP || candidate->status == SRTE_DETECT_NONE )
 					cpath_up_count++;
@@ -1592,6 +1593,20 @@ struct srte_candidate_group *srte_candidate_group_find(struct srte_policy *polic
 	return RB_FIND(srte_candidate_group_head, &policy->candidate_groups, &search);
 }
 
+struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_name)
+{
+	struct srte_candidate_bfd_group search = {0};
+	struct srte_candidate_bfd_group* group = NULL;
+
+	if (bfd_name == NULL)
+		return NULL;
+
+	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
+
+	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
+	return group;
+}
+
 void srte_candidate_bfd_group_add_with_status(const char *bfd_name,
 	enum detection_status status, uint32_t my_discriminator)
 {
@@ -1610,23 +1625,21 @@ void srte_candidate_bfd_group_add_with_status(const char *bfd_name,
 struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_name, 
                         struct srte_candidate *candidate)
 {
-    struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
-	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
-
-	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
+	group = srte_candidate_bfd_group_find(bfd_name);
 	if(!group)
 	{
 		group = XCALLOC(MTYPE_PATH_SR_CANDIDATE_BFD_GROUP, sizeof(*group));
 
-        group->cpath_num = 0;
-        group->status = SRTE_DETECT_DOWN;
-        strncpy(group->bfd_name, bfd_name, BFD_NAME_SIZE);
+		group->cpath_num = 0;
+		group->status = SRTE_DETECT_DOWN;
+		group->my_discriminator = 0;
+		strncpy(group->bfd_name, bfd_name, BFD_NAME_SIZE);
 
-        RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
+		RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
 
-        RB_INSERT(srte_candidate_bfd_group_head, &sbfd_groups, group);
+		RB_INSERT(srte_candidate_bfd_group_head, &sbfd_groups, group);
 
 	}
 	else
@@ -1647,12 +1660,9 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_na
 
 void srte_candidate_bfd_group_del(const char *bfd_name, struct srte_candidate *candidate)
 {
-	struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
-	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
-
-	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
+	group = srte_candidate_bfd_group_find(bfd_name);
 	if(!group){
 		return;
 	}

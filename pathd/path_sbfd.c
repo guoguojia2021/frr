@@ -1104,19 +1104,17 @@ static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr
 {
 	struct srte_candidate *candidate;
 	enum detection_status new_status = (state == BFD_STATUS_UP?SRTE_DETECT_UP: SRTE_DETECT_DOWN);
-	struct srte_candidate_bfd_group search = {0};
 	struct srte_candidate_bfd_group* group = NULL;
 
 	zlog_warn( "bfd:%s(%u) update state to:%s", bfd_name, my_discr, bfd_get_status_str(state));
-	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
-
-	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
+	group = srte_candidate_bfd_group_find(bfd_name);
 	if(!group){
 		srte_candidate_bfd_group_add_with_status(bfd_name, new_status, my_discr);
 		return 0;
 	}
 
 	group->status = new_status;
+	group->my_discriminator = my_discr;
 
 	RB_FOREACH (candidate, srte_candidate_bfd_head, &group->candidate_paths) 
 	{

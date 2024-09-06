@@ -699,5 +699,5 @@ void refcounter_decrease(struct srte_segment_list *segment_list);
 bool is_refcounter_retain(struct srte_segment_list *segment_list);
 void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate);
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta);
-
+struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_name);
 #endif /* _FRR_PATHD_H_ */

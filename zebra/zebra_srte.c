@@ -316,6 +316,7 @@ static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
 	resolved_hop->my_discriminator = discriminator;
 	resolved_hop->flags = 0;
 	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
+	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 	if (is_backup)
 		SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_BACKUP);
 
