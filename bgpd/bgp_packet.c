@@ -618,6 +618,7 @@ void bgp_open_send(struct peer *peer)
 	struct stream *s;
 	uint16_t send_holdtime;
 	as_t local_as;
+	bool ext_opt_params = false;
 
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_TIMER))
 		send_holdtime = peer->holdtime;
@@ -644,15 +645,17 @@ void bgp_open_send(struct peer *peer)
 
 	/* Set capabilities */
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_EXTENDED_OPT_PARAMS)) {
-		(void)bgp_open_capability(s, peer, true);
+		ext_opt_params = true;
+		(void)bgp_open_capability(s, peer, ext_opt_params);
 	} else {
 		struct stream *tmp = stream_new(STREAM_SIZE(s));
 
 		stream_copy(tmp, s);
-		if (bgp_open_capability(tmp, peer, false)
-		    > BGP_OPEN_NON_EXT_OPT_LEN) {
+		if (bgp_open_capability(tmp, peer, ext_opt_params) >
+		    BGP_OPEN_NON_EXT_OPT_LEN) {
 			stream_free(tmp);
-			(void)bgp_open_capability(s, peer, true);
+			ext_opt_params = true;
+			(void)bgp_open_capability(s, peer, ext_opt_params);
 		} else {
 			stream_copy(s, tmp);
 			stream_free(tmp);
@@ -664,8 +667,10 @@ void bgp_open_send(struct peer *peer)
 
 	if (bgp_debug_neighbor_events(peer))
 		zlog_debug(
-			"%s sending OPEN, version %d, my as %u, holdtime %d, id %pI4",
-			peer->host, BGP_VERSION_4, local_as, send_holdtime,
+			"%s sending OPEN%s, version %d, my as %u, holdtime %d, id %pI4",
+			peer->host,
+			ext_opt_params ? " (Extended)" : "",
+			BGP_VERSION_4, local_as, send_holdtime,
 			&peer->local_id);
 
 	/* Dump packet if debug option is set. */
