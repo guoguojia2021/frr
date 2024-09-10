@@ -932,15 +932,14 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 	if (policy->best_candidate_group != old_best_cpath_group
 		|| policy->backup_candidate_group != old_backup_cpath_group) {
-		if (IS_PATHD_DEBUG_SRV6) {
-			zlog_debug(
+		zlog_info(
 				"SR-TE(%s, %u): best cpath group changed: best:%u -> %u, backup:%u -> %u",
 				endpoint, policy->color,
 				old_best_cpath_group ? old_best_cpath_group->preference : 0,
 				policy->best_candidate_group ? policy->best_candidate_group->preference : 0,
 				old_backup_cpath_group ? old_backup_cpath_group->preference : 0,
 				policy->backup_candidate_group ? policy->backup_candidate_group->preference : 0);
-		}
+
 		if (policy->best_candidate_group == NULL) {
 			path_zebra_delete_srv6_policy(policy);
 		}
@@ -991,12 +990,10 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			if (IS_PATHD_DEBUG_SRV6) {
-				zlog_debug("%s:  cpath (pref:%u, name:%s) policy flags:0x%x ,is_bfd_active:%u, status:%u, flags:0x%x",
+			zlog_info("%s:  cpath (pref:%u, name:%s) policy flags:0x%x ,is_bfd_active:%u, status:%u, flags:0x%x",
 						__func__, candidate->preference, candidate->name, policy->flags,
 						policy->bfd_config ? CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) : 0,
 						candidate->status, candidate->flags);
-			}
 
             if (!candidate->segment_list 
 			  || CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))

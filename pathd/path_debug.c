@@ -219,6 +219,20 @@ DEFUN (no_debug_pathd_zebra,
 	return CMD_SUCCESS;
 }
 
+DEFUN (no_debug_pathd,
+       no_debug_pathd_cmd,
+       "no debug pathd",
+       NO_STR
+       DEBUG_STR
+       "Pathd configuration\n")
+{
+	pathd_debug_zebra = 0;
+	pathd_debug_srv6 = 0;
+	pathd_debug_sbfd = 0;
+	pathd_debug_db = 0;
+	return CMD_SUCCESS;
+}
+
 DEFUN_NOSH (show_debugging_pathd,
 	   show_debugging_pathd_cmd,
 	   "show debugging [pathd]",
@@ -290,6 +304,7 @@ void pathd_debug_init(void)
 	install_element(ENABLE_NODE, &debug_pathd_zebra_cmd);
 	install_element(ENABLE_NODE, &no_debug_pathd_zebra_cmd);
 	install_element(ENABLE_NODE, &show_debugging_pathd_cmd);
+	install_element(ENABLE_NODE, &no_debug_pathd_cmd);
 
 	install_element(CONFIG_NODE, &debug_pathd_sbfd_cmd);
 	install_element(CONFIG_NODE, &no_debug_pathd_sbfd_cmd);

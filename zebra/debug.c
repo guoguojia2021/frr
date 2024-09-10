@@ -620,6 +620,32 @@ DEFPY (debug_zebra_nexthop,
 	return CMD_SUCCESS;
 }
 
+DEFUN (no_debug_zebra,
+       no_debug_zebra_cmd,
+       "no debug zebra",
+       NO_STR
+       DEBUG_STR
+       "Zebra configuration\n")
+{
+	zebra_debug_event = 0;
+	zebra_debug_packet = 0;
+	zebra_debug_kernel = 0;
+	zebra_debug_rib = 0;
+	zebra_debug_fpm = 0;
+	zebra_debug_mpls = 0;
+	zebra_debug_vxlan = 0;
+	zebra_debug_pw = 0;
+	zebra_debug_dplane = 0;
+	zebra_debug_mlag = 0;
+	zebra_debug_evpn_mh = 0;
+	zebra_debug_nht = 0;
+	zebra_debug_nexthop = 0;
+	zebra_debug_pbr = 0;
+	zebra_debug_fpmsyncd = 0;
+	zebra_debug_srv6 = 0;
+	return CMD_SUCCESS;
+}
+
 /* Debug node. */
 static int config_write_debug(struct vty *vty);
 struct cmd_node debug_node = {
@@ -816,6 +842,7 @@ void zebra_debug_init(void)
 	install_element(ENABLE_NODE, &debug_zebra_evpn_mh_cmd);
 	install_element(ENABLE_NODE, &no_debug_zebra_fpmsyncd_cmd);
 	install_element(ENABLE_NODE, &no_debug_zebra_srv6_cmd);
+	install_element(ENABLE_NODE, &no_debug_zebra_cmd);
 
 	install_element(CONFIG_NODE, &debug_zebra_events_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_nht_cmd);
