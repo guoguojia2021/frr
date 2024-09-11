@@ -1308,7 +1308,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		if (STREAM_READABLE(peer->curr) < 1) {
 			flog_err(
 				EC_BGP_PKT_OPEN,
-				"%s: stream does not have enough bytes for extended optional parameters",
+				"BGP OPEN receipt failed for peer %s: stream does not have enough bytes for extended optional parameters",
 				peer->host);
 			bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
 					BGP_NOTIFY_OPEN_MALFORMED_ATTR);
@@ -1320,7 +1320,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 			if (STREAM_READABLE(peer->curr) < 2) {
 				flog_err(
 					EC_BGP_PKT_OPEN,
-					"%s: stream does not have enough bytes to read the extended optional parameters optlen",
+					"BGP OPEN receipt failed for peer %s: stream does not have enough bytes to read the extended optional parameters optlen",
 					peer->host);
 				bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
 						BGP_NOTIFY_OPEN_MALFORMED_ATTR);
@@ -1347,7 +1347,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		/* If not enough bytes, it is an error. */
 		if (STREAM_READABLE(peer->curr) < optlen) {
 			flog_err(EC_BGP_PKT_OPEN,
-				 "%s: stream has not enough bytes (%u)",
+				 "BGP OPEN receipt failed for peer %s: stream has not enough bytes (%u)",
 				 peer->host, optlen);
 			bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
 					BGP_NOTIFY_OPEN_MALFORMED_ATTR);
@@ -1369,7 +1369,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 	 */
 	if (CHECK_FLAG(peer->cap, PEER_CAP_AS4_RCV) && !as4) {
 		flog_err(EC_BGP_PKT_OPEN,
-			 "%s bad OPEN, got AS4 capability, but AS4 set to 0",
+			 "BGP OPEN receipt failed for peer %s: bad OPEN, got AS4 capability, but AS4 set to 0",
 			 peer->host);
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1379,7 +1379,8 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 
 	/* Codification of AS 0 Processing */
 	if (remote_as == BGP_AS_ZERO) {
-		flog_err(EC_BGP_PKT_OPEN, "%s bad OPEN, got AS set to 0",
+		flog_err(EC_BGP_PKT_OPEN, 
+			 "BGP OPEN receipt failed for peer %s: bad OPEN, got AS set to 0",
 			 peer->host);
 		bgp_notify_send(peer, BGP_NOTIFY_OPEN_ERR,
 				BGP_NOTIFY_OPEN_BAD_PEER_AS);
@@ -1394,7 +1395,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		if (as4 == BGP_AS_TRANS) {
 			flog_err(
 				EC_BGP_PKT_OPEN,
-				"%s [AS4] NEW speaker using AS_TRANS for AS4, not allowed",
+				"BGP OPEN receipt failed for peer %s: [AS4] NEW speaker using AS_TRANS for AS4, not allowed",
 				peer->host);
 			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1422,7 +1423,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 			/* raise error, log this, close session */
 			flog_err(
 				EC_BGP_PKT_OPEN,
-				"%s bad OPEN, got AS4 capability, but remote_as %u mismatch with 16bit 'myasn' %u in open",
+				"BGP OPEN receipt failed for peer %s: bad OPEN, got AS4 capability, but remote_as %u mismatch with 16bit 'myasn' %u in open",
 				peer->host, as4, remote_as);
 			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1442,7 +1443,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 	    || (peer->sort == BGP_PEER_IBGP
 		&& ntohl(peer->local_id.s_addr) == ntohl(remote_id.s_addr))) {
 		if (bgp_debug_neighbor_events(peer))
-			zlog_debug("%s bad OPEN, wrong router identifier %pI4",
+			zlog_debug("BGP OPEN receipt failed: %s bad OPEN, wrong router identifier %pI4",
 				   peer->host, &remote_id);
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_BGP_IDENT,
@@ -1456,7 +1457,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		/* XXX this reply may not be correct if version < 4  XXX */
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug(
-				"%s bad protocol version, remote requested %d, local request %d",
+				"BGP OPEN receipt failed for peer %s: bad protocol version, remote requested %d, local request %d",
 				peer->host, version, BGP_VERSION_4);
 		/* Data must be in network byte order here */
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
@@ -1469,7 +1470,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 	if (peer->as_type == AS_UNSPECIFIED) {
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug(
-				"%s bad OPEN, remote AS is unspecified currently",
+				"BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is unspecified currently",
 				peer->host);
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1479,7 +1480,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		if (remote_as != peer->bgp->as) {
 			if (bgp_debug_neighbor_events(peer))
 				zlog_debug(
-					"%s bad OPEN, remote AS is %u, internal specified",
+					"BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is %u, internal specified",
 					peer->host, remote_as);
 			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1491,7 +1492,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		if (remote_as == peer->bgp->as) {
 			if (bgp_debug_neighbor_events(peer))
 				zlog_debug(
-					"%s bad OPEN, remote AS is %u, external specified",
+					"BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is %u, external specified",
 					peer->host, remote_as);
 			bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 						  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1501,7 +1502,7 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 		peer->as = remote_as;
 	} else if ((peer->as_type == AS_SPECIFIED) && (remote_as != peer->as)) {
 		if (bgp_debug_neighbor_events(peer))
-			zlog_debug("%s bad OPEN, remote AS is %u, expected %u",
+			zlog_debug("BGP OPEN receipt failed for peer %s: bad OPEN, remote AS is %u, expected %u",
 				   peer->host, remote_as, peer->as);
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_BAD_PEER_AS,
@@ -1514,8 +1515,13 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 	 * Return immediately.
 	 */
 	ret = bgp_collision_detect(peer, remote_id);
-	if (ret < 0)
+	if (ret < 0) {
+		if(bgp_debug_neighbor_events(peer)) {
+			zlog_debug("BGP OPEN receipt failed for peer %s: collision detected",
+						peer->host);
+		}
 		return BGP_Stop;
+	}
 
 	/* Get sockname. */
 	if (bgp_getsockname(peer) < 0) {
@@ -1536,6 +1542,10 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 	   */
 
 	if (holdtime < 3 && holdtime != 0) {
+		if(bgp_debug_neighbor_events(peer)) {
+			zlog_debug("BGP OPEN receipt failed for peer %s: bad holdtime, must be either zero or at least three second",
+						peer->host);
+		}
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_UNACEP_HOLDTIME,
 					  (uint8_t *)holdtime_ptr, 2);
@@ -1546,6 +1556,10 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 	 * is smaller than configured minimum Hold Time. */
 	if (holdtime < peer->bgp->default_min_holdtime
 	    && peer->bgp->default_min_holdtime != 0) {
+		if(bgp_debug_neighbor_events(peer)) {
+			zlog_debug("BGP OPEN receipt failed for peer %s: holdtime is not matching",
+						peer->host);
+		}
 		bgp_notify_send_with_data(peer, BGP_NOTIFY_OPEN_ERR,
 					  BGP_NOTIFY_OPEN_UNACEP_HOLDTIME,
 					  (uint8_t *)holdtime_ptr, 2);
@@ -1583,8 +1597,13 @@ static int bgp_open_receive(struct peer *peer, bgp_size_t size)
 
 	/* Open option part parse. */
 	if (optlen != 0) {
-		if (bgp_open_option_parse(peer, optlen, &mp_capability) < 0)
+		if (bgp_open_option_parse(peer, optlen, &mp_capability) < 0) {
+			if(bgp_debug_neighbor_events(peer)) {
+				zlog_debug("BGP OPEN receipt failed for peer %s: option parse failed",
+							peer->host);
+			}
 			return BGP_Stop;
+		}	
 	} else {
 		if (bgp_debug_neighbor_events(peer))
 			zlog_debug("%s rcvd OPEN w/ OPTION parameter len: 0",
@@ -2904,11 +2923,6 @@ int bgp_process_packet(struct thread *thread)
 			atomic_fetch_add_explicit(&peer->open_in, 1,
 						  memory_order_relaxed);
 			mprc = bgp_open_receive(peer, size);
-			if (mprc == BGP_Stop)
-				flog_err(
-					EC_BGP_PKT_OPEN,
-					"%s: BGP OPEN receipt failed for peer: %s",
-					__func__, peer->host);
 			break;
 		case BGP_MSG_UPDATE:
 			frrtrace(2, frr_bgp, update_process, peer, size);
