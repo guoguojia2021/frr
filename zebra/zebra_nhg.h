@@ -39,6 +39,7 @@ extern "C" {
 struct nh_grp {
 	uint32_t id;
 	uint8_t weight;
+	uint8_t is_backup;
 };
 
 PREDECL_RBTREE_UNIQ(nhg_connected_tree);

@@ -4187,6 +4187,11 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 
 			grp[i].id = depend->id;
 			grp[i].weight = depend->nhg.nexthop->weight;
+			if (CHECK_FLAG(depend->nhg.nexthop->flags, NEXTHOP_FLAG_IS_BACKUP))
+				grp[i].is_backup = 1;
+			else
+				grp[i].is_backup = 0;
+
 			i++;
 			if (IS_ZEBRA_DEBUG_FPMSYNCD)
 				zlog_debug("%s: group id %d grp[%d] id=%d ", __func__, id, i, depend->id);

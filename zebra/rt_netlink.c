@@ -1370,7 +1370,7 @@ static ssize_t fill_seg6ipt_encap(char *buffer, size_t buflen,
 	return srhlen + 4;
 }
 
-static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen, bool is_backup,
+static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen,
 				  const struct in6_addr *seg, const struct in6_addr *src,
 				  const char *segment_name, unsigned int discriminator)
 {
@@ -1394,7 +1394,6 @@ static ssize_t fill_seg6ipt_encap_private(char *buffer, size_t buflen, bool is_b
 
 	ipt = (struct seg6_iptunnel_encap_pri *)buffer;
 	ipt->mode = SEG6_IPTUN_MODE_ENCAP;
-	ipt->is_backup = is_backup;
 	srh = ipt->srh;
 	srh->hdrlen = (srhlen >> 3) - 1;
 	srh->type = 4;
@@ -2457,14 +2456,15 @@ static bool _netlink_nexthop_build_group(struct nlmsghdr *n, size_t req_size,
 		for (int i = 0; i < count; i++) {
 			grp[i].id = z_grp[i].id;
 			grp[i].weight = z_grp[i].weight - 1;
+			grp[i].resvd1 = z_grp[i].is_backup;
 
 			if (IS_ZEBRA_DEBUG_KERNEL) {
 				if (i == 0)
-					snprintf(buf, sizeof(buf1), "group %u",
-						 grp[i].id);
+					snprintf(buf, sizeof(buf1), "group %u(%s)",
+						 grp[i].id, z_grp[i].is_backup ? "B" : "M");
 				else {
-					snprintf(buf1, sizeof(buf1), "/%u",
-						 grp[i].id);
+					snprintf(buf1, sizeof(buf1), "/%u(%s)",
+						 grp[i].id, z_grp[i].is_backup ? "B" : "M");
 					strlcat(buf, buf1, sizeof(buf));
 				}
 			}
@@ -2780,7 +2780,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						return 0;
 					if (fpm) {
 						tun_len = fill_seg6ipt_encap_private(tun_buf,
-						    sizeof(tun_buf), false,
+						    sizeof(tun_buf),
 						    &nh->nh_srv6->seg6_segs,
 						    &nh->nh_srv6->seg6_src, NULL, 0);
 					}
@@ -2803,9 +2803,6 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 					ssize_t tun_len;
 					struct rtattr *nest;
 					struct in6_addr segs = {0};
-					bool is_backup = false;
-					if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_IS_BACKUP))
-						is_backup = true;
 
 					if (!nl_attr_put16(&req->n, buflen,
 						NHA_ENCAP_TYPE,
@@ -2818,16 +2815,15 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						return 0;
 
 					tun_len = fill_seg6ipt_encap_private(tun_buf,
-							sizeof(tun_buf), is_backup, &segs,
+							sizeof(tun_buf), &segs,
 							&nh->seg6_src, nh->sidlist_name, nh->my_discriminator);
 
 					if (tun_len < 0)
 						return 0;
 
 					if (IS_ZEBRA_DEBUG_KERNEL)
-						zlog_debug("%s: id %d(%s) src %pI6 segment %s flag %d discriminator %u",
-							__func__, id, is_backup ? "backup" : "master",
-							&nh->seg6_src, nh->sidlist_name, flag, nh->my_discriminator);
+						zlog_debug("%s: id %d src %pI6 segment %s flag %d discriminator %u",
+							__func__, id, &nh->seg6_src, nh->sidlist_name, flag, nh->my_discriminator);
 
 					if (!nl_attr_put(&req->n, buflen,
 							 SEG6_IPTUNNEL_SRH,
