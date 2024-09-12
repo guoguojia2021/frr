@@ -646,6 +646,10 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 	 * the kernel.
 	 */
 	hook_call(rib_update, rn, "installing in kernel");
+	if (CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM))
+	{
+		return;
+	}
 
 	/* Send add or update */
 	if (old)
@@ -1124,7 +1128,7 @@ int rib_if_arp2host_route(struct route_entry *i_rib)
 static void rib_install_ipv4_pending_to_fib(rib_dest_t *dest)
 {
 	if (dest) {
-		if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
+		if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM) && dest->selected_fib) {
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 					zlog_debug("handle pending ip4 rn %p", dest->rnode);
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
@@ -1132,6 +1136,7 @@ static void rib_install_ipv4_pending_to_fib(rib_dest_t *dest)
 			ip4_sent_fib_count++;
 			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			hook_call(rib_update, dest->rnode, "pending route release to fpm");
+			rib_install_kernel(dest->rnode, dest->selected_fib, NULL);
 		}
 		rib_pending_list_del(AFI_IP, dest);
 	}
@@ -1140,7 +1145,7 @@ static void rib_install_ipv4_pending_to_fib(rib_dest_t *dest)
 static void rib_install_ipv6_pending_to_fib(rib_dest_t *dest)
 {
 	if (dest) {
-		if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
+		if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM) && dest->selected_fib) {
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 					zlog_debug("handle pending ip6 rn %p", dest->rnode);
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
@@ -1148,6 +1153,7 @@ static void rib_install_ipv6_pending_to_fib(rib_dest_t *dest)
 			ip6_sent_fib_count++;
 			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			hook_call(rib_update, dest->rnode, "pending route release to fpm");
+			rib_install_kernel(dest->rnode, dest->selected_fib, NULL);
 		}
 		rib_pending_list_del(AFI_IP6, dest);
 	}
