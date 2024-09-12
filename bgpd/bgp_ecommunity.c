@@ -415,6 +415,7 @@ enum ecommunity_token {
 	ecommunity_token_nt,
 	ecommunity_token_soo,
 	ecommunity_token_color,
+	ecommunity_token_bw_path,
 	ecommunity_token_val,
 	ecommunity_token_rt6,
 	ecommunity_token_val6,
@@ -647,6 +648,28 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 			}
 			goto error;
 		}
+		/* "bandwidth path" match check. */
+		else if (tolower((unsigned char)*p) == 'b') {
+			p++;
+			if (tolower((unsigned char)*p) == 'w') {
+				p++;
+				if (tolower((unsigned char)*p) == 'p') {
+					p++;
+					*token = ecommunity_token_bw_path;
+					return p;
+				}
+				if (isspace((unsigned char)*p) || *p == '\0') {
+					*token = ecommunity_token_bw_path;
+					return p;
+				}
+				goto error;
+			}
+			if (isspace((unsigned char)*p) || *p == '\0') {
+				*token = ecommunity_token_bw_path;
+				return p;
+			}
+			goto error;
+		}
 		goto error;
 	}
 	/* What a mess, there are several possibilities:
@@ -793,6 +816,7 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 	enum ecommunity_token token = ecommunity_token_unknown;
 	struct ecommunity_val_ipv6 eval;
 	int keyword = 0;
+	uint8_t link_bandwidth_type;
 
 	if (is_ipv6_extcomm)
 		token = ecommunity_token_rt6;
@@ -803,6 +827,7 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 		case ecommunity_token_rt6:
 		case ecommunity_token_soo:
 		case ecommunity_token_color:
+		case ecommunity_token_bw_path:
 			if (!keyword_included || keyword) {
 				if (ecom)
 					ecommunity_free(&ecom);
@@ -817,8 +842,13 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 				type = ECOMMUNITY_SITE_ORIGIN;
 			if (token == ecommunity_token_nt)
 				type = ECOMMUNITY_NODE_TARGET;
-			if (token == ecommunity_token_color)
+			if (token == ecommunity_token_color) {
 				type = ECOMMUNITY_COLOR;
+			}
+			if (token == ecommunity_token_bw_path) {
+				type = ECOMMUNITY_LINK_BANDWIDTH;
+				link_bandwidth_type = ECOMM_LB_SET_NUM_MPATH;
+			}
 			break;
 		case ecommunity_token_val:
 			if (keyword_included) {
@@ -833,6 +863,21 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 			eval.val[1] = type;
 			if (type == ECOMMUNITY_COLOR) {
 				eval.val[0] = ECOMMUNITY_ENCODE_OPAQUE;
+			}
+			// change link bandwidth path to extcommunity bytes/s
+			if (type == ECOMMUNITY_LINK_BANDWIDTH && link_bandwidth_type == ECOMM_LB_SET_NUM_MPATH) {
+				uint32_t tmp_val = 0;
+				// the 4th, 5th, 6th, 7th byte of the eval.val is the 32 bit int which represents the bandwidth
+				for(int i = 4; i <= 7; i++)
+				{
+					tmp_val = (tmp_val << 8) + eval.val[i];
+					memset(&eval.val[i], 0, sizeof(eval.val[i]));
+				}
+				tmp_val = (tmp_val * 1000 * 1000 ) / 8;
+				eval.val[4] = (tmp_val >> 24) & 0xff;
+				eval.val[5] = (tmp_val >> 16) & 0xff;
+				eval.val[6] = (tmp_val >> 8) & 0xff;
+				eval.val[7] = tmp_val & 0xff;
 			}
 			ecommunity_add_val_internal(ecom, (void *)&eval,
 						    false, false,

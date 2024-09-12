@@ -61,6 +61,11 @@
 #define ECOMMUNITY_REDIRECT_IP_NH           0x00
 #define ECOMMUNITY_COLOR                    0x0b /* RFC9012 - color */
 
+
+/* link bandwidth type */
+#define ECOMM_LB_SET_VALUE 1
+#define ECOMM_LB_SET_CUMUL 2
+#define ECOMM_LB_SET_NUM_MPATH 3
 /* from IANA: bgp-extended-communities/bgp-extended-communities.xhtml
  * 0x0c Flow-spec Redirect to IPv4 - draft-ietf-idr-flowspec-redirect
  */
