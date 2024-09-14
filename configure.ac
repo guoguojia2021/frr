@@ -936,7 +936,7 @@ AC_DEFINE_UNQUOTED([MULTIPATH_NUM], [$MPATH_NUM], [Maximum number of paths for a
 
 LOCAL_VRF_LEAK_ENABLE=1
 
-if test "$CONFIGURED_PLATFORM" == "cisco";then
+if test "$ASIC_MODEL" == "q200";then
     LOCAL_VRF_LEAK_ENABLE=0
 fi
 
