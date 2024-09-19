@@ -11378,6 +11378,10 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 				if (peer->desc)
 					json_object_string_add(
 						json_peer, "desc", peer->desc);
+				// use peer group desc
+				else if (peer->group != NULL && peer->group->conf != NULL && peer->group->conf->desc != NULL)
+					json_object_string_add(
+						json_peer, "desc", peer->group->conf->desc);
 			}
 			/* Avoid creating empty peer dicts in JSON */
 			if (json_peer == NULL)
@@ -11544,6 +11548,14 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 						bgp_peer_description_stripped(
 							peer->desc,
 							show_wide ? 64 : 20));
+				// use peer group desc
+				else if (peer->group != NULL && peer->group->conf != NULL && peer->group->conf->desc != NULL)
+				{
+					vty_out(vty, " %s",
+						bgp_peer_description_stripped(
+							peer->group->conf->desc,
+							show_wide ? 64 : 20));
+				}
 				else
 					vty_out(vty, " N/A");
 				vty_out(vty, "\n");
@@ -13121,6 +13133,14 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			json_object_string_add(json_neigh, "nbrDesc", p->desc);
 		else
 			vty_out(vty, " Description: %s\n", p->desc);
+	}
+	// use peer group desc
+	else if (p->group != NULL && p->group->conf != NULL && p->group->conf->desc != NULL)
+	{
+		if (use_json)
+			json_object_string_add(json_neigh, "nbrDesc", p->group->conf->desc);
+		else
+			vty_out(vty, " Description: %s\n", p->group->conf->desc);
 	}
 
 	if (p->hostname) {
