@@ -244,7 +244,7 @@ void bfd_profile_remove(struct bfd_session *bs)
 
 void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
-		 const char *vrfname)
+		 const char *vrfname, const char *bfdname)
 {
 	memset(key, 0, sizeof(*key));
     struct vrf *vrf = NULL;
@@ -290,65 +290,13 @@ void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		strlcpy(key->vrfaliasname, VRF_DEFAULT_NAME, sizeof(key->vrfaliasname));
 	}
 
-}
-
-void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
-		 struct sockaddr_any *local, bool mhop, const char *ifname,
-		 const char *vrfname, const char *bfdname)
-{
-	memset(key, 0, sizeof(*key));
-    struct vrf *vrf = NULL;
-
-	switch (local->sa_sin.sin_family) {
-	case AF_INET:
-		key->family = AF_INET;
-		memcpy(&key->peer, &peer->sa_sin.sin_addr,
-		       sizeof(peer->sa_sin.sin_addr));
-		memcpy(&key->local, &local->sa_sin.sin_addr,
-		       sizeof(local->sa_sin.sin_addr));
-		break;
-	case AF_INET6:
-		key->family = AF_INET6;
-		memcpy(&key->peer, &peer->sa_sin6.sin6_addr,
-		       sizeof(peer->sa_sin6.sin6_addr));
-		memcpy(&key->local, &local->sa_sin6.sin6_addr,
-		       sizeof(local->sa_sin6.sin6_addr));
-		break;
-	}
-
-	key->mhop = mhop;
-
-	if (ifname && ifname[0])
-    {
-		strlcpy(key->ifname, ifname, sizeof(key->ifname));
-	}
-			
-	if (vrfname && vrfname[0] && strcmp(vrfname, VRF_DEFAULT_NAME) != 0)
-	{
-		vrf = vrf_lookup_by_name(vrfname);
-		if (vrf)
-		{
-			strlcpy(key->vrfname, vrf->name, sizeof(key->vrfname));
-			strlcpy(key->vrfaliasname, vrf->aliasName, sizeof(key->vrfaliasname));
-		}
-		else
-		{
-            strlcpy(key->vrfname, vrfname, sizeof(key->vrfname));
-			strlcpy(key->vrfaliasname, vrfname, sizeof(key->vrfaliasname));
-		}
-	}
-	else
-	{
-		strlcpy(key->vrfname, VRF_DEFAULT_NAME, sizeof(key->vrfname));
-		strlcpy(key->vrfaliasname, VRF_DEFAULT_NAME, sizeof(key->vrfaliasname));
-	}
-
 	if (bfdname && bfdname[0])
 	{
 		strlcpy(key->bfdname, bfdname, sizeof(key->bfdname));
 	}
 
 }
+
 
 struct bfd_session *bs_peer_find(struct bfd_peer_cfg *bpc)
 {
@@ -846,7 +794,7 @@ struct bfd_session *ptm_bfd_sess_find(struct bfd_pkt *cp,
 {
 	struct vrf *vrf;
 	struct bfd_key key;
-
+	const char *bfdname = NULL;
 	/* Find our session using the ID signaled by the remote end. */
 	if (cp->discrs.remote_discr)
 		return bfd_find_disc(peer, ntohl(cp->discrs.remote_discr));
@@ -855,7 +803,7 @@ struct bfd_session *ptm_bfd_sess_find(struct bfd_pkt *cp,
 	vrf = vrf_lookup_by_id(vrfid);
 
 	gen_bfd_key(&key, peer, local, is_mhop, ifp ? ifp->name : NULL,
-		    vrf ? vrf->name : VRF_DEFAULT_NAME);
+		    vrf ? vrf->name : VRF_DEFAULT_NAME, bfdname);
 
 	/* XXX maybe remoteDiscr should be checked for remoteHeard cases. */
 	return bfd_key_lookup(key);
