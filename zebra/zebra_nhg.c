@@ -4438,12 +4438,19 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 	switch (op) {
 	case DPLANE_OP_NH_DELETE:
 	case DPLANE_PROTOBUF_OP_NH_DELETE:
-		if (status != ZEBRA_DPLANE_REQUEST_SUCCESS)
-			flog_err(
-				EC_ZEBRA_DP_DELETE_FAIL,
-				"Failed to uninstall Nexthop ID (%u) from the kernel",
-				id);
 		nhe = zebra_nhg_lookup_id(id);
+		if (status != ZEBRA_DPLANE_REQUEST_SUCCESS) {
+			if (nhe)
+				flog_err(
+					EC_ZEBRA_DP_DELETE_FAIL,
+					"Failed to uninstall Nexthop ID (%u) Flags (0x%x) from the kernel",
+					id, nhe->flags);
+			else
+				flog_err(
+					EC_ZEBRA_DP_DELETE_FAIL,
+					"Failed to uninstall Nexthop ID (%u)from the kernel",
+					id);
+		}
 		if (nhe) {
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
@@ -4460,7 +4467,7 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 		if (!nhe) {
 			if (IS_ZEBRA_DEBUG_NHG)
 				zlog_debug(
-					"%s operation preformed on Nexthop ID (%u) in the kernel, that we no longer have in our table",
+					"%s operation preformed on Nexthop ID (%u)in the kernel, that we no longer have in our table",
 					dplane_op2str(op), id);
 
 			break;
@@ -4490,8 +4497,8 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 
 			flog_err(
 				EC_ZEBRA_DP_INSTALL_FAIL,
-				"Failed to install Nexthop ID (%u) into the kernel",
-				nhe->id);
+				"Failed to install Nexthop ID (%u) Flags (0x%x) into the kernel",
+				nhe->id, nhe->flags);
 		}
 		break;
 
