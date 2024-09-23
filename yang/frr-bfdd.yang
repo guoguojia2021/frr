@@ -397,7 +397,7 @@ module frr-bfdd {
 
       container sessions {
         list single-hop {
-          key "dest-addr interface vrf bfd-name";
+          key "dest-addr interface vrf";
           description "List of single hop sessions";
 
           leaf dest-addr {
@@ -446,7 +446,7 @@ module frr-bfdd {
         }
 
         list multi-hop {
-          key "source-addr dest-addr vrf bfd-name";
+          key "source-addr dest-addr vrf";
           description "List of multi hop sessions";
 
           leaf source-addr {

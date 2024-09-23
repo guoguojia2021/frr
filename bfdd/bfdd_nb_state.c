@@ -44,11 +44,11 @@ int bfdd_bfd_sessions_single_hop_get_keys(struct nb_cb_get_keys_args *args)
 
 	inet_ntop(bs->key.family, &bs->key.peer, dstbuf, sizeof(dstbuf));
 
-	args->keys->num = 4;
+	args->keys->num = 3;
 	strlcpy(args->keys->key[0], dstbuf, sizeof(args->keys->key[0]));
 	strlcpy(args->keys->key[1], bs->key.ifname, sizeof(args->keys->key[1]));
-	strlcpy(args->keys->key[2], bs->key.vrfname, sizeof(args->keys->key[2]));
-	strlcpy(args->keys->key[3], bs->key.bfdname, sizeof(args->keys->key[3]));
+	strlcpy(args->keys->key[2], bs->key.vrfname,
+		sizeof(args->keys->key[2]));
 
 	return NB_OK;
 }
@@ -59,13 +59,12 @@ bfdd_bfd_sessions_single_hop_lookup_entry(struct nb_cb_lookup_entry_args *args)
 	const char *dest_addr = args->keys->key[0];
 	const char *ifname = args->keys->key[1];
 	const char *vrf = args->keys->key[2];
-	const char *bfdname = args->keys->key[3];
 	struct sockaddr_any psa, lsa;
 	struct bfd_key bk;
 
 	strtosa(dest_addr, &psa);
 	memset(&lsa, 0, sizeof(lsa));
-	gen_bfd_key(&bk, &psa, &lsa, false, ifname, vrf, bfdname);
+	gen_bfd_key(&bk, &psa, &lsa, false, ifname, vrf);
 
 	return bfd_key_lookup(bk);
 }
@@ -352,8 +351,8 @@ int bfdd_bfd_sessions_multi_hop_get_keys(struct nb_cb_get_keys_args *args)
 	args->keys->num = 4;
 	strlcpy(args->keys->key[0], srcbuf, sizeof(args->keys->key[0]));
 	strlcpy(args->keys->key[1], dstbuf, sizeof(args->keys->key[1]));
-	strlcpy(args->keys->key[2], bs->key.vrfname, sizeof(args->keys->key[2]));
-	strlcpy(args->keys->key[3], bs->key.bfdname, sizeof(args->keys->key[3]));
+	strlcpy(args->keys->key[2], bs->key.vrfname,
+		sizeof(args->keys->key[2]));
 
 	return NB_OK;
 }
@@ -364,13 +363,12 @@ bfdd_bfd_sessions_multi_hop_lookup_entry(struct nb_cb_lookup_entry_args *args)
 	const char *source_addr = args->keys->key[0];
 	const char *dest_addr = args->keys->key[1];
 	const char *vrf = args->keys->key[2];
-	const char *bfdname = args->keys->key[3];
 	struct sockaddr_any psa, lsa;
 	struct bfd_key bk;
 
 	strtosa(dest_addr, &psa);
 	strtosa(source_addr, &lsa);
-	gen_bfd_key(&bk, &psa, &lsa, true, NULL, vrf, bfdname);
+	gen_bfd_key(&bk, &psa, &lsa, true, NULL, vrf);
 
 	return bfd_key_lookup(bk);
 }
@@ -410,7 +408,7 @@ bfdd_bfd_sessions_srte_sbfd_echo_lookup_entry(struct nb_cb_lookup_entry_args *ar
 
 	strtosa(source_addr, &lsa);
 	memset(&psa, 0, sizeof(psa));
-	gen_bfd_key(&bk, &psa, &lsa, true, NULL, vrf, bfdname);
+	gen_sbfd_key(&bk, &psa, &lsa, true, NULL, vrf, bfdname);
 
 	return bfd_key_lookup(bk);
 }
@@ -454,7 +452,7 @@ bfdd_bfd_sessions_srte_sbfd_init_lookup_entry(struct nb_cb_lookup_entry_args *ar
 
 	strtosa(source_addr, &lsa);
 	strtosa(dest_addr, &psa);
-	gen_bfd_key(&bk, &psa, &lsa, true, NULL, vrf, bfdname);
+	gen_sbfd_key(&bk, &psa, &lsa, true, NULL, vrf, bfdname);
 
 	return bfd_key_lookup(bk);
 }

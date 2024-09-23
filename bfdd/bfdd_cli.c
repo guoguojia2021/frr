@@ -163,10 +163,9 @@ DEFPY_YANG_NOSH(
 		source_str[0] = 0;
 
 	slen = snprintf(xpath, sizeof(xpath),
-			"/frr-bfdd:bfdd/bfd/sessions/%s%s[dest-addr='%s'][bfd-name='%s']",
+			"/frr-bfdd:bfdd/bfd/sessions/%s%s[dest-addr='%s']",
 			multihop ? "multi-hop" : "single-hop", source_str,
-			peer_str,
-			bfdname);
+			peer_str);
 	if (ifname)
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen,
 				 "[interface='%s']", ifname);
@@ -180,6 +179,9 @@ DEFPY_YANG_NOSH(
 			 VRF_DEFAULT_NAME);
 
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+
+	snprintf(xpath_bfdname, sizeof(xpath_bfdname), "%s/bfd-name", xpath);
+	nb_cli_enqueue_change(vty, xpath_bfdname, NB_OP_MODIFY, bfdname);
 	
 	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
 	snprintf(value, sizeof(value), "%ld", BFD_MODE_TYPE_BFD);
@@ -241,10 +243,9 @@ DEFPY_YANG(
 		source_str[0] = 0;
 
 	slen = snprintf(xpath, sizeof(xpath),
-			"/frr-bfdd:bfdd/bfd/sessions/%s%s[dest-addr='%s'][bfd-name='%s']",
+			"/frr-bfdd:bfdd/bfd/sessions/%s%s[dest-addr='%s']",
 			multihop ? "multi-hop" : "single-hop", source_str,
-			peer_str,
-			bfdname);
+			peer_str);
 	if (ifname)
 		slen += snprintf(xpath + slen, sizeof(xpath) - slen,
 				 "[interface='%s']", ifname);

@@ -62,7 +62,7 @@ static void get_ip_by_interface(const char *ifname, int family, char *ifip) {
 static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 				struct bfd_key *bk)
 {
-	const char *ifname = NULL, *vrfname = NULL, *bfdname = NULL;;
+	const char *ifname = NULL, *vrfname = NULL;
 	char ifip[INET6_ADDRSTRLEN];
 	struct sockaddr_any psa, lsa;
 
@@ -73,9 +73,6 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 	memset(&lsa, 0, sizeof(lsa));
 	if (yang_dnode_exists(dnode, "source-addr"))
 		strtosa(yang_dnode_get_string(dnode, "source-addr"), &lsa);
-
-	if (yang_dnode_exists(dnode, "bfd-name"))
-	    bfdname = yang_dnode_get_string(dnode, "bfd-name");
 
 	vrfname = yang_dnode_get_string(dnode, "vrf");
 
@@ -91,7 +88,7 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 	}
 
 	/* Generate the corresponding key. */
-	gen_bfd_key(bk, &psa, &lsa, mhop, ifname, vrfname, bfdname);
+	gen_bfd_key(bk, &psa, &lsa, mhop, ifname, vrfname);
 }
 
 static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,
@@ -112,7 +109,7 @@ static void sbfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 		vrfname = yang_dnode_get_string(dnode, "vrf");
 
 	/* Generate the corresponding key. */
-	gen_bfd_key(bk, &psa, &lsa, mhop, ifname, vrfname, bfdname);
+	gen_sbfd_key(bk, &psa, &lsa, mhop, ifname, vrfname, bfdname);
 }
 
 struct session_iter {
@@ -143,7 +140,6 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 	const char *dest;
 	const char *ifname;
 	const char *vrfname;
-	const char *bfdname;
 	struct bfd_key bk;
 	struct prefix p;
 	const char * bfd_name = NULL;
@@ -200,10 +196,10 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 
 		dest = yang_dnode_get_string(args->dnode, "dest-addr");
 		vrfname = yang_dnode_get_string(args->dnode, "vrf");
-		bfdname = yang_dnode_get_string(args->dnode, "bfd-name");
+
 		yang_dnode_iterate(session_iter_cb, &iter, sess_dnode,
-				   "./single-hop[dest-addr='%s'][vrf='%s'][bfd-name='%s']",
-				   dest, vrfname, bfdname);
+				   "./single-hop[dest-addr='%s'][vrf='%s']",
+				   dest, vrfname);
 
 		if (iter.wildcard && iter.count > 1) {
 			snprintf(

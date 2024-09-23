@@ -688,6 +688,9 @@ void bs_to_bpc(struct bfd_session *bs, struct bfd_peer_cfg *bpc);
 
 void gen_bfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
+		 const char *vrfname);
+void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
+		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname, const char *bfdname);
 
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
