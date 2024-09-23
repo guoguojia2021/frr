@@ -436,8 +436,9 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
         if (hardwareBFD)
 		{
 			/* delay sbfd echo xmt */
-            if (!bfd->sbfd_echo_hw_offload_delay)
+            if (!bfd->sbfd_echo_hw_offload_delay && !CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
             {
+				zlog_info("soft bfd session up,add offload hw timer,bfd_name:%s",bfd->bfd_name);
 				SET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
                 thread_add_timer(master, sbfd_echo_hw_offload_delay_cb, bfd, SBFD_ECHO_HW_OFFLOAD_DELAY_TIMER, &bfd->sbfd_echo_hw_offload_delay);
             }
