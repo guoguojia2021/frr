@@ -769,6 +769,8 @@ static zclient_handler *const static_handlers[] = {
 	[ZEBRA_INTERFACE_ADDRESS_DELETE] = interface_address_delete,
 	[ZEBRA_ROUTE_NOTIFY_OWNER] = route_notify_owner,
 	[ZEBRA_NEXTHOP_UPDATE] = static_zebra_nexthop_update,
+	[ZEBRA_NHRP_NEIGH_ADDED] = static_neighbor_operation,
+	[ZEBRA_NHRP_NEIGH_REMOVED] = static_neighbor_operation,
 };
 
 void static_zebra_init(void)
