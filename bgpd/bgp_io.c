@@ -114,7 +114,6 @@ void bgp_reads_off(struct peer_connection *connection)
 
 	thread_cancel_async(fpt->master, &connection->t_read, NULL);
 	THREAD_OFF(connection->t_process_packet);
-	THREAD_OFF(connection->t_process_packet_error);
 
 	UNSET_FLAG(connection->thread_flags, PEER_THREAD_READS_ON);
 }
@@ -266,8 +265,7 @@ static int bgp_process_reads(struct thread *thread)
 		/* Handle the error in the main pthread, include the
 		 * specific state change from 'bgp_read'.
 		 */
-		thread_add_event(bm->master, bgp_packet_process_error,
-				connection, code, &connection->t_process_packet_error);
+		bgp_enqueue_conn_err_peer(peer->bgp, connection->peer, code);
 		goto done;
 	}
 
