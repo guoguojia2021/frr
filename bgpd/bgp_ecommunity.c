@@ -878,6 +878,8 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 				eval.val[5] = (tmp_val >> 16) & 0xff;
 				eval.val[6] = (tmp_val >> 8) & 0xff;
 				eval.val[7] = tmp_val & 0xff;
+				// we used int value here.
+				ecom.disable_ieee_floating = true;
 			}
 			ecommunity_add_val_internal(ecom, (void *)&eval,
 						    false, false,
