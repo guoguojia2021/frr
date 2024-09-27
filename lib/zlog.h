@@ -128,12 +128,12 @@ static inline void zlog_ref(const struct xref_logmsg *xref,
 #define zlog_debug(...)  _zlog_ecref(0, LOG_DEBUG, __VA_ARGS__)
 
 #define flog_err(ferr_id, format, ...)                                         \
-	_zlog_ecref(ferr_id, LOG_ERR, format, ## __VA_ARGS__)
+	_zlog_ecref(ferr_id, LOG_ERR, "[%s:%d]" format, __FILE__, __LINE__, ## __VA_ARGS__)
 #define flog_warn(ferr_id, format, ...)                                        \
-	_zlog_ecref(ferr_id, LOG_WARNING, format, ## __VA_ARGS__)
+	_zlog_ecref(ferr_id, LOG_WARNING, "[%s:%d]" format, __FILE__, __LINE__, ## __VA_ARGS__)
 
 #define flog_err_sys(ferr_id, format, ...)                                     \
-	_zlog_ecref(ferr_id, LOG_ERR, format, ## __VA_ARGS__)
+	_zlog_ecref(ferr_id, LOG_ERR, "[%s:%d]" format, __FILE__, __LINE__, ## __VA_ARGS__)
 
 extern void zlog_sigsafe(const char *text, size_t len);
 

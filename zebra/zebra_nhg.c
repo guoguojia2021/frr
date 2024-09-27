@@ -1773,7 +1773,7 @@ void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe)
 	struct nhg_connected *rb_node_dep;
 
 	UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_VALID);
-
+	SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 	/* If we're in shutdown, this interface event needs to clean
 	 * up installed NHGs, so don't clear that flag directly.
 	 */
@@ -4366,6 +4366,8 @@ void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free)
 	int ret = 0;
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)) {
+		if (nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
+			SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 
 		if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT) || !nhe->pic_nhe)
 			ret = dplane_nexthop_delete(nhe);
@@ -4455,6 +4457,7 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED);
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_FPM);
+			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 		}
 		/* We already free'd the data, nothing to do */
 		break;
