@@ -766,6 +766,7 @@ unsigned int attrhash_key_make(const void *p)
             && attr1->srte_color == attr2->srte_color
             && attr1->nh_type == attr2->nh_type
             && attr1->bh_type == attr2->bh_type
+	    && !memcmp(&attr1->from, &attr2->from, sizeof(union sockunion))
             && attr1->vni == attr2->vni
 			&& attr1->vrf_group == attr2->vrf_group
             && !memcmp(&attr1->rmac, &attr2->rmac, ETH_ALEN))

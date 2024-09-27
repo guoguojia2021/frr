@@ -1115,15 +1115,11 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		struct bgp_advertise *next = NULL;
 		withdraw_baa = adv->withdraw_baa;
 
-		if(withdraw_baa){
-			//todo: check
-			//next = adv->next;
-			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
-		}
-
-		
 		if(is_old_adv) {
 			bgp_advertise_delete(withdraw_baa, adv);
+			// bgp_advertise_attr_fifo_first this api will return the first adv.
+			// if u want to fetch next adv, u should use bgp_advertise_delete to remove the first adv
+			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
 			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
             /* Unlink myself from advertisement FIFO.  */
 			bgp_adv_fifo_del(&subgrp->sync->withdraw, adv);
