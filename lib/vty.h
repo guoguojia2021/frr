@@ -333,6 +333,9 @@ extern bool vty_set_include(struct vty *vty, const char *regexp);
 extern int vty_json(struct vty *vty, struct json_object *json);
 extern int vty_json_no_pretty(struct vty *vty, struct json_object *json);
 
+void vty_json_key(struct vty *vty, const char *key, bool *first_key);
+void vty_json_close(struct vty *vty, bool first_key);
+
 extern bool vty_read_config(struct nb_config *config, const char *config_file,
 			    char *config_default_dir);
 extern void vty_time_print(struct vty *, int);
