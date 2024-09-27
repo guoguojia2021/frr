@@ -2062,10 +2062,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	bool nh_reset = false;
 	uint64_t cum_bw;
 	char buf[PREFIX_STRLEN];
-	struct bgp_static * bgp_static;
 	int add_path = 0;
-	struct bgp_node * tmp_rn;
-
 
 	if (DISABLE_BGP_ANNOUNCE)
 		return false;
@@ -2316,6 +2313,16 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	/* don't confuse inbound and outbound setting */
 	RESET_FLAG(attr->rmap_change_flags);
 
+	/* There is no need to check the status of directly connected 
+		interfaces here to determine whether a route should be advertised. 
+		Additionally, this feature currently conflicts with the implementation 
+		logic of the vendor. In practice, the control of route advertisement 
+		should be managed through the bgp network import-check configuration. 
+		When bgp network import-check is configured, if a network route does 
+		not exist in Zebra, or if it is associated with a directly connected 
+		interface and that interface is down, the route will be marked as invalid. 
+		Therefore, no additional checks are needed here. */
+#if 0
     /*
     * For BGP "network" statement,  check if the network is reachable as
     * a connected interface addr before advertising it to a neighbor
@@ -2362,7 +2369,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 				zlog_debug("network route nonconnected, do not check connectivity");
 		}
     }
-
+#endif
 	/* If local-preference is not set. */
 	if ((peer->sort == BGP_PEER_IBGP || peer->sort == BGP_PEER_CONFED)
 	    && (!(attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)))) {
@@ -3185,7 +3192,6 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 				struct attr *post_attr,
 				uint32_t wait_addpath_tx_id)
 {
-	struct prefix *p;
 	struct attr attr;
 	struct bgp_path_info *second;
 	bool advertise;
