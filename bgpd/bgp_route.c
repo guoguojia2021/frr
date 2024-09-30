@@ -2110,8 +2110,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	from = pi->peer;
 	filter = &peer->filter[afi][safi];
 	bgp = SUBGRP_INST(subgrp);
-	piattr = bgp_path_info_mpath_count(pi) ? bgp_path_info_mpath_attr(pi)
-					       : pi->attr;
+	piattr = bgp_path_info_mpath_count(pi) > 1 ? bgp_path_info_mpath_attr(pi) : pi->attr;
 
 	if (CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX_OUT) &&
 	    peer->pmax_out[afi][safi] != 0 &&
@@ -2967,11 +2966,10 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 	struct bgp_path_info *pi2;
 	struct bgp_path_info *nextpi = NULL;
 	int paths_eq, do_mpath, debug;
-	struct list mp_list;
 	char pfx_buf[PREFIX2STR_BUFFER];
 	char path_buf[PATH_ADDPATH_STR_BUFFER];
+	uint32_t num_candidates = 0;
 
-	bgp_mp_list_init(&mp_list);
 	do_mpath =
 		(mpath_cfg->maxpaths_ebgp > 1 || mpath_cfg->maxpaths_ibgp > 1);
 
@@ -3168,7 +3166,8 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 						"%pBD(%s): %s is the bestpath, add to the multipath list",
 						dest, bgp->name_pretty,
 						path_buf);
-				bgp_mp_list_add(&mp_list, pi);
+				SET_FLAG(pi->flags, BGP_PATH_MULTIPATH_NEW);
+				num_candidates++;
 				continue;
 			}
 
@@ -3198,15 +3197,14 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 					zlog_debug(
 						"%pBD: %s is equivalent to the bestpath, add to the multipath list",
 						dest, path_buf);
-				bgp_mp_list_add(&mp_list, pi);
+				SET_FLAG(pi->flags, BGP_PATH_MULTIPATH_NEW);
+				num_candidates++;
 			}
 		}
 	}
 
-	bgp_path_info_mpath_update(bgp, dest, new_select, old_select, &mp_list,
-				   mpath_cfg);
+	bgp_path_info_mpath_update(bgp, dest, new_select, old_select, num_candidates, mpath_cfg);
 	bgp_path_info_mpath_aggregate_update(new_select, old_select);
-	bgp_mp_list_clear(&mp_list);
 
 	bgp_addpath_update_ids(bgp, dest, afi, safi);
 
@@ -12385,9 +12383,8 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 			vty_out(vty, ", atomic-aggregate");
 	}
 
-	if (CHECK_FLAG(path->flags, BGP_PATH_MULTIPATH)
-	    || (CHECK_FLAG(path->flags, BGP_PATH_SELECTED)
-		&& bgp_path_info_mpath_count(path))) {
+	if (CHECK_FLAG(path->flags, BGP_PATH_MULTIPATH) ||
+	    (CHECK_FLAG(path->flags, BGP_PATH_SELECTED) && bgp_path_info_mpath_count(path) > 1)) {
 		if (json_paths)
 			json_object_boolean_true_add(json_path, "multipath");
 		else
