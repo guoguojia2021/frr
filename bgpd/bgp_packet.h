@@ -92,7 +92,5 @@ void bgp_packet_record_queue_enque(struct packet_queue *que, struct stream *stre
 void bgp_packet_record_queue_show(struct peer *pstpeer, bool isoutque);
 void bgp_packet_record_queue_init(struct peer *pstpeer);
 
-/* Task callback to handle socket error encountered in the io pthread */
-int bgp_packet_process_error(struct thread *thread);
 
 #endif /* _QUAGGA_BGP_PACKET_H */

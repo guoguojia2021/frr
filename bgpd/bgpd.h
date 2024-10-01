@@ -472,31 +472,53 @@ struct bgp_srv6_function {
 };
 
 /* List of peers that have connection errors in the io pthread */
-PREDECL_LIST(bgp_peer_conn_errlist);
+PREDECL_DLIST(bgp_peer_conn_errlist);
 
 /* List of info about peers that are being cleared from BGP RIBs in a batch */
-PREDECL_LIST(bgp_clearing_info);
+PREDECL_DLIST(bgp_clearing_info);
 
 /* Hash of peers in clearing info object */
 PREDECL_HASH(bgp_clearing_hash);
 
+/* List of dests that need to be processed in a clearing batch */
+PREDECL_LIST(bgp_clearing_destlist);
+
+struct bgp_clearing_dest {
+	struct bgp_dest *dest;
+	struct bgp_clearing_destlist_item link;
+};
+
 /* Info about a batch of peers that need to be cleared from the RIB.
  * If many peers need to be cleared, we process them in batches, taking
- * one walk through the RIB for each batch.
+ * one walk through the RIB for each batch. This is only used for "all"
+ * afi/safis, typically when processing peer connection errors.
  */
 struct bgp_clearing_info {
+	/* Owning bgp instance */
+	struct bgp *bgp;
+
 	/* Hash of peers */
 	struct bgp_clearing_hash_head peers;
 
+	/* Flags */
+	uint32_t flags;
+
+	/* List of dests - wrapped by a small wrapper struct */
+	struct bgp_clearing_destlist_head destlist;
+
 	/* Event to schedule/reschedule processing */
-	struct thread *t_sched;
+	struct event *t_sched;
 
-	/* RIB dest for rescheduling */
-	struct bgp_dest *last_dest;
+	/* TODO -- id, serial number, for debugging/logging? */
 
-	/* Linkage for list of batches per-bgp */
+	/* TODO -- info for rescheduling the RIB walk? future? */
+
+	/* Linkage for list of batches per bgp */
 	struct bgp_clearing_info_item link;
 };
+
+/* Batch is open, new peers can be added */
+#define BGP_CLEARING_INFO_FLAG_OPEN  (1 << 0)
 
 /* BGP instance structure.  */
 struct bgp {
@@ -1525,6 +1547,25 @@ struct peer {
 /* force the extended format for Optional Parameters in OPEN message */
 #define PEER_FLAG_EXTENDED_OPT_PARAMS (1U << 30)
 #define PEER_FLAG_TRACKING (1U << 31)	 /* neighbor tracking */
+
+	/* BGP Open Policy flags.
+	 * Enforce using roles on both sides:
+	 * `local-role ROLE strict-mode` configured.
+	 */
+#define PEER_FLAG_ROLE_STRICT_MODE (1ULL << 31)
+	/* `local-role` configured */
+#define PEER_FLAG_ROLE (1ULL << 32)
+#define PEER_FLAG_PORT (1ULL << 33)
+#define PEER_FLAG_AIGP (1ULL << 34)
+#define PEER_FLAG_GRACEFUL_SHUTDOWN (1ULL << 35)
+#define PEER_FLAG_CAPABILITY_SOFT_VERSION (1ULL << 36)
+#define PEER_FLAG_CAPABILITY_FQDN (1ULL << 37)  /* fqdn capability */
+#define PEER_FLAG_AS_LOOP_DETECTION (1ULL << 38) /* as path loop detection */
+#define PEER_FLAG_EXTENDED_LINK_BANDWIDTH (1ULL << 39)
+#define PEER_FLAG_DUAL_AS		  (1ULL << 40)
+#define PEER_FLAG_CAPABILITY_LINK_LOCAL	  (1ULL << 41)
+/* Peer is part of a batch clearing its routes */
+#define PEER_FLAG_CLEARING_BATCH (1ULL << 42)
 
 	/*
 	 *GR-Disabled mode means unset PEER_FLAG_GRACEFUL_RESTART
@@ -2782,4 +2823,45 @@ extern int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t sa
 extern struct hash * bgp_vrf_hash;
 extern void bgp_vrf_hash_init(void);
 extern void bgp_vrf_hash_exit(void);
+/* If a clearing batch is available for 'peer', add it and return 'true',
+ * else return 'false'.
+ */
+bool bgp_clearing_batch_add_peer(struct bgp *bgp, struct peer *peer);
+/* Add a prefix/dest to a clearing batch */
+void bgp_clearing_batch_add_dest(struct bgp_clearing_info *cinfo,
+				 struct bgp_dest *dest);
+/* Check whether a dest's peer is relevant to a clearing batch */
+bool bgp_clearing_batch_check_peer(struct bgp_clearing_info *cinfo,
+				   const struct peer *peer);
+/* Check whether a clearing batch has any dests to process */
+bool bgp_clearing_batch_dests_present(struct bgp_clearing_info *cinfo);
+/* Returns the next dest for batch clear processing */
+struct bgp_dest *bgp_clearing_batch_next_dest(struct bgp_clearing_info *cinfo);
+/* Done with a peer clearing batch; deal with refcounts, free memory */
+void bgp_clearing_batch_completed(struct bgp_clearing_info *cinfo);
+
+#ifdef _FRR_ATTRIBUTE_PRINTFRR
+/* clang-format off */
+#pragma FRR printfrr_ext "%pBP" (struct peer *)
+/* clang-format on */
+#endif
+
+/* Macro to check if default bgp instance is hidden */
+#define IS_BGP_INSTANCE_HIDDEN(_bgp)                                           \
+	(CHECK_FLAG(_bgp->flags, BGP_FLAG_INSTANCE_HIDDEN) &&                  \
+	 (_bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT ||                      \
+	  _bgp->inst_type == BGP_INSTANCE_TYPE_VRF))
+
+/* Macro to check if bgp instance delete in-progress and !hidden */
+#define BGP_INSTANCE_HIDDEN_DELETE_IN_PROGRESS(_bgp, _afi, _safi)              \
+	(CHECK_FLAG(_bgp->flags, BGP_FLAG_DELETE_IN_PROGRESS) &&               \
+	 !IS_BGP_INSTANCE_HIDDEN(_bgp) &&                                      \
+	 !(_afi == AFI_IP && _safi == SAFI_MPLS_VPN) &&                        \
+	 !(_afi == AFI_IP6 && _safi == SAFI_MPLS_VPN))
+
+#define PEER_HAS_LINK_LOCAL_CAPABILITY(_peer)                                                      \
+	(CHECK_FLAG(_peer->flags, PEER_FLAG_CAPABILITY_LINK_LOCAL) &&                              \
+	 CHECK_FLAG(_peer->cap, PEER_CAP_LINK_LOCAL_ADV) &&                                        \
+	 CHECK_FLAG(_peer->cap, PEER_CAP_LINK_LOCAL_RCV))
+
 #endif /* _QUAGGA_BGPD_H */
