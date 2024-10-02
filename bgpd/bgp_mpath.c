@@ -471,8 +471,6 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 
 	if (new_best) {
 		mpath_count++;
-		if (new_best != old_best)
-			bgp_path_info_mpath_dequeue(new_best);
 		/* For the imported route, should get sub_type from it's parent,
 		 * because the sub_type will be always BGP_PEER_IBGP if we don't do this. */
 		if ((BGP_ROUTE_IMPORTED == new_best->sub_type) && new_best->extra && new_best->extra->vrfleak
@@ -618,24 +616,6 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 		if ((mpath_count) != old_mpath_count || old_cum_bw != cum_bw)
 			SET_FLAG(new_best->flags, BGP_PATH_LINK_BW_CHG);
 	}
-}
-
-/*
- * bgp_mp_dmed_deselect
- *
- * Clean up multipath information for BGP_PATH_DMED_SELECTED path that
- * is not selected as best path
- */
-void bgp_mp_dmed_deselect(struct bgp_path_info *dmed_best)
-{
-	if (!dmed_best)
-		return;
-
-	bgp_path_info_mpath_count_set(dmed_best, 0);
-	UNSET_FLAG(dmed_best->flags, BGP_PATH_MULTIPATH_CHG);
-	UNSET_FLAG(dmed_best->flags, BGP_PATH_LINK_BW_CHG);
-
-	assert(bgp_path_info_mpath_first(dmed_best) == NULL);
 }
 
 /*
