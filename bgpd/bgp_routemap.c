@@ -4642,7 +4642,7 @@ route_set_vni (void *rule, const struct prefix *prefix, void *object)
 	path = object;
 
 	/* Set vni value. */
-	path->attr->vni = route_value_adjust(rv, 0, path->peer);
+	path->attr->vni = route_value_adjust(rv, 0, path);
 	if (BGP_DEBUG(zebra, ZEBRA)) {
 		zlog_debug("%s: set vni to %u",
 				   __func__, path->attr->vni);
