@@ -7964,8 +7964,8 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 	bgp_attr_default_set(&attr, BGP_ORIGIN_IGP);
 
 	attr.nexthop = bgp_static->igpnexthop;
-	attr.med = bgp_static->igpmetric;
-	attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC);
+
+	bgp_attr_set_med(&attr, bgp_static->igpmetric);
 
 	if (bgp_static->atomic)
 		attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_ATOMIC_AGGREGATE);
@@ -10555,9 +10555,8 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 	attr.nh_type = nhtype;
 	attr.nh_ifindex = ifindex;
 
-	attr.med = metric;
+	bgp_attr_set_med(&attr, metric);
 	attr.distance = distance;
-	attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC);
 	attr.tag = tag;
 
 	afi = family2afi(p->family);

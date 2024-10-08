@@ -1102,6 +1102,9 @@ struct attr *bgp_attr_aggregate_intern(
 	attr.origin = origin;
 	attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_ORIGIN);
 
+	/* MED */
+	bgp_attr_set_med(&attr, 0);
+
 	/* AS path attribute. */
 	if (aspath)
 		attr.aspath = aspath_intern(aspath);
@@ -1814,9 +1817,8 @@ static bgp_attr_parse_ret_t bgp_attr_med(struct bgp_attr_parser_args *args)
 					  args->total);
 	}
 
-	attr->med = stream_getl(peer->curr);
+	bgp_attr_set_med(attr, stream_getl(peer->curr));
 
-	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC);
 
 	return BGP_ATTR_PARSE_PROCEED;
 }
