@@ -1776,6 +1776,7 @@ udp6_checksum (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int
   char *ptr;
   int chksumlen = 0;
   int i;
+  uint16_t chksum = 0;
 
   ptr = &buf[0];  // ptr points to beginning of buffer buf
 
@@ -1838,7 +1839,13 @@ udp6_checksum (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int
     chksumlen++;
   }
 
-  return checksum ((uint16_t *) buf, chksumlen);
+  // ipv6 udp checksum can not be zero, if checksum calc to zero, change it to 0xFFFF
+  chksum = checksum ((uint16_t *) buf, chksumlen);
+  if (chksum == 0) {
+	chksum = ~chksum;
+  }
+
+  return chksum;
 }
 
 // Build IPv4 UDP pseudo-header and call checksum function.
