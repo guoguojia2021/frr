@@ -194,7 +194,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 		/* show each cpath*/
 
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
-			char binding_bfd[128] = {0};
+			char binding_bfd[BFD_NAME_SIZE + 1] = {0};
 			bool has_bfd = false;
 
 			binding_bfd[0] = '-';
@@ -215,7 +215,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 
 			if(candidate->bfd_name[0]){
 				has_bfd = true;
-				snprintf(binding_bfd, sizeof(binding_bfd) - 1, "%s", candidate->bfd_name);
+				snprintf(binding_bfd, sizeof(binding_bfd), "%s", candidate->bfd_name);
 			}
 
 			vty_out(vty,

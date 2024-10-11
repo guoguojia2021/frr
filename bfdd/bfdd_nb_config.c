@@ -235,7 +235,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 
 			/* Fill the session key. */
 			bfd_session_get_key(mhop, args->dnode, &bs->key);
-			strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
+			strlcpy(bs->bfd_name, bfd_name, sizeof(bs->bfd_name));
 			bs->bfd_mode = bfd_mode;
 
 			/* Set configuration flags. */
@@ -300,7 +300,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 			}
 			/* Fill the session key. */
 			sbfd_session_get_key(mhop, args->dnode, &bs->key);
-			strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
+			strlcpy(bs->bfd_name, bfd_name, sizeof(bs->bfd_name));
 			bs->bfd_mode = bfd_mode;
 			bs->segnum = segnum;
 
@@ -1018,7 +1018,7 @@ int bfdd_bfd_sessions_bfd_name_modify(
 	}
 
 	bs = nb_running_get_entry(args->dnode, NULL, true);
-	strlcpy(bs->bfd_name, bfd_name, BFD_NAME_SIZE);
+	strlcpy(bs->bfd_name, bfd_name, sizeof(bs->bfd_name));
 	bfd_session_apply(bs);
 
 	return NB_OK;

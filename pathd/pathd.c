@@ -1598,7 +1598,7 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_n
 	if (bfd_name == NULL)
 		return NULL;
 
-	strncpy(search.bfd_name, bfd_name, BFD_NAME_SIZE);
+	strncpy(search.bfd_name, bfd_name, sizeof(search.bfd_name));
 
 	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
 	return group;
@@ -1612,7 +1612,7 @@ void srte_candidate_bfd_group_add_with_status(const char *bfd_name,
 
 	group->cpath_num = 0;
 	group->status = status;
-	strncpy(group->bfd_name, bfd_name, BFD_NAME_SIZE);
+	strncpy(group->bfd_name, bfd_name, sizeof(group->bfd_name));
 	group->my_discriminator = my_discriminator;
 	RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
 
@@ -1632,7 +1632,7 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_na
 		group->cpath_num = 0;
 		group->status = SRTE_DETECT_DOWN;
 		group->my_discriminator = 0;
-		strncpy(group->bfd_name, bfd_name, BFD_NAME_SIZE);
+		strncpy(group->bfd_name, bfd_name, sizeof(group->bfd_name));
 
 		RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
 

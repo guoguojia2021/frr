@@ -415,8 +415,8 @@ static int static_nexthop_bfd_name_modify(struct nb_cb_modify_args *args)
 	struct bfd_session_params bsp;
 	memset(&bsp, 0, sizeof(struct bfd_session_params));
 	nh = nb_running_get_entry(args->dnode, NULL, true);
-	strlcpy(nh->bfd_name, yang_dnode_get_string(args->dnode, NULL), BFD_NAME_SIZE);
-	strlcpy(bsp.args.bfd_name,nh->bfd_name, BFD_NAME_SIZE);
+	strlcpy(nh->bfd_name, yang_dnode_get_string(args->dnode, NULL), sizeof(nh->bfd_name));
+	strlcpy(bsp.args.bfd_name,nh->bfd_name, sizeof(bsp.args.bfd_name));
 	bfd_name_register(&bsp);
 	return NB_OK;
 }

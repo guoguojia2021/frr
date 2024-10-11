@@ -276,7 +276,7 @@ module frr-pathd {
           }
           leaf bfd-name {
             type string {
-              length "1..254";
+              length "1..255";
             }
             description
               "Bfd session name associated with this route";

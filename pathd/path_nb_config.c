@@ -935,8 +935,8 @@ static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
 	    candidate->bfd_name[0] = 0;
 	}
 
-	strlcpy(candidate->bfd_name, yang_dnode_get_string(args->dnode, NULL), BFD_NAME_SIZE);
-	strlcpy(bsp.args.bfd_name,candidate->bfd_name, BFD_NAME_SIZE);
+	strlcpy(candidate->bfd_name, yang_dnode_get_string(args->dnode, NULL), sizeof(candidate->bfd_name));
+	strlcpy(bsp.args.bfd_name,candidate->bfd_name, sizeof(bsp.args.bfd_name));
 	bsp.args.family = AF_INET6;
 
 	if(srte_candidate_bfd_group_add(candidate->bfd_name, candidate) == NULL)
