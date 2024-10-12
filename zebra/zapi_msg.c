@@ -1913,8 +1913,10 @@ static bool zapi_read_nexthops(struct zserv *client, struct prefix *p,
 						   &api_nh->seg6local_ctx);
 		}
 
-		if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6)
-		    && api_nh->type != NEXTHOP_TYPE_BLACKHOLE) {
+		if (api_nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST
+			|| api_nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+			|| (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6)
+			&& api_nh->type != NEXTHOP_TYPE_BLACKHOLE)) {
 			if (IS_ZEBRA_DEBUG_RECV)
 				zlog_debug("%s: adding seg6", __func__);
 			if (!IPV6_ADDR_SAME(&srv6->encap_src_addr, &in6addr_any))
