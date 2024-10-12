@@ -1500,6 +1500,10 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 		vty_out(vty, " color %s",
 			yang_dnode_get_string(nexthop, "srte-color"));
 
+	if (yang_dnode_exists(nexthop, "bfd-name"))
+		vty_out(vty, " bfd-name %s",
+			yang_dnode_get_string(nexthop, "bfd-name"));
+
 	vty_out(vty, "\n");
 }
 
