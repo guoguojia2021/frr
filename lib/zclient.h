@@ -586,6 +586,7 @@ struct zapi_route {
  * This flag indicate the route entry contain a valid vrf group
  */
 #define ZEBRA_FLAG_VRF_GROUP          0x4000
+#define ZEBRA_FLAG_FIB_BYPASS         0x8000
 
 	/* The older XXX_MESSAGE flags live here */
 	uint32_t message;

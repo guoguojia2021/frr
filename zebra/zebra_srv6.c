@@ -500,6 +500,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 	re->instance = 0;
     SET_FLAG(re->flags, ZEBRA_FLAG_ALLOW_RECURSION);
     SET_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE);
+	SET_FLAG(re->flags, ZEBRA_FLAG_FIB_BYPASS);
     SET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);
 	re->uptime = monotime(NULL);
 	re->vrf_id = VRF_DEFAULT;
@@ -555,7 +556,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 	if (!re->nhe_id) {
 		zebra_nhe_init(&nhe, afi, ng->nexthop);
 		nhe.nhg.nexthop = ng->nexthop;
-		SET_FLAG(nhe.flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+		SET_FLAG(nhe.flags, NEXTHOP_GROUP_FIB_BYPASS);
 	}
 	ret = rib_add_multipath_nhe(afi, SAFI_UNICAST, &p, src_p,
 				    re, &nhe);

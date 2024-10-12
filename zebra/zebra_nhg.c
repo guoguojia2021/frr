@@ -688,6 +688,8 @@ struct nhg_hash_entry *zebra_nhe_copy(const struct nhg_hash_entry *orig,
 
 	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_KERNEL_BYPASS))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_FIB_BYPASS))
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_FIB_BYPASS);
 	/* Copy backup info also, if present */
 	if (orig->backup_info)
 		nhe->backup_info = nhg_backup_copy(orig->backup_info);

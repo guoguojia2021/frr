@@ -146,6 +146,7 @@ struct nhg_hash_entry {
 #define NEXTHOP_GROUP_SEGMENTLIST       (1 << 10)
 #define NEXTHOP_GROUP_UPDATE            (1 << 11)
 #define NEXTHOP_GROUP_DELETE            (1 << 12)
+#define NEXTHOP_GROUP_FIB_BYPASS        (1 << 13)
 #define NEXTHOP_GROUP_LINKLOCAL         (1 << 15)
 };
 

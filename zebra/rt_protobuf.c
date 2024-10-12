@@ -398,7 +398,14 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 
 	flag = dplane_ctx_get_flags(ctx);
 
-
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
+		zlog_info("%s:fib bypass",__func__);
+		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
+			zlog_debug(
+				"%s: nhg_id %u (%s): this nexthops no need to install kernel, ignoring",
+				__func__, id, zebra_route_string(type));
+		return NULL;
+	}
 	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS) && !fpm) {
 		zlog_info("%s:kernel bypass",__func__);
 		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)

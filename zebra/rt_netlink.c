@@ -2018,6 +2018,7 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 	union g_addr src;
 	const struct prefix *p, *src_p;
 	uint32_t table_id;
+	uint32_t flag;
 
 	struct {
 		struct nlmsghdr n;
@@ -2030,6 +2031,16 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 
 	if (datalen < sizeof(*req))
 		return 0;
+
+	flag = dplane_ctx_get_flags(ctx);
+
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
+		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
+			zlog_debug(
+				"%s: prefix %pFX: this route no need to install fib, ignoring",
+				__func__, p);
+		return 0;
+	}
 
 	memset(req, 0, sizeof(*req));
 
@@ -2543,6 +2554,14 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 
 	flag = dplane_ctx_get_flags(ctx);
 
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
+		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
+			zlog_debug(
+				"%s: nhg_id %u (%s): this nexthops no need to install kernel, ignoring",
+				__func__, id, zebra_route_string(type));
+		return 0;
+	}
+
 	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS) && !fpm) {
 		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
 			zlog_debug(
@@ -2904,7 +2923,8 @@ netlink_put_nexthop_update_msg(struct nl_batch *bth,
     uint32_t flag;
     flag = dplane_ctx_get_flags(ctx);
 	/* Nothing to do if the kernel doesn't support nexthop objects */
-	if (!kernel_nexthops_supported() || CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS))
+	if (!kernel_nexthops_supported() || CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)
+		|| CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS))
 		return FRR_NETLINK_SUCCESS;
     
 	return netlink_batch_add_msg(bth, ctx, netlink_nexthop_msg_encoder,
@@ -2941,6 +2961,7 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)) {
 		if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_UPDATE &&
 		    !CHECK_FLAG(old_flag, ZEBRA_FLAG_KERNEL_BYPASS) &&
+		    !CHECK_FLAG(old_flag, ZEBRA_FLAG_FIB_BYPASS) &&
 					!RSYSTEM_ROUTE(dplane_ctx_get_old_type(ctx)))
 			netlink_batch_add_msg(bth, ctx,
 					      netlink_delroute_msg_encoder,

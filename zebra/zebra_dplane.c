@@ -2608,6 +2608,8 @@ static void dplane_ctx_nexthop_fill_routeinfo(struct zebra_dplane_ctx *ctx, stru
 	nh = nhe->nhg.nexthop;
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS))
 		SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FIB_BYPASS))
+		SET_FLAG(flags, ZEBRA_FLAG_FIB_BYPASS);
 
 	nexthop_group_copy(&(ctx->u.rinfo.nhe.ng), &(nhe->nhg));
 
@@ -3179,11 +3181,13 @@ dplane_route_update_internal(struct route_node *rn,
 	if (ret == AOK) {
 		nexthop = re->nhe->nhg.nexthop;
 		flags = re->flags;
-		if (CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)
-			|| (nexthop->srte_color && re->type == ZEBRA_ROUTE_STATIC)) {
-				SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
+		if (CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
+			SET_FLAG(flags, ZEBRA_FLAG_FIB_BYPASS);
 		}
-		if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS)) {
+		else if (nexthop->srte_color && re->type == ZEBRA_ROUTE_STATIC) {
+			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
+		}
+		else if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS)) {
 			SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 		}
 		dplane_ctx_set_flags(ctx, flags);
@@ -3197,7 +3201,7 @@ dplane_route_update_internal(struct route_node *rn,
 			old_flags = old_re->flags;
 			/* Assign ZEBRA_FLAG_KERNEL_BYPASS to dplane route info */
 			if (CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
-					SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
+				SET_FLAG(old_flags, ZEBRA_FLAG_FIB_BYPASS);
 			}
 			if (CHECK_FLAG(old_re->nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS)) {
 				SET_FLAG(old_flags, ZEBRA_FLAG_KERNEL_BYPASS);
