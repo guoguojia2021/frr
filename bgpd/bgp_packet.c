@@ -570,8 +570,11 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			 * packet with appropriate attributes from peer
 			 * and advance peer */
 			s = bpacket_reformat_for_peer(next_pkt, paf);
-			size = stream_getw_from(s, BGP_MARKER_SIZE);
-			hook_call(bgp_packet_dump, peer, BGP_MSG_UPDATE, BMP_ADJ_OUT_POSTPOLICY, size, s);
+			if (s != NULL)
+			{
+				size = stream_getw_from(s, BGP_MARKER_SIZE);
+				hook_call(bgp_packet_dump, peer, BGP_MSG_UPDATE, BMP_ADJ_OUT_POSTPOLICY, size, s);
+			}
 			bgp_packet_add(peer, s);
 			bpacket_queue_advance_peer(paf);
 
