@@ -57,8 +57,6 @@
 #include "bgpd/bgp_filter.h"
 #include "bgpd/bgp_io.h"
 
-#define HASH_DATA_FOR_ADV_LOW_PRIORITY_BEFORE_UPDATE_DELAY   0
-#define HASH_DATA_FOR_ADV_LOW_PRIORITY_AFTER_UPDATE_DELAY    1
 /********************
  * PRIVATE FUNCTIONS
  ********************/
@@ -165,12 +163,7 @@ static void conf_copy(struct peer *dst, struct peer *src, afi_t afi,
 	memcpy(&(dst->nexthop), &(src->nexthop), sizeof(struct bgp_nexthop));
 
 	dst->group = src->group;
-	if(bgp_update_delay_active(src->bgp))	
-		dst->t_adv_lprio = HASH_DATA_FOR_ADV_LOW_PRIORITY_BEFORE_UPDATE_DELAY; 
-	else if (src->t_adv_lprio != NULL)
-		dst->t_adv_lprio = HASH_DATA_FOR_ADV_LOW_PRIORITY_AFTER_UPDATE_DELAY;
-	else
-		dst->t_adv_lprio = src->t_adv_lprio;
+	dst->t_adv_lprio = src->t_adv_lprio;
 
 	if (src->default_rmap[afi][safi].name) {
 		dst->default_rmap[afi][safi].name =
@@ -912,7 +905,7 @@ update_subgroup_create(struct update_group *updgrp)
 	subgrp->v_coalesce = (UPDGRP_INST(updgrp))->coalesce_time;
 	sync_init(subgrp, updgrp);
 	bpacket_queue_init(SUBGRP_PKTQ(subgrp));
-	bpacket_queue_add(SUBGRP_PKTQ(subgrp), NULL, NULL,NULL);
+	bpacket_queue_add(SUBGRP_PKTQ(subgrp), NULL, NULL);
 	TAILQ_INIT(&(subgrp->adjq));
 	if (BGP_DEBUG(update_groups, UPDATE_GROUPS))
 		zlog_debug("create subgroup u%" PRIu64 ":s%" PRIu64, updgrp->id,
@@ -1016,6 +1009,7 @@ static void update_subgroup_add_peer(struct update_subgroup *subgrp,
 		pkt = bpacket_queue_last(SUBGRP_PKTQ(subgrp));
 		assert(pkt->buffer == NULL);
 	}
+
 	bpacket_add_peer(pkt, paf);
 
 	if (BGP_DEBUG(update_groups, UPDATE_GROUPS))
@@ -1332,7 +1326,7 @@ static int update_subgroup_copy_packets(struct update_subgroup *dest,
 	count = 0;
 	while (pkt && pkt->buffer) {
 		bpacket_queue_add(SUBGRP_PKTQ(dest), stream_dup(pkt->buffer),
-				  &pkt->arr,NULL);
+				  &pkt->arr);
 		count++;
 		pkt = bpacket_next(pkt);
 	}

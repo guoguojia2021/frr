@@ -103,9 +103,6 @@ struct bpacket {
 	struct stream *buffer;
 	bpacket_attr_vec_arr arr;
 
-	/*indicates from which peer the prefix was recieved*/
-	union sockunion from;
-
 	unsigned int ver;
 };
 
@@ -393,7 +390,7 @@ extern void bpacket_queue_cleanup(struct bpacket_queue *q);
 extern void bpacket_queue_sanity_check(struct bpacket_queue *q);
 extern struct bpacket *bpacket_queue_add(struct bpacket_queue *q,
 					 struct stream *s,
-					 struct bpacket_attr_vec_arr *vecarr,union sockunion *from);
+					 struct bpacket_attr_vec_arr *vecarr);
 struct bpacket *bpacket_queue_remove(struct bpacket_queue *q);
 extern struct bpacket *bpacket_queue_first(struct bpacket_queue *q);
 struct bpacket *bpacket_queue_last(struct bpacket_queue *q);

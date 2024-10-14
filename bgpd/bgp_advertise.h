@@ -49,9 +49,6 @@ struct bgp_advertise {
 	/* Advertisement attribute.  */
 	struct bgp_advertise_attr *baa;
 
-	/*Same peer withdraw */
-	struct bgp_advertise_attr *withdraw_baa;
-
 	/* BGP info.  */
 	struct bgp_path_info *pathi;
 	uint8_t flags;
@@ -95,9 +92,6 @@ struct bgp_adj_out {
 
 	/* Advertisement information.  */
 	struct bgp_advertise *adv;
-
-	/* Advertisement information for withdraw old best select route.  */
-	struct bgp_advertise *old_adv;
 
 	/* Attribute hash */
 	uint32_t attr_hash;

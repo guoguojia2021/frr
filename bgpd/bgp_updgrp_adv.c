@@ -452,27 +452,7 @@ struct bgp_adj_out *bgp_adj_out_alloc(struct update_subgroup *subgrp,
 	SUBGRP_INCR_STAT(subgrp, adj_count);
 	return adj;
 }
-struct bgp_advertise * bgp_advertise_free_old_adv_subgroup(struct update_subgroup *subgrp,
-			     struct bgp_adj_out *adj)
-{
-	struct bgp_advertise *next = NULL;
-	struct bgp_advertise_attr *withdraw_baa;
-	
-	if(adj!=NULL && adj->old_adv != NULL) {
-		withdraw_baa = adj->old_adv->withdraw_baa;
-		if(withdraw_baa){
-			bgp_advertise_delete(withdraw_baa, adj->old_adv);
-			//next = withdraw_baa->adv;
-			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
-			/* Unintern BGP advertise attribute.  */
-			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
-		}
-		bgp_adv_fifo_del(&subgrp->sync->withdraw, adj->old_adv);
-		bgp_advertise_free(adj->old_adv);
-		adj->old_adv = NULL;
-	}
-	return next;
-}
+
 
 struct bgp_advertise *
 bgp_advertise_clean_subgroup(struct update_subgroup *subgrp,
@@ -480,7 +460,6 @@ bgp_advertise_clean_subgroup(struct update_subgroup *subgrp,
 {
 	struct bgp_advertise *adv;
 	struct bgp_advertise_attr *baa;
-	struct bgp_advertise_attr *withdraw_baa;
 	struct bgp_advertise *next;
 	struct bgp_adv_fifo_head *fhead;
 
@@ -499,16 +478,9 @@ bgp_advertise_clean_subgroup(struct update_subgroup *subgrp,
 
 		/* Unintern BGP advertise attribute.  */
 		bgp_advertise_unintern(subgrp->hash, baa);
-	} else{
+	} else
 		fhead = &subgrp->sync->withdraw;
-		withdraw_baa = adv->withdraw_baa;
-		if (withdraw_baa){
-			bgp_advertise_delete(withdraw_baa, adv);
-			//next = withdraw_baa->adv;
-			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
-			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
-		}
-	}
+
 
 	/* Unlink myself from advertisement FIFO.  */
 	bgp_adv_fifo_del(fhead, adv);
@@ -525,27 +497,13 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 			      struct bgp_path_info *path)
 {
 	struct bgp_adj_out *adj = NULL;
-	struct bgp_advertise *adv, *old_adv;
+	struct bgp_advertise *adv;
 	struct peer *peer;
 	afi_t afi;
 	safi_t safi;
 	struct peer *adv_peer;
 	struct peer_af *paf;
 	struct bgp *bgp;
-	
-	/* Consider two cases:
-	1. IPv4 prefix recieved on IPv4 peer and IPv6 prefix recieved on IPv6 peer; 
-	2. IPv4 prefix and IPv6 prefix both recieved on IPv6 peer; 
-	Just check the peer.su.sa.family we can handle the two cases;
-	*/
-	if (path !=NULL &&  path->peer !=NULL){
-			memset(&(attr->from), 0, sizeof(union sockunion));
-			if(path->peer->su.sa.sa_family == AF_INET)
-				memcpy(&(attr->from.sin.sin_addr) , &(path->peer->su.sin.sin_addr),4);
-			else if(path->peer->su.sa.sa_family == AF_INET6)
-				memcpy(&(attr->from.sin6.sin6_addr) , &(path->peer->su.sin6.sin6_addr),16);
-			attr->from.sa.sa_family = path->peer->su.sa.sa_family;
-	}
 	uint32_t attr_hash = attrhash_key_make(attr);
 
 	peer = SUBGRP_PEER(subgrp);
@@ -604,41 +562,8 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 					__func__, peer->host, dest, adj->addpath_tx_id, bgp_dest_get_prefix(dest), attr_str, dest->flags);
 	}
 
-	if (adj->adv) {
+	if (adj->adv)
 		bgp_advertise_clean_subgroup(subgrp, adj);
-	}
-	bgp_advertise_free_old_adv_subgroup(subgrp, adj);
-
-	/*this an new best selected route update, we will withdraw the old best select advertised out*/
-	/*the withdraw only take effect to the peer from which the new best select comes from*/
-	if (adj->attr_hash != attr_hash ){
-		/*adj->adv is not null, there is a packet for old best selected route in the update queue;
-		* since we have new best selected route, just free it;
-		*/
-		if (adj->attr) {
-			/* Add to synchronization entry for withdraw
-			* announcement.  */
-			struct attr dummy_attr;
-			memset(&dummy_attr,0, sizeof(struct attr));
-			
-			/*old_adv to withdraw a specefic peer, its adv has same hash value*/
-			if(attr->from.sa.sa_family != 0){
-				memcpy(&(dummy_attr.from), &(attr->from), sizeof(union sockunion));
-			}
-			old_adv = bgp_advertise_new();
-			old_adv->dest = dest;
-			assert(old_adv->pathi == NULL);
-			/* bgp_path_info adj_out reference */
-			old_adv->pathi = bgp_path_info_lock(path);
-			old_adv->withdraw_baa = bgp_advertise_intern(subgrp->hash, &dummy_attr);
-			old_adv->adj = adj;
-			/*withdraw adv for same peer add to withdraw_baa */
-			bgp_advertise_add(old_adv->withdraw_baa, old_adv);
-			adj->old_adv = old_adv;
-			bgp_adv_fifo_add_tail(&subgrp->sync->withdraw, old_adv);
-		}
-	}
-
 	adj->adv = bgp_advertise_new();
 
 	adv = adj->adv;
@@ -709,10 +634,8 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 
 	if (adj != NULL) {
 		/* Clean up previous advertisement.  */
-		if (adj->adv){
-			bgp_advertise_clean_subgroup(subgrp, adj); 
-		}
-		bgp_advertise_free_old_adv_subgroup(subgrp, adj);
+		if (adj->adv)
+			bgp_advertise_clean_subgroup(subgrp, adj);
 
 		/* If default originate is enabled and the route is default
 		 * route, do not send withdraw. This will prevent deletion of
@@ -724,15 +647,10 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 
 		if (adj->attr && withdraw) {
 			/* We need advertisement structure.  */
-			struct attr dummy_attr;
-			memset(&dummy_attr, 0, sizeof(struct attr));
 			adj->adv = bgp_advertise_new();
 			adv = adj->adv;
 			adv->dest = dest;
 			adv->wait_addpath_tx_id = wait_addpath_tx_id;
-			/*use dummy_attr to generate withdraw_baa*/
-			adv->withdraw_baa = bgp_advertise_intern(subgrp->hash, &dummy_attr);
-			bgp_advertise_add(adv->withdraw_baa, adv); 
 			adv->adj = adj;
 			SET_FLAG(adv->flags, ADV_IN_QUEUE);
 
@@ -760,14 +678,12 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 void bgp_adj_out_remove_subgroup(struct bgp_dest *dest, struct bgp_adj_out *adj,
 				 struct update_subgroup *subgrp)
 {
-	
 	if (adj->attr)
 		bgp_attr_unintern(&adj->attr);
 
 	if (adj->adv)
 		bgp_advertise_clean_subgroup(subgrp, adj);
-	/*clear old_adv if exist*/
-	bgp_advertise_free_old_adv_subgroup(subgrp,adj);
+
 	adj_free(adj);
 }
 
@@ -1042,7 +958,7 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 					if (adj->adv)
 						bgp_advertise_clean_subgroup(
 							subgrp, adj);
-					bgp_advertise_free_old_adv_subgroup(subgrp, adj);
+
 					/* Free allocated information.  */
 					adj_free(adj);
 				}
