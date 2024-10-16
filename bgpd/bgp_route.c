@@ -7967,9 +7967,6 @@ void bgp_static_update(struct bgp *bgp, const struct prefix *p,
 	attr.med = bgp_static->igpmetric;
 	attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC);
 
-	if (bgp_static->igpmetric)
-		bgp_attr_set_aigp_metric(&attr, bgp_static->igpmetric);
-
 	if (bgp_static->atomic)
 		attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_ATOMIC_AGGREGATE);
 
@@ -10563,9 +10560,6 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 	attr.flag |= ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC);
 	attr.tag = tag;
 
-	if (metric)
-		bgp_attr_set_aigp_metric(&attr, metric);
-
 	afi = family2afi(p->family);
 
 	red = bgp_redist_lookup(bgp, afi, type, instance);
@@ -10575,10 +10569,8 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 		/* Copy attribute for modification. */
 		attr_new = attr;
 
-		if (red->redist_metric_flag) {
+		if (red->redist_metric_flag)
 			attr_new.med = red->redist_metric;
-			bgp_attr_set_aigp_metric(&attr_new, red->redist_metric);
-		}
 
 		/* Apply route-map. */
 		if (red->rmap.name) {
