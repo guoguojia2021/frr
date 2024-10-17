@@ -63,6 +63,9 @@
 #include "zebra/zebra_script.h"
 
 extern int allow_delete;
+extern struct list *zebra_track_routes;
+
+DEFINE_MTYPE_STATIC(ZEBRA, TRACKLIST, "Route tracking object");
 
 /* context to manage dumps in multiple tables or vrfs */
 struct route_show_ctx {
@@ -4293,6 +4296,23 @@ static int config_write_protocol(struct vty *vty)
 	netlink_config_write_helper(vty);
 #endif /* HAVE_NETLINK */
 
+	if (zebra_track_routes && zebra_track_routes->count != 0) {
+		struct listnode *node, *nnode;
+		struct zebra_trackroute_node *trackp;
+		vrf_id_t vrf_id;
+		char pfx_buf[PREFIX2STR_BUFFER];
+		char *vrf_name = NULL;
+		for (ALL_LIST_ELEMENTS(zebra_track_routes, node, nnode, trackp)) {
+			prefix2str(&trackp->p, pfx_buf, sizeof(pfx_buf));
+			if (trackp->vrf_id == 0)
+				vty_out(vty, "track-route %s\n", pfx_buf);
+			else {
+				vrf_name = vrf_id_to_name(trackp->vrf_id);
+				vty_out(vty, "track-route %s vrf %s\n", pfx_buf, vrf_name);
+			}
+		}
+	}
+
 	return 1;
 }
 
@@ -4791,6 +4811,161 @@ DEFUN (show_pending_list,
 	}
 	return CMD_SUCCESS;
 }
+
+static bool zebra_track_list_has_entry(struct list *list, const struct prefix *p, vrf_id_t vrf_id)
+{
+	struct zebra_trackroute_node *trackp;
+	struct listnode *node, *nnode;
+
+	for (ALL_LIST_ELEMENTS(list, node, nnode, trackp)) {
+		if (p) {
+			if (trackp->p.prefixlen == p->prefixlen
+			    && prefix_match(trackp, p)
+			    && trackp->vrf_id == vrf_id) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static void zebra_track_list_add_entry(struct list *list, const struct prefix *p, vrf_id_t vrf_id)
+{
+	struct zebra_trackroute_node *trackp;
+
+	trackp = XCALLOC(MTYPE_TRACKLIST,
+			 sizeof(struct zebra_trackroute_node));
+
+	if (p) {
+		prefix_copy(&trackp->p, p);
+		trackp->vrf_id = vrf_id;
+	}
+
+	listnode_add(list, trackp);
+}
+
+static void zebra_track_list_free(struct list *list)
+{
+	struct zebra_trackroute_node *trackp;
+	struct listnode *node, *nnode;
+
+	if (list)
+		for (ALL_LIST_ELEMENTS(list, node, nnode, trackp)) {
+			listnode_delete(list, trackp);
+			XFREE(MTYPE_TRACKLIST, trackp);
+		}
+}
+
+static bool zebra_track_list_remove_entry(struct list *list, struct prefix *p, vrf_id_t vrf_id)
+{
+	struct zebra_trackroute_node *trackp;
+	struct listnode *node, *nnode;
+
+	for (ALL_LIST_ELEMENTS(list, node, nnode, trackp)) {
+		if (p && p->prefixlen == trackp->p.prefixlen
+			   && prefix_match(trackp, p)
+			   && trackp->vrf_id == vrf_id) {
+			listnode_delete(list, trackp);
+			XFREE(MTYPE_TRACKLIST, trackp);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/* debug bgp bestpath */
+DEFUN (zebra_track_route,
+       zebra_track_route_cmd,
+       "track-route <A.B.C.D/M|X:X::X:X/M> [vrf VRFNAME]",
+       "track route\n"
+       "IPv4 prefix\n"
+       "IPv6 prefix\n"
+       "vrf"
+       "vrfname")
+{
+	struct prefix *argv_p;
+	int idx_ipv4_ipv6_prefixlen = 1;
+	char *vrf_name = NULL;
+	int idx = 0;
+	vrf_id_t vrf_id = 0;
+	struct vrf *vrf = NULL;
+
+	argv_p = prefix_new();
+	(void)str2prefix(argv[idx_ipv4_ipv6_prefixlen]->arg, argv_p);
+	apply_mask(argv_p);
+
+	if (argv_find(argv, argc, "vrf", &idx)) {
+		vrf_name = argv[++idx]->arg;
+		vrf = vrf_lookup_by_name(vrf_name);
+		if (!vrf) {
+			vty_out(vty,
+			"vrf name %s doesn't exist\n",
+			vrf_name);
+			return CMD_WARNING;
+		}
+	}
+	
+	if (vrf)
+		vrf_id = vrf->vrf_id;
+	else
+		vrf_id = 0;
+
+	if (!zebra_track_routes)
+		zebra_track_routes = list_new();
+
+	if (zebra_track_list_has_entry(zebra_track_routes, argv_p, vrf_id)) {
+		return CMD_SUCCESS;
+	}
+
+	zebra_track_list_add_entry(zebra_track_routes, argv_p, vrf_id);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_zebra_track_route,
+       no_zebra_track_route_cmd,
+       "no track-route <A.B.C.D/M|X:X::X:X/M> [vrf VRFNAME]",
+       NO_STR
+       "track route\n"
+       "IPv4 prefix\n"
+       "IPv6 prefix\n"
+       "vrf"
+       "vrfname")
+{
+	int idx_ipv4_ipv6_prefixlen = 2;
+	struct prefix *argv_p;
+	int found_prefix = 0;
+	char *vrf_name = NULL;
+	int idx = 0;
+	vrf_id_t vrf_id = 0;
+	struct vrf *vrf = NULL;
+
+	argv_p = prefix_new();
+	(void)str2prefix(argv[idx_ipv4_ipv6_prefixlen]->arg, argv_p);
+	apply_mask(argv_p);
+
+	if (argv_find(argv, argc, "vrf", &idx)) {
+		vrf_name = argv[++idx]->arg;
+		vrf = vrf_lookup_by_name(vrf_name);
+	}
+	
+	if (vrf)
+		vrf_id = vrf->vrf_id;
+	else
+		vrf_id = 0;
+
+	if (zebra_track_routes
+	    && !list_isempty(zebra_track_routes)) {
+		found_prefix = zebra_track_list_remove_entry(
+			zebra_track_routes, argv_p, vrf_id);
+	}
+
+	return CMD_SUCCESS;
+}
+
+
 /* IP node for static routes. */
 static int zebra_ip_config(struct vty *vty);
 static struct cmd_node ip_node = {
@@ -4958,4 +5133,6 @@ void zebra_vty_init(void)
 
 	install_element(VIEW_NODE, &show_fib_route_statistics_cmd);
 	install_element(VIEW_NODE, &show_pending_list_cmd);
+	install_element(CONFIG_NODE, &zebra_track_route_cmd);
+	install_element(CONFIG_NODE, &no_zebra_track_route_cmd);
 }

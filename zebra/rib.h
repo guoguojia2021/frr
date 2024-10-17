@@ -389,6 +389,11 @@ enum rib_update_event {
 	RIB_UPDATE_MAX
 };
 
+struct zebra_trackroute_node {
+	vrf_id_t vrf_id;
+	struct prefix p;
+};
+
 extern void route_entry_copy_nexthops(struct route_entry *re,
 				      struct nexthop *nh);
 int route_entry_update_nhe(struct route_entry *re,

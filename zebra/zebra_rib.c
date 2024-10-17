@@ -85,6 +85,8 @@ bool fib_threshold_alarm_switch = true;
 
 struct pend_list pending_list = {0};
 
+struct list *zebra_track_routes = NULL;
+
 DEFINE_HOOK(rib_update, (struct route_node * rn, const char *reason),
 	    (rn, reason));
 DEFINE_HOOK(rib_shutdown, (struct route_node * rn), (rn));
@@ -1051,6 +1053,28 @@ static void rib_pending_list_del(afi_t afi, rib_dest_t *dest)
 	dest->prev = NULL;
 	dest->next = NULL;
 }
+
+static int zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
+				struct list *per_prefix_list)
+{
+	struct zebra_trackroute_node *trackp;
+	struct listnode *node, *nnode;
+
+	/* We are debugging all prefixes so return true */
+	if (!per_prefix_list || list_isempty(per_prefix_list))
+		return 0;
+	else {
+		if (!p)
+			return 0;
+		for (ALL_LIST_ELEMENTS(per_prefix_list, node, nnode,
+				       trackp))
+			if (trackp->p.prefixlen == p->prefixlen && prefix_match(trackp, p)
+				&& trackp->vrf_id == vrf_id)
+				return 1;
+	}
+	return 0;
+}
+
 /*
  * rib_gc_dest
  *
@@ -1062,10 +1086,15 @@ static void rib_pending_list_del(afi_t afi, rib_dest_t *dest)
 int rib_gc_dest(struct route_node *rn)
 {
 	rib_dest_t *dest;
+	struct zebra_vrf *zvrf = NULL;
+	vrf_id_t vrf_id = VRF_UNKNOWN;
+
 	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	dest = rib_dest_from_rnode(rn);
 	if (!dest)
 		return 0;
+	zvrf = rib_dest_vrf(dest);
+	vrf_id = zvrf_id(zvrf);
 
 	if (!rib_can_delete_dest(dest))
 		return 0;
@@ -1075,6 +1104,9 @@ int rib_gc_dest(struct route_node *rn)
 		zvrf = rib_dest_vrf(dest);
 		rnode_debug(rn, zvrf_id(zvrf), "removing dest from table");
 	}
+	if (zebra_track_per_prefix(&rn->p, vrf_id, zebra_track_routes)) {
+	    zlog_warn("%%TRACKROUTEMISS: Route %pRN has been deleted", rn);
+    }
 
 	zebra_rib_evaluate_rn_nexthops(rn, zebra_router_get_next_sequence(),
 				       true);
@@ -4962,6 +4994,8 @@ void rib_init(void)
 	pthread_mutex_init(&dplane_mutex, NULL);
 	TAILQ_INIT(&rib_dplane_q);
 	zebra_dplane_init(rib_dplane_results);
+
+	zebra_track_routes = list_new();
 }
 
 /*
