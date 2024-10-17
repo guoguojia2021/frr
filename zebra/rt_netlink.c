@@ -2018,7 +2018,6 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 	union g_addr src;
 	const struct prefix *p, *src_p;
 	uint32_t table_id;
-	uint32_t flag;
 
 	struct {
 		struct nlmsghdr n;
@@ -2031,16 +2030,6 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 
 	if (datalen < sizeof(*req))
 		return 0;
-
-	flag = dplane_ctx_get_flags(ctx);
-
-	if (CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
-		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
-			zlog_debug(
-				"%s: prefix %pFX: this route no need to install fib, ignoring",
-				__func__, p);
-		return 0;
-	}
 
 	memset(req, 0, sizeof(*req));
 
@@ -2554,14 +2543,6 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 
 	flag = dplane_ctx_get_flags(ctx);
 
-	if (CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
-		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
-			zlog_debug(
-				"%s: nhg_id %u (%s): this nexthops no need to install kernel, ignoring",
-				__func__, id, zebra_route_string(type));
-		return 0;
-	}
-
 	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS) && !fpm) {
 		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
 			zlog_debug(
@@ -2958,7 +2939,7 @@ netlink_put_route_update_msg(struct nl_batch *bth, struct zebra_dplane_ctx *ctx)
 	/* If new route is set kernel-bypass,we just return success
 	 *  unless old route is not kernel-bypass when update operation .
 	 */
-	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS)) {
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_KERNEL_BYPASS) || CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
 		if (dplane_ctx_get_op(ctx) == DPLANE_OP_ROUTE_UPDATE &&
 		    !CHECK_FLAG(old_flag, ZEBRA_FLAG_KERNEL_BYPASS) &&
 		    !CHECK_FLAG(old_flag, ZEBRA_FLAG_FIB_BYPASS) &&

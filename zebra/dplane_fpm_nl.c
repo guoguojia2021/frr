@@ -696,6 +696,7 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 	uint64_t obytes, obytes_peak;
 	enum dplane_op_e op = dplane_ctx_get_op(ctx);
 	bool use_protobuf =false;
+	uint32_t flag;
 
 	/*
 	 * If we were configured to not use next hop groups, then quit as soon
@@ -706,6 +707,12 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 		|| op == DPLANE_OP_NH_UPDATE || op == DPLANE_PROTOBUF_OP_NH_DELETE
 		|| op == DPLANE_PROTOBUF_OP_NH_INSTALL || op == DPLANE_PROTOBUF_OP_NH_UPDATE))
 		return 0;
+
+	flag = dplane_ctx_get_flags(ctx);
+
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_FIB_BYPASS)) {
+		return 0;
+	}
 
 	nl_buf_len = 0;
 
