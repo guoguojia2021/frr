@@ -1,0 +1,163 @@
+[
+  {
+    "TestId": 11,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2785673218,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2785673218,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid8192",
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid3223323811",
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "f7a5:8146::7a1a:1dd7",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2785673218
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 2785673218,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 2785673218,
+                "SidlistName": "sid8192"
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 2785673218,
+                "SidlistName": "sid3223323811"
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 2785673218,
+                "SidlistName": "sid8192"
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 2785673218,
+                "SidlistName": "sid3223323811"
+              }
+            }
+          ]
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "f7a5:8146::7a1a:1dd7",
+          "RnhList": [
+            {
+              "Prefix": "f7a5:8146::7a1a:1dd7",
+              "ResolvedRoute": "0::/0",
+              "Color": 2785673218
+            }
+          ]
+        }
+      ]
+    },
+    "Policy": {
+      "Srv6Tunnel": [
+        {
+          "Name": "sid8192",
+          "Weight": 0
+        }
+      ],
+      "Endpoint": "0::/0",
+      "Color": 2785673218
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2785673218,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2785673218,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid8192",
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "f7a5:8146::7a1a:1dd7",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2785673218
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 2785673218,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 2785673218,
+                "SidlistName": "sid8192"
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 2785673218,
+                "SidlistName": "sid8192"
+              }
+            }
+          ]
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "f7a5:8146::7a1a:1dd7",
+          "RnhList": [
+            {
+              "Prefix": "f7a5:8146::7a1a:1dd7",
+              "ResolvedRoute": "0::/0",
+              "Color": 2785673218
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

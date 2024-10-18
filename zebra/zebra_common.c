@@ -76,3 +76,20 @@ int zebra_finalize(struct thread *dummy)
 	frr_fini();
 	exit(0);
 }
+
+zebra_capabilities_t _caps_p[] = {
+	ZCAP_NET_ADMIN, ZCAP_SYS_ADMIN, ZCAP_NET_RAW,
+};
+
+/* zebra privileges to run with */
+struct zebra_privs_t zserv_privs = {
+#if defined(FRR_USER) && defined(FRR_GROUP)
+	.user = FRR_USER,
+	.group = FRR_GROUP,
+#endif
+#ifdef VTY_GROUP
+	.vty_group = VTY_GROUP,
+#endif
+	.caps_p = _caps_p,
+	.cap_num_p = array_size(_caps_p),
+	.cap_num_i = 0};

@@ -134,6 +134,17 @@ extern int zsend_srv6_manager_del_sid(struct zserv *client,
                               struct srv6_locator *loc,
                               struct seg6_sid *sid);
 
+
+#ifdef ZEBRA_UNIT_TESTING
+void zread_srv6_policy_set(ZAPI_HANDLER_ARGS);
+void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS);
+void zread_route_add(ZAPI_HANDLER_ARGS);
+void zread_route_del(ZAPI_HANDLER_ARGS);
+void zread_rnh_register(ZAPI_HANDLER_ARGS);
+void zread_rnh_unregister(ZAPI_HANDLER_ARGS);
+#endif
+
+
 #ifdef __cplusplus
 }
 #endif

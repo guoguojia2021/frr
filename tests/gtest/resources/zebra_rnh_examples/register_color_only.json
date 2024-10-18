@@ -1,0 +1,262 @@
+[
+  {
+    "TestId": 300,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "a",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "b",
+                    "Weight": 1
+                  }
+                ]
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "c",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "d",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": []
+    },
+    "InputRnh": {
+      "ResolvedRoute": "2000::100",
+      "Color": 2
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "a",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "b",
+                    "Weight": 1
+                  }
+                ],
+                "Nht": [
+                  {
+                    "ResolvedRoute": "::/0",
+                    "Color": 2
+                  }
+                ]
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "c",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "d",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [],
+      "Rnhs": [
+        {
+          "Prefix": "2000::100",
+          "RnhList": [
+            {
+              "ResolvedRoute": "::/0",
+              "Color": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 301,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": []
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "c",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "d",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": []
+    },
+    "InputRnh": {
+      "ResolvedRoute": "2000::100",
+      "Color": 2
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "ResolvedRoute": "::/0",
+                    "Color": 2
+                  }
+                ]
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "c",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "d",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [],
+      "Rnhs": [
+        {
+          "Prefix": "2000::100",
+          "RnhList": [
+            {
+              "ResolvedRoute": "::/0",
+              "Color": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 302,
+    "InitialState": {
+      "PolicyRouteTable": [],
+      "Nhgs": []
+    },
+    "InputRnh": {
+      "ResolvedRoute": "2000::100",
+      "Color": 2
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": []
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::100",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "sid01",
+                    "Weight": 1
+                  }
+                ],
+                "Nht": [
+                  {
+                    "ResolvedRoute": "2000::100",
+                    "Color": 2
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [],
+      "Rnhs": [
+        {
+          "Prefix": "2000::100",
+          "RnhList": [
+            {
+              "ResolvedRoute": "2000::100",
+              "Color": 2
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

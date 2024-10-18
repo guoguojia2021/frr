@@ -1,0 +1,144 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": []
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "a",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "b",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": []
+              },
+              {
+                "Color": 3,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "b",
+                    "Weight": 1
+                  },
+                  {
+                    "Name": "c",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "Nexthops": {
+            "GateIpv6": "2000::179",
+            "SrteColor": 2,
+            "Resolved": [
+              {
+                "GateIpv6": "2000::179",
+                "SrteColor": 2,
+                "SidlistName": "a"
+              },
+              {
+                "GateIpv6": "2000::179",
+                "SrteColor": 2,
+                "SidlistName": "b"
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "2000::179",
+                "SrteColor": 2,
+                "SidlistName": "a"
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "2000::179",
+                "SrteColor": 2,
+                "SidlistName": "b"
+              }
+            }
+          ]
+        },
+        {
+          "Nexthops": {
+            "GateIpv6": "2000::179",
+            "SrteColor": 3,
+            "Resolved": [
+              {
+                "GateIpv6": "2000::179",
+                "SrteColor": 3,
+                "SidlistName": "b"
+              },
+              {
+                "GateIpv6": "2000::179",
+                "SrteColor": 3,
+                "SidlistName": "c"
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "2000::179",
+                "SrteColor": 3,
+                "SidlistName": "b"
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "2000::179",
+                "SrteColor": 3,
+                "SidlistName": "c"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "Policy": {
+      "Srv6Tunnel": [],
+      "Endpoint": "0::/0",
+      "Color": 0
+    },
+    "FinalState": {
+      "PolicyRouteTable": [],
+      "Nhgs": []
+    }
+  }
+]

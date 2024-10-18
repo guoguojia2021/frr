@@ -74,3 +74,4 @@ include tests/ospfd/subdir.am
 include tests/ospf6d/subdir.am
 include tests/zebra/subdir.am
 include tests/lib/subdir.am
+include tests/gtest/subdir.am

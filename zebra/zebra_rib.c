@@ -1330,7 +1330,11 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 	if (zebra_rib_labeled_unicast(new))
 		zebra_mpls_lsp_install(zvrf, rn, new);
 
+#ifdef ZEBRA_UNIT_TESTING
+	zlog_warn("rib_process_add_fib: rib_install_kernel skipped in UT mode\n");
+#elif
 	rib_install_kernel(rn, new, NULL);
+#endif
 
 	UNSET_FLAG(new->status, ROUTE_ENTRY_CHANGED);
 }
@@ -3240,6 +3244,24 @@ static int mq_add_handler(void *data,
 	return mq_add_func(zrouter.mq, data);
 }
 
+#ifdef ZEBRA_UNIT_TESTING
+// Immediately executes process_subq_route without going through the meta queue
+static void immediate_process_subq_route(struct route_node *rnode)
+{
+	rib_dest_t *dest = NULL;
+	struct zebra_vrf *zvrf = NULL;
+
+	dest = rib_dest_from_rnode(rnode);
+	assert(dest);
+
+	zvrf = rib_dest_vrf(dest);
+
+	rib_process(rnode);
+
+	route_unlock_node(rnode);
+}
+#endif
+
 /* Add route_node to work queue and schedule processing */
 int rib_queue_add(struct route_node *rn)
 {
@@ -3254,7 +3276,13 @@ int rib_queue_add(struct route_node *rn)
 		return -1;
 	}
 
+#ifdef ZEBRA_UNIT_TESTING
+	route_lock_node(rn);
+	immediate_process_subq_route(rn);
+	return 0;
+#elif
 	return mq_add_handler(rn, rib_meta_queue_add);
+#endif
 }
 
 /*
