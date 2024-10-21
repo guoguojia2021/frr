@@ -1054,11 +1054,12 @@ static void rib_pending_list_del(afi_t afi, rib_dest_t *dest)
 	dest->next = NULL;
 }
 
-static int zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
+static void zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
 				struct list *per_prefix_list)
 {
 	struct zebra_trackroute_node *trackp;
 	struct listnode *node, *nnode;
+	char buf_prefix[PREFIX_STRLEN];
 
 	/* We are debugging all prefixes so return true */
 	if (!per_prefix_list || list_isempty(per_prefix_list))
@@ -1069,10 +1070,14 @@ static int zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
 		for (ALL_LIST_ELEMENTS(per_prefix_list, node, nnode,
 				       trackp))
 			if (trackp->p.prefixlen == p->prefixlen && prefix_match(trackp, p)
-				&& trackp->vrf_id == vrf_id)
-				return 1;
+				&& trackp->vrf_id == vrf_id) {
+					prefix2str(p, buf_prefix, sizeof(buf_prefix));
+					zlog_warn("%%TRACKEVENT: %s, Route %s has been deleted", 
+									trackp->eventname, buf_prefix);
+				}
+				return;
 	}
-	return 0;
+	return;
 }
 
 /*
@@ -1104,9 +1109,7 @@ int rib_gc_dest(struct route_node *rn)
 		zvrf = rib_dest_vrf(dest);
 		rnode_debug(rn, zvrf_id(zvrf), "removing dest from table");
 	}
-	if (zebra_track_per_prefix(&rn->p, vrf_id, zebra_track_routes)) {
-	    zlog_warn("%%TRACKROUTEMISS: Route %pRN has been deleted", rn);
-    }
+	zebra_track_per_prefix(&rn->p, vrf_id, zebra_track_routes);
 
 	zebra_rib_evaluate_rn_nexthops(rn, zebra_router_get_next_sequence(),
 				       true);

@@ -392,6 +392,7 @@ enum rib_update_event {
 struct zebra_trackroute_node {
 	vrf_id_t vrf_id;
 	struct prefix p;
+	char *eventname;
 };
 
 extern void route_entry_copy_nexthops(struct route_entry *re,

@@ -4305,10 +4305,10 @@ static int config_write_protocol(struct vty *vty)
 		for (ALL_LIST_ELEMENTS(zebra_track_routes, node, nnode, trackp)) {
 			prefix2str(&trackp->p, pfx_buf, sizeof(pfx_buf));
 			if (trackp->vrf_id == 0)
-				vty_out(vty, "track-route %s\n", pfx_buf);
+				vty_out(vty, "track-route %s %s\n", pfx_buf, trackp->eventname);
 			else {
 				vrf_name = vrf_id_to_name(trackp->vrf_id);
-				vty_out(vty, "track-route %s vrf %s\n", pfx_buf, vrf_name);
+				vty_out(vty, "track-route %s vrf %s %s\n", pfx_buf, vrf_name, trackp->eventname);
 			}
 		}
 	}
@@ -4830,7 +4830,8 @@ static bool zebra_track_list_has_entry(struct list *list, const struct prefix *p
 	return false;
 }
 
-static void zebra_track_list_add_entry(struct list *list, const struct prefix *p, vrf_id_t vrf_id)
+static void zebra_track_list_add_entry(struct list *list, const struct prefix *p, 
+				vrf_id_t vrf_id, char *eventname)
 {
 	struct zebra_trackroute_node *trackp;
 
@@ -4841,6 +4842,7 @@ static void zebra_track_list_add_entry(struct list *list, const struct prefix *p
 		prefix_copy(&trackp->p, p);
 		trackp->vrf_id = vrf_id;
 	}
+	trackp->eventname = eventname;
 
 	listnode_add(list, trackp);
 }
@@ -4853,6 +4855,7 @@ static void zebra_track_list_free(struct list *list)
 	if (list)
 		for (ALL_LIST_ELEMENTS(list, node, nnode, trackp)) {
 			listnode_delete(list, trackp);
+			XFREE(MTYPE_TRACKLIST, trackp->eventname);
 			XFREE(MTYPE_TRACKLIST, trackp);
 		}
 }
@@ -4867,6 +4870,7 @@ static bool zebra_track_list_remove_entry(struct list *list, struct prefix *p, v
 			   && prefix_match(trackp, p)
 			   && trackp->vrf_id == vrf_id) {
 			listnode_delete(list, trackp);
+			XFREE(MTYPE_TRACKLIST, trackp->eventname);
 			XFREE(MTYPE_TRACKLIST, trackp);
 			return true;
 		}
@@ -4878,12 +4882,14 @@ static bool zebra_track_list_remove_entry(struct list *list, struct prefix *p, v
 /* debug bgp bestpath */
 DEFUN (zebra_track_route,
        zebra_track_route_cmd,
-       "track-route <A.B.C.D/M|X:X::X:X/M> [vrf VRFNAME]",
+       "track-route <A.B.C.D/M|X:X::X:X/M> [vrf VRFNAME] event-name WORD",
        "track route\n"
        "IPv4 prefix\n"
        "IPv6 prefix\n"
-       "vrf"
-       "vrfname")
+       "vrf\n"
+       "vrfname\n"
+       "track event\n"
+       "event name\n")
 {
 	struct prefix *argv_p;
 	int idx_ipv4_ipv6_prefixlen = 1;
@@ -4891,6 +4897,7 @@ DEFUN (zebra_track_route,
 	int idx = 0;
 	vrf_id_t vrf_id = 0;
 	struct vrf *vrf = NULL;
+	char *ename = NULL;
 
 	argv_p = prefix_new();
 	(void)str2prefix(argv[idx_ipv4_ipv6_prefixlen]->arg, argv_p);
@@ -4905,7 +4912,10 @@ DEFUN (zebra_track_route,
 			vrf_name);
 			return CMD_WARNING;
 		}
+		ename = XSTRDUP(MTYPE_TRACKLIST, argv[5]->arg);
 	}
+	else 
+		ename = XSTRDUP(MTYPE_TRACKLIST, argv[3]->arg);
 	
 	if (vrf)
 		vrf_id = vrf->vrf_id;
@@ -4919,7 +4929,7 @@ DEFUN (zebra_track_route,
 		return CMD_SUCCESS;
 	}
 
-	zebra_track_list_add_entry(zebra_track_routes, argv_p, vrf_id);
+	zebra_track_list_add_entry(zebra_track_routes, argv_p, vrf_id, ename);
 
 	return CMD_SUCCESS;
 }
@@ -4931,8 +4941,8 @@ DEFUN (no_zebra_track_route,
        "track route\n"
        "IPv4 prefix\n"
        "IPv6 prefix\n"
-       "vrf"
-       "vrfname")
+       "vrf\n"
+       "vrfname\n")
 {
 	int idx_ipv4_ipv6_prefixlen = 2;
 	struct prefix *argv_p;
