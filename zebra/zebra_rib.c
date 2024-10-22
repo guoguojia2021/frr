@@ -1060,6 +1060,8 @@ static void zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
 	struct zebra_trackroute_node *trackp;
 	struct listnode *node, *nnode;
 	char buf_prefix[PREFIX_STRLEN];
+	char timebuf[MONOTIME_STRLEN];
+	time_t cur_time;
 
 	/* We are debugging all prefixes so return true */
 	if (!per_prefix_list || list_isempty(per_prefix_list))
@@ -1072,10 +1074,11 @@ static void zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
 			if (trackp->p.prefixlen == p->prefixlen && prefix_match(trackp, p)
 				&& trackp->vrf_id == vrf_id) {
 					prefix2str(p, buf_prefix, sizeof(buf_prefix));
-					zlog_warn("%%TRACKEVENT: %s, Route %s has been deleted", 
-									trackp->eventname, buf_prefix);
+					cur_time = monotime(NULL);
+					frrtime_to_interval(cur_time, timebuf, sizeof(timebuf));
+					zlog_warn("%%TRACKEVENT: %s, Route %s has been deleted. time :%s",
+									trackp->eventname, buf_prefix, timebuf);
 				}
-				return;
 	}
 	return;
 }
