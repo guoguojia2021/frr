@@ -429,8 +429,7 @@ extern bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				       struct peer *from, struct prefix_rd *prd,
 				       mpls_label_t *label, uint32_t num_labels,
 				       bool addpath_capable,
-				       uint32_t addpath_tx_id, struct bgp_ls_nlri *ls_nlri,
-				       struct bgp_path_info *bpi);
+				       uint32_t addpath_tx_id, struct bgp_ls_nlri *ls_nlri);
 extern void bgp_dump_routes_attr(struct stream *s, struct bgp_path_info *bpi,
 				 const struct prefix *p);
 extern bool attrhash_cmp(const void *arg1, const void *arg2);
@@ -574,6 +573,10 @@ static inline void bgp_attr_set_transit(struct attr *attr,
 {
 	attr->transit = transit;
 }
+
+#define AIGP_TRANSMIT_ALLOWED(peer)                                                                \
+	(CHECK_FLAG((peer)->flags, PEER_FLAG_AIGP) ||   \
+	 ((peer)->sort != BGP_PEER_EBGP))
 
 static inline uint64_t bgp_attr_get_aigp_metric(const struct attr *attr)
 {
