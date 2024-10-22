@@ -3418,11 +3418,12 @@ done_with_match:
 				if (pmtu)
 					*pmtu = match->mtu;
 
-			} else if (IS_ZEBRA_DEBUG_RIB_DETAILED)
+			} else if (IS_ZEBRA_DEBUG_RIB_DETAILED) {
 				zlog_debug(
 					"        %s: Recursion failed to find",
 					__func__);
-
+				nexthop->inactive_reason = 22;
+			}
 			return resolved;
 		} 
 		#ifdef ARP2HOST_BACKUP
@@ -3477,55 +3478,6 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 	nexthops_free(nexthop->resolved);
 	nexthop->resolved = NULL;
 
-	/*
-	 * Set afi based on nexthop type.
-	 * Some nexthop types get special handling, possibly skipping
-	 * the normal processing.
-	 */
-    switch (nexthop->type) {
-    case NEXTHOP_TYPE_IFINDEX:
-	case NEXTHOP_TYPE_IPV6_IFINDEX:
-	case NEXTHOP_TYPE_IPV4:
-	case NEXTHOP_TYPE_IPV4_IFINDEX:
-	case NEXTHOP_TYPE_IPV6:
-	case NEXTHOP_TYPE_BLACKHOLE:
-		return 0;
-
-	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-		afi = AFI_IP;
-		break;
-
-	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		afi = AFI_IP6;
-		break;
-
-	default:
-		return 0;
-	}
-
-	if (top
-	    && ((top->family == AF_INET && top->prefixlen == IPV4_MAX_BITLEN
-		 && nexthop->gate.ipv4.s_addr == top->u.prefix4.s_addr)
-		|| (top->family == AF_INET6 && top->prefixlen == IPV6_MAX_BITLEN
-		    && memcmp(&nexthop->gate.ipv6, &top->u.prefix6,
-			      IPV6_MAX_BYTELEN)
-			       == 0))) {
-		if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-			zlog_debug(
-				"        :%s: Attempting to install a max prefixlength route through itself",
-				__func__);
-		nexthop->inactive_reason = 22;
-		return 0;
-	}
-
-	/* Validation for ipv4 mapped ipv6 nexthop. */
-	if (IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
-		afi = AFI_IP;
-		ipv4 = &local_ipv4;
-		ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
-	} else {
-		ipv4 = &nexthop->gate.ipv4;
-	}
 
 	/* Processing for nexthops with SR 'color' attribute, using
 	 * the corresponding SR policy object.

@@ -346,7 +346,7 @@ static void vty_show_inactive_route_debug_info(struct vty *vty,
 			vty_out(vty, "\tnexthop_active_update:: nexthop_list_active_update:: it's updated to  be inactive.\n");
 			break;
 		default:
-			vty_out(vty, "\tMissed out!, inactive_reason:%u\n", nexthop->inactive_reason);
+			vty_out(vty, "\tReason was missed out!\n");
 			break;
 	}
 
@@ -378,7 +378,7 @@ static void vty_show_inactive_route_debug_info(struct vty *vty,
 				vty_out(vty, "\tnexthop_seg_active:: ");
 				break;
 			default:
-				vty_out(vty, "\tMissed out!, inactive_reason:%u\n", nexthop->inactive_reason);
+				vty_out(vty, "\tReason was missed out:: ");
 				break;
 		}
 		/* For the explicit reasons. */
@@ -397,7 +397,6 @@ static void vty_show_inactive_route_debug_info(struct vty *vty,
 				vty_out(vty, "Nexthop marked onlink but nhif is not operational.\n");
 				break;
 			case 15:
-			case 22:
 				vty_out(vty, "Attempting to install a max prefixlength route through itself.\n");
 				break;
 			case 16:
@@ -419,13 +418,15 @@ static void vty_show_inactive_route_debug_info(struct vty *vty,
 			case 24:
 				vty_out(vty, "Nexthop did not look up in table.\n");
 				break;
-			//case 22 is merged with case 15
+			case 22:
+				vty_out(vty, "Recursion failed to find.\n");
+				break;
 			case 23:
 				vty_out(vty, "Policy is not matching.\n");
 				break;
 			//case 24 is merged with case 21
 			default:
-				vty_out(vty, "\tMissed out!, inactive_reason:%u\n", nexthop->inactive_reason);
+				vty_out(vty, "\tReason was missed out!\n");
 				break;
 		}
 	}
