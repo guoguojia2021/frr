@@ -25,7 +25,6 @@
 """
 test_isis_topo1.py: Test ISIS topology.
 """
-
 import functools
 import json
 import os
