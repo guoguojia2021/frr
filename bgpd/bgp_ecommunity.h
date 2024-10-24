@@ -85,6 +85,7 @@
 
 /* Low-order octet of the Extended Communities type field for OPAQUE types */
 #define ECOMMUNITY_OPAQUE_SUBTYPE_ENCAP     0x0c
+#define ECOMMUNITY_OPAQUE_SUBTYPE_COLOR     0x0b
 
 /* Extended communities attribute string format.  */
 #define ECOMMUNITY_FORMAT_ROUTE_MAP            0
@@ -335,7 +336,7 @@ static inline void encode_node_target(struct in_addr *node_id,
  *                 and ignored by the receiver;
  *
  */
-static inline void encode_color(uint32_t color_id, struct ecommunity_val *eval)
+static inline void encode_color(uint32_t color_id, as_t as, struct ecommunity_val *eval)
 {
 	/*
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -347,7 +348,7 @@ static inline void encode_color(uint32_t color_id, struct ecommunity_val *eval)
 	memset(eval, 0, sizeof(*eval));
 	eval->val[0] = ECOMMUNITY_ENCODE_OPAQUE;
 	eval->val[1] = ECOMMUNITY_COLOR;
-	eval->val[2] = 0x00;
+	eval->val[2] = (as << 6) & 0xff;
 	eval->val[3] = 0x00;
 	eval->val[4] = (color_id >> 24) & 0xff;
 	eval->val[5] = (color_id >> 16) & 0xff;
