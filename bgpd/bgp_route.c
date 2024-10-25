@@ -12496,8 +12496,7 @@ static int bgp_show_table(struct vty *vty, struct bgp *bgp, safi_t safi,
 				prd = bgp_rd_from_dest(dest, safi);
 
 				route_vty_out_detail_header(
-					vty, bgp, dest,
-					bgp_dest_get_prefix(dest), prd,
+					vty, bgp, dest, prd,
 					table->afi, safi, json_paths, true);
 
 				vty_out(vty, "\"paths\": ");
