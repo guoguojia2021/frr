@@ -801,10 +801,10 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 	}
 	if (userdata)
 	{
+		stream_putl(s, type);
 		switch (type) {
 		case NEXTHOP_REGISTER_TYPE_COLOR:
 			para = userdata;
-			stream_putl(s, type);
 			stream_putl(s, para->srte_color);
 			stream_putc(s, para->srte_color_flag);
 			break;
