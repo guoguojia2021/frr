@@ -471,7 +471,7 @@ int release_daemon_srv6_locator_chunks(struct zserv *client)
 }
 
 
-int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx)
+int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx, bool sidmarking)
 {
 	afi_t afi;
 	struct prefix_ipv6 *src_p = NULL;
@@ -486,6 +486,9 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 
     p.family = AF_INET6;
     p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
+    if (sidmarking) {
+        p.prefixlen -= 4;
+    }
     p.u.prefix6 = *result_sid;
 
     def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
@@ -570,7 +573,7 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 
 }
 
-int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx)
+int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx, bool sidmarking)
 {
 	afi_t afi;
 	struct prefix_ipv6 *src_p = NULL;
@@ -584,6 +587,9 @@ int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 
     p.family = AF_INET6;
     p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
+    if (sidmarking) {
+        p.prefixlen -= 4;
+    }
     p.u.prefix6 = *result_sid;
 
     def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
@@ -669,7 +675,7 @@ void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid
 			zebra_Db_Set_SRV6_LOCAL_SID(&result_sid, vrf->name, act, &ctx, sid->ifname, &sid->nexthop, sid->sidmarking);
 		if ((locator->compress == false && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT) ||
 			(locator->compress == true && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN)) {
-			zebra_route_add(&result_sid, vrf, act, &ctx);
+			zebra_route_add(&result_sid, vrf, act, &ctx, sid->sidmarking);
 		}
 	}
 }
@@ -709,7 +715,7 @@ void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid
     zebra_Db_Del_SRV6_LOCAL_SID(&result_sid, &ctx);
 	if ((locator->compress == false && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_DEFAULT) ||
 		(locator->compress == true && sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UN)) {
-		zebra_route_del(&result_sid, vrf, act, &ctx);
+		zebra_route_del(&result_sid, vrf, act, &ctx, sid->sidmarking);
 	}
 }
 

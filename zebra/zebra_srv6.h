@@ -107,8 +107,8 @@ extern void zebra_srv6_encap_src_addr_unset(void);
 extern int srv6_manager_client_disconnect_cb(struct zserv *client);
 extern int release_daemon_srv6_locator_chunks(struct zserv *client);
 
-extern int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx);
-extern int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx);
+extern int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx, bool sidmarking);
+extern int zebra_route_del(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local_action_t act, struct seg6local_context *ctx, bool sidmarking);
 extern void zebra_srv6_local_sid_add(struct srv6_locator *locator, struct seg6_sid *sid);
 extern void zebra_srv6_local_sid_del(struct srv6_locator *locator, struct seg6_sid *sid);
 
