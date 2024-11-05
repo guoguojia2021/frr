@@ -30,7 +30,7 @@ sys.path.append(os.path.join(CWD, "../"))
 from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.common_config import step
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 
 def build_topo(tgen):
