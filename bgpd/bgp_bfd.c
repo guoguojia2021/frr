@@ -40,6 +40,7 @@
 #include "bgpd/bgp_bfd.h"
 #include "bgpd/bgp_debug.h"
 #include "bgpd/bgp_vty.h"
+#include "bgpd/bgp_packet.h"
 
 DEFINE_MTYPE_STATIC(BGPD, BFD_CONFIG, "BFD configuration data");
 
@@ -67,9 +68,23 @@ static void bfd_session_status_update(struct bfd_session_params *bsp,
 					peer->host);
 			return;
 		}
-		peer->last_reset = PEER_DOWN_BFD_DOWN;
 
-		BGP_EVENT_ADD(peer->connection, BGP_Stop);
+		/* Once the BFD session is UP, and later BGP session is UP,
+		 * BFD notices that peer->su_local changed, and BFD session goes down.
+		 * We should trigger BGP session reset if BFD session is UP
+		 * only when BGP session is UP already.
+		 * Otherwise, we end up resetting BGP session when BFD session is UP,
+		 * when the source address is changed, e.g. 0.0.0.0 -> 10.0.0.1.
+		 */
+		if (bss->last_event > peer->uptime) {
+			peer->last_reset = PEER_DOWN_BFD_DOWN;
+			/* rfc9384 */
+			if (BGP_IS_VALID_STATE_FOR_NOTIF(peer->connection->status))
+				bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
+						BGP_NOTIFY_CEASE_BFD_DOWN);
+
+			BGP_EVENT_ADD(peer->connection, BGP_Stop);
+		}
 	}
 
 	if (bss->state == BSS_UP && bss->previous_state != BSS_UP &&

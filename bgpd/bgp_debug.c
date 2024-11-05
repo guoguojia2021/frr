@@ -176,6 +176,7 @@ static const struct message bgp_notify_cease_msg[] = {
 	{BGP_NOTIFY_CEASE_COLLISION_RESOLUTION,
 	 "/Connection Collision Resolution"},
 	{BGP_NOTIFY_CEASE_OUT_OF_RESOURCE, "/Out of Resources"},
+	{BGP_NOTIFY_CEASE_BFD_DOWN, "/BFD Down"},
 	{0}};
 
 static const struct message bgp_notify_route_refresh_msg[] = {
