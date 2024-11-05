@@ -5700,7 +5700,7 @@ void peer_tcp_mss_set(struct peer *peer, uint32_t tcp_mss)
 	peer->tcp_mss = tcp_mss;
 
 	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP))
-		return 0;
+		return;
 
 	for (ALL_LIST_ELEMENTS(peer->group->peer, node, nnode, member)) {
 		/* Skip peers with overridden configuration. */
@@ -5722,7 +5722,7 @@ void peer_tcp_mss_unset(struct peer *peer)
 	struct peer *member;
 	struct listnode *node, *nnode;
 
-	UNSET_FLAG(peer->flags, PEER_FLAG_TCP_MSS);
+	peer_flag_unset(peer, PEER_FLAG_TCP_MSS);
 	peer->tcp_mss = 0;
 
 	/* Inherit configuration from peer-group if peer is member. */
@@ -5737,7 +5737,7 @@ void peer_tcp_mss_unset(struct peer *peer)
 
 	/* Skip peer-group mechanics for regular peers. */
 	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
-		return 0;
+		return;
 	}
 
 	/*
