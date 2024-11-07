@@ -1289,6 +1289,12 @@ struct peer_connection {
 
 	struct event *t_stop_with_notify;
 
+	/* Linkage for list connections with errors, from IO pthread */
+	struct bgp_peer_conn_errlist_item conn_err_link;
+
+	/* Connection error code */
+	uint16_t connection_errcode;
+
 	union sockunion su;
 #define BGP_CONNECTION_SU_UNSPEC(connection)                                   \
 	(connection->su.sa.sa_family == AF_UNSPEC)
@@ -1946,12 +1952,6 @@ struct peer {
 	uint32_t tracking_delay;
 	struct thread *t_tracking_delay;
 
-	/* Linkage for list of peers with connection errors from IO pthread */
-	struct bgp_peer_conn_errlist_item conn_err_link;
-
-	/* Connection error code */
-	uint16_t connection_errcode;
-
 	/* Linkage for hash of clearing peers being cleared in a batch */
 	struct bgp_clearing_hash_item clear_hash_link;
 
@@ -2560,8 +2560,9 @@ int bgp_peer_gr_init(struct peer *peer);
 extern int peer_advertise_delay_map_set(struct peer *peer,afi_t afi,
 	safi_t safi, const char *name, struct route_map *route_map);
 /* APIs for the per-bgp peer connection error list */
-int bgp_enqueue_conn_err_peer(struct bgp *bgp, struct peer *peer, int errcode);
-struct peer *bgp_dequeue_conn_err_peer(struct bgp *bgp, bool *more_p);
+int bgp_enqueue_conn_err(struct bgp *bgp, struct peer_connection *connection,
+			 int errcode);
+struct peer_connection *bgp_dequeue_conn_err(struct bgp *bgp, bool *more_p);
 void bgp_conn_err_reschedule(struct bgp *bgp);
 
 extern int peer_advertise_delay_map_unset(struct peer *, afi_t, safi_t);
