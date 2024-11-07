@@ -201,7 +201,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/single-hop/bfd-name",
 			.cbs = {
 				.modify = bfdd_bfd_sessions_bfd_name_modify,
-				.destroy = dummy_destroy,
 			}
 		},
 		{
@@ -209,13 +208,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.cbs = {
 				.modify = bfdd_bfd_sessions_bfd_mode_modify,
 				.destroy = bfdd_bfd_sessions_bfd_mode_destroy,
-			}
-		},
-		{
-			.xpath = "/frr-bfdd:bfdd/bfd/sessions/single-hop/segment-list",
-			.cbs = {
-				.modify = bfdd_bfd_sessions_segment_list_modify,
-				.destroy = bfdd_bfd_sessions_segment_list_destroy,
 			}
 		},
 		{
@@ -411,7 +403,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/bfd-name",
 			.cbs = {
 				.modify = bfdd_bfd_sessions_bfd_name_modify,
-				.destroy = dummy_destroy,
 			}
 		},
 		{
@@ -419,13 +410,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.cbs = {
 				.modify = bfdd_bfd_sessions_bfd_mode_modify,
 				.destroy = bfdd_bfd_sessions_bfd_mode_destroy,
-			}
-		},
-		{
-			.xpath = "/frr-bfdd:bfdd/bfd/sessions/multi-hop/segment-list",
-			.cbs = {
-				.modify = bfdd_bfd_sessions_segment_list_modify,
-				.destroy = bfdd_bfd_sessions_segment_list_destroy,
 			}
 		},
 		{
@@ -646,13 +630,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			}
 		},
 		{
-			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/bfd-name",
-			.cbs = {
-				.modify = dummy_modify,
-				.destroy = dummy_destroy,
-			}
-		},
-		{
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/bfd-mode",
 			.cbs = {
 				.modify = bfdd_bfd_sessions_bfd_mode_modify,
@@ -817,7 +794,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init/remote-discr",
 			.cbs = {
 				.modify = bfdd_bfd_sessions_srte_sbfd_init_remote_discr_modify,
-				.destroy = bfdd_bfd_sessions_srte_sbfd_init_remote_discr_destroy,
 			}
 		},
         {
@@ -861,13 +837,6 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			.cbs = {
 				.modify = bfdd_bfd_sessions_single_hop_passive_mode_modify,
 				.cli_show = bfd_cli_show_passive,
-			}
-		},
-		{
-			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init/bfd-name",
-			.cbs = {
-				.modify = dummy_modify,
-				.destroy = dummy_destroy,
 			}
 		},
 		{
