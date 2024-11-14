@@ -120,4 +120,6 @@ extern void bgp_nht_ifp_up(struct interface *ifp);
 extern void bgp_nht_ifp_down(struct interface *ifp);
 
 extern void bgp_nht_interface_events(struct peer *peer);
+
+extern void bgp_nht_update_path(struct bgp *bgp);
 #endif /* _BGP_NHT_H */

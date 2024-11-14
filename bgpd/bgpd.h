@@ -658,6 +658,8 @@ struct bgp {
 /* vrf-route leaking flags */
 #define BGP_CONFIG_VRF_TO_VRF_IMPORT (1 << 9)
 #define BGP_CONFIG_VRF_TO_VRF_EXPORT (1 << 10)
+/* bgp bestpath nexthop-resolved tunnel flags */
+#define BGP_BESTPATH_NH_RESOLVED_TUNNEL (1 << 11)
 	/* alibgp flags. */
 	uint32_t alibgp_flags;
 #define BGP_FLAG_ADV_LOW_PRIORITY         (1 << 0)

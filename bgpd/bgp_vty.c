@@ -74,6 +74,7 @@
 #include "bgpd/bgp_mac.h"
 #include "bgpd/bgp_flowspec.h"
 #include "bgpd/bgp_conditional_adv.h"
+#include "bgpd/bgp_nht.h"
 #ifdef ENABLE_BGP_VNC
 #include "bgpd/rfapi/bgp_rfapi_cfg.h"
 #endif
@@ -9490,6 +9491,68 @@ DEFPY(bgp_imexport_vrf, bgp_imexport_vrf_cmd,
 
 	return CMD_SUCCESS;
 }
+
+/* Use tunnel nexthop as basis of path validation if ip nexthop is invalid */
+DEFUN (bgp_bestpath_nexthop_resolved_tunnel,
+	   bgp_bestpath_nexthop_resolved_tunnel_cmd,
+	   "bgp bestpath nexthop-resolved tunnel",
+	   BGP_STR
+	   "Set the way to select bestpath\n"
+	   "Select bestpath by nexthop iteration\n"
+	   "Use tunnel nexthop\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+
+	safi_t safi;
+	afi_t afi;
+
+	safi = bgp_node_safi(vty);
+	afi = bgp_node_afi(vty);
+	if (afi == AFI_MAX)
+		return CMD_WARNING_CONFIG_FAILED;
+
+	SET_FLAG(bgp->af_flags[afi][safi],
+		BGP_BESTPATH_NH_RESOLVED_TUNNEL);
+
+	if (CHECK_FLAG(bgp->af_flags[afi][safi],
+			BGP_BESTPATH_NH_RESOLVED_TUNNEL))
+		vty_out(vty, "SET_FLAG: tunnel nexthop is set for resolving.\n");
+
+	bgp_nht_update_paths(bgp);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_bgp_bestpath_nexthop_resolved_tunnel,
+	   no_bgp_bestpath_nexthop_resolved_tunnel_cmd,
+	   "no bgp bestpath nexthop-resolved tunnel",
+	   NO_STR
+	   BGP_STR
+	   "Set the way to select bestpath\n"
+	   "Select bestpath by nexthop iteration\n"
+	   "Use tunnel nexthop\n")
+{
+	VTY_DECLVAR_CONTEXT(bgp, bgp);
+	safi_t safi;
+	afi_t afi;
+
+	safi = bgp_node_safi(vty);
+	afi = bgp_node_afi(vty);
+	if (afi == AFI_MAX)
+		return CMD_WARNING_CONFIG_FAILED;
+
+	UNSET_FLAG(bgp->af_flags[afi][safi],
+		BGP_BESTPATH_NH_RESOLVED_TUNNEL);
+
+	if (!CHECK_FLAG(bgp->af_flags[afi][safi],
+			BGP_BESTPATH_NH_RESOLVED_TUNNEL))
+		vty_out(vty, "UNSET_FLAG: tunnel nexthop would not be used for resolving.\n");
+
+	bgp_nht_update_paths(bgp);
+
+	return CMD_SUCCESS;
+}
+
 /* Redistribute vrf with route-map specification.  */
 static bool bgp_redistribute_vrf_rmap_set(struct vrf_redist *red, const char *name,
 			       struct route_map *route_map)
@@ -18132,6 +18195,12 @@ static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 	if (safi == SAFI_FLOWSPEC)
 		bgp_fs_config_write_pbr(vty, bgp, afi, safi);
 
+	if (safi == SAFI_MPLS_VPN) {
+		if (CHECK_FLAG(bgp->af_flags[afi][safi],
+					BGP_BESTPATH_NH_RESOLVED_TUNNEL))
+			vty_out(vty, "  bgp bestpath nexthop-resolved tunnel\n");
+	}
+
 	if (safi == SAFI_UNICAST) {
 		bgp_vpn_policy_config_write_afi(vty, bgp, afi);
 		if (CHECK_FLAG(bgp->af_flags[afi][safi],
@@ -20267,6 +20336,12 @@ void bgp_vty_init(void)
 	install_element(BGP_VPNV4_NODE, &no_neighbor_advertise_delay_map_cmd);
 	install_element(BGP_VPNV6_NODE, &neighbor_advertise_delay_map_cmd);
 	install_element(BGP_VPNV6_NODE, &no_neighbor_advertise_delay_map_cmd);
+
+	/* tunnel nexthop iteration commands */
+	install_element(BGP_VPNV4_NODE, &bgp_bestpath_nexthop_resolved_tunnel_cmd);
+	install_element(BGP_VPNV4_NODE, &no_bgp_bestpath_nexthop_resolved_tunnel_cmd);
+	install_element(BGP_VPNV6_NODE, &bgp_bestpath_nexthop_resolved_tunnel_cmd);
+	install_element(BGP_VPNV6_NODE, &no_bgp_bestpath_nexthop_resolved_tunnel_cmd);
 }
 
 #include "memory.h"

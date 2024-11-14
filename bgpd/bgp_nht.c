@@ -1254,6 +1254,7 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 
 	bool bnc_is_valid_nexthop = false;
 	bool path_valid = false;
+	bool other_bnc_is_valid_nexthop = false;
 	if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
 		isServiceRoute = true;
 	else
@@ -1331,10 +1332,34 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 		&& (!isServiceRoute || !CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_COUNT_UNCHANGED)))
 		SET_FLAG(path->flags, BGP_PATH_IGP_CHANGED);
 
+	struct bgp_nexthop_cache *other_bnc;
+	if (isSrv6TeBnc)
+		other_bnc = path->nexthop;		// if te bnc, need to find ip nexthop
+	else
+		other_bnc = path->te_nexthop;	// if not te bnc, need to find tunnel nexthop
+
+	other_bnc_is_valid_nexthop =
+		bgp_isvalid_nexthop(other_bnc) ? true : false;
+
 	path_valid = CHECK_FLAG(path->flags, BGP_PATH_VALID);
 	if (path_valid != bnc_is_valid_nexthop) {
 		if (path_valid) {
-			if (!isSrv6TeBnc)
+			/* valid path and invalid bnc */
+			/* For ip bnc(invalid), whether the path should be invalid depending on configuration,
+			 *  if nexthop-resolved tunnel ON:
+			 *		only if te bnc is invalid either, path becomes invalid;
+			 * 	if nexthop-resolved tunnel OFF:
+			 * 		path becomes invalid directly;
+			 */
+			/* If te bnc(invalid), no matter what configuration is, if the corresponding ip bnc is invalid,
+			 * the path should become invalid.
+			 */
+			if (   (!isSrv6TeBnc && (   (CHECK_FLAG(bnc->bgp->af_flags[afi][safi],
+											BGP_BESTPATH_NH_RESOLVED_TUNNEL)
+								     	  && !other_bnc_is_valid_nexthop)
+									 || !CHECK_FLAG(bnc->bgp->af_flags[afi][safi],
+											BGP_BESTPATH_NH_RESOLVED_TUNNEL)))
+				|| (isSrv6TeBnc && !other_bnc_is_valid_nexthop))
 			{
 				/* No longer valid, clear flag; also for EVPN
 					* routes, unimport from VRFs if needed.
@@ -1349,17 +1374,24 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 						afi, safi, bgp_dest_get_prefix(dest), path);
 			}
 		} else if (!CHECK_FLAG(path->extFlags, BGP_PATH_SUPERNET)) {
-			/* Path becomes valid, set flag; also for EVPN
-				* routes, import from VRFs if needed.
-				*/
-			bgp_path_info_set_flag(dest, path,
-							BGP_PATH_VALID);
-			bgp_aggregate_increment(bgp_path, p, path, afi,
-						safi);
-			if (safi == SAFI_EVPN &&
-				bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
-				bgp_evpn_import_route(bgp_path,
-					afi, safi, bgp_dest_get_prefix(dest), path);
+			/* invalid path and valid bnc */
+			/* If ip bnc(valid), no matter what configuration is, path would be valid. */
+			/* If te bnc(valid), path would be validated only if the nexthop-resolved tunnel flag is ON. */
+			if (!isSrv6TeBnc || CHECK_FLAG(bnc->bgp->af_flags[afi][safi],
+									BGP_BESTPATH_NH_RESOLVED_TUNNEL))
+			{
+				/* Path becomes valid, set flag; also for EVPN
+					* routes, import from VRFs if needed.
+					*/
+				bgp_path_info_set_flag(dest, path,
+								BGP_PATH_VALID);
+				bgp_aggregate_increment(bgp_path, p, path, afi,
+							safi);
+				if (safi == SAFI_EVPN &&
+					bgp_evpn_is_prefix_nht_supported(bgp_dest_get_prefix(dest)))
+					bgp_evpn_import_route(bgp_path,
+						afi, safi, bgp_dest_get_prefix(dest), path);
+			}
 		}
 	}
 	else if (CHECK_FLAG(path->flags, BGP_PATH_IGP_CHANGED) && bnc_is_valid_nexthop)
@@ -1474,6 +1506,36 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 	}
 
 	RESET_FLAG(bnc->change_flags);
+}
+
+/**
+ * bgp_nht_update_paths_from_bnc - handle paths from each bnc
+ * ARGUMENTS:
+ * 	 bgp - pointer to the bgp structure
+ *   table - pointer to the tree for nexthop lookup cache
+ */
+static void bgp_nht_update_paths_from_bnc(struct bgp *bgp,
+						struct bgp_nexthop_cache_head *table)
+{
+	struct bgp_nexthop_cache *bnc;
+
+	frr_each (bgp_nexthop_cache, table, bnc) {
+		evaluate_paths(bnc);
+	}
+}
+
+/**
+ * bgp_nht_update_paths - update the existing path from bnc
+ * ARGUMENTS:
+ *   bgp - pointer to the bgp structure
+ */
+void bgp_nht_update_paths(struct bgp *bgp)
+{
+	if (!bgp)
+		return;
+	
+	bgp_nht_update_paths_from_bnc(bgp, &bgp->nexthop_cache_table[AFI_IP]);
+	bgp_nht_update_paths_from_bnc(bgp, &bgp->nexthop_cache_table[AFI_IP6]);
 }
 
 /**
