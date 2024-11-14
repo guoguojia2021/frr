@@ -357,6 +357,8 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		}
 
 		srte_color = bgp_attr_get_color(pi->attr);
+		if (srte_color)
+			p.u.prefix6 = pi->attr->mp_nexthop_global;
 
 	} else if (peer) {
 		/*
@@ -404,8 +406,8 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 				   peer);
 	} else {
 		if (BGP_DEBUG(nht, NHT))
-			zlog_debug("Found existing bnc %pFX(%d)(%s) flags 0x%x ifindex %d #paths %d peer %p, resolved prefix %pFX",
-				   &bnc->prefix, bnc->ifindex_ipv6_ll,
+			zlog_debug("Found existing bnc %pFX(%d)(%u)(%s) flags 0x%x ifindex %d #paths %d peer %p, resolved prefix %pFX",
+				   &bnc->prefix, bnc->ifindex_ipv6_ll, bnc->srte_color,
 				   bnc->bgp->name_pretty, bnc->flags,
 				   bnc->ifindex_ipv6_ll, bnc->path_count,
 				   bnc->nht_info, &bnc->resolved_prefix);
@@ -641,9 +643,11 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		UNSET_FLAG(bnc->flags,
 			   BGP_NEXTHOP_LABELED_VALID); /* check below */
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
 
 		for (i = 0; i < nhr->nexthop_num; i++) {
 			int num_labels = 0;
+			int num_segs = 0;
 
 			nexthop = nexthop_from_zapi_nexthop(&nhr->nexthops[i]);
 
@@ -675,12 +679,17 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 				num_labels = nexthop->nh_label->num_labels;
 			}
 
+			if (nexthop->nh_srv6 && nexthop->nh_srv6->seg6_segs) {
+				SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
+				num_segs = nexthop->nh_srv6->seg6_segs->num_segs;
+			}
+
 			if (BGP_DEBUG(nht, NHT)) {
 				char buf[NEXTHOP_STRLEN];
 				zlog_debug(
-					"    nhop via %s (%d labels)",
+					"    nhop via %s (%d labels) (%d segs))",
 					nexthop2str(nexthop, buf, sizeof(buf)),
-					num_labels);
+					num_labels, num_segs);
 			}
 
 			if (nhlist_tail) {
@@ -743,6 +752,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_EVPN_INCOMPLETE);
 		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_VALID);
 		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_LABELED_VALID);
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
 		bnc->nexthop_num = nhr->nexthop_num;
 
 		/* notify bgp fsm if nbr ip goes from valid->invalid */
@@ -1123,9 +1133,8 @@ static int make_prefix(int afi, struct bgp_path_info *pi, struct prefix *p)
  */
 static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 {
-	bool exact_match = false;
-	bool resolve_via_default = false;
 	int ret;
+	uint32_t flags = 0;
 
 	if (!zclient)
 		return;
@@ -1147,19 +1156,21 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 	}
 	if (command == ZEBRA_NEXTHOP_REGISTER) {
 		if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_CONNECTED))
-			exact_match = true;
+			SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_CONNECTED);
 		if (CHECK_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH))
-			resolve_via_default = true;
+			SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_RESOLVE_VIA_DEFAULT);
 	}
 
 	if (BGP_DEBUG(zebra, ZEBRA))
-		zlog_debug("%s: sending cmd %s for %pFX (vrf %s)", __func__,
+		zlog_debug("%s: sending cmd %s for %pFX (vrf %s) color %d", __func__,
 			   zserv_command_string(command), &bnc->prefix,
-			   bnc->bgp->name_pretty);
+			   bnc->bgp->name_pretty, bnc->srte_color);
+
+	if (bnc->srte_color)
+		SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_COLOR);
 
 	ret = zclient_send_rnh(zclient, command, &bnc->prefix, SAFI_UNICAST,
-			       exact_match, resolve_via_default,
-			       bnc->bgp->vrf_id);
+			       flags, bnc->bgp->vrf_id, bnc->srte_color);
 	if (ret == ZCLIENT_SEND_FAILURE) {
 		flog_warn(EC_BGP_ZEBRA_SEND,
 			  "sendmsg_nexthop: zclient_send_message() failed");

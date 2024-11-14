@@ -1364,8 +1364,10 @@ char *bgp_nexthop_dump_bnc_flags(struct bgp_nexthop_cache *bnc, char *buf,
 			   : "",
 		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_LABELED_VALID)
 			   ? "Label Valid "
+			   : "",
+		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID)
+			   ? "SRv6 TE Valid "
 			   : "");
-
 	return buf;
 }
 

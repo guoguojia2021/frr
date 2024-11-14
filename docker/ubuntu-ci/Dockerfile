@@ -55,6 +55,7 @@ RUN apt update && apt upgrade -y && \
     apt-get install -y \
         curl \
         gdb \
+        vim \
         kmod \
         iproute2 \
         iputils-ping \

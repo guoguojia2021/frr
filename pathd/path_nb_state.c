@@ -4,6 +4,7 @@
  */
 
 #include <zebra.h>
+#include <lib_errors.h>
 
 #include "log.h"
 #include "prefix.h"
@@ -147,6 +148,35 @@ const void *pathd_srte_policy_candidate_path_lookup_entry(
 	preference = yang_str2uint32(args->keys->key[0]);
 
 	return srte_candidate_find(policy, preference);
+}
+
+int pathd_srte_policy_candidate_path_pre_validate(
+	struct nb_cb_pre_validate_args *args)
+{
+	struct srte_segment_list *segment_list;
+	const char *segment_list_name;
+	struct srte_policy *policy;
+
+	policy = nb_running_get_entry(args->dnode, NULL, true);
+	segment_list_name = yang_dnode_get_string(args->dnode, "segment-list-name");
+	segment_list = srte_segment_list_find(segment_list_name);
+
+	if (segment_list == NULL) {
+		flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
+			"The Segment List must config frist!");
+		return NB_EV_VALIDATE;
+	}
+
+	if ((segment_list->type == SRTE_SEGMENT_LIST_TYPE_SRV6
+		&& policy->type == SRTE_POLICY_TYPE_MPLS)
+		|| (segment_list->type == SRTE_SEGMENT_LIST_TYPE_MPLS
+		&& policy->type == SRTE_POLICY_TYPE_SRV6)) {
+		flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
+			"The Segment List type and Policy type must match!");
+		return NB_EV_VALIDATE;
+	}
+
+	return NB_OK;
 }
 
 /*

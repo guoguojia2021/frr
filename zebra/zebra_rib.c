@@ -4208,6 +4208,8 @@ void route_entry_dump_nh(const struct route_entry *re, const char *straddr,
 			    : ""),
 		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRTE) ? "SRTE "
 								  : ""),
+		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6TE) ? "SRv6TE "
+								  : ""),
 		   (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_EVPN) ? "EVPN "
 								  : ""));
 }

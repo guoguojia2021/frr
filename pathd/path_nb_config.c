@@ -127,6 +127,31 @@ int pathd_srte_segment_list_segment_destroy(struct nb_cb_destroy_args *args)
 	return NB_OK;
 }
 
+int pathd_srte_segment_list_segment_pre_validate(
+	struct nb_cb_pre_validate_args *args)
+{
+	struct srte_segment_list *segment_list;
+	segment_list = nb_running_get_entry(args->dnode, NULL, true);
+
+	if (yang_dnode_exists(args->dnode, "sid-value")) {
+		if (segment_list->type == SRTE_SEGMENT_LIST_TYPE_SRV6) {
+			flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
+				  "The Segment List Type must be the same!");
+			return NB_EV_VALIDATE;
+		}
+	}
+
+	if (yang_dnode_exists(args->dnode, "srv6-sid-value")) {
+		if (segment_list->type == SRTE_SEGMENT_LIST_TYPE_MPLS) {
+			flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
+				  "The Segment List Type must be the same!");
+			return NB_EV_VALIDATE;
+		}
+	}
+
+	return NB_OK;
+}
+
 /*
  * XPath: /frr-pathd:pathd/srte/segment-list/segment/sid-value
  */
@@ -142,6 +167,7 @@ int pathd_srte_segment_list_segment_sid_value_modify(
 	segment = nb_running_get_entry(args->dnode, NULL, true);
 	sid_value = yang_dnode_get_uint32(args->dnode, NULL);
 	segment->sid_value = sid_value;
+	segment->segment_list->type = SRTE_SEGMENT_LIST_TYPE_MPLS;
 	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
 
 	return NB_OK;
@@ -162,6 +188,43 @@ int pathd_srte_segment_list_segment_sid_value_destroy(
 	return NB_OK;
 }
 
+/*
+ * XPath: /frr-pathd:pathd/srte/segment-list/segment/srv6-sid-value
+ */
+int pathd_srte_segment_list_segment_v6_sid_value_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct ipaddr sid_value;
+	struct srte_segment_entry *segment;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+
+	segment = nb_running_get_entry(args->dnode, NULL, true);
+	yang_dnode_get_ip(&sid_value, args->dnode, NULL);
+	segment->srv6_sid_value = sid_value;
+	segment->segment_list->type = SRTE_SEGMENT_LIST_TYPE_SRV6;
+	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+
+	return NB_OK;
+}
+
+int pathd_srte_segment_list_segment_v6_sid_value_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	struct srte_segment_entry *segment;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	segment = nb_running_get_entry(args->dnode, NULL, true);
+	memset(&segment->srv6_sid_value, 0, sizeof(struct ipaddr));
+	SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+	return NB_OK;
+}
 
 int pathd_srte_segment_list_segment_nai_destroy(struct nb_cb_destroy_args *args)
 {
@@ -703,7 +766,14 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 	segment_list_name = yang_dnode_get_string(args->dnode, NULL);
 
 	candidate->segment_list = srte_segment_list_find(segment_list_name);
-	candidate->lsp->segment_list = candidate->segment_list;
+
+	if (candidate->segment_list->type == SRTE_SEGMENT_LIST_TYPE_MPLS) {
+		candidate->lsp->segment_list = candidate->segment_list;
+		candidate->policy->type = SRTE_POLICY_TYPE_MPLS;
+	}
+	else if (candidate->segment_list->type == SRTE_SEGMENT_LIST_TYPE_SRV6)
+		candidate->policy->type = SRTE_POLICY_TYPE_SRV6;
+
 	assert(candidate->segment_list);
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 

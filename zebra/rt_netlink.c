@@ -1768,7 +1768,8 @@ static bool _netlink_route_build_singlepath(const struct prefix *p,
 	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ONLINK))
 		rtmsg->rtm_flags |= RTNH_F_ONLINK;
 
-	if (is_route_v4_over_v6(rtmsg->rtm_family, nexthop->type)) {
+	if (is_route_v4_over_v6(rtmsg->rtm_family, nexthop->type)
+		&& !CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)) {
 		rtmsg->rtm_flags |= RTNH_F_ONLINK;
 		if (!nl_attr_put(nlmsg, req_size, RTA_GATEWAY, &ipv4_ll, 4))
 			return false;
@@ -1817,10 +1818,12 @@ static bool _netlink_route_build_singlepath(const struct prefix *p,
 
 	if (nexthop->type == NEXTHOP_TYPE_IPV6
 	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
-		if (!_netlink_route_add_gateway_info(rtmsg->rtm_family,
-						     AF_INET6, nlmsg, req_size,
-						     bytelen, nexthop))
-			return false;
+		if (!CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)) {
+			if (!_netlink_route_add_gateway_info(rtmsg->rtm_family,
+								AF_INET6, nlmsg, req_size,
+								bytelen, nexthop))
+				return false;
+		}
 
 		if (cmd == RTM_NEWROUTE) {
 			if (!_netlink_route_encode_nexthop_src(
@@ -1958,10 +1961,150 @@ static bool _netlink_route_build_multipath(const struct prefix *p,
 					      label_buf, sizeof(label_buf)))
 		return false;
 
+	if (nexthop->nh_srv6) {
+		if (nexthop->nh_srv6->seg6local_action !=
+		    ZEBRA_SEG6_LOCAL_ACTION_UNSPEC) {
+			struct rtattr *nest;
+			const struct seg6local_context *ctx;
+
+			ctx = &nexthop->nh_srv6->seg6local_ctx;
+			if (!nl_attr_put16(nlmsg, req_size, RTA_ENCAP_TYPE,
+					   LWTUNNEL_ENCAP_SEG6_LOCAL))
+				return false;
+
+			nest = nl_attr_nest(nlmsg, req_size, RTA_ENCAP);
+			if (!nest)
+				return false;
+
+			switch (nexthop->nh_srv6->seg6local_action) {
+			case ZEBRA_SEG6_LOCAL_ACTION_END:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_X:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_X))
+					return false;
+				if (!nl_attr_put(nlmsg, req_size,
+						 SEG6_LOCAL_NH6, &ctx->nh6,
+						 sizeof(struct in6_addr)))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_T:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_T))
+					return false;
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_TABLE,
+						   ctx->table))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_DX4:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_DX4))
+					return false;
+				if (!nl_attr_put(nlmsg, req_size,
+						 SEG6_LOCAL_NH4, &ctx->nh4,
+						 sizeof(struct in_addr)))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_DX6:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_DX6))
+					return false;
+				if (!nl_attr_put(nlmsg, req_size,
+						 SEG6_LOCAL_NH6, &ctx->nh6,
+						 sizeof(struct in6_addr)))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_DT6:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_DT6))
+					return false;
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_TABLE,
+						   ctx->table))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_DT4))
+					return false;
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_VRFTABLE,
+						   ctx->table))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_ACTION,
+						   SEG6_LOCAL_ACTION_END_DT46))
+					return false;
+				if (!nl_attr_put32(nlmsg, req_size,
+						   SEG6_LOCAL_VRFTABLE,
+						   ctx->table))
+					return false;
+				break;
+			case ZEBRA_SEG6_LOCAL_ACTION_END_DX2:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_B6:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_BM:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_S:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_AS:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_AM:
+			case ZEBRA_SEG6_LOCAL_ACTION_END_BPF:
+			case ZEBRA_SEG6_LOCAL_ACTION_UNSPEC:
+				zlog_err("%s: unsupport seg6local behaviour action=%u",
+					 __func__,
+					 nexthop->nh_srv6->seg6local_action);
+				return false;
+			}
+
+			if (!_netlink_nexthop_encode_seg6local_flavor(
+				    nexthop, nlmsg, req_size))
+				return false;
+
+			nl_attr_nest_end(nlmsg, nest);
+		}
+
+		if (nexthop->nh_srv6->seg6_segs &&
+		    nexthop->nh_srv6->seg6_segs->num_segs &&
+		    !sid_zero(nexthop->nh_srv6->seg6_segs)) {
+			char tun_buf[4096];
+			ssize_t tun_len;
+			struct rtattr *nest;
+
+			if (!nl_attr_put16(nlmsg, req_size, RTA_ENCAP_TYPE,
+					  LWTUNNEL_ENCAP_SEG6))
+				return false;
+			nest = nl_attr_nest(nlmsg, req_size, RTA_ENCAP);
+			if (!nest)
+				return false;
+			tun_len =
+				fill_seg6ipt_encap(tun_buf, sizeof(tun_buf),
+						   nexthop->nh_srv6->seg6_segs);
+			if (tun_len < 0)
+				return false;
+			if (!nl_attr_put(nlmsg, req_size, SEG6_IPTUNNEL_SRH,
+					 tun_buf, tun_len))
+				return false;
+			nl_attr_nest_end(nlmsg, nest);
+		}
+	}
+
 	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ONLINK))
 		rtnh->rtnh_flags |= RTNH_F_ONLINK;
 
-	if (is_route_v4_over_v6(rtmsg->rtm_family, nexthop->type)) {
+	if (is_route_v4_over_v6(rtmsg->rtm_family, nexthop->type)
+	   && !CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)) {
 		rtnh->rtnh_flags |= RTNH_F_ONLINK;
 		if (!nl_attr_put(nlmsg, req_size, RTA_GATEWAY, &ipv4_ll, 4))
 			return false;
@@ -2004,10 +2147,12 @@ static bool _netlink_route_build_multipath(const struct prefix *p,
 	}
 	if (nexthop->type == NEXTHOP_TYPE_IPV6
 	    || nexthop->type == NEXTHOP_TYPE_IPV6_IFINDEX) {
-		if (!_netlink_route_add_gateway_info(rtmsg->rtm_family,
-						     AF_INET6, nlmsg, req_size,
-						     bytelen, nexthop))
-			return false;
+		if (!CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)) {
+			if (!_netlink_route_add_gateway_info(rtmsg->rtm_family,
+								AF_INET6, nlmsg, req_size,
+								bytelen, nexthop))
+				return false;
+		}
 
 		if (!IN6_IS_ADDR_UNSPECIFIED(&nexthop->rmap_src.ipv6))
 			*src = &nexthop->rmap_src;
