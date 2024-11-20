@@ -387,6 +387,8 @@ extern void zebra_nhg_mark_keep(void);
 
 /* Nexthop resolution processing */
 struct route_entry; /* Forward ref to avoid circular includes */
+
+extern void nexthop_vrf_update(struct route_node *rn, struct route_entry *re, vrf_id_t vrf_id);
 extern int nexthop_active_update(struct route_node *rn, struct route_entry *re);
 extern bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value */
 				   struct nhg_hash_entry *nhe,
@@ -399,6 +401,7 @@ extern void zebra_nhg_seg_handle_uninstall(struct nhg_hash_entry *nhe);
 extern bool zebra_nhg_segdependents_is_empty(const struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_free(struct nhg_hash_entry *nhe);
 extern void zebra_nhe_change_gateway_address(struct nexthop *nexthop);
+
 #ifdef __cplusplus
 }
 #endif
