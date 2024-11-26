@@ -279,6 +279,9 @@ json_object *srv6_locator_json(const struct srv6_locator *loc);
 json_object *srv6_locator_detailed_json(const struct srv6_locator *loc);
 json_object *
 srv6_locator_chunk_detailed_json(const struct srv6_locator_chunk *chunk);
+json_object *
+srv6_locator_sid_detailed_json(const struct srv6_locator *locator,
+							   const struct seg6_sid *sid);
 
 #ifdef __cplusplus
 }

@@ -371,6 +371,60 @@ srv6_locator_chunk_detailed_json(const struct srv6_locator_chunk *chunk)
 	return jo_root;
 }
 
+json_object *
+srv6_locator_sid_detailed_json(const struct srv6_locator *locator,
+							   const struct seg6_sid *sid)
+{
+	json_object *jo_root = NULL;
+	struct in6_addr result_sid = {0};
+	char buf[256];
+	struct prefix p = {};
+
+	jo_root = json_object_new_object();
+
+	if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
+		combine_hide_sid(locator, &sid->ipv6Addr.prefix, &result_sid, sid->sidtype);
+		p.family = AF_INET6;
+		p.prefixlen = 128;
+		p.u.prefix6 = result_sid;
+		prefix2str(&p, buf, sizeof(buf));
+	}
+	else {
+		combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+		p.family = AF_INET6;
+		p.prefixlen = 128;
+		p.u.prefix6 = result_sid;
+		prefix2str(&p, buf, sizeof(buf));
+	}
+
+	/* set opcode */
+	json_object_string_add(jo_root, "opcode", buf);
+
+	/* set sidaction */
+	json_object_string_add(jo_root, "sidaction",
+						   seg6local_action2str(sid->sidaction));
+
+	/* set ifname and nexthop */
+	if (sid->sidaction == ZEBRA_SEG6_LOCAL_ACTION_END_X) {
+		char ifbuf[INET6_ADDRSTRLEN] = {0};
+		json_object_string_add(jo_root, "ifname", sid->ifname);
+		if (sid->nexthop.ipa_type == IPADDR_V4)
+			inet_ntop(AF_INET, &sid->nexthop.ipaddr_v4, ifbuf, sizeof(ifbuf));
+		else if (sid->nexthop.ipa_type == IPADDR_V6)
+			inet_ntop(AF_INET6, &sid->nexthop.ipaddr_v6, ifbuf, sizeof(ifbuf));
+		json_object_string_add(jo_root, "nexthop", ifbuf);
+	}
+
+	/* set vrf */
+	json_object_string_add(jo_root, "vrf", sid->vrfName);
+
+	/* set service-sid-marking */
+	if (ZEBRA_SEG6_ACTION_IS_END_DT46(sid->sidaction))
+		json_object_int_add(jo_root, "service-sid-marking", sid->sidmarking);
+
+	return jo_root;
+}
+
 json_object *srv6_locator_json(const struct srv6_locator *loc)
 {
 	struct listnode *node;
@@ -409,10 +463,14 @@ json_object *srv6_locator_json(const struct srv6_locator *loc)
 json_object *srv6_locator_detailed_json(const struct srv6_locator *loc)
 {
 	struct listnode *node;
+	struct listnode *sidnode;
 	struct srv6_locator_chunk *chunk;
+	struct seg6_sid *sid = NULL;
 	json_object *jo_root = NULL;
 	json_object *jo_chunk = NULL;
 	json_object *jo_chunks = NULL;
+	json_object *jo_sid = NULL;
+	json_object *jo_sids = NULL;
 
 	jo_root = json_object_new_object();
 
@@ -448,6 +506,14 @@ json_object *srv6_locator_detailed_json(const struct srv6_locator *loc)
 	for (ALL_LIST_ELEMENTS_RO((struct list *)loc->chunks, node, chunk)) {
 		jo_chunk = srv6_locator_chunk_detailed_json(chunk);
 		json_object_array_add(jo_chunks, jo_chunk);
+	}
+
+	/* set sids */
+	jo_sids = json_object_new_array();
+	json_object_object_add(jo_root, "sids", jo_sids);
+	for (ALL_LIST_ELEMENTS_RO(loc->sids, sidnode, sid)) {
+		jo_sid = srv6_locator_sid_detailed_json(loc, sid);
+		json_object_array_add(jo_sids, jo_sid);
 	}
 
 	return jo_root;
