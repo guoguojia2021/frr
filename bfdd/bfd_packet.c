@@ -409,6 +409,7 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 	if (bfd == NULL) {
 		bfd = bfd_id_lookup(my_discr);
 		if (bfd == NULL) {
+			zlog_warn("ptm_bfd_process_echo_pkt: can not find session my_discr:%d, remote_disc:%d", my_discr, remote_discr);
 			if (bglobal.debug_network)
 				zlog_debug("echo-packet: no matching session (id:%u)",
 					my_discr);
@@ -917,6 +918,7 @@ int bfd_recv_cb(struct thread *t)
 	if (bfd == NULL) {
 		cp_debug(is_mhop, &peer, &local, ifindex, vrfid,
 			 "no session found");
+		zlog_warn("ptm_bfd_sess_find: can not find session my_discr:%d, remote_disc:%d", cp->discrs.my_discr, cp->discrs.remote_discr);
 		return 0;
 	}
 
@@ -1296,6 +1298,21 @@ void bp_set_prio(int sd, int value)
 	}
 }
 
+void bp_set_addr_reuse(int sd, const char* info)
+{
+	if (sockopt_reuseaddr(sd) < 0) {
+		zlog_warn("%s -> %s: failed to set reuseaddr: %s", info, __func__, strerror(errno));
+		return;
+	}
+
+	if (sockopt_reuseport(sd) < 0) {
+		zlog_warn("%s -> %s: failed to set reuseport: %s", info, __func__, strerror(errno));
+		return;
+	}
+
+	zlog_warn("%s: bp_set_addr_reuse OK", info);
+}
+
 int bp_udp_shop(const struct vrf *vrf)
 {
 	int sd;
@@ -1308,6 +1325,7 @@ int bp_udp_shop(const struct vrf *vrf)
 		zlog_fatal("udp-shop: socket: %s", strerror(errno));
 
 	bp_set_ipopts(sd);
+	bp_set_addr_reuse(sd, "bp_udp_shop");
 	bp_bind_ip(sd, BFD_DEFDESTPORT);
 	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
 
@@ -1326,6 +1344,7 @@ int bp_udp_mhop(const struct vrf *vrf)
 		zlog_fatal("udp-mhop: socket: %s", strerror(errno));
 
 	bp_set_ipopts(sd);
+	bp_set_addr_reuse(sd, "bp_udp_mhop");
 	bp_bind_ip(sd, BFD_DEF_MHOP_DEST_PORT);
 	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
 
@@ -1640,6 +1659,7 @@ int bp_udp6_shop(const struct vrf *vrf)
 	}
 
 	bp_set_ipv6opts(sd);
+	bp_set_addr_reuse(sd, "bp_udp6_shop");
 	bp_bind_ipv6(sd, BFD_DEFDESTPORT);
     bp_set_udp6_no_check6(sd);
 	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
@@ -1665,6 +1685,7 @@ int bp_udp6_mhop(const struct vrf *vrf)
 	}
 
 	bp_set_ipv6opts(sd);
+	bp_set_addr_reuse(sd, "bp_udp6_mhop");
 	bp_bind_ipv6(sd, BFD_DEF_MHOP_DEST_PORT);
     bp_set_udp6_no_check6(sd);
 	bp_set_recv_buffer(sd, SOCK_RECV_BUF_SIZE);
@@ -1706,6 +1727,7 @@ int bp_echo_socket(const struct vrf *vrf)
 		zlog_fatal("echo-socket: socket: %s", strerror(errno));
 
 	bp_set_ipopts(s);
+	bp_set_addr_reuse(s, "bp_echo_socket");
 	bp_bind_ip(s, BFD_DEF_ECHO_PORT);
 	bp_set_prio(s, SOCK_OPT_PRIO_HIGH);
 
@@ -1733,6 +1755,7 @@ int bp_echov6_socket(const struct vrf *vrf)
 	}
 
 	bp_set_ipv6opts(s);
+	bp_set_addr_reuse(s, "bp_echov6_socket");
 	bp_bind_ipv6(s, BFD_DEF_ECHO_PORT);
 	bp_set_prio(s, SOCK_OPT_PRIO_HIGH);
 
