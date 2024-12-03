@@ -71,6 +71,7 @@ const struct frr_yang_module_info frr_pathd_info = {
 				.create = pathd_srte_segment_list_segment_create,
 				.cli_show = cli_show_srte_segment_list_segment,
 				.destroy = pathd_srte_segment_list_segment_destroy,
+				.pre_validate = pathd_srte_segment_list_segment_pre_validate,
 			},
 			.priority = NB_DFLT_PRIORITY - 1
 		},
@@ -79,6 +80,14 @@ const struct frr_yang_module_info frr_pathd_info = {
 			.cbs = {
 				.modify = pathd_srte_segment_list_segment_sid_value_modify,
 				.destroy = pathd_srte_segment_list_segment_sid_value_destroy,
+			},
+			.priority = NB_DFLT_PRIORITY - 1
+		},
+		{
+			.xpath = "/frr-pathd:pathd/srte/segment-list/segment/srv6-sid-value",
+			.cbs = {
+				.modify = pathd_srte_segment_list_segment_v6_sid_value_modify,
+				.destroy = pathd_srte_segment_list_segment_v6_sid_value_destroy,
 			},
 			.priority = NB_DFLT_PRIORITY - 1
 		},
@@ -163,6 +172,7 @@ const struct frr_yang_module_info frr_pathd_info = {
 				.get_next = pathd_srte_policy_candidate_path_get_next,
 				.get_keys = pathd_srte_policy_candidate_path_get_keys,
 				.lookup_entry = pathd_srte_policy_candidate_path_lookup_entry,
+				.pre_validate = pathd_srte_policy_candidate_path_pre_validate,
 			}
 		},
 		{
