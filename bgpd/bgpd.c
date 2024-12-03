@@ -4330,6 +4330,9 @@ void bgp_free(struct bgp *bgp)
 	XFREE(MTYPE_BGP, bgp->name_pretty);
 	XFREE(MTYPE_BGP, bgp->snmp_stats);
 
+	bgp_meta_queue_free(bgp->mq);
+	bgp->mq = NULL;
+
 	XFREE(MTYPE_BGP, bgp);
 }
 
