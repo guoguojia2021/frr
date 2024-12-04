@@ -450,7 +450,7 @@ def test_bgp_conditional_advertisement_tc_2_2():
           configure terminal
             router bgp 1
               address-family ipv4 unicast
-               no network 0.0.0.0/0 route-map DEF
+               no network 0.0.0.0/0 route-map DEF nonconnected
         """
     )
 
@@ -1199,7 +1199,7 @@ def test_bgp_conditional_advertisement_tc_9_2():
           configure terminal
            router bgp 2
             address-family ipv4 unicast
-             no network 203.0.113.1/32
+             no network 203.0.113.1/32 nonconnected
         """
     )
 
