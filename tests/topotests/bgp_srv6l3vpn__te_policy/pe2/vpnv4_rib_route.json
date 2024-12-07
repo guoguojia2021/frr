@@ -1,0 +1,63 @@
+{
+  "vrfId": 0,
+  "vrfName": "default",
+  "routerId": "1.1.1.1",
+  "defaultLocPrf": 100,
+  "localAS": 2,
+  "routes": {
+    "routeDistinguishers": {
+      "1:10": {
+        "192.168.1.0/24": [
+          {
+            "valid": true,
+            "bestpath": true,
+            "selectionReason": "First path received",
+            "pathFrom": "external",
+            "prefix": "192.168.1.0",
+            "prefixLen": 24,
+            "network": "192.168.1.0/24",
+            "metric": 0,
+            "weight": 0,
+            "peerId": "1000::1",
+            "path": "1",
+            "origin": "incomplete",
+            "nexthops": [
+              {
+                "ip": "1000::1",
+                "hostname": "pe1",
+                "afi": "ipv6",
+                "used": true
+              }
+            ]
+          }
+        ]
+      },
+      "1:20": {
+        "192.168.2.0/24": [
+          {
+            "valid": true,
+            "bestpath": true,
+            "selectionReason": "First path received",
+            "pathFrom": "external",
+            "prefix": "192.168.2.0",
+            "prefixLen": 24,
+            "network": "192.168.2.0/24",
+            "metric": 0,
+            "weight": 0,
+            "peerId": "1000::1",
+            "path": "1",
+            "origin": "incomplete",
+            "nexthops": [
+              {
+                "ip": "1000::1",
+                "hostname": "pe1",
+                "afi": "ipv6",
+                "used": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

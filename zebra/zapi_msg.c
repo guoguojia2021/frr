@@ -1349,6 +1349,10 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 		srte_color = 0;
 
 		STREAM_GETL(s, flags);
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_CONNECTED)
+			|| CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_RESOLVE_VIA_DEFAULT))
+			goto stream_failure;
+
 		STREAM_GETW(s, safi);
 		STREAM_GETW(s, p.family);
 		STREAM_GETC(s, p.prefixlen);

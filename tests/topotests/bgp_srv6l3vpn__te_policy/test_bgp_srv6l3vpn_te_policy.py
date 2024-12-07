@@ -33,9 +33,9 @@ def build_topo(tgen):
     ┌──────┐                  ┌──────┐                   ┌──────┐
     │  CE1 ┼─┐            ┌───┤  P1  ┼──┐              ┌─┤  CE3 │
     └──────┘ │ Vrf1       │   └───|──┘  │              │ └──────┘
-             │ ┌──────┐   │       |     │    ┌──────┐  │ Vrf1        
-             ┼─┼  PE1 ┼───┤       |     ┼────┤  PE2 ┼──┤         
-             │ └──────┘   │       |     │    └──────┘  │ Vrf2        
+                │ ┌──────┐   │       |     │    ┌──────┐  │ Vrf1        
+                ┼─┼  PE1 ┼───┤       |     ┼────┤  PE2 ┼──┤         
+                │ └──────┘   │       |     │    └──────┘  │ Vrf2        
     ┌──────┐ │ Vrf2       │   ┌───|──┐  │              │ ┌──────┐
     │  CE2 ┼─┘            └───┤  P2  ┼──┘              └─┼  CE4 │
     └──────┘                  └──────┘                   └──────┘
@@ -83,6 +83,8 @@ def setup_module(mod):
     tgen.gears["pe1"].run("ip link set vrf2 up")
     tgen.gears["pe1"].run("ip link set eth3 master vrf1")
     tgen.gears["pe1"].run("ip link set eth4 master vrf2")
+    tgen.gears["pe1"].run("ip link add Loopback1 type dummy")
+    tgen.gears["pe1"].run("ip link set dev Loopback1 up")
 
     tgen.gears["pe2"].run("ip link add vrf1 type vrf table 1")
     tgen.gears["pe2"].run("ip link set vrf1 up")
@@ -90,6 +92,9 @@ def setup_module(mod):
     tgen.gears["pe2"].run("ip link set vrf2 up")
     tgen.gears["pe2"].run("ip link set eth3 master vrf1")
     tgen.gears["pe2"].run("ip link set eth4 master vrf2")
+    tgen.gears["pe2"].run("ip link add Loopback1 type dummy")
+    tgen.gears["pe2"].run("ip link set dev Loopback1 up")
+
     tgen.start_router()
 
     # FOR DEVELOPER:
@@ -125,13 +130,118 @@ def check_rib(name, cmd, expected_file):
     _, result = topotest.run_and_expect(func, None, count=10, wait=0.5)
     assert result is None, "Failed"
 
+def create_srv6_policy(rname, endpoint, color=100):
+    get_topogen().net[rname].cmd(
+        """ \
+        vtysh -c "conf t" \
+              -c "segment-routing" \
+              -c "traffic-eng" \
+              -c "policy color """
+        + str(color)
+        + " endpoint "
+        + endpoint
+        + '''"'''
+    )
 
-def test_locator_recreate():
-    import pdb; pdb.set_trace()
-    check_rib("pe1", "show bgp ipv4 vpn json", "r1/vpnv4_rib_locator_recreated.json")
-    check_rib("pe2", "show bgp ipv6 vpn json", "r2/vpnv6_rib_locator_recreated.json")
+
+def delete_srv6_policy(rname, endpoint, color=100):
+    get_topogen().net[rname].cmd(
+        """ \
+        vtysh -c "conf t" \
+              -c "segment-routing" \
+              -c "traffic-eng" \
+              -c "no policy color """
+        + str(color)
+        + " endpoint "
+        + endpoint
+        + '''"'''
+    )
+
+def add_candidate_path(rname, endpoint, pref, name, segment_list="default", color=100):
+    get_topogen().net[rname].cmd(
+        """ \
+        vtysh -c "conf t" \
+              -c "segment-routing" \
+              -c "traffic-eng" \
+              -c "policy color """
+        + str(color)
+        + " endpoint "
+        + endpoint
+        + """" \
+              -c "candidate-path preference """
+        + str(pref)
+        + """ name """
+        + name
+        + """ explicit segment-list """
+        + segment_list
+        + '''"'''
+    )
 
 
+def delete_candidate_path(rname, endpoint, pref, color=100):
+    get_topogen().net[rname].cmd(
+        """ \
+        vtysh -c "conf t" \
+              -c "segment-routing" \
+              -c "traffic-eng" \
+              -c "policy color """
+        + str(color)
+        + " endpoint "
+        + endpoint
+        + """" \
+              -c "no candidate-path preference """
+        + str(pref)
+        + '''"'''
+    )
+
+def router_bgp_shutdown_neighbor(rname, neighbor):
+    get_topogen().net[rname].cmd(
+        """ \
+        vtysh -c "conf t" \
+              -c "router bgp 2" \
+              -c " neighbor """
+        + neighbor
+        + ' shutdown"'
+    )
+
+
+def router_bgp_no_shutdown_neighbor(rname, neighbor):
+    get_topogen().net[rname].cmd(
+        """ \
+        vtysh -c "conf t" \
+              -c "router bgp 2" \
+              -c " no neighbor """
+        + neighbor
+        + ' shutdown"'
+    )
+
+def test_bgp_srv6_ipv4_vpn_route():
+    check_ping("pe1", "2000::1", False, 5, 1, "1000::1")
+    check_ping("pe2", "1000::1", False, 5, 1, "2000::1")
+    check_rib("pe2", "show bgp ipv4 vpn json", "pe2/vpnv4_rib_route.json")
+
+    create_srv6_policy("pe2", "1000::1")
+    add_candidate_path("pe2", "1000::1", 100, "test")
+    check_rib("pe2", "show ip route vrf vrf1 x.x.x.x json", "pe2/vrf1_ipv4_route_te_policy.json")
+    delete_candidate_path("pe2", "1000::1", 100)
+    add_candidate_path("pe2", "1000::1", 100, "test")
+    check_rib("pe2", "show ip route vrf vrf1 x.x.x.x json", "pe2/vrf1_ipv4_route_te_policy.json")
+    router_bgp_shutdown_neighbor("pe2", "1000::1")
+    delete_candidate_path("pe2", "1000::1", 100)
+
+def test_bgp_srv6_ipv6_vpn_route():
+    check_ping("pe1", "2000::1", False, 5, 1, "1000::1")
+    check_ping("pe2", "1000::1", False, 5, 1, "2000::1")
+    check_rib("pe2", "show bgp ipv4 vpn json", "pe2/vpnv4_rib_route.json")
+
+    create_srv6_policy("pe2", "1000::1")
+    add_candidate_path("pe2", "1000::1", 100, "test")
+    check_rib("pe2", "show ip route vrf vrf1 x.x.x.x json", "pe2/vrf1_ipv4_route_te_policy.json")
+    delete_candidate_path("pe2", "1000::1", 100)
+    add_candidate_path("pe2", "1000::1", 100, "test")
+    check_rib("pe2", "show ip route vrf vrf1 x.x.x.x json", "pe2/vrf1_ipv4_route_te_policy.json")
+
+    delete_candidate_path("pe2", "1000::1", 100)
 
 if __name__ == "__main__":
     args = ["-s"] + sys.argv[1:]
