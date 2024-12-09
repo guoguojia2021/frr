@@ -769,22 +769,42 @@ static void bgp_show_nexthop_paths(struct vty *vty, struct bgp *bgp,
 	char buf1[BUFSIZ];
 
 	vty_out(vty, "  Paths:\n");
-	LIST_FOREACH (path, &(bnc->paths), nh_thread) {
-		dest = path->net;
-		assert(dest && bgp_dest_table(dest));
-		afi = family2afi(bgp_dest_get_prefix(dest)->family);
-		table = bgp_dest_table(dest);
-		safi = table->safi;
-		bgp_path = table->bgp;
+	if (bnc->srte_color) {
+		LIST_FOREACH (path, &(bnc->paths), te_nh_thread) {
+			dest = path->net;
+			assert(dest && bgp_dest_table(dest));
+			afi = family2afi(bgp_dest_get_prefix(dest)->family);
+			table = bgp_dest_table(dest);
+			safi = table->safi;
+			bgp_path = table->bgp;
 
-		if (dest->pdest) {
-			prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
-					buf1, sizeof(buf1));
-			vty_out(vty, "    %d/%d %pBD RD %s %s flags 0x%x\n",
-				afi, safi, dest, buf1, bgp_path->name_pretty, path->flags);
-		} else
-			vty_out(vty, "    %d/%d %pBD %s flags 0x%x\n",
-				afi, safi, dest, bgp_path->name_pretty, path->flags);
+			if (dest->pdest) {
+				prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
+						buf1, sizeof(buf1));
+				vty_out(vty, "    %d/%d %pBD RD %s %s flags 0x%x\n",
+					afi, safi, dest, buf1, bgp_path->name_pretty, path->flags);
+			} else
+				vty_out(vty, "    %d/%d %pBD %s flags 0x%x\n",
+					afi, safi, dest, bgp_path->name_pretty, path->flags);
+		}
+	} else {
+		LIST_FOREACH (path, &(bnc->paths), nh_thread) {
+			dest = path->net;
+			assert(dest && bgp_dest_table(dest));
+			afi = family2afi(bgp_dest_get_prefix(dest)->family);
+			table = bgp_dest_table(dest);
+			safi = table->safi;
+			bgp_path = table->bgp;
+
+			if (dest->pdest) {
+				prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
+						buf1, sizeof(buf1));
+				vty_out(vty, "    %d/%d %pBD RD %s %s flags 0x%x\n",
+					afi, safi, dest, buf1, bgp_path->name_pretty, path->flags);
+			} else
+				vty_out(vty, "    %d/%d %pBD %s flags 0x%x\n",
+					afi, safi, dest, bgp_path->name_pretty, path->flags);
+		}
 	}
 }
 
@@ -931,7 +951,7 @@ static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
 
 	for (afi = AFI_IP; afi < AFI_MAX; afi++) {
 		frr_each (bgp_nexthop_cache, &(*tree)[afi], bnc)
-			bgp_show_nexthop(vty, bgp, bnc, false);
+			bgp_show_nexthop(vty, bgp, bnc, true);
 	}
 }
 
