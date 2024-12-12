@@ -200,7 +200,7 @@ zebra_zebra_SOURCES = zebra/main.c
 zebra_zebra_LDADD = zebra/libzebra.a $(RFPLDADD) lib/libfrr.la -ldl $(LIBYANG_LIBS) $(LIBCAP) $(LIBM) $(UST_LIBS)
 
 if HAVE_PROTOBUF3
-zebra_zebra_LDADD += mlag/libmlag_pb.la
+zebra_zebra_LDADD += mlag/libmlag_pb.la fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS)
 zebra/zebra_mlag.$(OBJEXT): mlag/mlag.pb-c.h
 endif
 
