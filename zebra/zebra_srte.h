@@ -99,7 +99,7 @@ extern int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr
 extern void zebra_sr_policy_notify_update(struct rnh *rnh, struct zebra_sr_policy *policy, struct zserv *zclient);
 extern int zebra_sr_policy_notify_unknown(struct rnh *rnh, struct zserv *client);
 extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
-                     struct zapi_srv6te_tunnel *new_tunnel, bool new);
+                     struct zapi_srv6te_tunnel *new_tunnel, bool new_flag);
 
 extern struct zebra_sr_policy *zebra_sr_policy_add_by_prefix(struct prefix *p, uint32_t color, char *name);
 

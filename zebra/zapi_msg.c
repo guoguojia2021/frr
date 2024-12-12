@@ -2776,7 +2776,7 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 	struct zapi_srv6te_tunnel *zt;
 	struct zebra_sr_policy *policy = NULL;
     struct zebra_sr_policy *old_policy = NULL;
-	bool new = false;
+	bool new_flag = false;
 
 	/* Get input stream.  */
 	s = msg;
@@ -2799,19 +2799,19 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
     if (!old_policy)
 	{
         policy = zebra_sr_policy_add_by_prefix(&zp.endpoint, zp.color, zp.name);
-		new = true;
+		new_flag = true;
 	}
 	else 
 	{
 		policy = old_policy;
 		if (old_policy->status == ZEBRA_SR_POLICY_INIT)
-			new = true;
+			new_flag = true;
 		policy->status = ZEBRA_SR_POLICY_UP;
 	}
     
     policy->zvrf = zvrf;
 
-    zebra_srv6_policy_validate(policy, &zp.srv6_tunnel, new);
+    zebra_srv6_policy_validate(policy, &zp.srv6_tunnel, new_flag);
 }
 
 static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)

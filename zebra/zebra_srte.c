@@ -1035,7 +1035,7 @@ static void zebra_srv6_policy_copy_sidlist(struct zebra_sr_policy *policy, struc
 	return;
 }
 void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
-			     struct zapi_srv6te_tunnel *new_tunnel, bool new)
+			     struct zapi_srv6te_tunnel *new_tunnel, bool new_flag)
 {
 
 	bool segment_list_changed = false;
@@ -1043,7 +1043,7 @@ void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
 	if (policy == NULL || new_tunnel == NULL)
 		return;
 
-	if (new) {
+	if (new_flag) {
 		policy->srv6_segment_list = *new_tunnel;
 		policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
 		zebra_srte_evaluate_rn_nexthops(policy, zebra_router_get_next_sequence(), false);
