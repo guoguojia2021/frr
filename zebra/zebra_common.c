@@ -26,6 +26,36 @@
 #include "zebra/zebra_ns.h"
 #include "zebra/zebra_dplane.h"
 
+/* process id. */
+pid_t pid;
+
+/* Pacify zclient.o in libfrr, which expects this variable. */
+struct thread_master *master;
+
+/* Route retain mode flag. */
+int retain_mode = 0;
+
+/* BGP Route preserve mode flag. */
+int preserve_bgp = 0;
+
+/* Allow non-frr entities to delete frr routes */
+int allow_delete = 0;
+
+int graceful_restart;
+
+int ZEBRA_TABLE_FIB_MAX = 51200;
+unsigned long zebra_config_fib_max = 0;
+
+bool v6_rr_semantics = false;
+
+bool fpm_pic_nexthop = true;
+
+/* Receive buffer size for kernel control sockets */
+#ifdef HAVE_NETLINK
+uint32_t rcvbufsize = 8388608;
+#else
+uint32_t rcvbufsize = 128 * 1024;
+#endif
 
 /*
  * Final shutdown step for the zebra main thread. This is run after all

@@ -276,9 +276,13 @@ if test "$enable_gcov" = "yes"; then
    if test "$orig_cflags" = ""; then
       AC_C_FLAG([--coverage])
       AC_C_FLAG([-O0])
+      AC_C_FLAG([-fprofile-arcs])
+      AC_C_FLAG([-ftest-coverage])
+      AC_C_FLAG([-lgcov])
+
    fi
 
-   AC_LDFLAGS="${AC_LDFLAGS} --coverage"
+   AC_LDFLAGS="${AC_LDFLAGS} --coverage -fprofile-arcs -ftest-coverage -lgcov"
 fi
 
 if test "$enable_clang_coverage" = "yes"; then

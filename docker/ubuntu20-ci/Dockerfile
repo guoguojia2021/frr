@@ -11,7 +11,7 @@ RUN apt update && \
       install-info build-essential libsnmp-dev perl \
       libcap-dev python2 libelf-dev \
       sudo gdb curl iputils-ping time \
-      lua5.3 liblua5.3-dev \
+      lua5.3 liblua5.3-dev lcov vim \
       net-tools iproute2 && \
       curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output /tmp/get-pip.py && \
       python2 /tmp/get-pip.py && \
@@ -81,6 +81,7 @@ RUN cd ~/frr && \
        --enable-scripting \
        --enable-protobuf \
        --enable-fpm \
+       --enable-gcov \
        --with-pkg-extra-version=-my-manual-build && \
     make -j $(nproc) && \
     sudo make install

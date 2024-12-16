@@ -62,6 +62,51 @@
 #include "zebra/zebra_srv6_vty.h"
 #include "zebra/zebra_db.h"
 
+extern int retain_mode;
+/* BGP Route preserve mode flag. */
+extern int preserve_bgp;
+/* Allow non-frr entities to delete frr routes */
+extern int allow_delete;
+extern int graceful_restart;
+extern int ZEBRA_TABLE_FIB_MAX;
+extern unsigned long zebra_config_fib_max;
+extern bool v6_rr_semantics;
+
+/* Command line options. */
+const struct option longopts[] = {
+	{"batch", no_argument, NULL, 'b'},
+	{"allow_delete", no_argument, NULL, 'a'},
+	{"large_fib", required_argument, NULL, 'L'},
+	{"socket", required_argument, NULL, 'z'},
+	{"ecmp", required_argument, NULL, 'e'},
+	{"retain", no_argument, NULL, 'r'},
+	{"graceful_restart", required_argument, NULL, 'K'},
+	{"asic-offload", optional_argument, NULL, OPTION_ASIC_OFFLOAD},
+	{"preserve_bgp", no_argument, NULL, 'p'},
+#ifdef HAVE_NETLINK
+	{"vrfwnetns", no_argument, NULL, 'n'},
+	{"nl-bufsize", required_argument, NULL, 's'},
+	{"v6-rr-semantics", no_argument, NULL, OPTION_V6_RR_SEMANTICS},
+#endif /* HAVE_NETLINK */
+	{0}};
+
+zebra_capabilities_t _caps_p[] = {
+	ZCAP_NET_ADMIN, ZCAP_SYS_ADMIN, ZCAP_NET_RAW,
+};
+
+/* zebra privileges to run with */
+struct zebra_privs_t zserv_privs = {
+#if defined(FRR_USER) && defined(FRR_GROUP)
+	.user = FRR_USER,
+	.group = FRR_GROUP,
+#endif
+#ifdef VTY_GROUP
+	.vty_group = VTY_GROUP,
+#endif
+	.caps_p = _caps_p,
+	.cap_num_p = array_size(_caps_p),
+	.cap_num_i = 0};
+
 /* SIGHUP handler. */
 static void sighup(void)
 {
@@ -182,6 +227,16 @@ struct frr_signal_t zebra_signals[] = {
 		.signal = SIGTERM,
 		.handler = &sigint,
 	},
+};
+
+static const struct frr_yang_module_info *const zebra_yang_modules[] = {
+	&frr_filter_info,
+	&frr_interface_info,
+	&frr_route_map_info,
+	&frr_zebra_info,
+	&frr_vrf_info,
+	&frr_routing_info,
+	&frr_zebra_route_map_info,
 };
 
 FRR_DAEMON_INFO(

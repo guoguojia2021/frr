@@ -251,11 +251,10 @@ zebra_dplane_fpm_nl_la_SOURCES += zebra/dplane_fpm_nl.c
 zebra_dplane_fpm_nl_la_LDFLAGS = $(MODULE_LDFLAGS)
 zebra_dplane_fpm_nl_la_LIBADD  = fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS)
 
-vtysh_scan += zebra/dplane_fpm_nl.c
 endif
 
 if NETLINK_DEBUG
-zebra_zebra_SOURCES += \
+zebra_libzebra_a_SOURCES += \
 	zebra/debug_nl.c \
 	# end
 endif
