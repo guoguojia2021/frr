@@ -7429,7 +7429,7 @@ int bgp_neighbor_high_route_map_set(int inst_type, afi_t afi, safi_t safi, int d
 		}
 	} else {
 		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
-			update_group_announce(bgp);
+			update_group_af_walk(bgp, afi, safi, update_group_announce_walkcb, NULL);
 		}
 	}
 
@@ -7475,7 +7475,7 @@ int bgp_neighbor_high_route_map_unset(int inst_type, afi_t afi, safi_t safi, int
 		}
 	} else {
 		for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
-			update_group_announce(bgp);
+			update_group_af_walk(bgp, afi, safi, update_group_announce_walkcb, NULL);
 		}
 	}
 
@@ -7513,7 +7513,7 @@ int bgp_route_map_set(struct bgp *bgp, afi_t afi, safi_t safi, int direct,
 			peer_on_policy_change(peer, afi, safi, 0);
 		}
 	} else {
-		update_group_announce(bgp);
+		update_group_af_walk(bgp, afi, safi, update_group_announce_walkcb, NULL);
 	}
 
 	return 0;
