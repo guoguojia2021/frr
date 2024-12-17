@@ -458,8 +458,6 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 
 void zebra_remove_rnh_client(struct rnh *rnh, struct zserv *client)
 {
-	struct rnh *rnh_next = NULL;
-
 	if (IS_ZEBRA_DEBUG_NHT) {
 		struct vrf *vrf = vrf_lookup_by_id(rnh->vrf_id);
 
@@ -467,12 +465,8 @@ void zebra_remove_rnh_client(struct rnh *rnh, struct zserv *client)
 			   zebra_route_string(client->proto), VRF_LOGNAME(vrf),
 			   vrf->vrf_id, rnh->node);
 	}
-	while (rnh) {
-		listnode_delete(rnh->client_list, client);
-		rnh_next = rnh->next;
-		zebra_delete_rnh(rnh);
-		rnh = rnh_next;
-	}
+	listnode_delete(rnh->client_list, client);
+	zebra_delete_rnh(rnh);
 }
 
 /* XXX move this utility function elsewhere? */
