@@ -11,13 +11,16 @@ luCommand(
         "none",
         "Add routes",
     )
-time.sleep(5)
+time.sleep(20)
 luCommand(
         "pe3",
         'vtysh -c "show bgp ipv4 vpn"',
         "200.1.1.0/24",
-        "pass",
+        "wait",
         "Check pe3 init vpn routes",
+        30,
+        False,
+        0.5
     )
 luCommand(
         "pe3",
@@ -26,7 +29,7 @@ luCommand(
         "none",
         "Delete import vpn",
     )
-time.sleep(1)
+time.sleep(20)
 luCommand(
         "ce3",
         'vtysh -c "show bgp ipv4"',
@@ -41,13 +44,16 @@ luCommand(
         "none",
         "Add import vpn",
     )
-time.sleep(1)
+time.sleep(10)
 luCommand(
         "ce3",
         'vtysh -c "show bgp ipv4"',
         "200.1.1.0/24",
-        "pass",
+        "wait",
         "Check ce3 routes after add import vpn",
+        30,
+        False,
+        0.5
     )
 
 luCommand(
@@ -57,7 +63,7 @@ luCommand(
         "none",
         "Delete export vpn",
     )
-time.sleep(1)
+time.sleep(20)
 luCommand(
         "ce3",
         'vtysh -c "show bgp ipv4"',
@@ -72,13 +78,16 @@ luCommand(
         "none",
         "Add export vpn",
     )
-time.sleep(1)
+time.sleep(10)
 luCommand(
         "ce3",
         'vtysh -c "show bgp ipv4"',
         "200.1.1.0/24",
-        "pass",
+        "wait",
         "Check ce3 routes after add export vpn",
+        30,
+        False,
+        0.5
     )
 
 
@@ -89,7 +98,7 @@ luCommand(
         "none",
         "Delete import rt",
     )
-time.sleep(1)
+time.sleep(20)
 luCommand(
         "ce3",
         'vtysh -c "show bgp ipv4"',
@@ -104,11 +113,14 @@ luCommand(
         "none",
         "Add import rt",
     )
-time.sleep(1)
+time.sleep(10)
 luCommand(
         "ce3",
         'vtysh -c "show bgp ipv4"',
         "200.1.1.0/24",
-        "pass",
+        "wait",
         "Check ce3 routes after add import rt",
+        30,
+        False,
+        0.5
     )

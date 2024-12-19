@@ -32,7 +32,8 @@ luCommand(
     "pass",
     "should see VPN sid",
 )
-luCommand("pe1", 'vtysh -c "show bgp ipv4 vpn neighbors fd00:0:200:101::"', "Established", "wait", "neighbors establish", 30)
+luCommand("pe1", 'vtysh -c "show bgp neighbors fd00:0:200:101::"', "Established", "wait", "neighbors establish", 30)
+time.sleep(30)
 luCommand(
     "pe3",
     'vtysh -c "show bgp ipv4 vpn 10.{}.{}.{}"'.format(b, c, d),

@@ -12,7 +12,7 @@ luCommand(
         "none",
         "Add routes",
     )
-
+time.sleep(20)
 luCommand(
         "pe3",
         'vtysh -c "conf ter" -c "segment-routing" -c "traffic-eng" -c "segment-list a" -c "index 1 ipv6-address fd00:0:200:181::"',
@@ -41,14 +41,16 @@ luCommand(
         "none",
         "Add route-map",
 )
-
-time.sleep(5)
+time.sleep(10)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
         "srv6tunnel\(endpoint\|color\):fd00:0:200:171::\|1",
-        "pass",
+        "wait",
         "Init check",
+        30,
+        False,
+        0.5
 )
 luCommand(
         "pe3",
@@ -57,7 +59,7 @@ luCommand(
         "none",
         "Delete cpath",
 )
-time.sleep(5)
+time.sleep(20)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
@@ -72,13 +74,16 @@ luCommand(
         "none",
         "Add cpath",
 )
-time.sleep(5)
+time.sleep(10)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
         "srv6tunnel\(endpoint\|color\):fd00:0:200:171::\|1",
-        "pass",
+        "wait",
         "Check after add cpath",
+        30,
+        False,
+        0.5
 )
 luCommand(
         "pe3",
@@ -87,7 +92,7 @@ luCommand(
         "none",
         "Delete policy",
 )
-time.sleep(5)
+time.sleep(20)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
@@ -102,13 +107,16 @@ luCommand(
         "none",
         "Add policy & cpath",
 )
-time.sleep(5)
+time.sleep(10)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
         "srv6tunnel\(endpoint\|color\):fd00:0:200:171::\|1",
-        "pass",
+        "wait",
         "Check after add policy",
+        30,
+        False,
+        0.5
 )
 luCommand(
         "pe1",
@@ -117,7 +125,7 @@ luCommand(
         "none",
         "Delete route-map",
 )
-time.sleep(5)
+time.sleep(20)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
@@ -132,13 +140,16 @@ luCommand(
         "none",
         "Add route-map",
 )
-time.sleep(5)
+time.sleep(10)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
         "srv6tunnel\(endpoint\|color\):fd00:0:200:171::\|1",
-        "pass",
+        "wait",
         "Check after add route-map",
+        30,
+        False,
+        0.5
 )
 luCommand(
         "pe1",
@@ -147,7 +158,7 @@ luCommand(
         "none",
         "Delete sid",
 )
-time.sleep(5)
+time.sleep(20)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
@@ -162,11 +173,14 @@ luCommand(
         "none",
         "Add sid",
 )
-time.sleep(5)
+time.sleep(10)
 luCommand(
         "pe3",
         'vtysh -c "show ip route vrf PUBLIC-TC0 200.1.0.1"',
         "srv6tunnel\(endpoint\|color\):fd00:0:200:171::\|1",
-        "pass",
-        "Check after add sidß",
+        "wait",
+        "Check after add sid",
+        30,
+        False,
+        0.5
 )
