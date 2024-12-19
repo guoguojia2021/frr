@@ -31,6 +31,7 @@ import sys
 from functools import partial
 import pytest
 import json
+import time
 
 # Save the Current Working Directory to find configuration files.
 CWD = os.path.dirname(os.path.realpath(__file__))
@@ -157,6 +158,7 @@ def test_bgp_linkbw_adv():
     logger.info("Configure anycast IP on server r7")
 
     tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
 
     # Check on spine router r2 for link-bw advertisement by leaf router r4
     logger.info("Check on spine router r2 for link-bw advertisement by leaf router r4")
@@ -211,10 +213,15 @@ def test_bgp_cumul_linkbw():
     r2 = tgen.gears["r2"]
     r4 = tgen.gears["r4"]
 
+    # Sync the Configuration in Test #1
+    tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
+
     # Configure anycast IP on additional server r8
     logger.info("Configure anycast IP on server r8")
 
     tgen.net["r8"].cmd("ip addr add 198.10.1.1/32 dev r8-eth1")
+    time.sleep(5)
 
     # Check multipath on leaf router r4
     logger.info("Check multipath on leaf router r4")
@@ -224,7 +231,9 @@ def test_bgp_cumul_linkbw():
     test_func = partial(
         topotest.router_json_cmp, r4, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on leaf router r4"
     assert result is None, assertmsg
 
@@ -236,7 +245,9 @@ def test_bgp_cumul_linkbw():
     test_func = partial(
         topotest.router_json_cmp, r4, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on leaf router r4"
     assert result is None, assertmsg
 
@@ -250,7 +261,9 @@ def test_bgp_cumul_linkbw():
     test_func = partial(
         topotest.router_json_cmp, r2, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on spine router r2"
     assert result is None, assertmsg
 
@@ -267,10 +280,19 @@ def test_weighted_ecmp():
     r2 = tgen.gears["r2"]
     r3 = tgen.gears["r3"]
 
+    # Sync the Configuration in Test #1
+    tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #2
+    tgen.net["r8"].cmd("ip addr add 198.10.1.1/32 dev r8-eth1")
+    time.sleep(5)
+
     # Configure anycast IP on additional server r9
     logger.info("Configure anycast IP on server r9")
 
     tgen.net["r9"].cmd("ip addr add 198.10.1.1/32 dev r9-eth1")
+    time.sleep(5)
 
     # Check multipath on spine router r2
     logger.info("Check multipath on spine router r2")
@@ -279,7 +301,9 @@ def test_weighted_ecmp():
     test_func = partial(
         topotest.router_json_cmp, r2, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on spine router r2"
     assert result is None, assertmsg
 
@@ -291,7 +315,9 @@ def test_weighted_ecmp():
     test_func = partial(
         topotest.router_json_cmp, r2, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on spine router r2"
     assert result is None, assertmsg
 
@@ -299,6 +325,7 @@ def test_weighted_ecmp():
     logger.info("Configure anycast IP on server r10")
 
     tgen.net["r10"].cmd("ip addr add 198.10.1.1/32 dev r10-eth1")
+    time.sleep(5)
 
     # Check if bandwidth is properly encoded with non IEEE floatig-point (uint32) format on r3
     logger.info(
@@ -309,7 +336,9 @@ def test_weighted_ecmp():
     test_func = partial(
         topotest.router_json_cmp, r3, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on r3"
     assert result is None, assertmsg
 
@@ -320,7 +349,9 @@ def test_weighted_ecmp():
     test_func = partial(
         topotest.router_json_cmp, r1, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -331,7 +362,9 @@ def test_weighted_ecmp():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -347,10 +380,27 @@ def test_weighted_ecmp_link_flap():
     r1 = tgen.gears["r1"]
     r2 = tgen.gears["r2"]
 
+    # Sync the Configuration in Test #1
+    tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #2
+    tgen.net["r8"].cmd("ip addr add 198.10.1.1/32 dev r8-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-1
+    tgen.net["r9"].cmd("ip addr add 198.10.1.1/32 dev r9-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-2
+    tgen.net["r10"].cmd("ip addr add 198.10.1.1/32 dev r10-eth1")
+    time.sleep(5)
+
     # Bring down link on server r9
     logger.info("Bring down link on server r9")
 
     tgen.net["r9"].cmd("ip link set dev r9-eth1 down")
+    time.sleep(5)
 
     # Check spine router r2 has only one path
     logger.info("Check spine router r2 has only one path")
@@ -360,7 +410,9 @@ def test_weighted_ecmp_link_flap():
     test_func = partial(
         topotest.router_json_cmp, r2, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on spine router r2"
     assert result is None, assertmsg
 
@@ -374,7 +426,9 @@ def test_weighted_ecmp_link_flap():
     test_func = partial(
         topotest.router_json_cmp, r1, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -383,7 +437,9 @@ def test_weighted_ecmp_link_flap():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -391,6 +447,7 @@ def test_weighted_ecmp_link_flap():
     logger.info("Bring up link on server r9")
 
     tgen.net["r9"].cmd("ip link set dev r9-eth1 up")
+    time.sleep(5)
 
     # Check link-bandwidth change and weighted ECMP rebalance on super-spine router r1
     logger.info(
@@ -402,7 +459,9 @@ def test_weighted_ecmp_link_flap():
     test_func = partial(
         topotest.router_json_cmp, r1, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -411,7 +470,9 @@ def test_weighted_ecmp_link_flap():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -427,12 +488,37 @@ def test_weighted_ecmp_second_anycast_ip():
     r1 = tgen.gears["r1"]
     r2 = tgen.gears["r2"]
 
+    # Sync the Configuration in Test #1
+    tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #2
+    tgen.net["r8"].cmd("ip addr add 198.10.1.1/32 dev r8-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-1
+    tgen.net["r9"].cmd("ip addr add 198.10.1.1/32 dev r9-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-2
+    tgen.net["r10"].cmd("ip addr add 198.10.1.1/32 dev r10-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #4-1
+    tgen.net["r9"].cmd("ip link set dev r9-eth1 down")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #4-2
+    tgen.net["r9"].cmd("ip link set dev r9-eth1 up")
+    time.sleep(5)
+
     # Configure anycast IP on additional server r7, r9 and r10
     logger.info("Configure anycast IP on server r7, r9 and r10")
 
     tgen.net["r7"].cmd("ip addr add 198.10.1.11/32 dev r7-eth1")
     tgen.net["r9"].cmd("ip addr add 198.10.1.11/32 dev r9-eth1")
     tgen.net["r10"].cmd("ip addr add 198.10.1.11/32 dev r10-eth1")
+    time.sleep(5)
 
     # Check link-bandwidth and weighted ECMP on super-spine router r1
     logger.info("Check link-bandwidth and weighted ECMP on super-spine router r1")
@@ -468,12 +554,43 @@ def test_paths_with_and_without_linkbw():
 
     r1 = tgen.gears["r1"]
 
+    # Sync the Configuration in Test #1
+    tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #2
+    tgen.net["r8"].cmd("ip addr add 198.10.1.1/32 dev r8-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-1
+    tgen.net["r9"].cmd("ip addr add 198.10.1.1/32 dev r9-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-2
+    tgen.net["r10"].cmd("ip addr add 198.10.1.1/32 dev r10-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #4-1
+    tgen.net["r9"].cmd("ip link set dev r9-eth1 down")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #4-2
+    tgen.net["r9"].cmd("ip link set dev r9-eth1 up")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #5
+    tgen.net["r7"].cmd("ip addr add 198.10.1.11/32 dev r7-eth1")
+    tgen.net["r9"].cmd("ip addr add 198.10.1.11/32 dev r9-eth1")
+    tgen.net["r10"].cmd("ip addr add 198.10.1.11/32 dev r10-eth1")
+    time.sleep(5)
+
     # Configure leaf router r6 to not advertise any link-bandwidth
     logger.info("Configure leaf router r6 to not advertise any link-bandwidth")
 
     tgen.net["r6"].cmd(
         'vtysh -c "conf t" -c "router bgp 65303" -c "address-family ipv4 unicast" -c "no neighbor 11.1.3.1 route-map anycast_ip out"'
     )
+    time.sleep(5)
 
     # Check link-bandwidth change on super-spine router r1
     logger.info("Check link-bandwidth change on super-spine router r1")
@@ -483,7 +600,9 @@ def test_paths_with_and_without_linkbw():
     test_func = partial(
         topotest.router_json_cmp, r1, "show bgp ipv4 uni 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -495,7 +614,9 @@ def test_paths_with_and_without_linkbw():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -504,7 +625,9 @@ def test_paths_with_and_without_linkbw():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.11/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=50, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -520,6 +643,42 @@ def test_linkbw_handling_options():
         pytest.skip("skipped because of router(s) failure")
 
     r1 = tgen.gears["r1"]
+
+    # Sync the Configuration in Test #1
+    tgen.net["r7"].cmd("ip addr add 198.10.1.1/32 dev r7-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #2
+    tgen.net["r8"].cmd("ip addr add 198.10.1.1/32 dev r8-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-1
+    tgen.net["r9"].cmd("ip addr add 198.10.1.1/32 dev r9-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #3-2
+    tgen.net["r10"].cmd("ip addr add 198.10.1.1/32 dev r10-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #4-1
+    tgen.net["r9"].cmd("ip link set dev r9-eth1 down")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #4-2
+    tgen.net["r9"].cmd("ip link set dev r9-eth1 up")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #5
+    tgen.net["r7"].cmd("ip addr add 198.10.1.11/32 dev r7-eth1")
+    tgen.net["r9"].cmd("ip addr add 198.10.1.11/32 dev r9-eth1")
+    tgen.net["r10"].cmd("ip addr add 198.10.1.11/32 dev r10-eth1")
+    time.sleep(5)
+
+    # Sync the Configuration in Test #6
+    tgen.net["r6"].cmd(
+        'vtysh -c "conf t" -c "router bgp 65303" -c "address-family ipv4 unicast" -c "no neighbor 11.1.3.1 route-map anycast_ip out"'
+    )
+    time.sleep(5)
 
     # Configure super-spine r1 to skip multipaths without link-bandwidth
     logger.info("Configure super-spine r1 to skip multipaths without link-bandwidth")
@@ -538,7 +697,9 @@ def test_linkbw_handling_options():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -547,7 +708,9 @@ def test_linkbw_handling_options():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.11/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -570,7 +733,9 @@ def test_linkbw_handling_options():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.1/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
@@ -579,7 +744,9 @@ def test_linkbw_handling_options():
     test_func = partial(
         topotest.router_json_cmp, r1, "show ip route 198.10.1.11/32 json", expected
     )
-    _, result = topotest.run_and_expect(test_func, None, count=200, wait=0.5)
+
+    _, result = topotest.run_and_expect(test_func, None, count=200, wait=3)
+
     assertmsg = "JSON output mismatch on super-spine router r1"
     assert result is None, assertmsg
 
