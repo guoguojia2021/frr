@@ -72,7 +72,6 @@ DEFINE_MTYPE_STATIC(ZEBRA, WQ_WRAPPER, "WQ wrapper");
  */
 static pthread_mutex_t dplane_mutex;
 static struct thread *t_dplane;
-static struct dplane_ctx_q rib_dplane_q;
 unsigned long ip4_sent_fib_count = 0;
 unsigned long ip4_pending_fib_count = 0;
 unsigned long ip6_sent_fib_count = 0;
@@ -86,6 +85,8 @@ bool fib_threshold_alarm_switch = true;
 struct pend_list pending_list = {0};
 
 struct list *zebra_track_routes = NULL;
+
+static struct dplane_ctx_list_head rib_dplane_q;
 
 DEFINE_HOOK(rib_update, (struct route_node * rn, const char *reason),
 	    (rn, reason));
@@ -4773,14 +4774,14 @@ done:
 static int rib_process_dplane_results(struct thread *thread)
 {
 	struct zebra_dplane_ctx *ctx;
-	struct dplane_ctx_q ctxlist;
+	struct dplane_ctx_list_head ctxlist;
 	bool shut_p = false;
 	uint32_t counter = 0;
 
 	/* Dequeue a list of completed updates with one lock/unlock cycle */
 
 	do {
-		TAILQ_INIT(&ctxlist);
+		dplane_ctx_q_init(&ctxlist);
 
 		/* Take lock controlling queue of results */
 		frr_with_mutex(&dplane_mutex) {
@@ -4953,7 +4954,7 @@ static int rib_process_dplane_results(struct thread *thread)
  * the dataplane pthread. We enqueue the results here for processing by
  * the main thread later.
  */
-static int rib_dplane_results(struct dplane_ctx_q *ctxlist)
+static int rib_dplane_results(struct dplane_ctx_list_head *ctxlist)
 {
 	/* Take lock controlling queue of results */
 	frr_with_mutex(&dplane_mutex) {
@@ -4966,6 +4967,17 @@ static int rib_dplane_results(struct dplane_ctx_q *ctxlist)
 			 &t_dplane);
 
 	return 0;
+}
+
+uint32_t zebra_rib_dplane_results_count(void)
+{
+	uint32_t count;
+
+	frr_with_mutex (&dplane_mutex) {
+		count = dplane_ctx_queue_count(&rib_dplane_q);
+	}
+
+	return count;
 }
 
 /*
@@ -4998,7 +5010,7 @@ void rib_init(void)
 
 	/* Init dataplane, and register for results */
 	pthread_mutex_init(&dplane_mutex, NULL);
-	TAILQ_INIT(&rib_dplane_q);
+	dplane_ctx_q_init(&rib_dplane_q);
 	zebra_dplane_init(rib_dplane_results);
 
 	zebra_track_routes = list_new();

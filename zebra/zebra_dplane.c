@@ -101,7 +101,7 @@ struct dplane_intf_extra {
 	uint32_t flags;
 	uint32_t status;
 
-	TAILQ_ENTRY(dplane_intf_extra) link;
+	struct dplane_intf_extra_list_item dlink;
 };
 
 /*
@@ -153,7 +153,7 @@ struct dplane_route_info {
 	struct nexthop_group old_backup_ng;
 
 	/* Optional list of extra interface info */
-	TAILQ_HEAD(dp_intf_extra_q, dplane_intf_extra) intf_extra_q;
+	struct dplane_intf_extra_list_head intf_extra_list;
 };
 
 /*
@@ -361,7 +361,7 @@ struct zebra_dplane_ctx {
 	struct zebra_dplane_info zd_ns_info;
 
 	/* Embedded list linkage */
-	TAILQ_ENTRY(zebra_dplane_ctx) zd_q_entries;
+	struct dplane_ctx_list_item zd_entries;
 };
 
 /* Flag that can be set by a pre-kernel provider as a signal that an update
@@ -371,6 +371,13 @@ struct zebra_dplane_ctx {
 /* Flag that informs dplane to use protocol buffer
 */
 #define DPLANE_CTX_FLAG_USE_PB 0x02
+
+/* List types declared now that the structs involved are defined. */
+DECLARE_DLIST(dplane_ctx_list, struct zebra_dplane_ctx, zd_entries);
+DECLARE_DLIST(dplane_intf_extra_list, struct dplane_intf_extra, dlink);
+
+/* List for dplane plugins/providers */
+PREDECL_DLIST(dplane_prov_list);
 
 /*
  * Registration block for one dataplane provider.
@@ -401,24 +408,25 @@ struct zebra_dplane_provider {
 	int (*dp_fini)(struct zebra_dplane_provider *prov, bool early_p);
 
 	_Atomic uint32_t dp_in_counter;
-	_Atomic uint32_t dp_in_queued;
 	_Atomic uint32_t dp_in_max;
 	_Atomic uint32_t dp_out_counter;
-	_Atomic uint32_t dp_out_queued;
 	_Atomic uint32_t dp_out_max;
 	_Atomic uint32_t dp_error_counter;
 
 	/* Queue of contexts inbound to the provider */
-	struct dplane_ctx_q dp_ctx_in_q;
+	struct dplane_ctx_list_head dp_ctx_in_list;
 
 	/* Queue of completed contexts outbound from the provider back
 	 * towards the dataplane module.
 	 */
-	struct dplane_ctx_q dp_ctx_out_q;
+	struct dplane_ctx_list_head dp_ctx_out_list;
 
 	/* Embedded list linkage for provider objects */
-	TAILQ_ENTRY(zebra_dplane_provider) dp_prov_link;
+	struct dplane_prov_list_item dp_link;
 };
+
+/* Declare list of providers/plugins */
+DECLARE_DLIST(dplane_prov_list, struct zebra_dplane_provider, dp_link);
 
 /* Declare types for list of zns info objects */
 PREDECL_DLIST(zns_info_list);
@@ -441,7 +449,7 @@ static struct zebra_dplane_globals {
 	pthread_mutex_t dg_mutex;
 
 	/* Results callback registered by zebra 'core' */
-	int (*dg_results_cb)(struct dplane_ctx_q *ctxlist);
+	int (*dg_results_cb)(struct dplane_ctx_list_head *ctxlist);
 
 	/* Sentinel for beginning of shutdown */
 	volatile bool dg_is_shutdown;
@@ -450,10 +458,10 @@ static struct zebra_dplane_globals {
 	volatile bool dg_run;
 
 	/* Update context queue inbound to the dataplane */
-	TAILQ_HEAD(zdg_ctx_q, zebra_dplane_ctx) dg_update_ctx_q;
+	struct dplane_ctx_list_head dg_update_list;
 
 	/* Ordered list of providers */
-	TAILQ_HEAD(zdg_prov_q, zebra_dplane_provider) dg_providers_q;
+	struct dplane_prov_list_head dg_providers;
 
 	/* List of info about each zns */
 	struct zns_info_list_head dg_zns_list;
@@ -607,7 +615,7 @@ void dplane_enable_sys_route_notifs(void)
  */
 static void dplane_ctx_free_internal(struct zebra_dplane_ctx *ctx)
 {
-	struct dplane_intf_extra *if_extra, *if_tmp;
+	struct dplane_intf_extra *if_extra;
 
 	/*
 	 * Some internal allocations may need to be freed, depending on
@@ -652,12 +660,9 @@ static void dplane_ctx_free_internal(struct zebra_dplane_ctx *ctx)
 		}
 
 		/* Optional extra interface info */
-		TAILQ_FOREACH_SAFE(if_extra, &ctx->u.rinfo.intf_extra_q,
-				   link, if_tmp) {
-			TAILQ_REMOVE(&ctx->u.rinfo.intf_extra_q, if_extra,
-				     link);
+		while ((if_extra = dplane_intf_extra_list_pop(
+				&ctx->u.rinfo.intf_extra_list)))
 			XFREE(MTYPE_DP_INTF, if_extra);
-		}
 
 		break;
 
@@ -827,41 +832,47 @@ void dplane_ctx_fini(struct zebra_dplane_ctx **pctx)
 	dplane_ctx_free(pctx);
 }
 
+/* Init a list of contexts */
+void dplane_ctx_q_init(struct dplane_ctx_list_head *q)
+{
+	dplane_ctx_list_init(q);
+}
+
 /* Enqueue a context block */
-void dplane_ctx_enqueue_tail(struct dplane_ctx_q *q,
+void dplane_ctx_enqueue_tail(struct dplane_ctx_list_head *list,
 			     const struct zebra_dplane_ctx *ctx)
 {
-	TAILQ_INSERT_TAIL(q, (struct zebra_dplane_ctx *)ctx, zd_q_entries);
+	dplane_ctx_list_add_tail(list, (struct zebra_dplane_ctx *)ctx);
 }
 
 /* Append a list of context blocks to another list */
-void dplane_ctx_list_append(struct dplane_ctx_q *to_list,
-			    struct dplane_ctx_q *from_list)
+void dplane_ctx_list_append(struct dplane_ctx_list_head *to_list,
+			    struct dplane_ctx_list_head *from_list)
 {
-	if (TAILQ_FIRST(from_list)) {
-		TAILQ_CONCAT(to_list, from_list, zd_q_entries);
+	struct zebra_dplane_ctx *ctx;
 
-		/* And clear 'from' list */
-		TAILQ_INIT(from_list);
-	}
+	while ((ctx = dplane_ctx_list_pop(from_list)) != NULL)
+		dplane_ctx_list_add_tail(to_list, ctx);
 }
 
-struct zebra_dplane_ctx *dplane_ctx_get_head(struct dplane_ctx_q *q)
+struct zebra_dplane_ctx *dplane_ctx_get_head(struct dplane_ctx_list_head *q)
 {
-	struct zebra_dplane_ctx *ctx = TAILQ_FIRST(q);
+	struct zebra_dplane_ctx *ctx = dplane_ctx_list_first(q);
 
 	return ctx;
 }
 
 /* Dequeue a context block from the head of a list */
-struct zebra_dplane_ctx *dplane_ctx_dequeue(struct dplane_ctx_q *q)
+struct zebra_dplane_ctx *dplane_ctx_dequeue(struct dplane_ctx_list_head *q)
 {
-	struct zebra_dplane_ctx *ctx = TAILQ_FIRST(q);
-
-	if (ctx)
-		TAILQ_REMOVE(q, ctx, zd_q_entries);
+	struct zebra_dplane_ctx *ctx = dplane_ctx_list_pop(q);
 
 	return ctx;
+}
+
+uint32_t dplane_ctx_queue_count(struct dplane_ctx_list_head *q)
+{
+	return dplane_ctx_list_count(q);
 }
 
 /*
@@ -2296,14 +2307,16 @@ void dplane_ctx_get_pbr_ipset_entry(const struct zebra_dplane_ctx *ctx,
 const struct dplane_intf_extra *
 dplane_ctx_get_intf_extra(const struct zebra_dplane_ctx *ctx)
 {
-	return TAILQ_FIRST(&ctx->u.rinfo.intf_extra_q);
+	return dplane_intf_extra_list_const_first(
+		&ctx->u.rinfo.intf_extra_list);
 }
 
 const struct dplane_intf_extra *
 dplane_ctx_intf_extra_next(const struct zebra_dplane_ctx *ctx,
 			   const struct dplane_intf_extra *ptr)
 {
-	return TAILQ_NEXT(ptr, link);
+	return dplane_intf_extra_list_const_next(&ctx->u.rinfo.intf_extra_list,
+						 ptr);
 }
 
 vrf_id_t dplane_intf_extra_get_vrfid(const struct dplane_intf_extra *ptr)
@@ -2446,7 +2459,7 @@ int dplane_ctx_route_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	if (!ctx || !rn || !re)
 		goto done;
 
-	TAILQ_INIT(&ctx->u.rinfo.intf_extra_q);
+	dplane_intf_extra_list_init(&ctx->u.rinfo.intf_extra_list);
 
 	ctx->zd_op = op;
 	ctx->zd_status = ZEBRA_DPLANE_REQUEST_SUCCESS;
@@ -2518,8 +2531,9 @@ int dplane_ctx_route_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 				if_extra->flags = ifp->flags;
 				if_extra->status = ifp->status;
 
-				TAILQ_INSERT_TAIL(&ctx->u.rinfo.intf_extra_q,
-						  if_extra, link);
+				dplane_intf_extra_list_add_tail(
+					&ctx->u.rinfo.intf_extra_list,
+					if_extra);
 			}
 		}
 
@@ -3128,8 +3142,7 @@ static int dplane_update_enqueue(struct zebra_dplane_ctx *ctx)
 	/* Enqueue for processing by the dataplane pthread */
 	DPLANE_LOCK();
 	{
-		TAILQ_INSERT_TAIL(&zdplane_info.dg_update_ctx_q, ctx,
-				  zd_q_entries);
+		dplane_ctx_list_add_tail(&zdplane_info.dg_update_list, ctx);
 	}
 	DPLANE_UNLOCK();
 
@@ -4800,36 +4813,46 @@ int dplane_show_provs_helper(struct vty *vty, bool detailed)
 	struct zebra_dplane_provider *prov;
 	uint64_t in, in_q, in_max, out, out_q, out_max;
 
-	vty_out(vty, "Zebra dataplane providers:\n");
-
 	DPLANE_LOCK();
-	prov = TAILQ_FIRST(&zdplane_info.dg_providers_q);
+	prov = dplane_prov_list_first(&zdplane_info.dg_providers);
+	in = dplane_ctx_queue_count(&zdplane_info.dg_update_list);
 	DPLANE_UNLOCK();
+
+	vty_out(vty, "dataplane Incoming Queue from Zebra: %" PRIu64 "\n", in);
+	vty_out(vty, "Zebra dataplane providers:\n");
 
 	/* Show counters, useful info from each registered provider */
 	while (prov) {
+		dplane_provider_lock(prov);
+		in_q = dplane_ctx_queue_count(&prov->dp_ctx_in_list);
+		out_q = dplane_ctx_queue_count(&prov->dp_ctx_out_list);
+		dplane_provider_unlock(prov);
 
 		in = atomic_load_explicit(&prov->dp_in_counter,
 					  memory_order_relaxed);
-		in_q = atomic_load_explicit(&prov->dp_in_queued,
-					    memory_order_relaxed);
+
 		in_max = atomic_load_explicit(&prov->dp_in_max,
 					      memory_order_relaxed);
 		out = atomic_load_explicit(&prov->dp_out_counter,
 					   memory_order_relaxed);
-		out_q = atomic_load_explicit(&prov->dp_out_queued,
-					     memory_order_relaxed);
+
 		out_max = atomic_load_explicit(&prov->dp_out_max,
 					       memory_order_relaxed);
 
-		vty_out(vty, "%s (%u): in: %"PRIu64", q: %"PRIu64", q_max: %"PRIu64", out: %"PRIu64", q: %"PRIu64", q_max: %"PRIu64"\n",
-			prov->dp_name, prov->dp_id, in, in_q, in_max,
-			out, out_q, out_max);
+		vty_out(vty,
+			"  %s (%u): in: %" PRIu64 ", q: %" PRIu64
+			", q_max: %" PRIu64 ", out: %" PRIu64 ", q: %" PRIu64
+			", q_max: %" PRIu64 "\n",
+			prov->dp_name, prov->dp_id, in, in_q, in_max, out,
+			out_q, out_max);
 
 		DPLANE_LOCK();
-		prov = TAILQ_NEXT(prov, dp_prov_link);
+		prov = dplane_prov_list_next(&zdplane_info.dg_providers, prov);
 		DPLANE_UNLOCK();
 	}
+
+	out = zebra_rib_dplane_results_count();
+	vty_out(vty, "dataplane Outgoing Queue to Zebra: %" PRIu64 "\n", out);
 
 	return CMD_SUCCESS;
 }
@@ -4878,8 +4901,8 @@ int dplane_provider_register(const char *name,
 	p = XCALLOC(MTYPE_DP_PROV, sizeof(struct zebra_dplane_provider));
 
 	pthread_mutex_init(&(p->dp_mutex), NULL);
-	TAILQ_INIT(&(p->dp_ctx_in_q));
-	TAILQ_INIT(&(p->dp_ctx_out_q));
+	dplane_ctx_list_init(&p->dp_ctx_in_list);
+	dplane_ctx_list_init(&p->dp_ctx_out_list);
 
 	p->dp_flags = flags;
 	p->dp_priority = prio;
@@ -4900,16 +4923,15 @@ int dplane_provider_register(const char *name,
 			 "provider-%u", p->dp_id);
 
 	/* Insert into list ordered by priority */
-	TAILQ_FOREACH(last, &zdplane_info.dg_providers_q, dp_prov_link) {
+	frr_each (dplane_prov_list, &zdplane_info.dg_providers, last) {
 		if (last->dp_priority > p->dp_priority)
 			break;
 	}
 
 	if (last)
-		TAILQ_INSERT_BEFORE(last, p, dp_prov_link);
+		dplane_prov_list_add_after(&zdplane_info.dg_providers, last, p);
 	else
-		TAILQ_INSERT_TAIL(&zdplane_info.dg_providers_q, p,
-				  dp_prov_link);
+		dplane_prov_list_add_tail(&zdplane_info.dg_providers, p);
 
 	/* And unlock */
 	DPLANE_UNLOCK();
@@ -4971,13 +4993,7 @@ struct zebra_dplane_ctx *dplane_provider_dequeue_in_ctx(
 
 	dplane_provider_lock(prov);
 
-	ctx = TAILQ_FIRST(&(prov->dp_ctx_in_q));
-	if (ctx) {
-		TAILQ_REMOVE(&(prov->dp_ctx_in_q), ctx, zd_q_entries);
-
-		atomic_fetch_sub_explicit(&prov->dp_in_queued, 1,
-					  memory_order_relaxed);
-	}
+	ctx = dplane_ctx_list_pop(&(prov->dp_ctx_in_list));
 
 	dplane_provider_unlock(prov);
 
@@ -4988,7 +5004,7 @@ struct zebra_dplane_ctx *dplane_provider_dequeue_in_ctx(
  * Dequeue work to a list, return count
  */
 int dplane_provider_dequeue_in_list(struct zebra_dplane_provider *prov,
-				    struct dplane_ctx_q *listp)
+				    struct dplane_ctx_list_head *listp)
 {
 	int limit, ret;
 	struct zebra_dplane_ctx *ctx;
@@ -4998,19 +5014,12 @@ int dplane_provider_dequeue_in_list(struct zebra_dplane_provider *prov,
 	dplane_provider_lock(prov);
 
 	for (ret = 0; ret < limit; ret++) {
-		ctx = TAILQ_FIRST(&(prov->dp_ctx_in_q));
-		if (ctx) {
-			TAILQ_REMOVE(&(prov->dp_ctx_in_q), ctx, zd_q_entries);
-
-			TAILQ_INSERT_TAIL(listp, ctx, zd_q_entries);
-		} else {
+		ctx = dplane_ctx_list_pop(&(prov->dp_ctx_in_list));
+		if (ctx)
+			dplane_ctx_list_add_tail(listp, ctx);
+		else
 			break;
-		}
 	}
-
-	if (ret > 0)
-		atomic_fetch_sub_explicit(&prov->dp_in_queued, ret,
-					  memory_order_relaxed);
 
 	dplane_provider_unlock(prov);
 
@@ -5033,14 +5042,10 @@ void dplane_provider_enqueue_out_ctx(struct zebra_dplane_provider *prov,
 
 	dplane_provider_lock(prov);
 
-	TAILQ_INSERT_TAIL(&(prov->dp_ctx_out_q), ctx,
-			  zd_q_entries);
+	dplane_ctx_list_add_tail(&(prov->dp_ctx_out_list), ctx);
 
 	/* Maintain out-queue counters */
-	atomic_fetch_add_explicit(&(prov->dp_out_queued), 1,
-				  memory_order_relaxed);
-	curr = atomic_load_explicit(&prov->dp_out_queued,
-				    memory_order_relaxed);
+	curr = dplane_ctx_queue_count(&prov->dp_ctx_out_list);
 	high = atomic_load_explicit(&prov->dp_out_max,
 				    memory_order_relaxed);
 	if (curr > high)
@@ -5051,6 +5056,18 @@ void dplane_provider_enqueue_out_ctx(struct zebra_dplane_provider *prov,
 
 	atomic_fetch_add_explicit(&(prov->dp_out_counter), 1,
 				  memory_order_relaxed);
+}
+
+static struct zebra_dplane_ctx *
+dplane_provider_dequeue_out_ctx(struct zebra_dplane_provider *prov)
+{
+	struct zebra_dplane_ctx *ctx;
+
+	ctx = dplane_ctx_list_pop(&(prov->dp_ctx_out_list));
+	if (!ctx)
+		return NULL;
+
+	return ctx;
 }
 
 /*
@@ -5183,15 +5200,15 @@ int dplane_provider_work_ready(void)
  */
 void dplane_provider_enqueue_to_zebra(struct zebra_dplane_ctx *ctx)
 {
-	struct dplane_ctx_q temp_list;
+	struct dplane_ctx_list_head temp_list;
 
 	/* Zebra's api takes a list, so we need to use a temporary list */
-	TAILQ_INIT(&temp_list);
+	dplane_ctx_list_init(&temp_list);
 	atomic_fetch_add_explicit(
 			&(zdplane_info.dg_routes_queued),
 			1, memory_order_seq_cst);
 
-	TAILQ_INSERT_TAIL(&temp_list, ctx, zd_q_entries);
+	dplane_ctx_list_add_tail(&temp_list, ctx);
 	(zdplane_info.dg_results_cb)(&temp_list);
 }
 
@@ -5343,26 +5360,26 @@ static void kernel_dplane_log_detail(struct zebra_dplane_ctx *ctx)
 
 static int kernel_dplane_process_one_err_result(struct zebra_dplane_ctx *ctx)
 {
-	struct dplane_ctx_q work_list;
-	TAILQ_INIT(&work_list);
+	struct dplane_ctx_list_head work_list;
+	dplane_ctx_list_init(&work_list);
 	enum zebra_dplane_result res;
 	struct zebra_dplane_ctx *ictx, *tctx;
 
-	TAILQ_INSERT_TAIL(&work_list, ctx, zd_q_entries);
+	dplane_ctx_list_add_tail(&work_list, ctx);
 
 	kernel_update_multi(&work_list);
-	TAILQ_FOREACH_SAFE (ictx, &work_list, zd_q_entries, tctx)
+	frr_each_safe (dplane_ctx_list, &work_list, ictx)
 	{
 		if (res = dplane_ctx_get_status(ictx) == ZEBRA_DPLANE_REQUEST_FAILURE )
 		{
 			zlog_err("%s: re-add res=%d,%d,op=%u,seq=%u,pid=%u ", __func__, res, dplane_ctx_get_op(ctx),
 					dplane_ctx_get_ns(ctx)->nls.seq, dplane_ctx_get_ns(ctx)->nls.snl.nl_pid);
-			TAILQ_REMOVE(&work_list, ictx, zd_q_entries);
+			dplane_ctx_list_del(&work_list, ictx);
 			return -1;
 		}
 		else
 		{
-			TAILQ_REMOVE(&work_list, ictx, zd_q_entries);
+			dplane_ctx_list_del(&work_list, ictx);
 		}
 	}
 	return 0;
@@ -5589,11 +5606,11 @@ kernel_dplane_process_ipset_entry(struct zebra_dplane_provider *prov,
  */
 static int kernel_dplane_process_func(struct zebra_dplane_provider *prov)
 {
-	struct zebra_dplane_ctx *ctx, *tctx;
-	struct dplane_ctx_q work_list;
+	struct zebra_dplane_ctx *ctx;
+	struct dplane_ctx_list_head work_list;
 	int counter, limit;
 
-	TAILQ_INIT(&work_list);
+	dplane_ctx_list_init(&work_list);
 
 	limit = dplane_provider_get_work_limit(prov);
 
@@ -5619,15 +5636,14 @@ static int kernel_dplane_process_func(struct zebra_dplane_provider *prov)
 				     == DPLANE_OP_IPSET_ENTRY_DELETE))
 			kernel_dplane_process_ipset_entry(prov, ctx);
 		else
-			TAILQ_INSERT_TAIL(&work_list, ctx, zd_q_entries);
+			dplane_ctx_list_add_tail(&work_list, ctx);
 	}
 
 	kernel_update_multi(&work_list);
 
-	TAILQ_FOREACH_SAFE (ctx, &work_list, zd_q_entries, tctx) {
+	while ((ctx = dplane_ctx_list_pop(&work_list)) != NULL) {
 		kernel_dplane_handle_result(ctx);
 
-		TAILQ_REMOVE(&work_list, ctx, zd_q_entries);
 		dplane_provider_enqueue_out_ctx(prov, ctx);
 	}
 
@@ -5754,10 +5770,10 @@ static void dplane_provider_init(void)
 int dplane_clean_ctx_queue(bool (*context_cb)(struct zebra_dplane_ctx *ctx,
 					      void *arg), void *val)
 {
-	struct zebra_dplane_ctx *ctx, *temp;
-	struct dplane_ctx_q work_list;
+	struct zebra_dplane_ctx *ctx;
+	struct dplane_ctx_list_head work_list;
 
-	TAILQ_INIT(&work_list);
+	dplane_ctx_list_init(&work_list);
 
 	if (context_cb == NULL)
 		goto done;
@@ -5765,12 +5781,10 @@ int dplane_clean_ctx_queue(bool (*context_cb)(struct zebra_dplane_ctx *ctx,
 	/* Walk the pending context queue under the dplane lock. */
 	DPLANE_LOCK();
 
-	TAILQ_FOREACH_SAFE(ctx, &zdplane_info.dg_update_ctx_q, zd_q_entries,
-			   temp) {
+	frr_each_safe (dplane_ctx_list, &zdplane_info.dg_update_list, ctx) {
 		if (context_cb(ctx, val)) {
-			TAILQ_REMOVE(&zdplane_info.dg_update_ctx_q, ctx,
-				     zd_q_entries);
-			TAILQ_INSERT_TAIL(&work_list, ctx, zd_q_entries);
+			dplane_ctx_list_del(&zdplane_info.dg_update_list, ctx);
+			dplane_ctx_list_add_tail(&work_list, ctx);
 		}
 	}
 
@@ -5779,10 +5793,8 @@ int dplane_clean_ctx_queue(bool (*context_cb)(struct zebra_dplane_ctx *ctx,
 	/* Now free any contexts selected by the caller, without holding
 	 * the lock.
 	 */
-	TAILQ_FOREACH_SAFE(ctx, &work_list, zd_q_entries, temp) {
-		TAILQ_REMOVE(&work_list, ctx, zd_q_entries);
+	while ((ctx = dplane_ctx_list_pop(&work_list)) != NULL)
 		dplane_ctx_fini(&ctx);
-	}
 
 done:
 
@@ -5822,7 +5834,7 @@ void zebra_dplane_pre_finish(void)
 	zdplane_info.dg_is_shutdown = true;
 
 	/* Notify provider(s) of pending shutdown. */
-	TAILQ_FOREACH(prov, &zdplane_info.dg_providers_q, dp_prov_link) {
+	frr_each (dplane_prov_list, &zdplane_info.dg_providers, prov) {
 		if (prov->dp_fini == NULL)
 			continue;
 
@@ -5845,8 +5857,8 @@ static bool dplane_work_pending(void)
 	 */
 	DPLANE_LOCK();
 	{
-		ctx = TAILQ_FIRST(&zdplane_info.dg_update_ctx_q);
-		prov = TAILQ_FIRST(&zdplane_info.dg_providers_q);
+		ctx = dplane_ctx_list_first(&zdplane_info.dg_update_list);
+		prov = dplane_prov_list_first(&zdplane_info.dg_providers);
 	}
 	DPLANE_UNLOCK();
 
@@ -5859,9 +5871,9 @@ static bool dplane_work_pending(void)
 
 		dplane_provider_lock(prov);
 
-		ctx = TAILQ_FIRST(&(prov->dp_ctx_in_q));
+		ctx = dplane_ctx_list_first(&(prov->dp_ctx_in_list));
 		if (ctx == NULL)
-			ctx = TAILQ_FIRST(&(prov->dp_ctx_out_q));
+			ctx = dplane_ctx_list_first(&(prov->dp_ctx_out_list));
 
 		dplane_provider_unlock(prov);
 
@@ -5869,7 +5881,7 @@ static bool dplane_work_pending(void)
 			break;
 
 		DPLANE_LOCK();
-		prov = TAILQ_NEXT(prov, dp_prov_link);
+		prov = dplane_prov_list_next(&zdplane_info.dg_providers, prov);
 		DPLANE_UNLOCK();
 	}
 
@@ -5956,20 +5968,21 @@ void zebra_dplane_finish(void)
  */
 static int dplane_thread_loop(struct thread *event)
 {
-	struct dplane_ctx_q work_list;
-	struct dplane_ctx_q error_list;
-	struct zebra_dplane_provider *prov;
-	struct zebra_dplane_ctx *ctx, *tctx;
+	struct dplane_ctx_list_head work_list;
+	struct dplane_ctx_list_head error_list;
+	struct zebra_dplane_provider *prov, *next_prov;
+	struct zebra_dplane_ctx *ctx;
 	int limit, counter, error_counter;
-	uint64_t curr, high;
+	uint64_t curr, out_curr, high;
 	bool reschedule = false;
 
 	/* Capture work limit per cycle */
 	limit = zdplane_info.dg_updates_per_cycle;
 
 	/* Init temporary lists used to move contexts among providers */
-	TAILQ_INIT(&work_list);
-	TAILQ_INIT(&error_list);
+	dplane_ctx_list_init(&work_list);
+	dplane_ctx_list_init(&error_list);
+
 	error_counter = 0;
 
 	/* Check for zebra shutdown */
@@ -5982,22 +5995,49 @@ static int dplane_thread_loop(struct thread *event)
 	DPLANE_LOCK();
 
 	/* Locate initial registered provider */
-	prov = TAILQ_FIRST(&zdplane_info.dg_providers_q);
+	prov = dplane_prov_list_first(&zdplane_info.dg_providers);
 
-	/* Move new work from incoming list to temp list */
-	for (counter = 0; counter < limit; counter++) {
-		ctx = TAILQ_FIRST(&zdplane_info.dg_update_ctx_q);
-		if (ctx) {
-			TAILQ_REMOVE(&zdplane_info.dg_update_ctx_q, ctx,
-				     zd_q_entries);
+	curr = dplane_ctx_queue_count(&prov->dp_ctx_in_list);
+	out_curr = dplane_ctx_queue_count(&prov->dp_ctx_out_list);
 
-			ctx->zd_provider = prov->dp_id;
+	if (curr >= (uint64_t)limit) {
+		if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
+			zlog_debug("%s: Current first provider(%s) Input queue is %" PRIu64
+				   ", holding off work",
+				   __func__, prov->dp_name, curr);
+		counter = 0;
+	} else if (out_curr >= (uint64_t)limit) {
+		if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
+			zlog_debug("%s: Current first provider(%s) Output queue is %" PRIu64
+				   ", holding off work",
+				   __func__, prov->dp_name, out_curr);
+		counter = 0;
+	} else {
+		int tlimit;
+		/*
+		 * Let's limit the work to how what can be put on the
+		 * in or out queue without going over
+		 */
+		tlimit = limit - MAX(curr, out_curr);
+		/* Move new work from incoming list to temp list */
+		for (counter = 0; counter < tlimit; counter++) {
+			ctx = dplane_ctx_list_pop(&zdplane_info.dg_update_list);
+			if (ctx) {
+				ctx->zd_provider = prov->dp_id;
 
-			TAILQ_INSERT_TAIL(&work_list, ctx, zd_q_entries);
-		} else {
-			break;
+				dplane_ctx_list_add_tail(&work_list, ctx);
+			} else {
+				break;
+			}
 		}
 	}
+
+	/*
+	 * If there is anything still on the two input queues reschedule
+	 */
+	if (dplane_ctx_queue_count(&prov->dp_ctx_in_list) > 0 ||
+	    dplane_ctx_queue_count(&zdplane_info.dg_update_list) > 0)
+		reschedule = true;
 
 	DPLANE_UNLOCK();
 
@@ -6014,13 +6054,14 @@ static int dplane_thread_loop(struct thread *event)
 		 * items.
 		 */
 		if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
-			zlog_debug("dplane enqueues %d new work to provider '%s'",
-				   counter, dplane_provider_get_name(prov));
+			zlog_debug("dplane enqueues %d new work to provider '%s' curr is %" PRIu64,
+				   counter, dplane_provider_get_name(prov),
+				   curr);
 
 		/* Capture current provider id in each context; check for
 		 * error status.
 		 */
-		TAILQ_FOREACH_SAFE(ctx, &work_list, zd_q_entries, tctx) {
+		frr_each_safe (dplane_ctx_list, &work_list, ctx) {
 			if (dplane_ctx_get_status(ctx) ==
 			    ZEBRA_DPLANE_REQUEST_SUCCESS) {
 				ctx->zd_provider = prov->dp_id;
@@ -6034,9 +6075,8 @@ static int dplane_thread_loop(struct thread *event)
 				/* Move to error list; will be returned
 				 * zebra main.
 				 */
-				TAILQ_REMOVE(&work_list, ctx, zd_q_entries);
-				TAILQ_INSERT_TAIL(&error_list,
-						  ctx, zd_q_entries);
+				dplane_ctx_list_del(&work_list, ctx);
+				dplane_ctx_list_add_tail(&error_list, ctx);
 				error_counter++;
 			}
 		}
@@ -6044,16 +6084,12 @@ static int dplane_thread_loop(struct thread *event)
 		/* Enqueue new work to the provider */
 		dplane_provider_lock(prov);
 
-		if (TAILQ_FIRST(&work_list))
-			TAILQ_CONCAT(&(prov->dp_ctx_in_q), &work_list,
-				     zd_q_entries);
+		while ((ctx = dplane_ctx_list_pop(&work_list)) != NULL)
+			dplane_ctx_list_add_tail(&(prov->dp_ctx_in_list), ctx);
 
 		atomic_fetch_add_explicit(&prov->dp_in_counter, counter,
 					  memory_order_relaxed);
-		atomic_fetch_add_explicit(&prov->dp_in_queued, counter,
-					  memory_order_relaxed);
-		curr = atomic_load_explicit(&prov->dp_in_queued,
-					    memory_order_relaxed);
+		curr = dplane_ctx_queue_count(&prov->dp_ctx_in_list);
 		high = atomic_load_explicit(&prov->dp_in_max,
 					    memory_order_relaxed);
 		if (curr > high)
@@ -6065,7 +6101,7 @@ static int dplane_thread_loop(struct thread *event)
 		/* Reset the temp list (though the 'concat' may have done this
 		 * already), and the counter
 		 */
-		TAILQ_INIT(&work_list);
+		dplane_ctx_list_init(&work_list);
 		counter = 0;
 
 		/* Call into the provider code. Note that this is
@@ -6078,21 +6114,60 @@ static int dplane_thread_loop(struct thread *event)
 		if (!zdplane_info.dg_run)
 			break;
 
+		/* Locate next provider */
+		next_prov = dplane_prov_list_next(&zdplane_info.dg_providers,
+						  prov);
+		if (next_prov) {
+			curr = dplane_ctx_queue_count(
+				&next_prov->dp_ctx_in_list);
+			out_curr = dplane_ctx_queue_count(
+				&next_prov->dp_ctx_out_list);
+		} else
+			out_curr = curr = 0;
+
 		/* Dequeue completed work from the provider */
 		dplane_provider_lock(prov);
 
-		while (counter < limit) {
-			ctx = TAILQ_FIRST(&(prov->dp_ctx_out_q));
-			if (ctx) {
-				TAILQ_REMOVE(&(prov->dp_ctx_out_q), ctx,
-					     zd_q_entries);
+		if (curr >= (uint64_t)limit) {
+			if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
+				zlog_debug("%s: Next Provider(%s) Input queue is %" PRIu64
+					   ", holding off work",
+					   __func__, next_prov->dp_name, curr);
+			counter = 0;
+		} else if (out_curr >= (uint64_t)limit) {
+			if (IS_ZEBRA_DEBUG_DPLANE_DETAIL)
+				zlog_debug("%s: Next Provider(%s) Output queue is %" PRIu64
+					   ", holding off work",
+					   __func__, next_prov->dp_name,
+					   out_curr);
+			counter = 0;
+		} else {
+			int tlimit;
 
-				TAILQ_INSERT_TAIL(&work_list,
-						  ctx, zd_q_entries);
-				counter++;
-			} else
-				break;
+			/*
+			 * Let's limit the work to how what can be put on the
+			 * in or out queue without going over
+			 */
+			tlimit = limit - MAX(curr, out_curr);
+			while (counter < tlimit) {
+				ctx = dplane_provider_dequeue_out_ctx(prov);
+				if (ctx) {
+					dplane_ctx_list_add_tail(&work_list,
+								 ctx);
+					counter++;
+				} else
+					break;
+			}
 		}
+
+		/*
+		 * Let's check if there are still any items on the
+		 * input or output queus of the current provider
+		 * if so then we know we need to reschedule.
+		 */
+		if (dplane_ctx_queue_count(&prov->dp_ctx_in_list) > 0 ||
+		    dplane_ctx_queue_count(&prov->dp_ctx_out_list) > 0)
+			reschedule = true;
 
 		dplane_provider_unlock(prov);
 
@@ -6105,7 +6180,7 @@ static int dplane_thread_loop(struct thread *event)
 
 		/* Locate next provider */
 		DPLANE_LOCK();
-		prov = TAILQ_NEXT(prov, dp_prov_link);
+		prov = next_prov;
 		DPLANE_UNLOCK();
 	}
 
@@ -6128,16 +6203,16 @@ static int dplane_thread_loop(struct thread *event)
 	 * to reduce the number of lock/unlock cycles
 	 */
 	/* Call through to zebra main */
-	if (!TAILQ_EMPTY(&error_list))
+	if (dplane_ctx_list_count(&error_list) != 0)
 		(zdplane_info.dg_results_cb)(&error_list);
 
-	TAILQ_INIT(&error_list);
+	dplane_ctx_list_init(&error_list);
 
 	/* Call through to zebra main */
-	if (!TAILQ_EMPTY(&work_list))
+	if (dplane_ctx_list_count(&work_list) != 0)
 		(zdplane_info.dg_results_cb)(&work_list);
 
-	TAILQ_INIT(&work_list);
+	dplane_ctx_list_init(&work_list);
 
 done:
 	return 0;
@@ -6173,7 +6248,7 @@ void zebra_dplane_shutdown(void)
 	 * Note that this call is in the main pthread, so providers must
 	 * be prepared for that.
 	 */
-	TAILQ_FOREACH(dp, &zdplane_info.dg_providers_q, dp_prov_link) {
+	frr_each (dplane_prov_list, &zdplane_info.dg_providers, dp) {
 		if (dp->dp_fini == NULL)
 			continue;
 
@@ -6194,8 +6269,9 @@ static void zebra_dplane_init_internal(void)
 
 	pthread_mutex_init(&zdplane_info.dg_mutex, NULL);
 
-	TAILQ_INIT(&zdplane_info.dg_update_ctx_q);
-	TAILQ_INIT(&zdplane_info.dg_providers_q);
+	dplane_prov_list_init(&zdplane_info.dg_providers);
+
+	dplane_ctx_list_init(&zdplane_info.dg_update_list);
 	zns_info_list_init(&zdplane_info.dg_zns_list);
 
 	zdplane_info.dg_updates_per_cycle = DPLANE_DEFAULT_NEW_WORK;
@@ -6243,7 +6319,7 @@ void zebra_dplane_start(void)
 	/* Call start callbacks for registered providers */
 
 	DPLANE_LOCK();
-	prov = TAILQ_FIRST(&zdplane_info.dg_providers_q);
+	prov = dplane_prov_list_first(&zdplane_info.dg_providers);
 	DPLANE_UNLOCK();
 
 	while (prov) {
@@ -6253,7 +6329,7 @@ void zebra_dplane_start(void)
 
 		/* Locate next provider */
 		DPLANE_LOCK();
-		prov = TAILQ_NEXT(prov, dp_prov_link);
+		prov = dplane_prov_list_next(&zdplane_info.dg_providers, prov);
 		DPLANE_UNLOCK();
 	}
 
@@ -6263,7 +6339,7 @@ void zebra_dplane_start(void)
 /*
  * Initialize the dataplane module at startup; called by zebra rib_init()
  */
-void zebra_dplane_init(int (*results_fp)(struct dplane_ctx_q *))
+void zebra_dplane_init(int (*results_fp)(struct dplane_ctx_list_head *))
 {
 	zebra_dplane_init_internal();
 	zdplane_info.dg_results_cb = results_fp;
