@@ -48,6 +48,16 @@
 /*
  * Prototypes
  */
+struct bfd_session_statistic {
+	unsigned long all_session_count;
+	unsigned long up_session_count;
+	unsigned long down_session_count;
+	unsigned long init_session_count;
+	unsigned long admin_down_session_count;
+};
+static void
+update_session_statistic(const struct bfd_session *bs,
+			 struct bfd_session_statistic *session_statistic);
 static int bfd_configure_peer(struct bfd_peer_cfg *bpc, bool mhop,
 			      const struct sockaddr_any *peer,
 			      const struct sockaddr_any *local,
@@ -427,6 +437,7 @@ struct bfd_vrf_tuple {
 	struct vty *vty;
 	struct json_object *jo;
 	bool detail;
+	struct bfd_session_statistic session_statistic;
 };
 
 static void _display_peer_iter(struct hash_bucket *hb, void *arg)
@@ -842,7 +853,31 @@ static void _clear_peer_counter(struct bfd_session *bs)
 	bs->stats.tx_echo_pkt = 0;
 }
 
-static void _display_peer_brief(struct vty *vty, struct bfd_session *bs)
+static void
+update_session_statistic(const struct bfd_session *bs,
+			 struct bfd_session_statistic *session_statistic)
+{
+	session_statistic->all_session_count++;
+	switch (bs->ses_state) {
+	case PTM_BFD_ADM_DOWN:
+		session_statistic->admin_down_session_count++;
+		break;
+	case PTM_BFD_DOWN:
+		session_statistic->down_session_count++;
+		break;
+	case PTM_BFD_INIT:
+		session_statistic->init_session_count++;
+		break;
+	case PTM_BFD_UP:
+		session_statistic->up_session_count++;
+		break;
+	default:
+		break;
+	}
+}
+
+static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
+				struct bfd_session_statistic *session_statistic)
 {
 	char addr_buf[INET6_ADDRSTRLEN];
 	char *buf = "N/A";
@@ -867,6 +902,7 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs)
 	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
 	vty_out(vty, " %-40s", addr_buf);
 	vty_out(vty, "%-8s\n", state_list[bs->ses_state].str);
+	update_session_statistic(bs, session_statistic);
 }
 
 static void _display_peer_brief_iter(struct hash_bucket *hb, void *arg)
@@ -885,7 +921,7 @@ static void _display_peer_brief_iter(struct hash_bucket *hb, void *arg)
 		return;
 	}
 
-	_display_peer_brief(vty, bs);
+	_display_peer_brief(vty, bs, &bvt->session_statistic);
 }
 
 static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_json)
@@ -898,7 +934,6 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 	if (!use_json) {
 		bvt.vty = vty;
 
-		vty_out(vty, "Session count: %lu\n", bfd_get_session_count());
 		vty_out(vty, "%-28s", "SessName");
 		vty_out(vty, " %-12s", "SessId");
 		vty_out(vty, " %-10s", "Mode");
@@ -917,9 +952,20 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 		vty_out(vty, " %-40s", "=====================================");
 		vty_out(vty, "%-8s\n", "======");
 
-		bfd_id_iterate(_display_peer_brief_iter, &bvt);
-		return;
-	}
+	        bfd_id_iterate(_display_peer_brief_iter, &bvt);
+		vty_out(vty, "\n");
+	        vty_out(vty, "\nAll session count: %lu\n",
+		        bvt.session_statistic.all_session_count);
+	        vty_out(vty, "Up session count: %lu\n",
+		        bvt.session_statistic.up_session_count);
+	        vty_out(vty, "Down session count: %lu\n",
+		        bvt.session_statistic.down_session_count);
+	        vty_out(vty, "Init session count: %lu\n",
+		        bvt.session_statistic.init_session_count);
+	        vty_out(vty, "Admin down session count: %lu\n",
+		        bvt.session_statistic.admin_down_session_count);
+	        return;
+       }
 
 	jo = json_object_new_array();
 	bvt.jo = jo;
