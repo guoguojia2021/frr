@@ -188,6 +188,14 @@ def teardown_module(mod):
     )
     logger.info("=" * 40)
 
+def topology_cleanup():
+    """
+    Clean up the topology to the initial state
+    * `mod`: module name
+    """
+    mod = sys.modules[__name__]
+    teardown_module(mod)
+    setup_module(mod)
 
 def all_routes_advertised(router):
     output = json.loads(router.vtysh_cmd("show ip route json"))
@@ -386,6 +394,7 @@ failed = "FAILED!!!"
 
 
 def test_bgp_conditional_advertisement_tc_1_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -406,6 +415,7 @@ def test_bgp_conditional_advertisement_tc_1_1():
 
 
 def test_bgp_conditional_advertisement_tc_2_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -435,6 +445,7 @@ def test_bgp_conditional_advertisement_tc_2_1():
 
 
 def test_bgp_conditional_advertisement_tc_2_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -442,6 +453,17 @@ def test_bgp_conditional_advertisement_tc_2_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Sync the configuration in TC21
+    router2.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 2
+              address-family ipv4 unicast
+               neighbor 10.10.20.3 advertise-map ADV-MAP-1 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC22: exist-map routes not present in R2's BGP table
     # advertise-map routes present in R2's BGP table are withdrawn from R3.
@@ -464,6 +486,7 @@ def test_bgp_conditional_advertisement_tc_2_2():
 
 
 def test_bgp_conditional_advertisement_tc_2_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -471,6 +494,28 @@ def test_bgp_conditional_advertisement_tc_2_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Sync the configuration in TC21
+    router2.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 2
+              address-family ipv4 unicast
+               neighbor 10.10.20.3 advertise-map ADV-MAP-1 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC22
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
 
     # TC23: advertise-map with exist-map configuration is removed from a peer
     # send normal BGP update to advertise previously withdrawn routes if any.
@@ -493,6 +538,7 @@ def test_bgp_conditional_advertisement_tc_2_3():
 
 
 def test_bgp_conditional_advertisement_tc_3_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -500,6 +546,17 @@ def test_bgp_conditional_advertisement_tc_3_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the configuration from TC22 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
 
     # TC31: non-exist-map routes not present in R2's BGP table
     # advertise-map routes present in R2's BGP table are advertised to R3.
@@ -522,6 +579,7 @@ def test_bgp_conditional_advertisement_tc_3_1():
 
 
 def test_bgp_conditional_advertisement_tc_3_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -529,6 +587,28 @@ def test_bgp_conditional_advertisement_tc_3_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the configuration from TC22 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration from TC31
+    router2.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 2
+              address-family ipv4 unicast
+               neighbor 10.10.20.3 advertise-map ADV-MAP-1 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC32: non-exist-map routes present in R2's BGP table
     # advertise-map routes present in R2's BGP table are withdrawn from R3.
@@ -551,6 +631,7 @@ def test_bgp_conditional_advertisement_tc_3_2():
 
 
 def test_bgp_conditional_advertisement_tc_3_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -558,6 +639,39 @@ def test_bgp_conditional_advertisement_tc_3_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the configuration from TC22 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC31
+    router2.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 2
+              address-family ipv4 unicast
+               neighbor 10.10.20.3 advertise-map ADV-MAP-1 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC32
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
 
     # TC33: advertise-map with non-exist-map configuration is removed from a peer
     # send normal BGP update to advertisepreviously withdrawn routes if any.
@@ -582,6 +696,7 @@ def test_bgp_conditional_advertisement_tc_3_3():
 
 
 def test_bgp_conditional_advertisement_tc_4_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -589,6 +704,26 @@ def test_bgp_conditional_advertisement_tc_4_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC32 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
 
     # TC41: non-exist-map route-map configuration removed in R2.
     # advertise-map routes present in R2's BGP table are advertised to R3.
@@ -612,6 +747,7 @@ def test_bgp_conditional_advertisement_tc_4_1():
 
 
 def test_bgp_conditional_advertisement_tc_4_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -619,6 +755,38 @@ def test_bgp_conditional_advertisement_tc_4_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC33 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC41
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 advertise-map ADV-MAP-1 non-exist-map EXIST-MAP
+           no route-map EXIST-MAP permit 10
+        """
+    )
+    time.sleep(5)
 
     # TC42: exist-map route-map configuration removed in R2
     # advertise-map routes present in R2's BGP table are withdrawn from R3.
@@ -641,6 +809,7 @@ def test_bgp_conditional_advertisement_tc_4_2():
 
 
 def test_bgp_conditional_advertisement_tc_5_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -648,6 +817,49 @@ def test_bgp_conditional_advertisement_tc_5_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC33 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC41
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 advertise-map ADV-MAP-1 non-exist-map EXIST-MAP
+           no route-map EXIST-MAP permit 10
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC42
+    router2.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 2
+              address-family ipv4 unicast
+               neighbor 10.10.20.3 advertise-map ADV-MAP-1 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC51: exist-map routes present in R2's BGP table, with route-map filter.
     # All routes are withdrawn from R3 except advertise-map routes.
@@ -674,6 +886,7 @@ def test_bgp_conditional_advertisement_tc_5_1():
 
 
 def test_bgp_conditional_advertisement_tc_5_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -681,6 +894,26 @@ def test_bgp_conditional_advertisement_tc_5_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC33 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
 
     # TC52: exist-map routes present in R2's BGP table, no route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -703,6 +936,7 @@ def test_bgp_conditional_advertisement_tc_5_2():
 
 
 def test_bgp_conditional_advertisement_tc_5_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -710,6 +944,26 @@ def test_bgp_conditional_advertisement_tc_5_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC33 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
 
     # TC53: non-exist-map routes present in R2's BGP table, with route-map filter.
     # All routes are withdrawn from R3 including advertise-map routes.
@@ -733,6 +987,7 @@ def test_bgp_conditional_advertisement_tc_5_3():
 
 
 def test_bgp_conditional_advertisement_tc_5_4():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -740,6 +995,38 @@ def test_bgp_conditional_advertisement_tc_5_4():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC33 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC53
+    router2.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 2
+              address-family ipv4 unicast
+               neighbor 10.10.20.3 route-map RMAP-1 out
+               neighbor 10.10.20.3 advertise-map ADV-MAP-1 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC54: non-exist-map routes present in R2's BGP table, no route-map filter.
     # All routes are advertised to R3 except advertise-map routes.
@@ -762,6 +1049,7 @@ def test_bgp_conditional_advertisement_tc_5_4():
 
 
 def test_bgp_conditional_advertisement_tc_6_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -769,6 +1057,26 @@ def test_bgp_conditional_advertisement_tc_6_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the network state configuration from TC33 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
 
     # TC61: exist-map routes not present in R2's BGP table, with route-map filter.
     # All routes are withdrawn from R3 including advertise-map routes.
@@ -780,6 +1088,7 @@ def test_bgp_conditional_advertisement_tc_6_1():
                no network 0.0.0.0/0 route-map DEF
         """
     )
+    time.sleep(5)
     router2.vtysh_cmd(
         """
           configure terminal
@@ -800,6 +1109,7 @@ def test_bgp_conditional_advertisement_tc_6_1():
 
 
 def test_bgp_conditional_advertisement_tc_6_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -807,6 +1117,27 @@ def test_bgp_conditional_advertisement_tc_6_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Sync the configuration in TC61 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-1 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-1 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC62: exist-map routes not present in R2's BGP table, without route-map filter.
     # All routes are advertised to R3 except advertise-map routes.
@@ -818,6 +1149,7 @@ def test_bgp_conditional_advertisement_tc_6_2():
              no neighbor 10.10.20.3 route-map RMAP-1 out
         """
     )
+    time.sleep(5)
 
     test_func = functools.partial(exist_map_routes_not_present_no_rmap_filter, router3)
     success, result = topotest.run_and_expect(test_func, None, count=90, wait=1)
@@ -829,6 +1161,7 @@ def test_bgp_conditional_advertisement_tc_6_2():
 
 
 def test_bgp_conditional_advertisement_tc_6_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -836,6 +1169,38 @@ def test_bgp_conditional_advertisement_tc_6_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Sync the configuration in TC61 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-1 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-1 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC62
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             no neighbor 10.10.20.3 route-map RMAP-1 out
+        """
+    )
+    time.sleep(5)
 
     # TC63: non-exist-map routes not present in R2's BGP table, with route-map filter.
     # All routes are withdrawn from R3 except advertise-map routes.
@@ -859,6 +1224,7 @@ def test_bgp_conditional_advertisement_tc_6_3():
 
 
 def test_bgp_conditional_advertisement_tc_6_4():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -866,6 +1232,29 @@ def test_bgp_conditional_advertisement_tc_6_4():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Inherit the configuration from TC61 and restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+            router bgp 1
+              address-family ipv4 unicast
+               no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC63
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-1 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-1 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC64: non-exist-map routes not present in R2's BGP table, without route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -890,6 +1279,7 @@ def test_bgp_conditional_advertisement_tc_6_4():
 
 
 def test_bgp_conditional_advertisement_tc_7_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -897,6 +1287,17 @@ def test_bgp_conditional_advertisement_tc_7_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
 
     # TC71: exist-map routes present in R2's BGP table, with route-map filter.
     # All routes are withdrawn from R3 except advertise-map routes.
@@ -908,6 +1309,7 @@ def test_bgp_conditional_advertisement_tc_7_1():
              network 0.0.0.0/0 route-map DEF
         """
     )
+    time.sleep(5)
     router2.vtysh_cmd(
         """
           configure terminal
@@ -928,6 +1330,7 @@ def test_bgp_conditional_advertisement_tc_7_1():
 
 
 def test_bgp_conditional_advertisement_tc_7_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -935,6 +1338,38 @@ def test_bgp_conditional_advertisement_tc_7_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Inherit the configuration from TC71
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC72: exist-map routes present in R2's BGP table, without route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -957,6 +1392,7 @@ def test_bgp_conditional_advertisement_tc_7_2():
 
 
 def test_bgp_conditional_advertisement_tc_7_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -964,6 +1400,49 @@ def test_bgp_conditional_advertisement_tc_7_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Inherit the configuration from TC71
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC72
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             no neighbor 10.10.20.3 route-map RMAP-2 out
+        """
+    )
+    time.sleep(5)
 
     # TC73: non-exist-map routes present in R2's BGP table, with route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -987,6 +1466,7 @@ def test_bgp_conditional_advertisement_tc_7_3():
 
 
 def test_bgp_conditional_advertisement_tc_7_4():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -994,6 +1474,40 @@ def test_bgp_conditional_advertisement_tc_7_4():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Inherit the network state from TC71
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC73
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC74: non-exist-map routes present in R2's BGP table, without route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -1016,6 +1530,7 @@ def test_bgp_conditional_advertisement_tc_7_4():
 
 
 def test_bgp_conditional_advertisement_tc_8_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1023,6 +1538,17 @@ def test_bgp_conditional_advertisement_tc_8_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
 
     # TC81: exist-map routes not present in R2's BGP table, with route-map filter.
     # All routes are withdrawn from R3 including advertise-map routes.
@@ -1034,6 +1560,7 @@ def test_bgp_conditional_advertisement_tc_8_1():
              no network 0.0.0.0/0 route-map DEF
         """
     )
+    time.sleep(5)
     router2.vtysh_cmd(
         """
           configure terminal
@@ -1054,6 +1581,7 @@ def test_bgp_conditional_advertisement_tc_8_1():
 
 
 def test_bgp_conditional_advertisement_tc_8_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1061,6 +1589,27 @@ def test_bgp_conditional_advertisement_tc_8_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state and sync the configuration in TC81
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC82: exist-map routes not present in R2's BGP table, without route-map filter.
     # All routes are advertised to R3 except advertise-map routes.
@@ -1083,6 +1632,7 @@ def test_bgp_conditional_advertisement_tc_8_2():
 
 
 def test_bgp_conditional_advertisement_tc_8_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1090,6 +1640,38 @@ def test_bgp_conditional_advertisement_tc_8_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state and sync the configuration in TC81
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC82
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             no neighbor 10.10.20.3 route-map RMAP-2 out
+        """
+    )
+    time.sleep(5)
 
     # TC83: non-exist-map routes not present in R2's BGP table, with route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -1115,6 +1697,7 @@ def test_bgp_conditional_advertisement_tc_8_3():
 
 
 def test_bgp_conditional_advertisement_tc_8_4():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1122,6 +1705,29 @@ def test_bgp_conditional_advertisement_tc_8_4():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state, inherit the network state from TC81
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC83
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC84: non-exist-map routes not present in R2's BGP table, without route-map filter.
     # All routes are advertised to R3 including advertise-map routes.
@@ -1146,6 +1752,7 @@ def test_bgp_conditional_advertisement_tc_8_4():
 
 
 def test_bgp_conditional_advertisement_tc_9_1():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1153,6 +1760,17 @@ def test_bgp_conditional_advertisement_tc_9_1():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
 
     # TC91: exist-map routes present in R2's BGP table, with route-map filter and network.
     # All routes are advertised to R3 including advertise-map routes.
@@ -1164,6 +1782,7 @@ def test_bgp_conditional_advertisement_tc_9_1():
              network 0.0.0.0/0 route-map DEF
         """
     )
+    time.sleep(5)
     router2.vtysh_cmd(
         """
           configure terminal
@@ -1184,6 +1803,7 @@ def test_bgp_conditional_advertisement_tc_9_1():
 
 
 def test_bgp_conditional_advertisement_tc_9_2():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1191,6 +1811,38 @@ def test_bgp_conditional_advertisement_tc_9_2():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC91
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC92: exist-map routes present in R2's BGP table, with route-map filter and no network.
     # All routes are advertised to R3 except advertise-map routes.
@@ -1213,6 +1865,7 @@ def test_bgp_conditional_advertisement_tc_9_2():
 
 
 def test_bgp_conditional_advertisement_tc_9_3():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1220,6 +1873,49 @@ def test_bgp_conditional_advertisement_tc_9_3():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Inherit the configuration from TC91
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC92
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             no network 203.0.113.1/32 nonconnected
+        """
+    )
+    time.sleep(5)
 
     # TC93: non-exist-map routes not present in R2's BGP table, with route-map filter and network.
     # All routes are advertised to R3 including advertise-map routes.
@@ -1231,6 +1927,7 @@ def test_bgp_conditional_advertisement_tc_9_3():
              no network 0.0.0.0/0 route-map DEF
         """
     )
+    time.sleep(5)
     router2.vtysh_cmd(
         """
           configure terminal
@@ -1253,6 +1950,7 @@ def test_bgp_conditional_advertisement_tc_9_3():
 
 
 def test_bgp_conditional_advertisement_tc_9_4():
+    topology_cleanup()
     tgen = get_topogen()
     if tgen.routers_have_failure():
         pytest.skip(tgen.errors)
@@ -1260,6 +1958,70 @@ def test_bgp_conditional_advertisement_tc_9_4():
     router1 = tgen.gears["r1"]
     router2 = tgen.gears["r2"]
     router3 = tgen.gears["r3"]
+
+    # Restore the topology state
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Inherit the configuration from TC91
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             neighbor 10.10.20.3 route-map RMAP-2 out
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC92
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             no network 203.0.113.1/32 nonconnected
+        """
+    )
+    time.sleep(5)
+
+    # Sync the configuration in TC93
+    router1.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 1
+            address-family ipv4 unicast
+             no network 0.0.0.0/0 route-map DEF
+        """
+    )
+    time.sleep(5)
+    router2.vtysh_cmd(
+        """
+          configure terminal
+           router bgp 2
+            address-family ipv4 unicast
+             network 203.0.113.1/32
+             neighbor 10.10.20.3 advertise-map ADV-MAP-2 non-exist-map EXIST-MAP
+        """
+    )
+    time.sleep(5)
 
     # TC94: non-exist-map routes not present in R2's BGP table, with route-map filter and no network.
     # All routes are advertised to R3 except advertise-map routes.
