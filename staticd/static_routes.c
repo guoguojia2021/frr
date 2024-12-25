@@ -931,3 +931,90 @@ void static_get_nh_str(struct static_nexthop *nh, char *nexthop, size_t size)
 		break;
 	};
 }
+
+static void static_route_show_nexthop(struct vty *vty,
+				    const struct static_nexthop *sn)
+{
+
+	switch (sn->type) {
+	case STATIC_IFNAME:
+		vty_out(vty, " ifname(%d):%s", sn->ifindex, sn->ifname);
+		break;
+	case STATIC_IPV4_GATEWAY:
+		vty_out(vty, " ip4:%pI4", &sn->addr.ipv4);
+		break;
+	case STATIC_IPV4_GATEWAY_IFNAME:
+	case STATIC_IPV4_GATEWAY_EVPN:
+		vty_out(vty, " ip4-ifindex(%d):%pI4 :%s", sn->ifindex,
+			&sn->addr.ipv4, sn->ifname);
+		break;
+	case STATIC_BLACKHOLE:
+		vty_out(vty, " blackhole:%d", sn->bh_type);
+		break;
+	case STATIC_IPV6_GATEWAY:
+		vty_out(vty, " ip6:%pI6", &sn->addr.ipv6);
+		break;
+	case STATIC_IPV6_GATEWAY_IFNAME:
+	case STATIC_IPV6_GATEWAY_EVPN:
+		vty_out(vty, " ip6-ifindex(%d):%pI6 :%s", sn->ifindex,
+			&sn->addr.ipv6, sn->ifname);
+		break;
+	case STATIC_IPV4_SEGMENTLIST:
+		vty_out(vty, " ip4-segment:%pI4", &sn->addr.ipv4);
+		break;
+	case STATIC_IPV6_SEGMENTLIST:
+		vty_out(vty, " ip6-segment:%pI6", &sn->addr.ipv6);
+		break;
+	};
+
+	vty_out(vty, " color:%d, %s, registered:%s, install:%d\n",
+		sn->color,sn->nh_valid ? "valid" : "invalid",
+		sn->nh_registered ? "yes" : "no", sn->state);
+}
+
+static void static_route_show_path(struct vty *vty, struct route_table *stable)
+{
+	struct route_node *rn;
+
+	for (rn = route_top(stable); rn; rn = srcdest_route_next(rn)) {
+		struct static_route_info *si = static_route_info_from_rnode(rn);
+		struct static_path *sp;
+
+		if (si == NULL)
+			continue;
+
+		frr_each (static_path_list, &si->path_list, sp) {
+			struct static_nexthop *sn;
+
+			vty_out(vty, "        %pRN", sp->rn);
+			frr_each (static_nexthop_list, &sp->nexthop_list, sn) 
+				static_route_show_nexthop(vty, sn);
+		}
+	}
+}
+
+void static_route_show(struct vty *vty, afi_t afi, char* vrfname)
+{
+	struct route_table *stable;
+	struct vrf *vrf;
+
+	vty_out(vty, "Showing static routes:\n");
+
+	RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name) {
+
+		if (vrfname && strcmp(vrfname, vrf->aliasName) == 0) {
+			struct static_vrf *svrf;
+	
+			svrf = vrf->info;
+			stable = static_vrf_static_table(afi, SAFI_UNICAST, svrf);
+			if (stable) {
+				vty_out(vty, "    VRF %s %s Unicast:\n", vrf->aliasName, afi2str(afi));
+				static_route_show_path(vty, stable);
+			}
+			break;
+		}
+
+	}
+
+	vty_out(vty, "\n");
+}
