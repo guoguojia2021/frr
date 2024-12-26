@@ -197,8 +197,6 @@ module frr-nexthop {
     }
 
     leaf srte-color {
-      when "../nh-type = 'ip4-segment' or
-            ../nh-type = 'ip6-segment'";
       type uint32;
       description
         "The nexthop SR-TE color";
@@ -271,7 +269,7 @@ module frr-nexthop {
 
   grouping nexthop-grouping {
     list nexthop {
-      key "nh-type vrf gateway interface";
+      key "nh-type vrf gateway interface srte-color";
       min-elements 1;
       description
         "A list of nexthop objects.";

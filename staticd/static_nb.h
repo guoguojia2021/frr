@@ -168,7 +168,7 @@ int routing_control_plane_protocols_name_validate(
 /* route-list/frr-nexthops */
 #define FRR_STATIC_ROUTE_NH_KEY_XPATH                                          \
 	"/frr-nexthops/"                                                       \
-	"nexthop[nh-type='%s'][vrf='%s'][gateway='%s'][interface='%s']"
+	"nexthop[nh-type='%s'][vrf='%s'][gateway='%s'][interface='%s'][srte-color='%u']"
 
 #define FRR_STATIC_ROUTE_NH_ONLINK_XPATH "/onlink"
 

@@ -924,10 +924,10 @@ void static_get_nh_str(struct static_nexthop *nh, char *nexthop, size_t size)
 			   &nh->addr.ipv6, nh->ifname);
 		break;
 	case STATIC_IPV4_SEGMENTLIST:
-		snprintfrr(nexthop, size, "ip4-segment : %pI4", &nh->addr.ipv4);
+		snprintfrr(nexthop, size, "ip4-segment : %pI4 color : %d", &nh->addr.ipv4, nh->color);
 		break;
 	case STATIC_IPV6_SEGMENTLIST:
-		snprintfrr(nexthop, size, "ip6-segment : %pI6", &nh->addr.ipv6);
+		snprintfrr(nexthop, size, "ip6-segment : %pI6 color : %d", &nh->addr.ipv6, nh->color);
 		break;
 	};
 }
@@ -975,6 +975,8 @@ static void static_route_show_nexthop(struct vty *vty,
 static void static_route_show_path(struct vty *vty, struct route_table *stable)
 {
 	struct route_node *rn;
+	bool first = true;
+	int len_rn = 0;
 
 	for (rn = route_top(stable); rn; rn = srcdest_route_next(rn)) {
 		struct static_route_info *si = static_route_info_from_rnode(rn);
@@ -986,10 +988,16 @@ static void static_route_show_path(struct vty *vty, struct route_table *stable)
 		frr_each (static_path_list, &si->path_list, sp) {
 			struct static_nexthop *sn;
 
-			vty_out(vty, "        %pRN", sp->rn);
-			frr_each (static_nexthop_list, &sp->nexthop_list, sn) 
+			len_rn = vty_out(vty, "        %pRN", sp->rn);
+			frr_each (static_nexthop_list, &sp->nexthop_list, sn) {
+				if (first)
+					first = false;
+				else
+					vty_out(vty, "%*c", len_rn, ' ');
 				static_route_show_nexthop(vty, sn);
+			}
 		}
+		first = true;
 	}
 }
 
@@ -999,7 +1007,6 @@ void static_route_show(struct vty *vty, afi_t afi, char* vrfname)
 	struct vrf *vrf;
 
 	vty_out(vty, "Showing static routes:\n");
-
 	RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name) {
 
 		if (vrfname && strcmp(vrfname, vrf->aliasName) == 0) {

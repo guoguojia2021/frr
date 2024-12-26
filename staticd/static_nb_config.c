@@ -161,6 +161,7 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 	const char *nh_vrf;
 	vni_t nh_vni = 0;
 	struct ethaddr rmac = {{0}};
+	uint32_t color = 0;
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
@@ -203,6 +204,7 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 		nh_type = yang_dnode_get_enum(args->dnode, "nh-type");
 		ifname = yang_dnode_get_string(args->dnode, "interface");
 		nh_vrf = yang_dnode_get_string(args->dnode, "vrf");
+		color = yang_dnode_get_uint32(args->dnode, "srte-color");
 		pn = nb_running_get_entry(args->dnode, NULL, true);
 
         /*
@@ -224,7 +226,7 @@ static bool static_nexthop_create(struct nb_cb_create_args *args)
 				yang_dnode_get_string(args->dnode,
 						      "./gateway"));
 		nh = static_add_nexthop(pn, nh_type, &ipaddr, ifname, nh_vrf,
-					0, nh_vni, &rmac);
+					color, nh_vni, &rmac);
 		nb_running_set_entry(args->dnode, nh);
 		break;
 	}

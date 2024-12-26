@@ -78,6 +78,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	route_tag_t tag = 0;
 	route_tag_t etag = 0;
 	uint32_t table_id = 0;
+	uint32_t color = 0;
 	const struct lyd_node *dnode;
 	vni_t nh_vni = 0;
 	struct ethaddr mac;
@@ -185,6 +186,9 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	/* TableID */
 	if (table_str)
 		table_id = atol(table_str);
+	
+	if (color_str)
+		color = strtoul(color_str, NULL, 10);
 
 	static_get_nh_type(type, gate_str, buf_nh_type, PREFIX_STRLEN);
 	if (!negate) {
@@ -195,7 +199,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 				 buf_prefix,
 				 yang_afi_safi_value2identity(afi, safi),
 				 buf_src_prefix, table_id, buf_nh_type, nh_svrf,
-				 buf_gate_str, ifname);
+				 buf_gate_str, ifname, color);
 		else
 			snprintf(ab_xpath, sizeof(ab_xpath),
 				 FRR_DEL_S_ROUTE_NH_KEY_NO_DISTANCE_XPATH,
@@ -203,7 +207,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 				 buf_prefix,
 				 yang_afi_safi_value2identity(afi, safi),
 				 table_id, buf_nh_type, nh_svrf, buf_gate_str,
-				 ifname);
+				 ifname, color);
 
 		/*
 		 * If there's already the same nexthop but with a different
@@ -256,7 +260,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 
 		snprintf(ab_xpath, sizeof(ab_xpath),
 			 FRR_STATIC_ROUTE_NH_KEY_XPATH, buf_nh_type, nh_svrf,
-			 buf_gate_str, ifname);
+			 buf_gate_str, ifname, color);
 		strlcpy(xpath_nexthop, xpath_prefix, sizeof(xpath_nexthop));
 		strlcat(xpath_nexthop, ab_xpath, sizeof(xpath_nexthop));
 		nb_cli_enqueue_change(vty, xpath_nexthop, NB_OP_CREATE, NULL);
@@ -302,7 +306,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 				nb_cli_enqueue_change(vty, ab_xpath,
 						      NB_OP_MODIFY, "false");
 		}
-		if (type == STATIC_IPV4_GATEWAY
+		/*if (type == STATIC_IPV4_GATEWAY
 			|| type == STATIC_IPV6_GATEWAY
 			|| type == STATIC_IPV4_GATEWAY_IFNAME
 			|| type == STATIC_IPV6_GATEWAY_IFNAME
@@ -314,7 +318,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 			if (color_str)
 				nb_cli_enqueue_change(vty, ab_xpath,
 						      NB_OP_MODIFY, color_str);
-		}
+		}*/
 		/* bfd-name proccessing */
 		strlcpy(ab_xpath, xpath_nexthop, sizeof(ab_xpath));
 		strlcat(ab_xpath, FRR_STATIC_ROUTE_NH_BFD_NAME_XPATH,sizeof(ab_xpath));
@@ -379,7 +383,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 				 buf_prefix,
 				 yang_afi_safi_value2identity(afi, safi),
 				 buf_src_prefix, table_id, buf_nh_type, nh_svrf,
-				 buf_gate_str, ifname);
+				 buf_gate_str, ifname, color);
 		else
 			snprintf(ab_xpath, sizeof(ab_xpath),
 				 FRR_DEL_S_ROUTE_NH_KEY_NO_DISTANCE_XPATH,
@@ -387,7 +391,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 				 buf_prefix,
 				 yang_afi_safi_value2identity(afi, safi),
 				 table_id, buf_nh_type, nh_svrf, buf_gate_str,
-				 ifname);
+				 ifname, color);
 
 		dnode = yang_dnode_get(vty->candidate_config->dnode, ab_xpath);
 		if (!dnode) {
@@ -1496,9 +1500,8 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 			vty_out(vty, " onlink");
 	}
 
-	if (yang_dnode_exists(nexthop, "srte-color"))
-		vty_out(vty, " color %s",
-			yang_dnode_get_string(nexthop, "srte-color"));
+	vty_out(vty, " color %s",
+		yang_dnode_get_string(nexthop, "srte-color"));
 
 	if (yang_dnode_exists(nexthop, "bfd-name"))
 		vty_out(vty, " bfd-name %s",
@@ -1532,6 +1535,7 @@ int static_nexthop_cli_cmp(const struct lyd_node *dnode1,
 {
 	enum static_nh_type nh_type1, nh_type2;
 	struct prefix prefix1, prefix2;
+	uint32_t color1, color2;
 	int ret = 0;
 
 	nh_type1 = yang_dnode_get_enum(dnode1, "nh-type");
@@ -1539,6 +1543,11 @@ int static_nexthop_cli_cmp(const struct lyd_node *dnode1,
 
 	if (nh_type1 != nh_type2)
 		return (int)nh_type1 - (int)nh_type2;
+
+	color1 = yang_dnode_get_uint32(dnode1, "srte-color");
+	color2 = yang_dnode_get_uint32(dnode2, "srte-color");
+	if (color1 != color2)
+		return (int)color1 - (int)color2;
 
 	switch (nh_type1) {
 	case STATIC_IFNAME:
