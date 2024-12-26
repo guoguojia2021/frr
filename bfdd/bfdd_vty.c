@@ -45,6 +45,18 @@
 #define LOCAL_INTF_STR "Configure local interface name to use\n"
 #define DETAIL_STR "BFD detail information\n"
 
+#define SESSION_NAME_WIDE_INDEX 0
+#define ENCAP_DIP_WIDE_INDEX 1
+#define ENCAP_SIP_WIDE_INDEX 2
+#define LOCAL_ADDR_WIDE_INDEX 3
+#define PEER_ADDR_WIDE_INDEX 4
+
+#define SESSION_NAME_WIDE_MIN 8
+#define ENCAP_DIP_WIDE_MIN 14
+#define ENCAP_SIP_WIDE_MIN 14
+#define LOCAL_ADDR_WIDE_MIN 12
+#define PEER_ADDR_WIDE_MIN 11
+
 /*
  * Prototypes
  */
@@ -58,6 +70,7 @@ struct bfd_session_statistic {
 static void
 update_session_statistic(const struct bfd_session *bs,
 			 struct bfd_session_statistic *session_statistic);
+static void _get_display_peer_brief_wide(struct hash_bucket *hb, void *arg);
 static int bfd_configure_peer(struct bfd_peer_cfg *bpc, bool mhop,
 			      const struct sockaddr_any *peer,
 			      const struct sockaddr_any *local,
@@ -438,6 +451,7 @@ struct bfd_vrf_tuple {
 	struct json_object *jo;
 	bool detail;
 	struct bfd_session_statistic session_statistic;
+	uint32_t *max_wide_list;
 };
 
 static void _display_peer_iter(struct hash_bucket *hb, void *arg)
@@ -877,32 +891,43 @@ update_session_statistic(const struct bfd_session *bs,
 }
 
 static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
-				struct bfd_session_statistic *session_statistic)
+				struct bfd_vrf_tuple *bvt)
 {
 	char addr_buf[INET6_ADDRSTRLEN];
 	char *buf = "N/A";
 
-	vty_out(vty, "%-28s", strlen(bs->bfd_name) == 0 ? buf : bs->bfd_name);
-	vty_out(vty, " %-12u", bs->discrs.my_discr);
-	vty_out(vty, " %-10s", bfd_mode_type_to_string(bs->bfd_mode));
+	vty_out(vty, "%s", strlen(bs->bfd_name) == 0 ? buf : bs->bfd_name);
+	if (strlen(bs->bfd_name) == 0) {
+		vty_out(vty, "%*s", bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] - 1, " ");
+	} else {
+		vty_out(vty, "%*s", bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] - strlen(bs->bfd_name) + 2, " ");
+	}
+	vty_out(vty, "%-13u", bs->discrs.my_discr);
+	vty_out(vty, "%-11s", bfd_mode_type_to_string(bs->bfd_mode));
 	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
 	{
 		inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf, sizeof(addr_buf));
-		vty_out(vty, " %-40s", addr_buf);
+		vty_out(vty, "%s", addr_buf);
+		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
 		inet_ntop(AF_INET6, &bs->out_sip6, addr_buf, sizeof(addr_buf));
-		vty_out(vty, " %-40s", addr_buf);
+		vty_out(vty, "%s", addr_buf);
+		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
 	}
 	else
 	{
-		vty_out(vty, " %-40s", buf);
-		vty_out(vty, " %-40s", buf);
+		vty_out(vty, "%s", buf);
+		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - 1, " ");
+		vty_out(vty, "%s", buf);
+		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - 1, " ");
 	}
 	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
-	vty_out(vty, " %-40s", addr_buf);
+	vty_out(vty, "%s", addr_buf);
+	vty_out(vty, "%*s", bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
 	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
-	vty_out(vty, " %-40s", addr_buf);
+	vty_out(vty, "%s", addr_buf);
+	vty_out(vty, "%*s", bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
 	vty_out(vty, "%-8s\n", state_list[bs->ses_state].str);
-	update_session_statistic(bs, session_statistic);
+	update_session_statistic(bs, &bvt->session_statistic);
 }
 
 static void _display_peer_brief_iter(struct hash_bucket *hb, void *arg)
@@ -921,7 +946,48 @@ static void _display_peer_brief_iter(struct hash_bucket *hb, void *arg)
 		return;
 	}
 
-	_display_peer_brief(vty, bs, &bvt->session_statistic);
+	_display_peer_brief(vty, bs, bvt);
+}
+
+static void _get_display_peer_brief_wide(struct hash_bucket *hb, void *arg)
+{
+	struct bfd_vrf_tuple *bvt = arg;
+	struct bfd_session *bs = hb->data;
+
+	if (!bvt)
+		return;
+
+	if (bvt->vrfname) {
+		if (!bs->key.vrfname[0] ||
+		    !strmatch(bs->key.vrfname, bvt->vrfname))
+		return;
+	}
+
+	char addr_buf[INET6_ADDRSTRLEN];
+
+	if(bvt->max_wide_list[SESSION_NAME_WIDE_INDEX]<(strlen(bs->bfd_name))) {
+		bvt->max_wide_list[SESSION_NAME_WIDE_INDEX]=strlen(bs->bfd_name);
+	}
+	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
+	{
+		inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf, sizeof(addr_buf));
+		if (bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] < strlen(addr_buf)) {
+			bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] = strlen(addr_buf);
+		}
+		inet_ntop(AF_INET6, &bs->out_sip6, addr_buf, sizeof(addr_buf));
+		if (bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] < strlen(addr_buf)) {
+			bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] = strlen(addr_buf);
+		}
+	}
+
+	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
+	if(bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] < strlen(addr_buf)){
+		bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] = strlen(addr_buf);
+	}
+	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
+	if (bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] < strlen(addr_buf)){
+		bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] = strlen(addr_buf);
+	}
 }
 
 static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_json)
@@ -930,30 +996,32 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 	struct bfd_vrf_tuple bvt = {0};
 
 	bvt.vrfname = vrfname;
+	uint32_t max_wide_list[5]={SESSION_NAME_WIDE_MIN,
+				     ENCAP_DIP_WIDE_MIN,
+				     ENCAP_SIP_WIDE_MIN,
+				     LOCAL_ADDR_WIDE_MIN,
+				     PEER_ADDR_WIDE_MIN};
+	bvt.max_wide_list=&max_wide_list;
 
 	if (!use_json) {
 		bvt.vty = vty;
+		bfd_id_iterate(_get_display_peer_brief_wide, &bvt);
 
-		vty_out(vty, "%-28s", "SessName");
-		vty_out(vty, " %-12s", "SessId");
-		vty_out(vty, " %-10s", "Mode");
-		vty_out(vty, " %-40s", "Encap-data-dip");
-		vty_out(vty, " %-40s", "Encap-data-sip");
-		vty_out(vty, " %-40s", "LocalAddress");
-		vty_out(vty, " %-40s", "PeerAddress");
+		vty_out(vty, "%s", "SessName");
+		vty_out(vty, "%*s",bvt.max_wide_list[SESSION_NAME_WIDE_INDEX] - SESSION_NAME_WIDE_MIN + 2, " ");
+		vty_out(vty, "%-13s", "SessId");
+		vty_out(vty, "%-11s", "Mode");
+		vty_out(vty, "%s", "Encap-data-dip");
+		vty_out(vty, "%*s",bvt.max_wide_list[ENCAP_DIP_WIDE_INDEX] - ENCAP_DIP_WIDE_MIN + 2, " ");
+		vty_out(vty, "%s", "Encap-data-sip");
+		vty_out(vty, "%*s",bvt.max_wide_list[ENCAP_SIP_WIDE_INDEX] - ENCAP_SIP_WIDE_MIN + 2, " ");
+		vty_out(vty, "%s", "LocalAddress");
+		vty_out(vty, "%*s",bvt.max_wide_list[LOCAL_ADDR_WIDE_INDEX] - LOCAL_ADDR_WIDE_MIN + 2, " ");
+		vty_out(vty, "%s", "PeerAddress");
+		vty_out(vty, "%*s",bvt.max_wide_list[PEER_ADDR_WIDE_INDEX] - PEER_ADDR_WIDE_MIN + 2, " ");
 		vty_out(vty, "%-8s\n", "Status");
 
-		vty_out(vty, "%-28s", "==========");
-		vty_out(vty, " %-12s", "===========");
-		vty_out(vty, " %-10s", "=========");
-		vty_out(vty, " %-40s", "=====================================");
-		vty_out(vty, " %-40s", "=====================================");
-		vty_out(vty, " %-40s", "=====================================");
-		vty_out(vty, " %-40s", "=====================================");
-		vty_out(vty, "%-8s\n", "======");
-
 	        bfd_id_iterate(_display_peer_brief_iter, &bvt);
-		vty_out(vty, "\n");
 	        vty_out(vty, "\nAll session count: %lu\n",
 		        bvt.session_statistic.all_session_count);
 	        vty_out(vty, "Up session count: %lu\n",
