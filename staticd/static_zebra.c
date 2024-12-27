@@ -824,3 +824,46 @@ void static_zebra_vrf_unregister(struct vrf *vrf)
 		return;
 	zclient_send_dereg_requests(zclient, vrf->vrf_id);
 }
+
+void show_static_nexthop_tracking_info(struct vty *vty, struct static_nht_data  *nht){
+
+	char buf[PREFIX_STRLEN];
+	vty_out(vty, "Prefix: %s\n", prefix2str(nht->nh, buf, sizeof(buf)));
+	vty_out(vty, "  Color: %d", nht->color);
+	vty_out(vty, "  Nexthop Num: %d", nht->nh_num);
+	vty_out(vty, "  RefCnt: %u", nht->refcount);
+	vty_out(vty, "  Type: %u", nht->type);
+	vty_out(vty, "  VRF: %s\n", vrf_id_to_name(nht->nh_vrf_id));
+}
+
+static int nht_show_walker(struct hash_bucket *bucket, void *arg)
+{
+	struct static_nht_show_context *ctx = arg;
+	struct static_nht_data  *nht;
+
+	nht = bucket->data; /* We won't be offered NULL buckets */
+			    
+	if(!nht || !ctx){
+		goto done;
+	}
+
+	if (ctx->afi && ( nht->nh->family != afi2family(ctx->afi))){
+		goto done;
+	}
+
+	show_static_nexthop_tracking_info(ctx->vty, nht);
+
+done:
+	return HASHWALK_CONTINUE;
+}
+
+void show_static_nht_cmd_helper(struct vty *vty, afi_t afi)
+{
+	struct static_nht_show_context ctx;
+
+	ctx.vty = vty;
+	ctx.afi = afi;
+
+	hash_walk(static_nht_hash, nht_show_walker, &ctx);
+}
+

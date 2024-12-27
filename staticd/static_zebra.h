@@ -22,6 +22,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+struct static_nht_show_context {
+	struct vty *vty;
+	afi_t afi;
+};
+
+extern void show_static_nht_cmd_helper(struct vty *vty, afi_t afi);
 
 extern struct thread_master *master;
 

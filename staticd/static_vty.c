@@ -37,6 +37,7 @@
 #include "static_vty.h"
 #include "static_routes.h"
 #include "static_debug.h"
+#include "static_zebra.h"
 #ifndef VTYSH_EXTRACT_PL
 #include "staticd/static_vty_clippy.c"
 #endif
@@ -1710,6 +1711,26 @@ DEFPY_YANG(show_static_ipv6_route, show_static_route_ipv6_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFPY (show_static_route_nht,
+      show_static_route_nht_cmd,
+      "show static <ip$v4|ipv6$v6> nht",
+      SHOW_STR
+      STATICD_STR
+      IP_STR
+      IPV6_STR
+      "Static nexthop tracking table\n")
+{
+	afi_t afi = AFI_UNSPEC;
+
+	if (v4)
+		afi = AFI_IP;
+	else if (v6)
+		afi = AFI_IP6;
+
+	show_static_nht_cmd_helper(vty, afi);
+
+	return CMD_SUCCESS;
+}
 void static_vty_init(void)
 {
 	install_node(&debug_node);
@@ -1741,4 +1762,5 @@ void static_vty_init(void)
 	install_element(CONFIG_NODE, &debug_staticd_cmd);
 	install_element(ENABLE_NODE, &show_static_route_ip_cmd);
 	install_element(ENABLE_NODE, &show_static_route_ipv6_cmd);
+	install_element(ENABLE_NODE, &show_static_route_nht_cmd);
 }
