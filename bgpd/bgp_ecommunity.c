@@ -1044,7 +1044,7 @@ static uint32_t ieee_float_uint32_to_uint32(uint32_t u)
 }
 
 static int ecommunity_lb_str(char *buf, size_t bufsz, const uint8_t *pnt,
-			     bool disable_ieee_floating)
+			     bool disable_ieee_floating, int format)
 {
 	int len = 0;
 	as_t as;
@@ -1074,7 +1074,16 @@ static int ecommunity_lb_str(char *buf, size_t bufsz, const uint8_t *pnt,
 	else
 		snprintf(bps_buf, sizeof(bps_buf), "%u bps", bw * 8);
 
-	len = snprintf(buf, bufsz, "LB:%u:%u (%s)", as, bw, bps_buf);
+	switch (format) {
+	case ECOMMUNITY_FORMAT_COMMUNITY_LIST:
+	    if (disable_ieee_floating) {
+		len = snprintf(buf, bufsz, "bwp %u:%u", as, bw*8/1000/1000);
+		break;
+	    }
+	    // fallthrough
+	default:
+	    len = snprintf(buf, bufsz, "LB:%u:%u (%s)", as, bw, bps_buf);
+	}
 	return len;
 }
 
@@ -1156,7 +1165,7 @@ char *ecommunity_ecom2str(struct ecommunity *ecom, int format, int filter)
 					   type == ECOMMUNITY_ENCODE_AS) {
 					ecommunity_lb_str(
 						encbuf, sizeof(encbuf), pnt,
-						ecom->disable_ieee_floating);
+						ecom->disable_ieee_floating, format);
 				} else if (sub_type == ECOMMUNITY_NODE_TARGET &&
 					   type == ECOMMUNITY_ENCODE_IP) {
 					ecommunity_node_target_str(
@@ -1370,7 +1379,7 @@ char *ecommunity_ecom2str(struct ecommunity *ecom, int format, int filter)
 			sub_type = *pnt++;
 			if (sub_type == ECOMMUNITY_LINK_BANDWIDTH)
 				ecommunity_lb_str(encbuf, sizeof(encbuf), pnt,
-						  ecom->disable_ieee_floating);
+						  ecom->disable_ieee_floating, format);
 			else if (sub_type == ECOMMUNITY_OPAQUE_SUBTYPE_COLOR) {
 				uint32_t color;
 				/* get the color type */
