@@ -105,9 +105,14 @@ void static_install_path(struct static_path *pn)
 	uint8_t rttype;
 	bool set_etag = false;
 
+	pn->valid_srv6_nh = false;
 	frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
 		static_zebra_nht_register(nh, true);
         get_static_nht_nh_rttype(pn->rn, nh, &rttype);
+		if (nh->type == STATIC_IPV4_SEGMENTLIST || nh->type == STATIC_IPV6_SEGMENTLIST) {
+			if (nh->nh_valid)
+				pn->valid_srv6_nh = true;
+		}
     }
 
 	/* 
@@ -121,7 +126,6 @@ void static_install_path(struct static_path *pn)
 	{
 		set_etag = true;
 	}
-
 	if (static_nexthop_list_count(&pn->nexthop_list))
 		static_zebra_route_add(pn, true, set_etag);
 }
@@ -133,8 +137,13 @@ void static_uninstall_path(struct static_path *pn)
 	struct static_nexthop *nh;
 	bool set_etag = false;
 
+	pn->valid_srv6_nh = false;
 	frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
 		get_static_nht_nh_rttype(pn->rn, nh, &rttype);
+		if (nh->type == STATIC_IPV4_SEGMENTLIST || nh->type == STATIC_IPV6_SEGMENTLIST) {
+			if (nh->nh_valid)
+				pn->valid_srv6_nh = true;
+		}
 	}
 	DEBUGD(&static_dbg_route, "%pRN  nexthop count %u", pn->rn, static_nexthop_list_count(&pn->nexthop_list));
 	if (static_nexthop_list_count(&pn->nexthop_list) == 1 && rttype == ZEBRA_ROUTE_BGP)

@@ -645,6 +645,14 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 				continue;
 		}
 
+		if (pn->valid_srv6_nh && nh->type != STATIC_IPV4_SEGMENTLIST
+			&& nh->type != STATIC_IPV6_SEGMENTLIST)
+			continue;
+
+		if (!pn->valid_srv6_nh && (nh->type == STATIC_IPV4_SEGMENTLIST
+			|| nh->type == STATIC_IPV6_SEGMENTLIST))
+			continue;
+
 		api_nh->vrf_id = nh->nh_vrf_id;
 		if (nh->onlink)
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
@@ -735,6 +743,7 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 			api_nh->gate = nh->addr;
 			break;
 		}
+
 
 		if (nh->snh_label.num_labels) {
 			int i;

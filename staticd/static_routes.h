@@ -106,6 +106,7 @@ struct static_path {
 	/* Table-id */
 	uint32_t table_id;
 	/* Nexthop list */
+	bool valid_srv6_nh;
 	struct static_nexthop_list_head nexthop_list;
 };
 

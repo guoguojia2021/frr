@@ -35,6 +35,11 @@ static void static_nht_update_path(struct static_path *pn, struct prefix *nhp,
 				   struct vrf *vrf, bool set_etag, uint32_t color)
 {
 	struct static_nexthop *nh;
+	bool valid_srv6_nh = false;
+	bool add_route = false;
+	bool old_valid_srv6_nh = pn->valid_srv6_nh;
+
+	pn->valid_srv6_nh = false;
 
 	frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
 		if (nh->nh_vrf_id != nh_vrf_id)
@@ -60,8 +65,20 @@ static void static_nht_update_path(struct static_path *pn, struct prefix *nhp,
 			nh->nh_valid = !!nh_num;
 
 		if (nh->state == STATIC_START)
-			static_zebra_route_add(pn, true, set_etag);
+			add_route = true;
 	}
+
+	frr_each(static_nexthop_list, &pn->nexthop_list, nh) {
+		if (nh->type == STATIC_IPV4_SEGMENTLIST || nh->type == STATIC_IPV6_SEGMENTLIST) {
+			if (nh->nh_valid) {
+				pn->valid_srv6_nh = true;
+				break;
+			}
+		}
+	}
+
+	if (add_route || old_valid_srv6_nh != pn->valid_srv6_nh)
+		static_zebra_route_add(pn, true, set_etag);
 }
 
 static void static_nht_update_safi(struct prefix *sp, struct prefix *nhp,

@@ -1402,6 +1402,7 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 	bool onlink;
     char *rmac;
     uint32_t vni;
+	uint32_t color = 0;
 
 	vrf = yang_dnode_get_string(route, "../../vrf");
 
@@ -1427,6 +1428,7 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 			yang_dnode_get_string(src, "src-prefix"));
 
 	nh_type = yang_dnode_get_enum(nexthop, "nh-type");
+	color = yang_dnode_get_uint32(nexthop, "srte-color");
 	switch (nh_type) {
 	case STATIC_IFNAME:
 		vty_out(vty, " %s",
@@ -1499,9 +1501,8 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 		if (onlink)
 			vty_out(vty, " onlink");
 	}
-
-	vty_out(vty, " color %s",
-		yang_dnode_get_string(nexthop, "srte-color"));
+	if (color)
+		vty_out(vty, " color %d", color);
 
 	if (yang_dnode_exists(nexthop, "bfd-name"))
 		vty_out(vty, " bfd-name %s",
