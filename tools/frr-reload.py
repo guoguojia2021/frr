@@ -1551,6 +1551,8 @@ def ignore_unconfigurable_lines(lines_to_add, lines_to_del):
                     "password",
                     "line vty",
                     "service integrated-vtysh-config",
+                    "XFRR_start_configuration",
+                    "XFRR_end_configuration",
                 ]
             ]
         ):
