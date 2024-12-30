@@ -1401,6 +1401,80 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
                     lines_to_del_to_del.append((ctx_keys, route_target_export_line))
                     lines_to_add_to_del.append((ctx_keys, route_target_both_line))
 
+        if (
+            len(ctx_keys) == 2
+            and ctx_keys[0].startswith("router bgp")
+            and (ctx_keys[1] == "address-family ipv6 unicast" or ctx_keys[1] == "address-family ipv4 unicast")
+        ):
+            re_route_target = (
+                re.search("^rt vpn (import|export|both) (.*)$", line)
+                if line is not None
+                else False
+            )
+
+            
+
+            if re_route_target:
+                dir = re_route_target.group(1).strip()
+                rt = re_route_target.group(2).strip()
+                
+                route_target_import_line = "route-target vpn import %s" % rt
+                route_target_export_line = "route-target vpn export %s" % rt
+                route_target_both_line = "route-target vpn both %s" % rt
+
+                rt_import_line = "rt vpn import %s" % rt
+                rt_export_line = "rt vpn export %s" % rt
+                rt_both_line = "rt vpn both %s" % rt
+
+                found_route_target_import_line = line_exist(
+                    lines_to_add, ctx_keys, route_target_import_line
+                )
+                found_route_target_export_line = line_exist(
+                    lines_to_add, ctx_keys, route_target_export_line
+                )
+                found_route_target_both_line = line_exist(
+                    lines_to_add, ctx_keys, route_target_both_line
+                )
+
+                if dir == 'both':
+                    # If the running configs has
+                    #     rt vpn both 1:1
+                    # and the config we are reloading against has
+                    #     route-target vpn import 1:1
+                    #     route-target vpn export 1:1
+                    # then we can ignore adding the route-target import/export and ignore deleting the 'rt both'
+                    # or the config we are reloading against has
+                    #     route-target vpn both 1:1
+                    # then we can ignore adding the 'route-target both' and ignore deleting the 'rt both'
+                    if found_route_target_import_line and found_route_target_export_line:
+                        lines_to_add_to_del.append((ctx_keys, route_target_import_line))
+                        lines_to_add_to_del.append((ctx_keys, route_target_export_line))
+                        lines_to_del_to_del.append((ctx_keys, rt_both_line))
+                    elif found_route_target_both_line:
+                        lines_to_add_to_del.append((ctx_keys, route_target_both_line))
+                        lines_to_del_to_del.append((ctx_keys, rt_both_line))
+
+                elif dir == 'import':
+                    # If the running configs has
+                    #     rt vpn import 1:1
+                    # and the config we are reloading against has
+                    #     route-target vpn import 1:1
+                    # then we can ignore adding the 'route-target import' and ignore deleting the 'rt import'
+                    if found_route_target_import_line:
+                        lines_to_add_to_del.append((ctx_keys, route_target_import_line))
+                        lines_to_del_to_del.append((ctx_keys, rt_import_line))
+                        
+                elif dir == 'export':
+                    # If the running configs has
+                    #     rt vpn export 1:1
+                    # and the config we are reloading against has
+                    #     route-target vpn export 1:1
+                    # then we can ignore adding the 'route-target export' and ignore deleting the 'rt export'
+                    if found_route_target_export_line:
+                        lines_to_add_to_del.append((ctx_keys, route_target_export_line))
+                        lines_to_del_to_del.append((ctx_keys, rt_export_line))
+
+
         # Deleting static routes under a vrf can lead to time-outs if each is sent
         # as separate vtysh -c commands. Change them from being in lines_to_del and
         # put the "no" form in lines_to_add
