@@ -1856,17 +1856,19 @@ def clear_bgp_and_verify(tgen, topo, router):
                             nh_state = ipv4_data[neighbor_ip]["state"]
 
                             # Peer up time dictionary
-                            peer_uptime_before_clear_bgp[bgp_neighbor] = ipv4_data[
-                                neighbor_ip
-                            ]["peerUptimeEstablishedEpoch"]
+                            if nh_state == "Established":
+                                peer_uptime_before_clear_bgp[bgp_neighbor] = ipv4_data[
+                                    neighbor_ip
+                                ]["peerUptimeEstablishedEpoch"]
                         else:
                             ipv6_data = show_bgp_json["ipv6Unicast"]["peers"]
                             nh_state = ipv6_data[neighbor_ip]["state"]
 
                             # Peer up time dictionary
-                            peer_uptime_before_clear_bgp[bgp_neighbor] = ipv6_data[
-                                neighbor_ip
-                            ]["peerUptimeEstablishedEpoch"]
+                            if nh_state == "Established":
+                                peer_uptime_before_clear_bgp[bgp_neighbor] = ipv6_data[
+                                    neighbor_ip
+                                ]["peerUptimeEstablishedEpoch"]
 
                         if nh_state == "Established":
                             no_of_peer += 1
