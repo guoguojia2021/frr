@@ -27,6 +27,9 @@ vtysh_scan += \
 vtysh_scan += zebra/irdp_interface.c
 vtysh_scan += zebra/zebra_fpm.c
 
+if LINUX
+vtysh_scan += zebra/dplane_fpm_nl.c
+endif
 vtysh_daemons += zebra
 
 if IRDP
