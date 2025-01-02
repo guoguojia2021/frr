@@ -293,6 +293,35 @@ class Config(object):
                 self.lines.append("exit-vrf")
                 line = "end"
 
+            # community attributes will be sorted by numbers in show running-config
+            # but our community attributes in config file may not arrange by numbers,
+            # for example:
+            #  in running config - "set community 64994:8001 64994:10122 64994:19902 additive"
+            #  in config file    - "set community 64994:10122 64994:19902 64994:8001 additive"
+            # this difference causes frr-reload to not consider them a match
+            # sort the community attributes in config file
+            if line.startswith("set community"):
+                newline = line.split(" ")
+                community_attrs = []
+                start_idx = 0
+                count = 0
+                for i, val in enumerate(newline):
+                    if re.match(r"^\d+(\.\d+)?:\d+(\.\d+)?$", val) is not None:
+                        community_attrs.append([val.split(":")[0], val.split(":")[1]])
+                        if start_idx ==0:
+                            start_idx = i
+                        count = count + 1
+                    else:
+                        if start_idx != 0:
+                            break
+                attrs1 = sorted(community_attrs, key=lambda x: int(x[0]))
+                attrs2 = sorted(attrs1, key=lambda x: int(x[1]))
+                sorted_attrs = []
+                for attr in attrs2:
+                    sorted_attrs.append(":".join(attr))
+                newline[start_idx:start_idx + count]= sorted_attrs
+                line = " ".join(newline)
+
             self.lines.append(line)
 
         self.load_contexts()
