@@ -38,6 +38,8 @@ import string
 import subprocess
 import sys
 from collections import OrderedDict
+from functools import \
+    cmp_to_key
 from ipaddress import IPv6Address, ip_network
 from pprint import pformat
 
@@ -234,6 +236,38 @@ def get_normalized_mac_ip_line(line):
 
     return line
 
+def cmp_community_attrs(x, y):
+    if int(x[0]) > int(y[0]) :
+        return 1
+    elif int(x[0]) < int(y[0]) :
+        return -1
+    elif int(x[1]) > int(y[1]) :
+        return 1
+    elif int(x[1]) < int(y[1]) :
+        return -1
+    else:
+        return 0
+def get_sorted_community_atrrs(line):
+    newline = line.split(" ")
+    community_attrs = []
+    start_idx = 0
+    count = 0
+    for i, val in enumerate(newline):
+        if re.match(r"^\d+(\.\d+)?:\d+(\.\d+)?$", val) is not None:
+            community_attrs.append([val.split(":")[0], val.split(":")[1]])
+            if start_idx ==0:
+                start_idx = i
+            count = count + 1
+        else:
+            if start_idx != 0:
+                break
+    community_attrs.sort(key=cmp_to_key(cmp_community_attrs))
+    sorted_attrs = []
+    for attr in community_attrs:
+        sorted_attrs.append(":".join(attr))
+    newline[start_idx:start_idx + count]= sorted_attrs
+    result = " ".join(newline)
+    return result
 
 class Config(object):
     """
@@ -321,6 +355,22 @@ class Config(object):
                     sorted_attrs.append(":".join(attr))
                 newline[start_idx:start_idx + count]= sorted_attrs
                 line = " ".join(newline)
+
+            # community attributes will be sorted by numbers in show running-config
+            # but our community attributes in config file may not arrange by numbers,
+            # for example:
+            #  in running config - "set community 64994:8001 64994:10122 64994:19902 additive"
+            #  in config file    - "set community 64994:10122 64994:19902 64994:8001 additive"
+            # this difference causes frr-reload to not consider them a match
+            # sort the community attributes in config file
+            if line.startswith("set community"):
+                newline = get_sorted_community_atrrs(line)
+                line = newline
+
+
+            if line.startswith("bgp community-list"):
+                newline = get_sorted_community_atrrs(line)
+                line = newline
 
             self.lines.append(line)
 
