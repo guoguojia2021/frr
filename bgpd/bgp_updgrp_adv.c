@@ -492,7 +492,7 @@ bgp_advertise_clean_subgroup(struct update_subgroup *subgrp,
 	return next;
 }
 
-void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
+bool bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 			      struct update_subgroup *subgrp, struct attr *attr,
 			      struct bgp_path_info *path)
 {
@@ -512,7 +512,7 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 	bgp = SUBGRP_INST(subgrp);
 
 	if (DISABLE_BGP_ANNOUNCE)
-		return;
+		return false;
 
 	/* Look for adjacency information. */
 	adj = adj_lookup(
@@ -528,7 +528,7 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 			bgp_addpath_id_for_peer(peer, afi, safi,
 						&path->tx_addpath));
 		if (!adj)
-			return;
+			return false;
 
 		subgrp->pscount++;
 	}
@@ -551,7 +551,7 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 				zlog_debug("%s suppress UPDATE dest %p tx_id %d p %pFX  w/ attr: %s-%u", peer->host, dest,
 					adj->addpath_tx_id, bgp_dest_get_prefix(dest), attr_str, bgp->alibgp_flags);
 			}
-			return;
+			return false;
 		}
 	}
 
@@ -606,6 +606,7 @@ void bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 	bgp_adv_fifo_add_tail(&subgrp->sync->update, adv);
 
 	subgrp->version = MAX(subgrp->version, dest->version);
+	return true;
 }
 
 /* The only time 'withdraw' will be false is if we are sending
@@ -805,7 +806,7 @@ void subgroup_announce_route(struct update_subgroup *subgrp)
 void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 {
 	struct bgp *bgp;
-	struct attr attr;
+	struct attr attr = { 0 };
 	struct attr *new_attr = &attr;
 	struct prefix p;
 	struct peer *from;
@@ -929,9 +930,12 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 						    dest, pi, subgrp,
 						    bgp_dest_get_prefix(dest),
 						    &attr, NULL, 1))
-						bgp_adj_out_set_subgroup(
+						if (!bgp_adj_out_set_subgroup(
 							dest, subgrp, &attr,
-							pi);
+							pi))
+							bgp_attr_flush(&attr);
+					else
+						bgp_attr_flush(&attr);
 			}
 			bgp_dest_unlock_node(dest);
 		}

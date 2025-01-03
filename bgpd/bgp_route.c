@@ -2578,7 +2578,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					"%s [Update:SEND] %pFX is filtered by route-map '%s'",
 					peer->host, p,
 					ROUTE_MAP_OUT_NAME(bgp_filter));
-
+			bgp_attr_flush(rmap_path.attr);
 			return false;
 		}
 
@@ -2597,7 +2597,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					"%s [Update:SEND] %pFX is filtered by route-map '%s'",
 					peer->host, p,
 					ADVERTISE_DELAY_MAP_NAME(filter));
-
+			bgp_attr_flush(rmap_path.attr);
 			return false;
 		}
 	}
@@ -3190,7 +3190,7 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 				struct attr *post_attr,
 				uint32_t wait_addpath_tx_id)
 {
-	struct attr attr;
+	struct attr attr = { 0 }, *pattr = &attr;
 	struct bgp_path_info *second;
 	bool advertise;
 	struct peer *peer;
@@ -3210,7 +3210,7 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 		zlog_debug("%s: peer host %s, afi %s", __func__, peer->host,
 			get_afi_safi_str(afi, safi, false));
  
-	switch (subgroup_announce_check(dest, pi, subgrp, dest_p, &attr, post_attr, 1)) {
+	switch (subgroup_announce_check(dest, pi, subgrp, dest_p, pattr, post_attr, 1)) {
 	case ANNOUNCE_CHK_SUCCESS:
 		/* Check if the route can be advertised */
 		/* Announcement to the subgroup. If the route is filtered withdraw it.
@@ -3220,7 +3220,10 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 		 */
 		advertise = bgp_check_advertise(bgp, dest);
 		if (advertise)
-			bgp_adj_out_set_subgroup(dest, subgrp, &attr, pi);
+			if (!bgp_adj_out_set_subgroup(dest, subgrp, pattr, pi))
+				bgp_attr_flush(pattr);
+		else
+			bgp_attr_flush(pattr);
 		break;
  
 	case ANNOUNCE_CHK_ERROR:
@@ -3229,10 +3232,12 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 					    && is_default_prefix(bgp_dest_get_prefix(dest)))
 			break;
 		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
+		bgp_attr_flush(pattr);
 		break;
  
 	case ANNOUNCE_CHK_TO_SENDER:
 		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
+		bgp_attr_flush(pattr);
 		if (!adv_2nd)
 			break;
 		/*
@@ -3255,10 +3260,12 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 		if (!second) break;
  
 		memset(&attr, 0, sizeof(struct attr));
-		if (subgroup_announce_check(dest, second, subgrp, dest_p, &attr, post_attr, 0)) {
-			bgp_adj_out_set_subgroup(dest, subgrp, &attr, second);
+		if (subgroup_announce_check(dest, second, subgrp, dest_p, pattr, post_attr, 0)) {
+			if (!bgp_adj_out_set_subgroup(dest, subgrp, pattr, second))
+				bgp_attr_flush(pattr);
 		} else {
 			bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
+			bgp_attr_flush(pattr);
 		}
 		break;
  

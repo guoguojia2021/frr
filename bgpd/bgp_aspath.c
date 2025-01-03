@@ -1345,6 +1345,8 @@ struct aspath *aspath_remove_private_asns(struct aspath *aspath, as_t peer_asn)
 		last_new_seg = new_seg;
 		seg = seg->next;
 	}
+	if (!aspath->refcnt)
+		aspath_free(aspath);
 
 	aspath_str_update(new, false);
 	return new;
