@@ -430,17 +430,35 @@ def luNumPass():
     return LUtil.l_pass
 
 
+def read_file_with_retries(file_path, retries=30, interval=1):
+    """
+    make sure that the file exists before trying to read
+    """
+    for attempt in range(retries):
+        if os.path.exists(file_path):
+            with open(file_path, "r") as sf:
+                return sf.read()
+        logger.info(f"Attempt {attempt + 1}/{retries}: {file_path} not found. Retrying in {interval} seconds...")
+        time.sleep(interval)
+    # Do not raise an error but log as a warning
+    logger.warning(f"File {file_path} not found after {retries} attempts.")
+    return None
+
+
 def luResult(target, success, str, logstr=None):
     return LUtil.result(target, success, str, logstr)
 
 
 def luShowResults(prFunction):
     printed = 0
-    sf = open(LUtil.fsum_name, "r")
-    for line in sf:
-        printed += 1
-        prFunction(line.rstrip())
-    sf.close()
+    # read the file with retrying machanism
+    file_content = read_file_with_retries(LUtil.fsum_name)
+    if file_content is not None:
+        for line in file_content.splitlines():
+            printed += 1
+            prFunction(line.rstrip())
+    else:
+        logger.info(f"Skipping processing as the summary file {LUtil.fsum_name} does not exist.")
 
 
 def luShowFail():
