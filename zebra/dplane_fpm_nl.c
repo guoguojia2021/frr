@@ -1545,8 +1545,14 @@ static int fpm_nl_process(struct zebra_dplane_provider *prov)
 	fnc = dplane_provider_get_data(prov);
 	limit = dplane_provider_get_work_limit(prov);
 
-	frr_with_mutex (&fnc->ctxqueue_mutex) {
-		cur_queue = dplane_ctx_queue_count(&fnc->ctxqueue);
+	frr_with_mutex (&fnc->ctxprequeue_mutex) {
+		cur_queue = dplane_ctx_queue_count(&fnc->ctxprequeue);
+	}
+
+	if (cur_queue == 0) {
+		frr_with_mutex (&fnc->ctxqueue_mutex) {
+			cur_queue = dplane_ctx_queue_count(&fnc->ctxqueue);
+		}
 	}
 
 	if (cur_queue >= (uint64_t)limit) {
@@ -1578,6 +1584,8 @@ static int fpm_nl_process(struct zebra_dplane_provider *prov)
 				|| dplane_ctx_get_op(ctx) == DPLANE_PROTOBUF_OP_NH_UPDATE) {
 				frr_with_mutex (&fnc->ctxprequeue_mutex) {
 					dplane_ctx_enqueue_tail(&fnc->ctxprequeue, ctx);
+					cur_queue =
+						dplane_ctx_queue_count(&fnc->ctxprequeue);
 				}
 			}
 			else {
