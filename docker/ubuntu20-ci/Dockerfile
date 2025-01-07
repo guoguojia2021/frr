@@ -25,6 +25,7 @@ RUN apt update && \
       apt-get install -y \
         libprotobuf-c-dev \
         protobuf-c-compiler \
+		valgrind \
       && \
       python3 -m pip install wheel && \
       python3 -m pip install pytest && \
