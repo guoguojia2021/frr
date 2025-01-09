@@ -136,7 +136,7 @@ from lib.common_config import (
     required_linux_kernel_version,
 )
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 
 # Global variables
@@ -145,7 +145,7 @@ NEXT_HOP_IP_1 = {"ipv4": "192.168.0.1", "ipv6": "fd00::1"}
 NEXT_HOP_IP_2 = {"ipv4": "192.168.0.2", "ipv6": "fd00::2"}
 BGP_CONVERGENCE = False
 GR_RESTART_TIMER = 20
-PREFERRED_NEXT_HOP = "link_local"
+PREFERRED_NEXT_HOP = ""
 
 
 def setup_module(mod):

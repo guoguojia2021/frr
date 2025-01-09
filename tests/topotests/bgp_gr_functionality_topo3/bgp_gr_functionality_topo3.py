@@ -82,7 +82,7 @@ from lib.common_config import (
     required_linux_kernel_version,
 )
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 
 # Global variables
@@ -105,7 +105,7 @@ NETWORK5_2 = {"ipv4": "192.0.2.10/32", "ipv6": "2001:DB8::10:1/128"}
 
 NEXT_HOP_IP = {"ipv4": "Null0", "ipv6": "Null0"}
 
-PREFERRED_NEXT_HOP = "link_local"
+PREFERRED_NEXT_HOP = ""
 
 
 def configure_gr_followed_by_clear(tgen, topo, input_dict, tc_name,
@@ -370,7 +370,7 @@ def test_bgp_gr_stale_routes(request):
                     {
                         "local_as": 200,
                         "vrf": "RED",
-                        "address_family": {addr_type: {"unicast": {"import": {"vrf": "default"}}}},
+                        "address_family": {addr_type: {"unicast": {"import": {"vrf": "Default"}}}},
                     }
                 ]
             }

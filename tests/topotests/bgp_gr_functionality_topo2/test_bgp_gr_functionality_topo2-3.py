@@ -119,7 +119,7 @@ from lib.common_config import (
     required_linux_kernel_version,
 )
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 
 # Global variables
@@ -127,7 +127,7 @@ BGP_CONVERGENCE = False
 GR_RESTART_TIMER = 5
 GR_SELECT_DEFER_TIMER = 5
 GR_STALEPATH_TIMER = 5
-PREFERRED_NEXT_HOP = "link_local"
+PREFERRED_NEXT_HOP = ""
 NEXT_HOP_4 = ["192.168.1.1", "192.168.4.2"]
 NEXT_HOP_6 = ["fd00:0:0:1::1", "fd00:0:0:4::2"]
 
