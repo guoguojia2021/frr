@@ -853,24 +853,29 @@ bool zebra_srv6_is_enable(void)
 
 int zebra_srv6_vrf_enable(struct zebra_vrf *zvrf)
 {
-    struct zebra_srv6 *srv6 = zebra_srv6_get_default();
-    struct listnode *node, *opcodenode;
-    struct srv6_locator *locator;
-    struct seg6_sid *sid;
-    struct vrf *vrf;
+	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+	struct listnode *node, *opcodenode;
+	struct srv6_locator *locator;
+	struct seg6_sid *sid;
+	struct vrf *vrf;
+	struct zserv *client;
+	struct listnode *client_node;
 
-    for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
-        for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
-            if (sid->vrfName == NULL)
-                continue;
-            vrf = vrf_lookup_by_name(sid->vrfName);
-            if (zvrf->vrf != vrf)
-                continue;
-            if (CHECK_FLAG(vrf->status, VRF_ACTIVE))
-            {
-                zebra_srv6_local_sid_add(locator, sid);
-            }
-        }
-    }
-    return 0;
+	for (ALL_LIST_ELEMENTS_RO(srv6->locators, node, locator)) {
+		for (ALL_LIST_ELEMENTS_RO(locator->sids, opcodenode, sid)) {
+			if (sid->vrfName == NULL)
+				continue;
+			vrf = vrf_lookup_by_name(sid->vrfName);
+			if (zvrf->vrf != vrf)
+				continue;
+			if (CHECK_FLAG(vrf->status, VRF_ACTIVE))
+			{
+				zebra_srv6_local_sid_add(locator, sid);
+
+				for (ALL_LIST_ELEMENTS_RO(zrouter.client_list, client_node, client))
+					zsend_srv6_manager_get_locator_sid_response(client, VRF_DEFAULT, locator, sid);
+			}
+		}
+	}
+	return 0;
 }

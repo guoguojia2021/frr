@@ -1192,7 +1192,7 @@ int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
     struct listnode *node = NULL;
 	unsigned long sidcountp;
 	unsigned int sid_count = 0;
-
+	struct vrf *vrf;
 
 	stream_putw(s, strlen(loc->name));
 	stream_put(s, loc->name, strlen(loc->name));
@@ -1210,55 +1210,127 @@ int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc)
     for (ALL_LIST_ELEMENTS_RO(loc->sids, node, sidtmp)) {
 		if (!ZEBRA_SEG6_ACTION_IS_END_DT46(sidtmp->sidaction))
 			continue;
+		vrf = vrf_lookup_by_name(sidtmp->vrfName);
+		if (!vrf)
+			continue;
 		sid_count++;
-        stream_putw(s, sidtmp->ipv6Addr.prefixlen);
-    	stream_put(s, &sidtmp->ipv6Addr.prefix, sizeof(sidtmp->ipv6Addr.prefix));
-        stream_putl(s, sidtmp->sidaction);
-        stream_putw(s, strlen(sidtmp->vrfName));
-    	stream_put(s, sidtmp->vrfName, strlen(sidtmp->vrfName));
+		stream_putw(s, sidtmp->ipv6Addr.prefixlen);
+		stream_put(s, &sidtmp->ipv6Addr.prefix, sizeof(sidtmp->ipv6Addr.prefix));
+		stream_putl(s, sidtmp->sidaction);
+		stream_putl(s, vrf->vrf_id);
     }
 	stream_putl_at(s, sidcountp, sid_count);
 	return 0;
 }
 
+int zapi_srv6_locator_one_sid_encode(struct stream *s, struct srv6_locator *loc, struct seg6_sid *sid)
+{
+
+	stream_putw(s, strlen(loc->name));
+	stream_put(s, loc->name, strlen(loc->name));
+	stream_putw(s, loc->prefix.prefixlen);
+	stream_put(s, &loc->prefix.prefix, sizeof(loc->prefix.prefix));
+	stream_putc(s, loc->block_bits_length);
+	stream_putc(s, loc->node_bits_length);
+	stream_putc(s, loc->function_bits_length);
+	stream_putc(s, loc->argument_bits_length);
+	stream_putl(s, loc->format);
+
+	stream_putl(s, 1);
+	stream_putw(s, sid->ipv6Addr.prefixlen);
+	stream_put(s, &sid->ipv6Addr.prefix, sizeof(sid->ipv6Addr.prefix));
+	stream_putl(s, sid->sidaction);
+	stream_putw(s, strlen(sid->vrfName));
+	stream_put(s, sid->vrfName, strlen(sid->vrfName));
+}
+
 int zapi_srv6_locator_sid_decode(struct stream *s,
 				   struct list *sidlist)
 {
-    struct seg6_sid *sid = NULL;
-    struct listnode *node, *nnode;
-    unsigned int sid_count;
-    unsigned int vrf_name_len;
-    
-    STREAM_GETL(s, sid_count);
-    for (ALL_LIST_ELEMENTS(sidlist, node, nnode, sid)) {
-        if (sid_count == 0)
-        {
-            /*free the other sid*/
-            list_delete_node(sidlist, node);
-            srv6_locator_sid_free(sid);
-            continue;
-        }
-        STREAM_GETW(s, sid->ipv6Addr.prefixlen);
-        STREAM_GET(&sid->ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
-        STREAM_GETL(s, sid->sidaction);
-        STREAM_GETW(s, vrf_name_len);
-        STREAM_GET(&sid->vrfName, s, vrf_name_len);
-        sid->vrfName[vrf_name_len] = '\0';
-        sid_count--;
-    }
-    while (sid_count > 0)
-    {
-        sid = srv6_locator_sid_alloc();
-        STREAM_GETW(s, sid->ipv6Addr.prefixlen);
-        STREAM_GET(&sid->ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
-        sid->ipv6Addr.family = AF_INET6;
-        STREAM_GETL(s, sid->sidaction);
-        STREAM_GETW(s, vrf_name_len);
-        STREAM_GET(&sid->vrfName, s, vrf_name_len);
-        sid->vrfName[vrf_name_len] = '\0';
-        listnode_add(sidlist, sid);
-        sid_count--;
-    }
+	struct seg6_sid *sid = NULL;
+	struct listnode *node, *nnode;
+	unsigned int sid_count;
+	unsigned int vrf_name_len;
+	vrf_id_t vrf_id;
+	struct vrf *vrf = NULL;
+
+	STREAM_GETL(s, sid_count);
+	for (ALL_LIST_ELEMENTS(sidlist, node, nnode, sid)) {
+		if (sid_count == 0)
+		{
+			/*free the other sid*/
+			list_delete_node(sidlist, node);
+			srv6_locator_sid_free(sid);
+			continue;
+		}
+		STREAM_GETW(s, sid->ipv6Addr.prefixlen);
+		STREAM_GET(&sid->ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
+		STREAM_GETL(s, sid->sidaction);
+		STREAM_GETL(s, vrf_id);
+		vrf = vrf_lookup_by_id(vrf_id);
+		if (!vrf) {
+			zlog_err("%s:VRF id%u not exist.", __func__, vrf_id);
+			return -1;
+		}
+		memcpy(sid->vrfName, vrf->name, sizeof(vrf->name));
+		sid_count--;
+	}
+	while (sid_count > 0)
+	{
+		sid = srv6_locator_sid_alloc();
+		STREAM_GETW(s, sid->ipv6Addr.prefixlen);
+		STREAM_GET(&sid->ipv6Addr.prefix, s, sizeof(sid->ipv6Addr.prefix));
+		sid->ipv6Addr.family = AF_INET6;
+		STREAM_GETL(s, sid->sidaction);
+		STREAM_GETL(s, vrf_id);
+		vrf = vrf_lookup_by_id(vrf_id);
+		if (!vrf) {
+			zlog_err("%s:VRF id%u not exist.", __func__, vrf_id);
+			return -1;
+		}
+		memcpy(sid->vrfName, vrf->name, sizeof(vrf->name));
+		listnode_add(sidlist, sid);
+		sid_count--;
+	}
+	return 0;
+
+stream_failure:
+	return -1;
+}
+
+int zapi_srv6_locator_one_sid_decode(struct stream *s,
+				   struct list *sidlist)
+{
+	struct seg6_sid *sid = NULL;
+	struct seg6_sid *addsid = srv6_locator_sid_alloc();
+	struct listnode *node, *nnode;
+	unsigned int sid_count;
+	unsigned int vrf_name_len;
+	bool exist_sid = false;
+
+	STREAM_GETL(s, sid_count);
+
+	if (sid_count == 1)
+	{
+		STREAM_GETW(s, addsid->ipv6Addr.prefixlen);
+		STREAM_GET(&addsid->ipv6Addr.prefix, s, sizeof(struct in6_addr));
+		addsid->ipv6Addr.family = AF_INET6;
+		STREAM_GETL(s, addsid->sidaction);
+		STREAM_GETW(s, vrf_name_len);
+		STREAM_GET(&addsid->vrfName, s, vrf_name_len);
+		addsid->vrfName[vrf_name_len] = '\0';
+
+		for (ALL_LIST_ELEMENTS(sidlist, node, nnode, sid)) {
+			if (prefix_match((struct prefix *)(&addsid->ipv6Addr), (struct prefix *)(&sid->ipv6Addr))){
+				exist_sid = true;
+				break;
+			}
+		}
+		if (exist_sid)
+			return -2;
+	}
+
+	listnode_add(sidlist, addsid);
 	return 0;
 
 stream_failure:

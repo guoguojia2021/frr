@@ -239,6 +239,7 @@ typedef enum {
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_CHUNK,
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_CHUNK,
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID,
+	ZEBRA_SRV6_MANAGER_GET_ONE_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL,
 	ZEBRA_ERROR,
@@ -1169,7 +1170,10 @@ extern int zapi_srv6_locator_decode(struct stream *s, struct srv6_locator *l);
 extern int zapi_srv6_locator_chunk_encode(struct stream *s,
 					  const struct srv6_locator_chunk *c);
 extern int zapi_srv6_locator_sid_encode(struct stream *s, struct srv6_locator *loc);
+extern int zapi_srv6_locator_one_sid_encode(struct stream *s, struct srv6_locator *loc,
+			struct seg6_sid *sid);
 extern int zapi_srv6_locator_sid_decode(struct stream *s, struct list *sidlist);
+extern int zapi_srv6_locator_one_sid_decode(struct stream *s, struct list *sidlist);
 extern int zapi_srv6_del_sid_decode(struct stream *s, struct list *sidlist);
 
 extern int zapi_srv6_locator_chunk_decode(struct stream *s,

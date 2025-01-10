@@ -3298,12 +3298,11 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
     STREAM_GETC(s, loc->argument_bits_length);
 	STREAM_GETL(s, loc->format);
 
-    if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0)
-    {
-        zlog_err("can not find the locator by name :%s", loc_name);
-        return;
-    }
-/* todo: ����sid export�仯 */
+	if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0) {
+		zlog_err("can not find the locator by name :%s", loc_name);
+		return;
+	}
+
     /* post-change: re-export vpn routes */
     vpn_leak_postchange_checksid();
 
@@ -3377,6 +3376,65 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 
 #endif
 /* todo: ����sid export�仯 */
+	vpn_leak_postchange_checksid();
+
+stream_failure:
+	return;
+
+}
+
+static void bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
+{
+	struct stream *s = NULL;
+	struct bgp *bgp = bgp_get_default();
+    uint16_t len = 0;
+    char loc_name[SRV6_LOCNAME_SIZE] = {0};
+    struct srv6_locator *loc = NULL;
+	int ret = 0;
+
+	s = zclient->ibuf;
+    STREAM_GETW(s, len);
+	if (len > SRV6_LOCNAME_SIZE)
+	{
+        zlog_err("error locator name len:%d", len);
+		return;
+	}
+
+    if (!bgp)
+        return;
+
+	STREAM_GET(loc_name, s, len);
+    loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
+    if (!loc)
+    {
+        loc = srv6_locator_new();
+        loc->chunks = list_new();
+        loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
+        loc->sids = list_new();
+
+        strncpy(loc->name, loc_name, len);
+        listnode_add(bgp->srv6_locators, loc);
+        hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
+    }
+    STREAM_GETW(s, loc->prefix.prefixlen);
+    STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
+    loc->prefix.family = AF_INET6;
+    STREAM_GETC(s, loc->block_bits_length);
+    STREAM_GETC(s, loc->node_bits_length);
+    STREAM_GETC(s, loc->function_bits_length);
+    STREAM_GETC(s, loc->argument_bits_length);
+	STREAM_GETL(s, loc->format);
+
+	ret = zapi_srv6_locator_one_sid_decode(s, loc->sids);
+
+	if (ret == -2) {
+		zlog_err("The locator sid has added:%s", loc_name);
+		return;
+	} else if (ret < 0) {
+		zlog_err("can not find the locator by name :%s", loc_name);
+		return;
+	}
+
 	vpn_leak_postchange_checksid();
 
 stream_failure:
@@ -3534,6 +3592,7 @@ static zclient_handler *const bgp_handlers[] = {
 	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_CHUNK] =
 		bgp_zebra_process_srv6_locator_chunk,
 	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID] = bgp_zebra_process_srv6_locator_sid,
+	[ZEBRA_SRV6_MANAGER_GET_ONE_LOCATOR_SID] = bgp_zebra_process_srv6_locator_one_sid,
 	[ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID] = bgp_zebra_process_srv6_del_sid,
 };
 

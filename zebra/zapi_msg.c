@@ -2917,9 +2917,13 @@ int zsend_srv6_manager_get_locator_sid_response(struct zserv *client,
 {
 	
 	struct stream *s = stream_new(ZEBRA_MAX_PACKET_SIZ);
-    
-	zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID, vrf_id);
-	zapi_srv6_locator_sid_encode(s, loc);
+   if (sid == NULL) {
+		zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID, vrf_id);
+		zapi_srv6_locator_sid_encode(s, loc);
+   } else {
+		zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_ONE_LOCATOR_SID, vrf_id);
+		zapi_srv6_locator_one_sid_encode(s, loc, sid);
+   }
 	stream_putw_at(s, 0, stream_get_endp(s));
 	return zserv_send_message(client, s);
 }
