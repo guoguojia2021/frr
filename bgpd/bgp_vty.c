@@ -10091,55 +10091,6 @@ DEFPY (show_bgp_srv6,
 	return CMD_SUCCESS;
 }
 
-static int bgp_locators_hash_walker(struct hash_bucket *bucket, void *arg)
-{
-	struct vty *vty = arg;
-    struct listnode *sidnode;
-	char buf[256];
-	struct seg6_sid *sid = NULL;
-	struct srv6_locator *locator = bucket->data;
-
-	vty_out(vty, "- locator %s\n", locator->name);
-	prefix2str(&locator->prefix, buf, sizeof(buf));
-	vty_out(vty, "  prefix %s\n", buf);
-	vty_out(vty, "  block_len %u\n", locator->block_bits_length);
-	vty_out(vty, "  node_len %u\n", locator->node_bits_length);
-	vty_out(vty, "  function_len %u\n", locator->function_bits_length);
-	vty_out(vty, "  argument_len %u\n", locator->argument_bits_length);
-	vty_out(vty, "  sids:\n");
-	for (ALL_LIST_ELEMENTS_RO(locator->sids, sidnode, sid)) {
-		prefix2str(&sid->ipv6Addr, buf, sizeof(buf));
-		vty_out(vty, "   -opcode %s\n", buf);
-		vty_out(vty, "    sidaction %s\n", seg6local_action2str(sid->sidaction));
-		vty_out(vty, "    vrf %s\n", sid->vrfName);
-	}
-
-done:
-	return HASHWALK_CONTINUE;
-}
-
-
-static void show_bgp_locators_hash_cmd_helper(struct bgp *bgp, struct vty *vty)
-{
-
-	hash_walk(bgp->srv6_locators_hash, bgp_locators_hash_walker, vty);
-}
-
-DEFPY (show_bgp_srv6_locators_hash,
-       show_bgp_srv6_locators_hash_cmd,
-       "show bgp segment-routing locators-hash",
-       SHOW_STR
-       BGP_STR
-       "BGP Segment Routing\n"
-       "BGP locators hash table\n")
-{
-	struct bgp *bgp;
-	bgp = bgp_get_default();
-	if (!bgp)
-		return CMD_SUCCESS;
-	show_bgp_locators_hash_cmd_helper(bgp, vty);
-}
-
 DEFUN_NOSH (exit_address_family,
        exit_address_family_cmd,
        "exit-address-family",
@@ -20369,7 +20320,6 @@ void bgp_vty_init(void)
 
 	/* srv6 commands */
 	install_element(VIEW_NODE, &show_bgp_srv6_cmd);
-	install_element(VIEW_NODE, &show_bgp_srv6_locators_hash_cmd);
 	//install_element(BGP_NODE, &bgp_segment_routing_srv6_cmd);
 	//install_element(BGP_NODE, &no_bgp_segment_routing_srv6_cmd);
 	install_element(BGP_NODE, &bgp_srv6_locator_cmd);
