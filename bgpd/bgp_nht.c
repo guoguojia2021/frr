@@ -1373,7 +1373,7 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 					bgp_evpn_unimport_route(bgp_path,
 						afi, safi, bgp_dest_get_prefix(dest), path);
 			}
-		} else if (!CHECK_FLAG(path->extFlags, BGP_PATH_SUPERNET)) {
+		} else if (!CHECK_FLAG(path->flags, BGP_PATH_SUPERNET)) {
 			/* invalid path and valid bnc */
 			/* If ip bnc(valid), no matter what configuration is, path would be valid. */
 			/* If te bnc(valid), path would be validated only if the nexthop-resolved tunnel flag is ON. */
