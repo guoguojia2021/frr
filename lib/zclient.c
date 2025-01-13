@@ -1272,7 +1272,7 @@ int zapi_srv6_locator_sid_decode(struct stream *s,
 			zlog_err("%s:VRF id%u not exist.", __func__, vrf_id);
 			return -1;
 		}
-		memcpy(sid->vrfName, vrf->name, sizeof(vrf->name));
+		memcpy(sid->vrfName, vrf->aliasName, sizeof(vrf->aliasName));
 		sid_count--;
 	}
 	while (sid_count > 0)
@@ -1288,7 +1288,7 @@ int zapi_srv6_locator_sid_decode(struct stream *s,
 			zlog_err("%s:VRF id%u not exist.", __func__, vrf_id);
 			return -1;
 		}
-		memcpy(sid->vrfName, vrf->name, sizeof(vrf->name));
+		memcpy(sid->vrfName, vrf->aliasName, sizeof(vrf->aliasName));
 		listnode_add(sidlist, sid);
 		sid_count--;
 	}

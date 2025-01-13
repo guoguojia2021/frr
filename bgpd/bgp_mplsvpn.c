@@ -638,7 +638,7 @@ void ensure_vrf_tovpn_sid(struct bgp *bgp_vpn, struct bgp *bgp_vrf, afi_t afi)
  	tovpn_sid_transpose_label = alloc_new_sid_ex(bgp_vpn, sid, locator);
 
 	if (debug) {
-		inet_ntop(AF_INET6, sid, buf, sizeof(buf));
+		inet_ntop(AF_INET6, &sid->ipv6Addr.prefix, buf, sizeof(buf));
 		zlog_debug("%s: new sid %s allocated for vrf %s: afi %s",
 			   __func__, buf, bgp_vrf->name_pretty,
 			   afi2str(afi));
