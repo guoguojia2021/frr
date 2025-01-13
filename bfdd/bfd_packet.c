@@ -409,7 +409,6 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 	if (bfd == NULL) {
 		bfd = bfd_id_lookup(my_discr);
 		if (bfd == NULL) {
-			zlog_warn("ptm_bfd_process_echo_pkt: can not find session my_discr:%d, remote_disc:%d", my_discr, remote_discr);
 			if (bglobal.debug_network)
 				zlog_debug("echo-packet: no matching session (id:%u)",
 					my_discr);
@@ -918,7 +917,6 @@ int bfd_recv_cb(struct thread *t)
 	if (bfd == NULL) {
 		cp_debug(is_mhop, &peer, &local, ifindex, vrfid,
 			 "no session found");
-		zlog_warn("ptm_bfd_sess_find: can not find session my_discr:%d, remote_disc:%d", cp->discrs.my_discr, cp->discrs.remote_discr);
 		return 0;
 	}
 
