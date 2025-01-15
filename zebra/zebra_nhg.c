@@ -4319,7 +4319,7 @@ void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free)
 {
 	int ret = 0;
 
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED)) {
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED) || CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)) {
 		if (nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 
