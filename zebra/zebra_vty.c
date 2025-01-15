@@ -2694,42 +2694,42 @@ static void vty_show_ip_route_summary(struct vty *vty,
 
 	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
 		RNODE_FOREACH_RE (rn, re) {
-            for (nexthop = re->nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
-                dest = rib_dest_from_rnode(rn);
-                is_ibgp = (re->type == ZEBRA_ROUTE_BGP
-                    && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
+			dest = rib_dest_from_rnode(rn);
+			is_ibgp = (re->type == ZEBRA_ROUTE_BGP
+				   && CHECK_FLAG(re->flags, ZEBRA_FLAG_IBGP));
 
+            for (nexthop = re->nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
                 rib_cnt[ZEBRA_ROUTE_TOTAL]++;
                 if (is_ibgp)
                     rib_cnt[ZEBRA_ROUTE_IBGP]++;
                 else
                     rib_cnt[re->type]++;
-
-                if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED)) {
-                    if (!CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
-                        fib_cnt[ZEBRA_ROUTE_DATAPLANE]++;
-                    fib_cnt[ZEBRA_ROUTE_TOTAL]++;
-
-                    if (is_ibgp)
-                        fib_cnt[ZEBRA_ROUTE_IBGP]++;
-                    else
-                        fib_cnt[re->type]++;
-                }
-
-                if (CHECK_FLAG(re->flags, ZEBRA_FLAG_TRAPPED)) {
-                    if (is_ibgp)
-                        trap_cnt[ZEBRA_ROUTE_IBGP]++;
-                    else
-                        trap_cnt[re->type]++;
-                }
-
-                if (CHECK_FLAG(re->flags, ZEBRA_FLAG_OFFLOADED)) {
-                    if (is_ibgp)
-                        offload_cnt[ZEBRA_ROUTE_IBGP]++;
-                    else
-                        offload_cnt[re->type]++;
-                }
             }
+
+			if (CHECK_FLAG(re->flags, ZEBRA_FLAG_SELECTED)) {
+				if (!CHECK_FLAG(dest->flags, RIB_DEST_PENDING_FPM))
+					fib_cnt[ZEBRA_ROUTE_DATAPLANE]++;
+				fib_cnt[ZEBRA_ROUTE_TOTAL]++;
+
+				if (is_ibgp)
+					fib_cnt[ZEBRA_ROUTE_IBGP]++;
+				else
+					fib_cnt[re->type]++;
+			}
+
+			if (CHECK_FLAG(re->flags, ZEBRA_FLAG_TRAPPED)) {
+				if (is_ibgp)
+					trap_cnt[ZEBRA_ROUTE_IBGP]++;
+				else
+					trap_cnt[re->type]++;
+			}
+
+			if (CHECK_FLAG(re->flags, ZEBRA_FLAG_OFFLOADED)) {
+				if (is_ibgp)
+					offload_cnt[ZEBRA_ROUTE_IBGP]++;
+				else
+					offload_cnt[re->type]++;
+			}
 		}
 
 	if (!use_json)
