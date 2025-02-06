@@ -1705,7 +1705,7 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe)
 	vty_out(vty, "     segment_ref: %u\n", nhe->segment_ref);
 	vty_out(vty, "     Uptime: %s\n", up_str);
 	vty_out(vty, "     VRF: %s\n", vrf_id_to_name(nhe->vrf_id));
-	vty_out(vty, "     Falgs: 0x%x\n", nhe->flags);
+	vty_out(vty, "     Flags: 0x%x\n", nhe->flags);
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID)) {
 		vty_out(vty, "     Valid");

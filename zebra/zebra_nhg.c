@@ -1775,14 +1775,12 @@ void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe)
 	struct nhg_connected *rb_node_dep;
 
 	UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_VALID);
-	SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+	SET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
 	/* If we're in shutdown, this interface event needs to clean
 	 * up installed NHGs, so don't clear that flag directly.
 	 */
-	/*
 	if (!zrouter.in_shutdown)
 		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
-		*/
 
 	/* Update validity of nexthops depending on it */
 	frr_each(nhg_connected_tree, &nhe->nhg_dependents, rb_node_dep)
@@ -4225,6 +4223,7 @@ void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe)
 			zebra_nhg_handle_install(nhe_resolve);
 			break;
 		}
+		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
 	}
 
 #if 0
@@ -4319,8 +4318,10 @@ void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free)
 {
 	int ret = 0;
 
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED) || CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)) {
-		if (nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED) || CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)
+		|| CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM)) {
+		if ((nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
+			|| CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM))
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 
 		if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT) || !nhe->pic_nhe)
@@ -4412,6 +4413,7 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_FPM);
 			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
 		}
 		/* We already free'd the data, nothing to do */
 		break;
