@@ -821,7 +821,7 @@ DEFPY_YANG(srte_no_policy,
 		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes(vty, NULL);
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
 }
 
 void cli_show_srte_policy(struct vty *vty, const struct lyd_node *dnode,
