@@ -3,7 +3,7 @@
     "interface": [
       {
         "name": "r2-eth0",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
@@ -20,7 +20,7 @@
       },
       {
         "name": "r2-eth1",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {

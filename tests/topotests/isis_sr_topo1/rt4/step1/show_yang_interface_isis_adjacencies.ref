@@ -3,7 +3,7 @@
     "interface": [
       {
         "name": "eth-rt2-1",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
@@ -22,7 +22,7 @@
       },
       {
         "name": "eth-rt2-2",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
@@ -41,7 +41,7 @@
       },
       {
         "name": "eth-rt5",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
@@ -60,7 +60,7 @@
       },
       {
         "name": "eth-rt6",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {

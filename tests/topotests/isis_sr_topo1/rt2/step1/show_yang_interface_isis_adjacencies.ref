@@ -3,7 +3,7 @@
     "interface": [
       {
         "name": "eth-rt4-1",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
@@ -22,7 +22,7 @@
       },
       {
         "name": "eth-rt4-2",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
@@ -41,7 +41,7 @@
       },
       {
         "name": "eth-sw1",
-        "vrf": "default",
+        "vrf": "Default",
         "state": {
           "frr-isisd:isis": {
             "adjacencies": {
