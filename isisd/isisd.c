@@ -668,24 +668,24 @@ static void isis_set_redist_vrf_bitmaps(struct isis *isis, bool set)
 						if (type == DEFAULT_ROUTE) {
 							if (set)
 								vrf_bitmap_set(
-									&zclient->default_information
+									zclient->default_information
 										 [afi],
 									isis->vrf_id);
 							else
 								vrf_bitmap_unset(
-									&zclient->default_information
+									zclient->default_information
 										 [afi],
 									isis->vrf_id);
 						} else {
 							if (set)
 								vrf_bitmap_set(
-									&zclient->redist
+									zclient->redist
 										 [afi]
 										 [type],
 									isis->vrf_id);
 							else
 								vrf_bitmap_unset(
-									&zclient->redist
+									zclient->redist
 										 [afi]
 										 [type],
 									isis->vrf_id);
