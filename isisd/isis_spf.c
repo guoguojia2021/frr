@@ -2046,6 +2046,7 @@ int _isis_spf_schedule(struct isis_area *area, int level,
 	return ISIS_OK;
 }
 
+
 static void isis_print_paths(struct vty *vty, struct isis_vertex_queue *queue,
 			     uint8_t *root_sysid, struct json_object **json)
 {
@@ -2156,7 +2157,9 @@ static void isis_print_paths(struct vty *vty, struct isis_vertex_queue *queue,
 		vty_out(vty, "%s\n", table);
 		XFREE(MTYPE_TMP, table);
 	} else
-		*json = ttable_json(tt, "ssdsss");
+		*json = ttable_json_with_json_text(
+			tt, "ssdsss",
+			"vertex|type|metric|nextHop|interface|parent");
 	ttable_del(tt);
 }
 
@@ -2193,48 +2196,106 @@ void isis_print_spftree(struct vty *vty, struct isis_spftree *spftree,
 }
 
 static void show_isis_topology_common(struct vty *vty, int levels,
-				      struct isis *isis)
+				      struct isis *isis, uint8_t algo,
+				      json_object **json)
 {
+	struct isis_spftree *spftree;
 	struct listnode *node;
 	struct isis_area *area;
+	json_object *json_level = NULL, *jstr = NULL, *json_val;
+	char key[18];
 
 	if (!isis->area_list || isis->area_list->count == 0)
 		return;
 
+	if (json)
+		*json = json_object_new_object();
+
 	for (ALL_LIST_ELEMENTS_RO(isis->area_list, node, area)) {
-		vty_out(vty, "Area %s:\n",
-			area->area_tag ? area->area_tag : "null");
+
+		if (json) {
+			jstr = json_object_new_string(
+				area->area_tag ? area->area_tag : "null");
+			json_object_object_add(*json, "area", jstr);
+			json_object_int_add(*json, "algorithm", algo);
+		} else {
+			vty_out(vty, "Area %s:",
+				area->area_tag ? area->area_tag : "null");
+
+				vty_out(vty, "\n");
+		}
 
 		for (int level = ISIS_LEVEL1; level <= ISIS_LEVELS; level++) {
 			if ((level & levels) == 0)
 				continue;
 
+			if (json) {
+				json_level = json_object_new_object();
+				jstr = json_object_new_string(
+					area->area_tag ? area->area_tag
+						       : "null");
+				json_object_object_add(json_level, "area", jstr);
+			}
+
 			if (area->ip_circuits > 0) {
-				isis_print_spftree(
-					vty,
-					area->spftree[SPFTREE_IPV4][level - 1], NULL);
+				json_val = NULL;
+					spftree = area->spftree[SPFTREE_IPV4]
+							       [level - 1];
+
+				isis_print_spftree(vty, spftree,
+						   json ? &json_val : NULL);
+				if (json && json_val) {
+					json_object_object_add(json_level,
+							       "ipv4-paths",
+							       json_val);
+				}
 			}
 			if (area->ipv6_circuits > 0) {
-				isis_print_spftree(
-					vty,
-					area->spftree[SPFTREE_IPV6][level - 1], NULL);
+				json_val = NULL;
+					spftree = area->spftree[SPFTREE_IPV6]
+							       [level - 1];
+				isis_print_spftree(vty, spftree,
+						   json ? &json_val : NULL);
+				if (json && json_val) {
+					json_object_object_add(json_level,
+							       "ipv6-paths",
+							       json_val);
+				}
 			}
 			if (isis_area_ipv6_dstsrc_enabled(area)) {
-				isis_print_spftree(vty,
-						   area->spftree[SPFTREE_DSTSRC]
-								[level - 1], NULL);
+				json_val = NULL;
+					spftree = area->spftree[SPFTREE_DSTSRC]
+							       [level - 1];
+				isis_print_spftree(vty, spftree,
+						   json ? &json_val : NULL);
+				if (json && json_val) {
+					json_object_object_add(json_level,
+							       "ipv6-dstsrc-paths",
+							       json_val);
+				}
+			}
+			if (json) {
+				snprintf(key, sizeof(key), "level-%d", level);
+				json_object_object_add(*json, key, json_level);
 			}
 		}
 
 		if (fabricd_spftree(area)) {
+			json_val = NULL;
+
 			vty_out(vty,
 				"IS-IS paths to level-2 routers with hop-by-hop metric\n");
 			isis_print_paths(vty, &fabricd_spftree(area)->paths,
-					 isis->sysid, NULL);
-			vty_out(vty, "\n");
+					 isis->sysid, json ? &json_val : NULL);
+			if (json && json_val)
+				json_object_object_add(json_level,
+						       "fabricd-paths",
+						       json_val);
+			else
+				vty_out(vty, "\n");
 		}
-
-		vty_out(vty, "\n");
+		if (!json)
+			vty_out(vty, "\n");
 	}
 }
 
@@ -2243,7 +2304,9 @@ DEFUN(show_isis_topology, show_isis_topology_cmd,
       " [vrf <NAME|all>] topology"
 #ifndef FABRICD
       " [<level-1|level-2>]"
-#endif
+      " [algorithm [(128-255)]]"
+#endif /* ifndef FABRICD */
+      " [json$uj]"
       ,
       SHOW_STR PROTO_HELP VRF_CMD_HELP_STR
       "All VRFs\n"
@@ -2251,25 +2314,38 @@ DEFUN(show_isis_topology, show_isis_topology_cmd,
 #ifndef FABRICD
       "Paths to all level-1 routers in the area\n"
       "Paths to all level-2 routers in the domain\n"
-#endif
+      "Show Flex-algo routes\n"
+      "Algorithm number\n"
+#endif /* ifndef FABRICD */
+      JSON_STR
 )
 {
 	int levels = ISIS_LEVELS;
 	struct listnode *node;
 	struct isis *isis = NULL;
-	int idx = 0;
 	const char *vrf_name = VRF_DEFAULT_NAME;
 	bool all_vrf = false;
+	bool all_algorithm = false;
 	int idx_vrf = 0;
+	uint16_t algorithm = SR_ALGORITHM_SPF;
+	bool uj = use_json(argc, argv);
+	json_object *json = NULL, *json_vrf = NULL;
 
-	if (argv_find(argv, argc, "topology", &idx)) {
-		if (argc < idx + 2)
-			levels = ISIS_LEVEL1 | ISIS_LEVEL2;
-		else if (strmatch(argv[idx + 1]->arg, "level-1"))
-			levels = ISIS_LEVEL1;
+#ifndef FABRICD
+	int idx = 0;
+
+	levels = ISIS_LEVEL1 | ISIS_LEVEL2;
+	if (argv_find(argv, argc, "level-1", &idx))
+		levels = ISIS_LEVEL1;
+	if (argv_find(argv, argc, "level-2", &idx))
+		levels = ISIS_LEVEL2;
+	if (argv_find(argv, argc, "algorithm", &idx)) {
+		if (argv_find(argv, argc, "(128-255)", &idx))
+			algorithm = (uint16_t)strtoul(argv[idx]->arg, NULL, 10);
 		else
-			levels = ISIS_LEVEL2;
+			all_algorithm = true;
 	}
+#endif /* ifndef FABRICD */
 
 	if (!im) {
 		vty_out(vty, "IS-IS Routing Process not enabled\n");
@@ -2277,15 +2353,58 @@ DEFUN(show_isis_topology, show_isis_topology_cmd,
 	}
 	ISIS_FIND_VRF_ARGS(argv, argc, idx_vrf, vrf_name, all_vrf);
 
-	if (vrf_name) {
-		if (all_vrf) {
-			for (ALL_LIST_ELEMENTS_RO(im->isis, node, isis))
-				show_isis_topology_common(vty, levels, isis);
-			return CMD_SUCCESS;
+	if (uj)
+		json = json_object_new_array();
+
+	if (all_vrf) {
+		for (ALL_LIST_ELEMENTS_RO(im->isis, node, isis)) {
+			if (all_algorithm) {
+				for (algorithm = SR_ALGORITHM_FLEX_MIN;
+				     algorithm <= SR_ALGORITHM_FLEX_MAX;
+				     algorithm++)
+					show_isis_topology_common(vty, levels,
+								  isis,
+								  (uint8_t)algorithm,
+								  uj ? &json_vrf
+								     : NULL);
+			} else {
+				show_isis_topology_common(vty, levels, isis,
+							  (uint8_t)algorithm,
+							  uj ? &json_vrf : NULL);
+			}
+			if (uj) {
+				json_object_object_add(json_vrf, "vrf_id",
+						       json_object_new_int(
+							       isis->vrf_id));
+				json_object_array_add(json, json_vrf);
+			}
 		}
-		isis = isis_lookup_by_vrfname(vrf_name);
-		if (isis != NULL)
-			show_isis_topology_common(vty, levels, isis);
+		goto out;
+	}
+	isis = isis_lookup_by_vrfname(vrf_name);
+	if (isis == NULL)
+		return CMD_SUCCESS;
+	if (all_algorithm) {
+		for (algorithm = SR_ALGORITHM_FLEX_MIN;
+		     algorithm <= SR_ALGORITHM_FLEX_MAX; algorithm++) {
+			show_isis_topology_common(vty, levels, isis,
+						  (uint8_t)algorithm,
+						  uj ? &json_vrf : NULL);
+		}
+	} else
+		show_isis_topology_common(vty, levels, isis, (uint8_t)algorithm,
+					  uj ? &json_vrf : NULL);
+	if (uj) {
+		json_object_object_add(json_vrf, "vrf_id",
+				       json_object_new_int(isis->vrf_id));
+		json_object_array_add(json, json_vrf);
+	}
+out:
+	if (uj) {
+		vty_out(vty, "%s\n",
+			json_object_to_json_string_ext(json,
+						       JSON_C_TO_STRING_PRETTY));
+		json_object_free(json);
 	}
 
 	return CMD_SUCCESS;
