@@ -70,7 +70,7 @@ from lib.topolog import logger
 
 # Required to instantiate the topology builder class.
 
-pytestmark = [pytest.mark.isisd]
+pytestmark = [pytest.mark.isisd, pytest.mark.esr]
 
 # Global multi-dimensional dictionary containing all expected outputs
 outputs = {}

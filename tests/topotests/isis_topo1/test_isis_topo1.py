@@ -41,7 +41,7 @@ from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
 
 
-pytestmark = [pytest.mark.isisd]
+pytestmark = [pytest.mark.isisd, pytest.mark.esr]
 
 VERTEX_TYPE_LIST = [
     "pseudo_IS",
