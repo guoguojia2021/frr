@@ -343,24 +343,6 @@ def test_rib_ipv6_step4():
             rname, "show ipv6 route isis json", outputs[rname][4]["show_ipv6_route.ref"]
         )
 
-
-#
-# Step 5
-#
-# Action(s):
-# -Re-enable LFA load-sharing
-#
-# Expected changes:
-# -Revert changes from the previous step
-#
-def test_rib_ipv6_step5():
-    logger.info("Test (step 5): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
-
     logger.info("Re-enabling LFA load-sharing on rt1")
     tgen.net["rt1"].cmd(
         'vtysh -c "conf t" -c "router isis 1" -c "no fast-reroute load-sharing disable"'
@@ -370,24 +352,6 @@ def test_rib_ipv6_step5():
         router_compare_json_output(
             rname, "show ipv6 route isis json", outputs[rname][5]["show_ipv6_route.ref"]
         )
-
-
-#
-# Step 6
-#
-# Action(s):
-# -Limit backup computation to critical priority prefixes only
-#
-# Expected changes:
-# -rt1 should uninstall all backup nexthops from all routes
-#
-def test_rib_ipv6_step6():
-    logger.info("Test (step 6): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     logger.info("Limiting backup computation to critical priority prefixes only")
     tgen.net["rt1"].cmd(
@@ -432,23 +396,6 @@ def test_rib_ipv6_step7():
         )
 
 
-#
-# Step 8
-#
-# Action(s):
-# -Revert previous changes related to prefix priorities
-#
-# Expected changes:
-# -Revert changes from the previous two steps
-#
-def test_rib_ipv6_step8():
-    logger.info("Test (step 8): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
-
     logger.info("Reverting previous changes related to prefix priorities")
     tgen.net["rt1"].cmd(
         'vtysh -c "conf t" -c "no ipv6 access-list CRITICAL_DESTINATIONS seq 5 permit 2001:db8:1000::7/128"'
@@ -492,24 +439,6 @@ def test_rib_ipv6_step9():
         router_compare_json_output(
             rname, "show ipv6 route isis json", outputs[rname][9]["show_ipv6_route.ref"]
         )
-
-
-#
-# Step 10
-#
-# Action(s):
-# -Remove exclusion of eth-rt6 from LFA computation for eth-rt2's failure
-#
-# Expected changes:
-# -Revert changes from the previous step
-#
-def test_rib_ipv6_step10():
-    logger.info("Test (step 10): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     logger.info(
         "Removing exclusion of eth-rt6 from LFA computation for eth-rt2's failure"
@@ -556,23 +485,6 @@ def test_rib_ipv6_step11():
         )
 
 
-#
-# Step 12
-#
-# Action(s):
-# -Add LFA tiebreaker: prefer backup path via downstream node
-#
-# Expected changes:
-# -rt1 should prefer backup nexthops that satisfy the downstream condition
-#
-def test_rib_ipv6_step12():
-    logger.info("Test (step 12): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
-
     logger.info("Adding LFA tiebreaker: prefer backup path via downstream node")
     tgen.net["rt1"].cmd(
         'vtysh -c "conf t" -c "router isis 1" -c "fast-reroute lfa tiebreaker downstream index 20"'
@@ -585,23 +497,6 @@ def test_rib_ipv6_step12():
             outputs[rname][12]["show_ipv6_route.ref"],
         )
 
-
-#
-# Step 13
-#
-# Action(s):
-# -Add LFA tiebreaker: prefer backup path with lowest total metric
-#
-# Expected changes:
-# -rt1 should prefer backup nexthops that have the best metric
-#
-def test_rib_ipv6_step13():
-    logger.info("Test (step 13): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     logger.info("Adding LFA tiebreaker: prefer backup path with lowest total metric")
     tgen.net["rt1"].cmd(

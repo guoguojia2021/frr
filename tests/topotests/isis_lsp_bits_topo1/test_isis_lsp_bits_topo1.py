@@ -249,38 +249,13 @@ def test_rib_ipv4_step2():
             rname, "show ip route isis json", "step2/show_ip_route.ref"
         )
 
-
-def test_rib_ipv6_step2():
     logger.info("Test (step 2): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
-
     for rname in ["rt1", "rt6"]:
         router_compare_json_output(
             rname, "show ipv6 route isis json", "step2/show_ipv6_route.ref"
         )
 
-
-#
-# Step 3
-#
-# Action(s):
-# -restore attach-bit, enable sending attach-bit
-# -disble processing a LSP with attach bit set
-#
-# Expected changes:
-# -RT1 and RT6 should not install a default route
-#
-def test_rib_ipv4_step3():
     logger.info("Test (step 3): verify IPv4 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     logger.info("Enable setting the attached-bit on RT2 and RT4")
     tgen.net["rt2"].cmd('vtysh -c "conf t" -c "router isis 1" -c "attached-bit send"')
@@ -299,14 +274,7 @@ def test_rib_ipv4_step3():
             rname, "show ip route isis json", "step3/show_ip_route.ref"
         )
 
-
-def test_rib_ipv6_step3():
     logger.info("Test (step 3): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     for rname in ["rt1", "rt6"]:
         router_compare_json_output(
@@ -314,23 +282,7 @@ def test_rib_ipv6_step3():
         )
 
 
-#
-# Step 4
-#
-# Action(s):
-# -restore back to default attach-bit config
-#
-# Expected changes:
-# -RT1 and RT6 should add default route
-# -no changes on other routers
-#
-def test_rib_ipv4_step4():
     logger.info("Test (step 4): verify IPv4 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     logger.info(
         "restore default processing on received attached-bit in LSP on RT1 and RT6"
@@ -346,15 +298,6 @@ def test_rib_ipv4_step4():
         router_compare_json_output(
             rname, "show ip route isis json", "step4/show_ip_route.ref"
         )
-
-
-def test_rib_ipv6_step4():
-    logger.info("Test (step 4): verify IPv6 RIB")
-    tgen = get_topogen()
-
-    # Skip if previous fatal error condition is raised
-    if tgen.routers_have_failure():
-        pytest.skip(tgen.errors)
 
     for rname in ["rt1", "rt6"]:
         router_compare_json_output(

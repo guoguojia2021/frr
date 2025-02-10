@@ -31,6 +31,7 @@ import os
 import re
 import sys
 import pytest
+import time
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, "../"))
@@ -41,7 +42,7 @@ from lib.topogen import Topogen, TopoRouter, get_topogen
 from lib.topolog import logger
 
 
-pytestmark = [pytest.mark.isisd]
+pytestmark = [pytest.mark.isisd, pytest.mark.esr]
 
 VERTEX_TYPE_LIST = [
     "pseudo_IS",
@@ -174,12 +175,13 @@ def test_isis_linux_route_installation():
         pytest.skip(tgen.errors)
 
     logger.info("Checking routers for installed ISIS routes in OS")
-
+    time.sleep(20)
     # Check for routes in `ip route`
     for rname, router in tgen.routers().items():
         filename = "{0}/{1}/{1}_route_linux.json".format(CWD, rname)
         expected = json.loads(open(filename, "r").read())
         actual = topotest.ip4_route(router)
+        logger.info("Router '{}' OS routes: {}".format(rname, actual))
         assertmsg = "Router '{}' OS routes mismatch".format(rname)
         assert topotest.json_cmp(actual, expected) is None, assertmsg
 
@@ -219,12 +221,13 @@ def test_isis_linux_route6_installation():
         pytest.skip(tgen.errors)
 
     logger.info("Checking routers for installed ISIS IPv6 routes in OS")
-
+    time.sleep(20)
     # Check for routes in `ip route`
     for rname, router in tgen.routers().items():
         filename = "{0}/{1}/{1}_route6_linux.json".format(CWD, rname)
         expected = json.loads(open(filename, "r").read())
         actual = topotest.ip6_route(router)
+        logger.info("Router '{}' OS routes: {}".format(rname, actual))
         assertmsg = "Router '{}' OS routes mismatch".format(rname)
         assert topotest.json_cmp(actual, expected) is None, assertmsg
 

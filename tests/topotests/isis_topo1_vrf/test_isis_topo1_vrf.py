@@ -30,6 +30,7 @@ import os
 import re
 import sys
 import pytest
+import time
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(CWD, "../"))
@@ -42,7 +43,7 @@ from lib.topotest import iproute2_is_vrf_capable
 from lib.common_config import required_linux_kernel_version
 
 
-pytestmark = [pytest.mark.isisd]
+pytestmark = [pytest.mark.isisd, pytest.mark.esr]
 
 VERTEX_TYPE_LIST = [
     "pseudo_IS",
@@ -202,7 +203,7 @@ def test_isis_linux_route_installation():
     result = required_linux_kernel_version("4.15")
     if result is not True:
         pytest.skip("Kernel requirements are not met")
-
+    time.sleep(20)
     # iproute2 needs to support VRFs for this suite to run.
     if not iproute2_is_vrf_capable():
         pytest.skip("Installed iproute2 version does not support VRFs")
@@ -254,7 +255,7 @@ def test_isis_linux_route6_installation():
     result = required_linux_kernel_version("4.15")
     if result is not True:
         pytest.skip("Kernel requirements are not met")
-
+    time.sleep(20)
     # iproute2 needs to support VRFs for this suite to run.
     if not iproute2_is_vrf_capable():
         pytest.skip("Installed iproute2 version does not support VRFs")
