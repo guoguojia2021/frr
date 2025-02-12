@@ -1501,7 +1501,7 @@ DEFUN (no_router_bgp,
 					continue;
 
 				if (CHECK_FLAG(tmp_bgp->vrf_flags, BGP_VRF_AUTO)) {
-					bgp_delete(tmp_bgp);
+					bgp_delete(tmp_bgp, 0);
 					continue;
 				}
 

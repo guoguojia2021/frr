@@ -236,6 +236,7 @@ static void set_lcommunity_string(struct lcommunity *lcom, bool make_json)
 		 * with the string so that it can fit
 		 */
 		const char *com2alias = bgp_community2alias(lcsb);
+		size_t individual_len = strlen(com2alias);
 		if (individual_len + len > str_buf_sz) {
 			str_buf_sz = individual_len + len + 1;
 			str_buf = XREALLOC(MTYPE_LCOMMUNITY_STR, str_buf,
