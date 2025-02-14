@@ -795,7 +795,7 @@ DEFPY_YANG_NOSH(
 		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
-	ret = nb_cli_apply_changes_skip_check_validate(vty, NULL);
+	ret = nb_cli_apply_changes(vty, NULL);
 	if (ret == CMD_SUCCESS)
 		VTY_PUSH_XPATH(SR_POLICY_NODE, xpath);
 
@@ -821,7 +821,7 @@ DEFPY_YANG(srte_no_policy,
 		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
+	return nb_cli_apply_changes(vty, NULL);
 }
 
 void cli_show_srte_policy(struct vty *vty, const struct lyd_node *dnode,
@@ -982,7 +982,7 @@ DEFPY_YANG(srte_policy_candidate_exp,
 	{
 		nb_cli_enqueue_change(vty, "./bfd-name", NB_OP_DESTROY, NULL);
 	}
-	return nb_cli_apply_changes_skip_check_validate(vty, "./candidate-path[preference='%s'][name='%s']",
+	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s'][name='%s']",
 				    preference_str, name);
 }
 
@@ -1008,7 +1008,7 @@ DEFPY_YANG_NOSH(
 	nb_cli_enqueue_change(vty, "./protocol-origin", NB_OP_MODIFY, "local");
 	nb_cli_enqueue_change(vty, "./originator", NB_OP_MODIFY, "config");
 	nb_cli_enqueue_change(vty, "./type", NB_OP_MODIFY, "dynamic");
-	ret = nb_cli_apply_changes_skip_check_validate(vty, "./candidate-path[preference='%s']",
+	ret = nb_cli_apply_changes(vty, "./candidate-path[preference='%s']",
 				   preference_str);
 
 	if (ret == CMD_SUCCESS)
