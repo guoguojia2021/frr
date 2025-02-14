@@ -853,6 +853,24 @@ int pathd_srte_policy_candidate_path_type_modify(struct nb_cb_modify_args *args)
 	return NB_OK;
 }
 
+static int pathd_srte_policy_candidate_path_check(struct srte_policy *policy,
+	uint32_t preference, const char *segment_list_name)
+{
+	struct srte_candidate *candidate, *safe;
+
+	RB_FOREACH_SAFE(candidate, srte_candidate_head, &policy->candidate_paths, safe) {
+
+		if (candidate->segment_list == NULL) {
+			continue;
+		}
+
+		if (strcmp(candidate->segment_list->name, segment_list_name) == 0
+			&& candidate->preference == preference)
+			return NB_ERR_VALIDATION;
+	}
+	return NB_OK;
+}
+
 /*
  * XPath: /frr-pathd:pathd/srte/policy/candidate-path/segment-list-name
  */
@@ -861,9 +879,28 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 {
 	struct srte_candidate *candidate;
 	const char *segment_list_name;
+	struct srte_policy *policy = NULL;
+	uint32_t preference = 0;
 
-	if (args->event != NB_EV_APPLY)
+	if (args->event != NB_EV_APPLY && args->event != NB_EV_VALIDATE)
 		return NB_OK;
+
+	if (args->event == NB_EV_VALIDATE) {
+
+		policy = nb_running_get_entry(args->dnode, NULL, false);
+		preference = yang_dnode_get_uint32(lyd_parent(args->dnode), "preference");
+		segment_list_name = yang_dnode_get_string(args->dnode, NULL);
+		if (policy) {
+			if (pathd_srte_policy_candidate_path_check(policy, preference, segment_list_name) != NB_OK) {
+				snprintf(
+					args->errmsg, args->errmsg_len,
+					"One policy not allow config the same segment-list");
+				return NB_ERR_VALIDATION;
+			}
+		}
+
+		return NB_OK;
+	}
 
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
 	segment_list_name = yang_dnode_get_string(args->dnode, NULL);

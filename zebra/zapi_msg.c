@@ -2791,15 +2791,16 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 				   __func__);
 		return;
 	}
+
 	zt = &zp.srv6_tunnel;
-	if (zt->path_num < 1) {
+	if (zt->path_num < 1 || zt->path_num > ZEBRA_SID_LIST_MAX_NUM) {
 		if (IS_ZEBRA_DEBUG_RECV)
 			zlog_debug(
-				"%s: SR-TE tunnel must contain at least one path",
-				__func__);
+				"%s: SR-TE tunnel must contain at least one path and at most %d paths",
+				__func__, ZEBRA_SID_LIST_MAX_NUM);
 		return;
 	}
-    
+
     old_policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
     if (!old_policy)
 	{
