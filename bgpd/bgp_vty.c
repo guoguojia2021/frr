@@ -9509,20 +9509,7 @@ DEFUN (bgp_bestpath_nexthop_resolved_tunnel,
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
 
-	safi_t safi;
-	afi_t afi;
-
-	safi = bgp_node_safi(vty);
-	afi = bgp_node_afi(vty);
-	if (afi == AFI_MAX)
-		return CMD_WARNING_CONFIG_FAILED;
-
-	SET_FLAG(bgp->af_flags[afi][safi],
-		BGP_BESTPATH_NH_RESOLVED_TUNNEL);
-
-	if (CHECK_FLAG(bgp->af_flags[afi][safi],
-			BGP_BESTPATH_NH_RESOLVED_TUNNEL))
-		vty_out(vty, "SET_FLAG: tunnel nexthop is set for resolving.\n");
+	SET_FLAG(bgp->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL);
 
 	bgp_nht_update_paths(bgp);
 
@@ -9539,20 +9526,8 @@ DEFUN (no_bgp_bestpath_nexthop_resolved_tunnel,
 	   "Use tunnel nexthop\n")
 {
 	VTY_DECLVAR_CONTEXT(bgp, bgp);
-	safi_t safi;
-	afi_t afi;
 
-	safi = bgp_node_safi(vty);
-	afi = bgp_node_afi(vty);
-	if (afi == AFI_MAX)
-		return CMD_WARNING_CONFIG_FAILED;
-
-	UNSET_FLAG(bgp->af_flags[afi][safi],
-		BGP_BESTPATH_NH_RESOLVED_TUNNEL);
-
-	if (!CHECK_FLAG(bgp->af_flags[afi][safi],
-			BGP_BESTPATH_NH_RESOLVED_TUNNEL))
-		vty_out(vty, "UNSET_FLAG: tunnel nexthop would not be used for resolving.\n");
+	UNSET_FLAG(bgp->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL);
 
 	bgp_nht_update_paths(bgp);
 
@@ -18199,12 +18174,6 @@ static void bgp_config_write_family(struct vty *vty, struct bgp *bgp, afi_t afi,
 	if (safi == SAFI_FLOWSPEC)
 		bgp_fs_config_write_pbr(vty, bgp, afi, safi);
 
-	if (safi == SAFI_MPLS_VPN) {
-		if (CHECK_FLAG(bgp->af_flags[afi][safi],
-					BGP_BESTPATH_NH_RESOLVED_TUNNEL))
-			vty_out(vty, "  bgp bestpath nexthop-resolved tunnel\n");
-	}
-
 	if (safi == SAFI_UNICAST) {
 		bgp_vpn_policy_config_write_afi(vty, bgp, afi);
 		if (CHECK_FLAG(bgp->af_flags[afi][safi],
@@ -18544,6 +18513,9 @@ int bgp_config_write(struct vty *vty)
 					" bgp bestpath as-path multipath-relax\n");
 			}
 		}
+		
+		if (CHECK_FLAG(bgp->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
+			vty_out(vty, " bgp bestpath nexthop-resolved tunnel\n");
 
 		if (CHECK_FLAG(bgp->flags, BGP_FLAG_RR_ALLOW_OUTBOUND_POLICY)) {
 			vty_out(vty,
@@ -20342,10 +20314,8 @@ void bgp_vty_init(void)
 	install_element(BGP_VPNV6_NODE, &no_neighbor_advertise_delay_map_cmd);
 
 	/* tunnel nexthop iteration commands */
-	install_element(BGP_VPNV4_NODE, &bgp_bestpath_nexthop_resolved_tunnel_cmd);
-	install_element(BGP_VPNV4_NODE, &no_bgp_bestpath_nexthop_resolved_tunnel_cmd);
-	install_element(BGP_VPNV6_NODE, &bgp_bestpath_nexthop_resolved_tunnel_cmd);
-	install_element(BGP_VPNV6_NODE, &no_bgp_bestpath_nexthop_resolved_tunnel_cmd);
+	install_element(BGP_NODE, &bgp_bestpath_nexthop_resolved_tunnel_cmd);
+	install_element(BGP_NODE, &no_bgp_bestpath_nexthop_resolved_tunnel_cmd);
 }
 
 #include "memory.h"
