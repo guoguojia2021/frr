@@ -3687,6 +3687,7 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 
 	zclient_create_header(s, cmd, VRF_DEFAULT);
 	stream_putl(s, zp->color);
+	stream_putc(s, zp->endpoint.family);
 	stream_put_prefix(s, &zp->endpoint);
 	stream_write(s, &zp->name, SRTE_POLICY_NAME_MAX_LENGTH);
     
@@ -3719,7 +3720,7 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	zt = &zp->srv6_tunnel;
 
 	STREAM_GETL(s, zp->color);
-	zp->endpoint.family = AF_INET6;
+	STREAM_GETC(s, zp->endpoint.family);
 	stream_get_prefix6(s, &zp->endpoint);
 	STREAM_GET(&zp->name, s, SRTE_POLICY_NAME_MAX_LENGTH);
 
