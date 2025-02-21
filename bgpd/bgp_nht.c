@@ -493,7 +493,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	} else {
 		if (!CHECK_FLAG(bgp_nexthop->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
 			return (bgp_isvalid_nexthop(bnc));
-		else if (te_bnc) {
+		else {
 			return ((bgp_isvalid_nexthop(bnc)) || (bgp_isvalid_nexthop(te_bnc)));
 		}
 	}
