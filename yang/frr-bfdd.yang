@@ -534,6 +534,11 @@ module frr-bfdd {
             description "Bfd session mode.";           
           }
 
+          leaf outer-dest-addr {
+            type inet:ip-address;
+            description "outer dest IP address for echo packet";
+          }
+
           uses session-common;
           uses session-multi-hop;
           uses session-echo;

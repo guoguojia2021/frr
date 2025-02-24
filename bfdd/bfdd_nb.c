@@ -652,6 +652,13 @@ const struct frr_yang_module_info frr_bfdd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/outer-dest-addr",
+			.cbs = {
+				.modify = bfdd_bfd_sessions_srte_sbfd_echo_outer_dest_addr_modify,
+				.destroy = bfdd_bfd_sessions_srte_sbfd_echo_outer_dest_addr_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/stats/local-discriminator",
 			.cbs = {
 				.get_elem = bfdd_bfd_sessions_single_hop_stats_local_discriminator_get_elem,

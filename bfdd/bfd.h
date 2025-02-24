@@ -346,8 +346,10 @@ struct bfd_session {
  
  	uint32_t bfd_mode;
 	uint8_t segnum;
-	struct in6_addr out_sip6;
-	struct in6_addr seg_list[0];
+	bool   allow_offload;
+	struct sockaddr_any outer_dip; /* packet outer dip before srv6 encap, can be IPv4 or IPv6 */
+	struct in6_addr out_sip6;      /* packet sip for srv6 encap, IPv6 */
+	struct in6_addr seg_list[0];   /* packet sidlist for srv6 encap, IPv6 or IPv6 list */
 };
 #define BFD_HWFLAG_SENDCREATE         (1 << 0)
 #define BFD_HWFLAG_CREATE_SUCCESS     (1 << 1)

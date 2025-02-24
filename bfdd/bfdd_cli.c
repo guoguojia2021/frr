@@ -279,7 +279,7 @@ int determine_ip_version(const char *ip)
 
 DEFPY_YANG_NOSH(
 	sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"peer <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [{outer-dest-address <A.B.C.D|X:X::X:X>}] segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
@@ -290,6 +290,9 @@ DEFPY_YANG_NOSH(
 	LOCAL_STR
 	LOCAL_IPV4_STR
 	LOCAL_IPV6_STR
+	"Configure outer dst address\n"
+	"IPv4 outer dest address\n"
+	"IPv6 outer dest address\n"
 	"Configure bfd session segment list\n"
 	"Configure dest-ipv6 address\n"
 	"Configure bfd session source-ipv6 address\n"
@@ -297,7 +300,7 @@ DEFPY_YANG_NOSH(
 	VRF_STR
 	VRF_NAME_STR)
 {
-	int ret, slen	;
+	int ret, slen;
 	char value[32];
 	char xpath[XPATH_MAXLEN], xpath_sl[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32];
 	
@@ -334,6 +337,12 @@ DEFPY_YANG_NOSH(
 	snprintf(xpath_sl, sizeof(xpath_sl), "%s/dest-addr", xpath);
 	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, peer_str);
 
+	if(outer_dest_address_str)
+	{
+		snprintf(xpath_sl, sizeof(xpath_sl), "%s/outer-dest-addr", xpath);
+		nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, outer_dest_address_str);
+	}
+
 	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
 	snprintf(value, sizeof(value), "%d", BFD_MODE_TYPE_SBFD_ECHO);
 	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
@@ -348,7 +357,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	sbfd_echo_no_peer, sbfd_echo_no_peer_cmd,
-	"no peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"no peer <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [{outer-dest-address <A.B.C.D|X:X::X:X>}] segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR
@@ -360,6 +369,9 @@ DEFPY_YANG(
 	LOCAL_STR
 	LOCAL_IPV4_STR
 	LOCAL_IPV6_STR
+	"Configure outer dst address\n"
+	"IPv4 outer dest address\n"
+	"IPv6 outer dest address\n"
 	"Configure bfd session segment list\n"
 	"Configure dest-ipv6 address\n"
 	"Configure bfd session source-ipv6 address\n"
@@ -575,6 +587,12 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 		if (yang_dnode_exists(dnode, "source-addr"))
 			vty_out(vty, " local-address %s",
 				yang_dnode_get_string(dnode, "source-addr"));
+
+		if (yang_dnode_exists(dnode, "outer-dest-addr"))
+		{
+			vty_out(vty, " outer-dest-addr %s",
+				yang_dnode_get_string(dnode, "outer-dest-addr"));
+		}
 
 		if (yang_dnode_exists(dnode, "segment-list"))
 			vty_out(vty, " segment-list %s",

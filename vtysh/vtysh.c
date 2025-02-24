@@ -2329,7 +2329,7 @@ DEFUNSH(VTYSH_BFDD, bfd_peer_enter, bfd_peer_enter_cmd,
 }
 
 DEFUNSH(VTYSH_BFDD, sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> name BFDNAME mode sbfd-echo local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"peer <A.B.C.D|X:X::X:X> name BFDNAME mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [outer-dest-address <A.B.C.D|X:X::X:X>] segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
 	"Configure peer\n"
 	"IPv4 peer address\n"
 	"IPv6 peer address\n"
@@ -2340,6 +2340,9 @@ DEFUNSH(VTYSH_BFDD, sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
 	"Configure local\n"
 	"IPv4 local address\n"
 	"IPv6 local address\n"
+	"Configure outer dest address\n"
+	"IPv4 outer dest address\n"
+	"IPv6 outer dest address\n"
 	"Configure bfd session segment list\n"
 	"Configure dest-ipv6 address\n"
 	"Configure bfd session source-ipv6 address\n"

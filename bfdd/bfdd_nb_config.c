@@ -315,6 +315,12 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 				bs->discrs.remote_discr = yang_dnode_get_uint32(args->dnode, "./remote-discr");
 			}
 
+			if (yang_dnode_exists(args->dnode, "outer-dest-addr"))
+			{
+				strtosa(yang_dnode_get_string(args->dnode, "outer-dest-addr"), &bs->outer_dip);
+				bs->allow_offload = false;
+			}
+
 			/* Set configuration flags. */
 			bs->refcount = 1;
 			SET_FLAG(bs->flags, BFD_SESS_FLAG_CONFIG);
@@ -1272,6 +1278,21 @@ int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_modify(
 }
 
 int bfdd_bfd_sessions_srte_sbfd_echo_dest_addr_destroy(
+	struct nb_cb_destroy_args *args)
+{
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-bfdd:bfdd/bfd/sessions/srte-sbfd-echo/outer-dest-addr
+ */
+int bfdd_bfd_sessions_srte_sbfd_echo_outer_dest_addr_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+int bfdd_bfd_sessions_srte_sbfd_echo_outer_dest_addr_destroy(
 	struct nb_cb_destroy_args *args)
 {
 	return NB_OK;

@@ -79,8 +79,8 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
     uint8_t seg_num, struct in6_addr* segment_list);
 
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
-    uint16_t family, struct in6_addr* out_sip, struct in6_addr* sip , struct in6_addr* dip,
-    uint16_t src_port, uint16_t dst_port,
+    uint16_t family, struct in6_addr* srv6_encap_sip, struct in6_addr* sip , struct in6_addr* dip,
+    struct sockaddr_any* outer_dip, uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list);
 
 /* socket related prototypes */
@@ -176,7 +176,7 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 	sd = bfd->sock;
 
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local, &bfd->key.peer, 
-	   BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
+	   NULL, BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
 	{
 		if(bfd->stats.tx_fail_pkt <= 1){
 			char dst[INET6_ADDRSTRLEN] = {0};
@@ -217,7 +217,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	sd = bfd->sock;
 
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local , &bfd->key.peer, 
-	   BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
+	   &bfd->outer_dip, BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
 	{
 		if(bfd->stats.tx_fail_pkt <= 1){
 			char dst[INET6_ADDRSTRLEN] = {0};
@@ -433,7 +433,7 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 		/*sbfd receive echo pkt ,need to update state*/
 		//sbfd_echo_state_handler(bfd, PTM_BFD_UP);
 
-        if (hardwareBFD)
+        if (hardwareBFD && bfd->allow_offload)
 		{
 			/* delay sbfd echo xmt */
             if (!bfd->sbfd_echo_hw_offload_delay && !CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
@@ -459,7 +459,7 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 	else
 	{
 		/* Keep software slow time before hw offload */
-		bfd->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
+		bfd->echo_xmt_TO = (hardwareBFD && bfd->allow_offload)?SBFD_ECHO_DEF_SLOWTX: BFD_DEF_SLOWTX;
 		bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
 	}
 
@@ -1981,8 +1981,15 @@ static void bp_sbfd_encap_srh_ip6h(struct ip6_hdr* srh_ip6h,
 }
 
 static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h, 
-    struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen, uint16_t family)
+    struct in6_addr* sip , struct in6_addr* dip ,uint8_t seg_num, size_t datalen, uint16_t family, uint16_t outer_family)
 {
+	int len = 0;
+	uint16_t pkt_family = outer_family == AF_UNSPEC? family : outer_family;
+	if (outer_family != AF_UNSPEC)
+	{
+		len = (outer_family == AF_INET6)?sizeof(struct ip6_hdr): sizeof(struct ip);
+	}
+
     /* SRH IPv6 Header */
 	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
 	srh_ip6h->ip6_vfc = 6 << 4;
@@ -1991,23 +1998,23 @@ static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
 	{
 		if (family == AF_INET6)
 		{
-			srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
+			srh_ip6h->ip6_plen = htons(len + sizeof(struct ip6_hdr)
 					+ sizeof(struct udphdr) 
 					+ datalen);
-			srh_ip6h->ip6_nxt = IPPROTO_IPV6;
 		}
 		else
 		{
-			srh_ip6h->ip6_plen = htons(sizeof(struct ip) 
+			srh_ip6h->ip6_plen = htons(len + sizeof(struct ip)
 					+ sizeof(struct udphdr) 
 					+ datalen);
-			srh_ip6h->ip6_nxt = IPPROTO_IPIP;
 		}
+
+		srh_ip6h->ip6_nxt = (pkt_family == AF_INET6)? IPPROTO_IPV6 : IPPROTO_IPIP;
 
 	}
 	else
 	{
-		srh_ip6h->ip6_plen = htons(sizeof(struct ip6_hdr) 
+		srh_ip6h->ip6_plen = htons(len + (family == AF_INET6?sizeof(struct ip6_hdr) : sizeof(struct ip))
 				+ sizeof(struct udphdr) 
 				+ sizeof(struct ipv6_sr_hdr) 
 				+ sizeof(struct in6_addr) * (seg_num - 1)
@@ -2039,10 +2046,14 @@ static void bp_sbfd_encap_srh_rth(struct ipv6_sr_hdr *srv6h,
 }
 
 static void bp_sbfd_encap_srh_rth_red(struct ipv6_sr_hdr *srv6h, 
-    struct in6_addr* segment_list ,uint8_t seg_num)
+    struct in6_addr* segment_list, uint8_t seg_num, uint16_t family)
 {
 	//caller should make sure: seg_num > 1
-    srv6h->nexthdr = IPPROTO_IPV6;
+	if (family == AF_INET)
+		srv6h->nexthdr = IPPROTO_IPIP;
+	else
+		srv6h->nexthdr = IPPROTO_IPV6;
+
     srv6h->hdrlen = GET_RTH_HDR_LEN(RTH_BASE_HEADER_LEN + sizeof(struct in6_addr)*(seg_num - 1));
     srv6h->type = 4; // IPV6_SRCRT_TYPE_4
     srv6h->segments_left = seg_num - 1; //if encap reduce mode , seg_num-1
@@ -2084,6 +2095,38 @@ static void bp_sbfd_encap_inner_iph(struct ip* iph, struct in6_addr* sip , struc
     iph->ip_sum = 0;
 	memcpy(&iph->ip_src, sip, sizeof(iph->ip_src));
 	memcpy(&iph->ip_dst, dip, sizeof(iph->ip_dst));
+}
+
+static void bp_sbfd_encap_outer_iph(struct ip* iph, struct in_addr* dip , uint16_t family, size_t datalen)
+{
+    /* IPv4 Header */
+    iph->ip_v = 4;
+    iph->ip_hl = 5;
+    iph->ip_tos = BFD_TOS_VAL;
+    iph->ip_len = htons(sizeof(struct ip) + (family == AF_INET?sizeof(struct ip): sizeof(struct ip6_hdr)) + sizeof(struct udphdr) + datalen);
+    iph->ip_id = (uint16_t)frr_weak_random();
+    iph->ip_ttl = BFD_TTL_VAL;
+    iph->ip_p = (family == AF_INET6)? IPPROTO_IPV6 : IPPROTO_IPIP;
+    iph->ip_sum = 0;
+	memcpy(&iph->ip_src, dip, sizeof(iph->ip_src));
+	memcpy(&iph->ip_dst, dip, sizeof(iph->ip_dst));
+}
+
+static void bp_sbfd_encap_outer_ip6h(struct ip6_hdr* srh_ip6h, struct in6_addr* dip, uint16_t family, size_t datalen)
+{
+    /* IPv6 Header */
+	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
+	srh_ip6h->ip6_vfc = 6 << 4;
+
+	srh_ip6h->ip6_plen = htons((family == AF_INET?sizeof(struct ip): sizeof(struct ip6_hdr))
+							+ sizeof(struct udphdr)
+							+ datalen);
+
+	srh_ip6h->ip6_nxt = (family == AF_INET6)? IPPROTO_IPV6 : IPPROTO_IPIP;
+    srh_ip6h->ip6_hlim = BFD_TTL_VAL;
+
+    memcpy(&(srh_ip6h->ip6_src), dip, sizeof(struct in6_addr));
+	memcpy(&(srh_ip6h->ip6_dst), dip, sizeof(struct in6_addr));
 }
 
 static void bp_sbfd_encap_udp6(struct udphdr* udph, struct ip6_hdr* ip6h, uint16_t src_port, uint16_t dst_port , uint8_t *payload, int payloadlen)
@@ -2216,8 +2259,8 @@ static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t
  * @return int 
  */
 int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen, 
-    uint16_t family, struct in6_addr* out_sip, struct in6_addr* sip , struct in6_addr* dip,
-    uint16_t src_port, uint16_t dst_port,
+    uint16_t family, struct in6_addr* srv6_encap_sip, struct in6_addr* sip , struct in6_addr* dip,
+    struct sockaddr_any* outer_dip, uint16_t src_port, uint16_t dst_port,
     uint8_t seg_num, struct in6_addr* segment_list)
 {
 	static uint8_t sendbuf[BUF_SIZ];
@@ -2236,6 +2279,10 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	struct ipaddr out_sip_addr = {0};
 	struct sockaddr_in6 dst_sin6 = {0};
 	char buf_addr[INET6_ADDRSTRLEN] = {0};
+	uint16_t outer_family = AF_UNSPEC;
+
+	if (outer_dip && outer_dip->sa_sin.sin_family != AF_UNSPEC)
+		outer_family = outer_dip->sa_sin.sin_family;
 
 	memset(sendbuf, 0, sizeof(sendbuf));
 	int total_len = 0;
@@ -2243,10 +2290,10 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
     /* SRH IPv6 Header */
 	if (seg_num > 0)
 	{
-		memcpy(&out_sip_addr.ipaddr_v6, out_sip, sizeof(struct in6_addr));
+		memcpy(&out_sip_addr.ipaddr_v6, srv6_encap_sip, sizeof(struct in6_addr));
 
 		srh_ip6h = (struct ip6_hdr *)(sendbuf + total_len);
-		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip_addr.ipaddr_v6 , &segment_list[0], seg_num, datalen, family);
+		bp_sbfd_encap_srh_ip6h_red(srh_ip6h, &out_sip_addr.ipaddr_v6 , &segment_list[0], seg_num, datalen, family, outer_family);
 		total_len += sizeof(struct ip6_hdr);
 
 		memcpy(&dst_sin6.sin6_addr, &segment_list[0], sizeof(struct in6_addr));
@@ -2255,8 +2302,25 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	//case with srh header
 	if(seg_num > 1){
 		psrv6h = (struct ipv6_sr_hdr*)(sendbuf + total_len);
-		bp_sbfd_encap_srh_rth_red(psrv6h, segment_list, seg_num);
+		bp_sbfd_encap_srh_rth_red(psrv6h, segment_list, seg_num, outer_family == AF_UNSPEC?family: outer_family);
 		total_len += sizeof(struct ipv6_sr_hdr) + sizeof(struct in6_addr) * (seg_num - 1);
+	}
+
+	if(outer_family != AF_UNSPEC)
+	{
+		if (outer_family == AF_INET6)
+		{
+			ip6h = (struct ip6_hdr *)(sendbuf + total_len);
+			bp_sbfd_encap_outer_ip6h(ip6h, &outer_dip->sa_sin6.sin6_addr, family, datalen);
+			total_len += sizeof(struct ip6_hdr);
+		}
+		else
+		{
+            iph = (struct ip *)(sendbuf + total_len);
+			bp_sbfd_encap_outer_iph(iph, &outer_dip->sa_sin.sin_addr, family, datalen);
+			iph->ip_sum = in_cksum((const void *)iph, sizeof(struct ip));
+			total_len += sizeof(struct ip);
+		}
 	}
 
     if (family == AF_INET6)

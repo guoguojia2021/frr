@@ -149,6 +149,12 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 			inet_ntop(bs->key.family, &bs->key.local, addr_buf,
 				  sizeof(addr_buf)));
 
+	if (bs->outer_dip.sa_sin.sin_family != AF_UNSPEC)
+	{
+		vty_out(vty, " outer-dest-addr %s",
+			satostr(&bs->outer_dip));
+	}
+
 	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
 	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{

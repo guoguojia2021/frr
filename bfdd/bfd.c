@@ -1033,6 +1033,7 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 	bs->sock = -1;
 	monotime(&bs->uptime);
 	bs->downtime = bs->uptime;
+	bs->allow_offload = true;
 
 	return bs;
 }
