@@ -1413,6 +1413,30 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
                 add_cmd = ("no " + ctx_keys[0],)
                 lines_to_add.append((add_cmd, None))
                 lines_to_del_to_del.append((ctx_keys, None))
+        # Another Examples:
+        #       bgp community-list 100 seq 5 permit 222:213
+        re_bgp_lists = re.search(
+            "^(bgp )(community-list|large-community-list|extcommunity-list)(\s+\d+\s+)(seq \d+\s+)(permit|deny)(.*)$",
+            ctx_keys[0],
+        )
+        if re_bgp_lists:
+            found = False
+            tmpline = (
+                re_bgp_lists.group(1)
+                + re_bgp_lists.group(2)
+                + re_bgp_lists.group(3)
+                + re_bgp_lists.group(5)
+                + re_bgp_lists.group(6)
+            )
+            for ctx in lines_to_add:
+                if ctx[0][0] == tmpline:
+                    lines_to_del_to_del.append((ctx_keys, None))
+                    lines_to_add_to_del.append(((tmpline,), None))
+                    found = True
+            if found is False:
+                add_cmd = ("no " + ctx_keys[0],)
+                lines_to_add.append((add_cmd, None))
+                lines_to_del_to_del.append((ctx_keys, None))
 
         # bgp as-path access-list can be specified without a seq number.
         # However, the running config always
