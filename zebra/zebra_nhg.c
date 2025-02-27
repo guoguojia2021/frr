@@ -1036,9 +1036,16 @@ static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *
 		break;
 
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		endpoint.family = AF_INET6;
-		endpoint.prefixlen = IPV6_MAX_BITLEN;
-		endpoint.u.prefix6 = nexthop->gate.ipv6;
+		/* Validation for ipv4 mapped ipv6 nexthop. */
+		if (IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
+			endpoint.family = AF_INET;
+			endpoint.prefixlen = IPV4_MAX_BITLEN;
+			ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, &endpoint.u.prefix4);
+		} else {
+			endpoint.family = AF_INET6;
+			endpoint.prefixlen = IPV6_MAX_BITLEN;
+			endpoint.u.prefix6 = nexthop->gate.ipv6;
+		}
 		break;
 	default:
 		flog_err(EC_LIB_DEVELOPMENT,
