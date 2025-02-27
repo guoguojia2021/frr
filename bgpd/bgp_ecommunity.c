@@ -792,7 +792,7 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 		sub_type = ECOMMUNITY_COLOR;
 		if (val_color) {
 			val = val_color;
-			as = 1;
+			as = 0;
 		}
 	}
 	else if (as > 0)
