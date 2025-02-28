@@ -21,7 +21,7 @@ time.sleep(10)
 luCommand(
     "pe1",
     'vtysh -c "show bgp ipv4 vpn 200.0.0.0/24"',
-    "Color:01:2",
+    "Color:00:2",
     "pass",
     "Check: color on pe1",
 )
@@ -55,7 +55,7 @@ time.sleep(10)
 luCommand(
     "pe1",
     'vtysh -c "show bgp ipv4 vpn 200.0.0.0/24"',
-    "Color:01:2",
+    "Color:00:2",
     "pass",
     "Check: add/re-install export vpn",
 )
@@ -75,7 +75,7 @@ time.sleep(10)
 luCommand(
     "pe1",
     'vtysh -c "show bgp ipv4 vpn 200.0.0.0/24"',
-    "Color:01:10",
+    "Color:00:10",
     "pass",
     "Check: the change of color",
 )
