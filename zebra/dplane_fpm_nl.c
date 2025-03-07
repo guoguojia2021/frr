@@ -1054,6 +1054,9 @@ static int fpm_nhg_send_cb(struct hash_bucket *bucket, void *arg)
 	/* This entry was already sent, skip it. */
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FPM))
 		return HASHWALK_CONTINUE;
+
+	if (nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
+		return HASHWALK_CONTINUE;
     
     //zebra_nhg_install_kernel(nhe);
     ret = fpm_nhg_send_enqueue(nhe, fna->fnc, fna->ctx);
