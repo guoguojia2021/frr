@@ -239,6 +239,7 @@ extern void static_get_nh_str(struct static_nexthop *nh, char *nexthop,
 
 extern void static_route_show(struct vty *vty, afi_t afi, const char* vrfname);
 
+extern void static_install_nexthops_on_startup(void);
 #ifdef __cplusplus
 }
 #endif

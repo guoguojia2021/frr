@@ -160,8 +160,16 @@ void static_zebra_register_neigh(vrf_id_t vrf_id, afi_t afi, bool reg)
 static void zebra_connected(struct zclient *zclient)
 {
 	zclient_send_reg_requests(zclient, VRF_DEFAULT);
+
 	static_zebra_register_neigh(VRF_DEFAULT, AFI_IP, true);
 	static_zebra_register_neigh(VRF_DEFAULT, AFI_IP6, true);
+
+	/*
+	 * It's possible that staticd connected after config was read
+	 * in.
+	 */
+	static_install_nexthops_on_startup();
+
 }
 
 struct static_nht_data {
