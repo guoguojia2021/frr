@@ -44,8 +44,6 @@
 #include "buffer.h"
 #include "lib_errors.h"
 
-extern int hardwareBFD;
-
 /*
  * Interval at which we attempt to connect to the FPM.
  */
@@ -929,7 +927,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
     unsigned char *buf;
     int msg_len = 0;
 
-    if (!hardwareBFD)
+    if (!bfd->allow_offload)
         return;
 
     /* Individual reg/dereg messages are suppressed during shutdown. 
@@ -1047,7 +1045,7 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
     unsigned char *buf;
     int msg_len = 0;
 
-    if (!hardwareBFD)
+    if (!is_hw_bfd_enabled())
         return;
 
     /* Check socket. */

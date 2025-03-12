@@ -90,8 +90,6 @@ static void bp_set_ipv6opts(int sd);
 static void bp_bind_ipv6(int sd, uint16_t port);
 static void bp_set_recv_buffer(int sd, int len);
 
-extern int hardwareBFD;
-
 /*
  * Functions
  */
@@ -433,7 +431,7 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 		/*sbfd receive echo pkt ,need to update state*/
 		//sbfd_echo_state_handler(bfd, PTM_BFD_UP);
 
-        if (hardwareBFD && bfd->allow_offload)
+        if (bfd->allow_offload)
 		{
 			/* delay sbfd echo xmt */
             if (!bfd->sbfd_echo_hw_offload_delay && !CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
@@ -459,7 +457,20 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 	else
 	{
 		/* Keep software slow time before hw offload */
-		bfd->echo_xmt_TO = (hardwareBFD && bfd->allow_offload)?SBFD_ECHO_DEF_SLOWTX: BFD_DEF_SLOWTX;
+		if (bfd->allow_offload)
+		{
+			bfd->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
+		}
+		else
+		{
+			/* software sbfd, should set to fast timer after UP*/
+			if (bfd->echo_xmt_TO != bfd->timers.desired_min_echo_tx) {
+				bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
+				//reset xmt timer TO after UP
+				ptm_bfd_start_xmt_timer(bfd, true);
+			}
+		}
+
 		bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
 	}
 
@@ -1629,7 +1640,7 @@ static void bp_bind_ipv6(int sd, uint16_t port)
 
 static void bp_set_udp6_no_check6(int sd)
 {
-    if (hardwareBFD)
+    if (is_hw_bfd_enabled())
 	{
 		int disable = BFD_IPV6_UDP_DISABLE_CHECKSUM;
 		if (setsockopt(sd, IPPROTO_UDP, UDP_NO_CHECK6_RX, (void*)&disable,

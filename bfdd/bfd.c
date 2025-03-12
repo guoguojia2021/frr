@@ -653,7 +653,7 @@ void ptm_bfd_xmt_TO(struct bfd_session *bfd, int fbit)
 
 void ptm_sbfd_echo_reset(struct bfd_session *bfd)
 {
-	bfd->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
+	bfd->echo_xmt_TO = bfd->allow_offload?SBFD_ECHO_DEF_SLOWTX: BFD_DEF_SLOWTX;
 	bfd->echo_detect_TO = 0;
 	ptm_bfd_echo_xmt_TO(bfd);
 }
@@ -1003,6 +1003,7 @@ struct bfd_session *bfd_session_new(void)
 	bs->sock = -1;
 	monotime(&bs->uptime);
 	bs->downtime = bs->uptime;
+	bs->allow_offload = is_hw_bfd_enabled();
 
 	return bs;
 }
@@ -1033,7 +1034,7 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 	bs->sock = -1;
 	monotime(&bs->uptime);
 	bs->downtime = bs->uptime;
-	bs->allow_offload = true;
+	bs->allow_offload = is_hw_bfd_enabled();
 
 	return bs;
 }
@@ -1924,7 +1925,7 @@ void bs_set_slow_timers(struct bfd_session *bs)
 	bs->xmt_TO = BFD_DEF_SLOWTX;
 
 	/* add for sbfd-echo slow connection  */
-	bs->echo_xmt_TO = SBFD_ECHO_DEF_SLOWTX;
+	bs->echo_xmt_TO = bs->allow_offload?SBFD_ECHO_DEF_SLOWTX: BFD_DEF_SLOWTX;
 }
 
 void bfd_set_echo(struct bfd_session *bs, bool echo)

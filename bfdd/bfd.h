@@ -557,7 +557,7 @@ extern const struct bfd_diag_str_list diag_list[];
 extern const struct bfd_state_str_list state_list[];
 
 void socket_close(int *s);
-
+bool is_hw_bfd_enabled(void);
 
 /*
  * config.c

@@ -55,7 +55,7 @@ static zebra_capabilities_t _caps_p[] = {ZCAP_BIND, ZCAP_SYS_ADMIN, ZCAP_NET_RAW
 /* BFD daemon information. */
 static struct frr_daemon_info bfdd_di;
 
-int hardwareBFD = 0;
+static int hardwareBFD = 0;
 
 void socket_close(int *s)
 {
@@ -67,6 +67,11 @@ void socket_close(int *s)
 			 strerror(errno));
 
 	*s = -1;
+}
+
+bool is_hw_bfd_enabled(void)
+{
+	return hardwareBFD > 0;
 }
 
 static void sigusr1_handler(void)
