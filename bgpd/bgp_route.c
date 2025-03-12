@@ -6428,7 +6428,7 @@ static void clearing_clear_one_pi(struct bgp_table *table, struct bgp_dest *dest
 		}
 		if (SAFI_MPLS_VPN == safi &&
 		    bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
-			vpn_leak_to_vrf_withdraw(pi);
+			vpn_leak_to_vrf_withdraw(bgp_get_default(), pi);
 		}
 
 		bgp_rib_remove(dest, pi, pi->peer, afi, safi);
@@ -6447,19 +6447,19 @@ static void set_clearing_resume_info(struct bgp_clearing_info *cinfo,
 	if (bgp_debug_neighbor_events(NULL))
 		zlog_debug("%s: %sinfo for %s/%s %pFX", __func__,
 			   inner_p ? "inner " : "", afi2str(table->afi),
-			   safi2str(table->safi), &dest->rn->p);
+			   safi2str(table->safi), &dest->p);
 
 	SET_FLAG(cinfo->flags, BGP_CLEARING_INFO_FLAG_RESUME);
 
 	if (inner_p) {
 		cinfo->inner_afi = table->afi;
 		cinfo->inner_safi = table->safi;
-		cinfo->inner_pfx = dest->rn->p;
+		cinfo->inner_pfx = dest->p;
 		SET_FLAG(cinfo->flags, BGP_CLEARING_INFO_FLAG_INNER);
 	} else {
 		cinfo->last_afi = table->afi;
 		cinfo->last_safi = table->safi;
-		cinfo->last_pfx = dest->rn->p;
+		cinfo->last_pfx = dest->p;
 	}
 }
 
@@ -6492,7 +6492,7 @@ static struct bgp_dest *clearing_dest_helper(struct bgp_table *table,
 				/* if 'dest' matches or precedes the 'last' prefix
 				 * visited, then advance.
 				 */
-				while (dest && (prefix_cmp(&(dest->rn->p), pfx) <= 0))
+				while (dest && (prefix_cmp(&(dest->p), pfx) <= 0))
 					dest = bgp_route_next(dest);
 			}
 		}
@@ -6505,10 +6505,10 @@ static struct bgp_dest *clearing_dest_helper(struct bgp_table *table,
  * Callback to begin or resume the rib-walk for peer clearing, with info carried in
  * a clearing context.
  */
-static void clear_dests_callback(struct event *event)
+static int clear_dests_callback(struct thread *event)
 {
 	int ret;
-	struct bgp_clearing_info *cinfo = EVENT_ARG(event);
+	struct bgp_clearing_info *cinfo = THREAD_ARG(event);
 
 	/* Begin, or continue, work */
 	ret = clear_batch_rib_helper(cinfo);
@@ -6517,9 +6517,10 @@ static void clear_dests_callback(struct event *event)
 		bgp_clearing_batch_completed(cinfo);
 	} else {
 		/* Need to resume the work, with 'cinfo' */
-		event_add_event(bm->master, clear_dests_callback, cinfo, 0,
+		thread_add_event(bm->master, clear_dests_callback, cinfo, 0,
 				&cinfo->t_sched);
 	}
+	return 0;
 }
 
 /*
@@ -6555,7 +6556,7 @@ static int walk_batch_table_helper(struct bgp_clearing_info *cinfo,
 			ain_next = ain->next;
 
 			if (bgp_clearing_batch_check_peer(cinfo, ain->peer))
-				bgp_adj_in_remove(&dest, ain);
+				bgp_adj_in_remove(dest, ain);
 
 			ain = ain_next;
 
@@ -6582,7 +6583,7 @@ static int walk_batch_table_helper(struct bgp_clearing_info *cinfo,
 			if (bgp_debug_neighbor_events(NULL))
 				zlog_debug("%s: %s/%s: pfx %pFX reached limit %u",
 					   __func__, afi2str(table->afi),
-					   safi2str(table->safi), &dest->rn->p,
+					   safi2str(table->safi), &dest->p,
 					   cinfo->curr_counter);
 
 			/* Reset the counter */
@@ -6727,7 +6728,7 @@ void bgp_clear_route_batch(struct bgp_clearing_info *cinfo)
 			zlog_debug("%s: reschedule cinfo at %s/%s, %pFX", __func__,
 				   afi2str(cinfo->last_afi),
 				   safi2str(cinfo->last_safi), &(cinfo->last_pfx));
-		event_add_event(bm->master, clear_dests_callback, cinfo, 0,
+		thread_add_event(bm->master, clear_dests_callback, cinfo, 0,
 				&cinfo->t_sched);
 	}
 }

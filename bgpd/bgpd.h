@@ -525,7 +525,7 @@ struct bgp_clearing_info {
 	struct bgp_clearing_destlist_head destlist;
 
 	/* Event to schedule/reschedule processing */
-	struct event *t_sched;
+	struct thread *t_sched;
 
 	/* Info for rescheduling the RIB walk */
 	afi_t last_afi;
@@ -637,6 +637,8 @@ struct bgp {
 	struct thread
 		*t_startup; /* start-up timer on only once at the beginning */
 	struct thread *t_adv_to_all;
+
+	struct thread *clearing_end;
 
 	uint32_t v_maxmed_onstartup; /* Duration of max-med on start-up */
 #define BGP_MAXMED_ONSTARTUP_UNCONFIGURED  0 /* 0 means off, its the default */
@@ -1038,7 +1040,7 @@ struct bgp {
 	 * is typically signalled in the IO pthread; it's handled in the
 	 * main pthread.
 	 */
-	struct event *t_conn_errors;
+	struct thread *t_conn_errors;
 
 	/* List of batches of peers being cleared from BGP RIBs */
 	struct bgp_clearing_info_head clearing_list;
@@ -1325,10 +1327,7 @@ struct peer_connection {
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
 
-	struct event *t_routeadv;
-	struct event *t_process_packet;
-
-	struct event *t_stop_with_notify;
+	struct thread *t_stop_with_notify;
 
 	/* Linkage for list connections with errors, from IO pthread */
 	struct bgp_peer_conn_errlist_item conn_err_link;
@@ -2881,6 +2880,10 @@ bool bgp_clearing_batch_dests_present(struct bgp_clearing_info *cinfo);
 struct bgp_dest *bgp_clearing_batch_next_dest(struct bgp_clearing_info *cinfo);
 /* Done with a peer clearing batch; deal with refcounts, free memory */
 void bgp_clearing_batch_completed(struct bgp_clearing_info *cinfo);
+/* Start a new batch of peers to clear */
+void bgp_clearing_batch_begin(struct bgp *bgp);
+/* End a new batch of peers to clear */
+void bgp_clearing_batch_end_event_start(struct bgp *bgp);
 
 #ifdef _FRR_ATTRIBUTE_PRINTFRR
 /* clang-format off */

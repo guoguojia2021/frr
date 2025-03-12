@@ -4028,6 +4028,7 @@ int bgp_delete(struct bgp *bgp, int check_gr)
 	THREAD_OFF(bgp->t_establish_wait);
 	THREAD_OFF(bgp->t_adv_to_all);
 
+	THREAD_OFF(bgp->clearing_end);
 	/* Set flag indicating bgp instance delete in progress */
 	SET_FLAG(bgp->flags, BGP_FLAG_DELETE_IN_PROGRESS);
 
@@ -4119,7 +4120,7 @@ int bgp_delete(struct bgp *bgp, int check_gr)
 	update_bgp_group_free(bgp);
 
 	/* Cancel peer connection errors event */
-	EVENT_OFF(bgp->t_conn_errors);
+	THREAD_OFF(bgp->t_conn_errors);
 
 	/* Cleanup for peer connection batching */
 	while ((cinfo = bgp_clearing_info_pop(&bgp->clearing_list)) != NULL)
@@ -4303,9 +4304,9 @@ void bgp_free(struct bgp *bgp)
 		if (bgp->vpn_policy[afi].rtlist[dir])
 			ecommunity_free(&bgp->vpn_policy[afi].rtlist[dir]);
 	}
-    vrf = bgp_vrf_lookup_by_instance_type(bgp);
-    if (vrf)
-        bgp_vrf_unlink(bgp, vrf);
+	vrf = bgp_vrf_lookup_by_instance_type(bgp);
+	if (vrf)
+		bgp_vrf_unlink(bgp, vrf);
 
 	bgp_peer_conn_errlist_init(&bgp->peer_conn_errlist);
 	pthread_mutex_destroy(&bgp->peer_errs_mtx);
@@ -9182,9 +9183,12 @@ static void bgp_clearing_peer_done(struct peer *peer)
 /*
  * Initialize a new batch struct for clearing peer(s) from the RIB
  */
-static void bgp_clearing_batch_begin(struct bgp *bgp)
+void bgp_clearing_batch_begin(struct bgp *bgp)
 {
 	struct bgp_clearing_info *cinfo;
+
+	if (thread_is_scheduled(bgp->clearing_end))
+		return;
 
 	cinfo = XCALLOC(MTYPE_CLEARING_BATCH, sizeof(struct bgp_clearing_info));
 
@@ -9208,6 +9212,9 @@ static void bgp_clearing_batch_end(struct bgp *bgp)
 {
 	struct bgp_clearing_info *cinfo;
 
+	if (thread_is_scheduled(bgp->clearing_end))
+		return;
+
 	cinfo = bgp_clearing_info_first(&bgp->clearing_list);
 
 	assert(cinfo != NULL);
@@ -9229,6 +9236,25 @@ static void bgp_clearing_batch_end(struct bgp *bgp)
 	 * to do.
 	 */
 	bgp_clear_route_batch(cinfo);
+}
+
+static int bgp_clearing_batch_end_event(struct thread *event)
+{
+	struct bgp *bgp = THREAD_ARG(event);
+
+	bgp_clearing_batch_end(bgp);
+	bgp_unlock(bgp);
+
+	return 0;
+}
+
+void bgp_clearing_batch_end_event_start(struct bgp *bgp)
+{
+	if (!thread_is_scheduled(bgp->clearing_end))
+		bgp_lock(bgp);
+
+	THREAD_OFF(bgp->clearing_end);
+	thread_add_timer_msec(bm->master, bgp_clearing_batch_end_event, bgp, 100, &bgp->clearing_end);
 }
 
 /* Check whether a dest's peer is relevant to a clearing batch */
@@ -9260,7 +9286,7 @@ void bgp_clearing_batch_completed(struct bgp_clearing_info *cinfo)
 	struct bgp_table *table;
 
 	/* Ensure event is not scheduled */
-	event_cancel_event(bm->master, &cinfo->t_sched);
+	thread_cancel_event(bm->master, &cinfo->t_sched);
 
 	/* Remove all peers and un-ref */
 	while ((peer = bgp_clearing_hash_pop(&cinfo->peers)) != NULL)
@@ -9347,7 +9373,7 @@ bool bgp_clearing_batch_add_peer(struct bgp *bgp, struct peer *peer)
  * encountered in the io pthread. We avoid having the io pthread try
  * to enqueue fsm events or mess with the peer struct.
  */
-static void bgp_process_conn_error(struct event *event)
+static int bgp_process_conn_error(struct thread *event)
 {
 	struct bgp *bgp;
 	struct peer *peer;
@@ -9356,7 +9382,7 @@ static void bgp_process_conn_error(struct event *event)
 	size_t list_count = 0;
 	bool more_p = false;
 
-	bgp = EVENT_ARG(event);
+	bgp = THREAD_ARG(event);
 
 	frr_with_mutex (&bgp->peer_errs_mtx) {
 		connection = bgp_peer_conn_errlist_pop(&bgp->peer_conn_errlist);
@@ -9416,6 +9442,8 @@ static void bgp_process_conn_error(struct event *event)
 	if (bgp_debug_neighbor_events(NULL))
 		zlog_debug("%s: dequeued and processed %d peers", __func__,
 			   counter);
+
+	return 0;
 }
 
 /*
@@ -9435,7 +9463,7 @@ int bgp_enqueue_conn_err(struct bgp *bgp, struct peer_connection *connection,
 		}
 	}
 	/* Ensure an event is scheduled */
-	event_add_event(bm->master, bgp_process_conn_error, bgp, 0,
+	thread_add_event(bm->master, bgp_process_conn_error, bgp, 0,
 			&bgp->t_conn_errors);
 	return 0;
 }
@@ -9469,13 +9497,10 @@ struct peer_connection *bgp_dequeue_conn_err(struct bgp *bgp, bool *more_p)
  */
 void bgp_conn_err_reschedule(struct bgp *bgp)
 {
-	event_add_event(bm->master, bgp_process_conn_error, bgp, 0,
+	thread_add_event(bm->master, bgp_process_conn_error, bgp, 0,
 			&bgp->t_conn_errors);
 }
 
-printfrr_ext_autoreg_p("BP", printfrr_bp);
-static ssize_t printfrr_bp(struct fbuf *buf, struct printfrr_eargs *ea,
-			   const void *ptr)
 static unsigned int bgp_vrf_hash_key_make(const void *p)
 {
 	const struct bgp *bgp = p;

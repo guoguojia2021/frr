@@ -833,10 +833,16 @@ static void bgp_nht_ifp_handle(struct interface *ifp, bool up)
 	if (!bgp)
 		return;
 
+	if (!up)
+		bgp_clearing_batch_begin(bgp);
+
 	bgp_nht_ifp_table_handle(bgp, &bgp->nexthop_cache_table[AFI_IP6], ifp,
 				 up);
 	bgp_nht_ifp_table_handle(bgp, &bgp->import_check_table[AFI_IP6], ifp,
 				 up);
+
+	if (!up)
+		bgp_clearing_batch_end_event_start(bgp);
 }
 
 void bgp_nht_ifp_up(struct interface *ifp)
