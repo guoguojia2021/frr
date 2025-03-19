@@ -6680,8 +6680,12 @@ int peer_password_unset(struct peer *peer)
 			bgp_session_reset(peer);
 
 		/* Attempt to uninstall password on socket. */
-		if (!BGP_PEER_SU_UNSPEC(peer))
-			bgp_md5_unset(peer);
+		if (!BGP_PEER_SU_UNSPEC(peer)) {
+			if (CHECK_FLAG(peer->flags, PEER_FLAG_PASSWORD))
+				bgp_md5_set(peer);
+			else
+				bgp_md5_unset(peer);
+		}
 		/* Skip peer-group mechanics for regular peers. */
 		return 0;
 	}
