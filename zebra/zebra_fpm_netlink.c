@@ -366,8 +366,8 @@ static int netlink_route_info_add_nh(struct netlink_route_info *ri,
 		nhi.encap_info.encap_type = FPM_NH_ENCAP_SRV6_SERVICE_SID;
 		nhi.encap_info.srv6_service_encap.seg6 = nexthop->nh_srv6->seg6_segs;
 		nhi.encap_info.srv6_service_encap.seg_src = nexthop->nh_srv6->seg6_src;
-		memcpy(nhi.encap_info.srv6_service_encap.sidlist_name,
-			nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+		strlcpy(nhi.encap_info.srv6_service_encap.sidlist_name,
+			nexthop->sidlist_name, sizeof(nhi.encap_info.srv6_service_encap.sidlist_name));
 		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
 		{
 			nhi.encap_info.srv6_service_encap.endpoint = nexthop->gate.ipv6;

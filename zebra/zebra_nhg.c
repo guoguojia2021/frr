@@ -2829,8 +2829,8 @@ static struct nexthop *nexthop_seg_set_resolved(afi_t afi,
 
 	if (policy) {
 		if (policy_num < policy->srv6_segment_list.path_num) {
-			memcpy(resolved_hop->sidlist_name, policy->srv6_segment_list.sidlists[policy_num].sidlist_name,
-				SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+			strlcpy(resolved_hop->sidlist_name, policy->srv6_segment_list.sidlists[policy_num].sidlist_name,
+				sizeof(resolved_hop->sidlist_name));
 			resolved_hop->my_discriminator = policy->srv6_segment_list.sidlists[policy_num].my_discriminator;
 
 			if (CHECK_FLAG(policy->srv6_segment_list.sidlists[policy_num].flags, SRV6_SID_LIST_BACKUP))

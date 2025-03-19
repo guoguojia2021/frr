@@ -2062,7 +2062,7 @@ struct nexthop *nexthop_from_zapi_nexthop(const struct zapi_nexthop *znh)
 	if (!sid_zero(&znh->seg6_segs))
 		nexthop_add_srv6_seg6(n, &znh->seg6_segs, &znh->seg6_src);
 
-	memcpy(n->sidlist_name, znh->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	strlcpy(n->sidlist_name, znh->sidlist_name, sizeof(n->sidlist_name));
 
 	return n;
 }

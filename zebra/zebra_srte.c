@@ -238,13 +238,19 @@ void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy)
 		zebra_sr_policy_deactivate(policy);
 	table = policy->node->table;
 
-	if (!is_default_prefix(&policy->node->p))
-	{
+	if (!is_default_prefix(&policy->node->p)) {
 		rn = policy->node;
 		rnh_list_fini(&policy->nht);
 		rn->info = NULL;
 		XFREE(MTYPE_ZEBRA_SR_POLICY, policy);
 		route_unlock_node(rn);
+	}
+	else {
+		policy->type = 0;
+		memset(&policy->binding_sid, 0, sizeof(mpls_label_t));
+		memset(&policy->binding_v6_sid, 0, sizeof(struct ipaddr));
+		memset(&policy->segment_list, 0, sizeof(struct zapi_srte_tunnel));
+		memset(&policy->srv6_segment_list, 0, sizeof(struct zapi_srv6te_tunnel));
 	}
 	zebra_free_sr_table(table);
 }
@@ -311,8 +317,8 @@ static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
 	resolved_hop = nexthop_new();
 	nexthop_copy_no_recurse(resolved_hop, nexthop, nexthop);
 
-	memcpy(resolved_hop->sidlist_name, sidlist_name,
-		SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	strlcpy(resolved_hop->sidlist_name, sidlist_name,
+		sizeof(resolved_hop->sidlist_name));
 	resolved_hop->my_discriminator = discriminator;
 	resolved_hop->flags = 0;
 	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
@@ -403,7 +409,7 @@ static void zebra_nhg_seg_update_nexthop_resolved(struct nexthop *nexthop,
 {
 	struct nexthop *nh = NULL;
 	for (nh = nexthop; nh; nh = nexthop_next(nh)) {
-		if (memcmp(nh->sidlist_name, sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH) == 0) {
+		if (strncmp(nh->sidlist_name, sidlist_name, sizeof(nh->sidlist_name)) == 0) {
 			zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup);
 		}
 	}
@@ -435,7 +441,7 @@ static void zebra_nhg_seg_update_depend(struct nhg_hash_entry *nhe, struct nexth
 						__func__, nhe->id, &nh->gate.ipv6, nh->srte_color, policy_sid_name,
 						is_backup ? "true":"false");
 			}
-			if (memcmp(nh->sidlist_name, policy_sid_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH) == 0) {
+			if (strncmp(nh->sidlist_name, policy_sid_name, sizeof(nh->sidlist_name)) == 0) {
 				zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup);
 				return;
 			}
@@ -477,7 +483,7 @@ static void zebra_nhg_seg_update_dependent(struct nhg_hash_entry *nhe, struct ne
 			}
 
 			for (nh_res = nh->resolved; nh_res; nh_res = nexthop_next(nh_res)) {
-				if (memcmp(nh_res->sidlist_name, policy_sid_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH) == 0) {
+				if (strncmp(nh_res->sidlist_name, policy_sid_name, sizeof(nh_res->sidlist_name)) == 0) {
 					zebra_nhg_seg_update_nexthop_content(nh_res, discriminator, is_backup);
 					continue;
 				}
@@ -577,7 +583,7 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 		frr_each_safe(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
 			node_sid_name = rb_node_dep->nhe->nhg.nexthop->sidlist_name;
 
-			if (memcmp(node_sid_name, policy_sid_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH) == 0)
+			if (strncmp(node_sid_name, policy_sid_name, sizeof(rb_node_dep->nhe->nhg.nexthop->sidlist_name)) == 0)
 				zebra_nhg_seg_release(rb_node_dep->nhe);
 		}
 	}
@@ -1030,7 +1036,7 @@ static void zebra_srv6_policy_copy_sidlist(struct zebra_sr_policy *policy, struc
 			sizeof(policy->srv6_segment_list.sidlists[path_num].sidlist_name));
 		new_tunnel->sidlists_old[path_num].weight = policy->srv6_segment_list.sidlists[path_num].weight;
 		new_tunnel->sidlists_old[path_num].my_discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
-		new_tunnel->sidlists_old[path_num].flags = policy->srv6_segment_list.sidlists[path_num].flags;
+		new_tunnel->sidlists_old[path_num].flags = 0;
 		SET_FLAG(new_tunnel->sidlists_old[path_num].flags, SRV6_SID_LIST_DEL);
 	}
 	new_tunnel->path_num_old = policy->srv6_segment_list.path_num;

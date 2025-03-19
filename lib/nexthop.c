@@ -204,8 +204,8 @@ static int _nexthop_cmp_no_labels(const struct nexthop *next1,
 	if (ret != 0)
 		goto done;
 
-	ret = memcmp(next1->sidlist_name,
-			next2->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	ret = strncmp(next1->sidlist_name,
+			next2->sidlist_name, sizeof(next1->sidlist_name));
 	if (ret != 0)
 		goto done;
 
@@ -814,7 +814,7 @@ uint32_t nexthop_hash_quick(const struct nexthop *nexthop)
 			    sizeof(nexthop->nh_srv6->seg6_segs), key);
 	}
 	key = jhash_1word(nexthop->srte_color, key);
-	key = jhash(nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH, key);
+	key = jhash(nexthop->sidlist_name, strlen(nexthop->sidlist_name), key);
 	return key;
 }
 
@@ -866,7 +866,7 @@ void nexthop_copy_no_context(struct nexthop *copy,
     memcpy(&copy->rmac, &nexthop->rmac, sizeof(nexthop->rmac));
 	memcpy(&copy->seg6_src, &nexthop->seg6_src, sizeof(nexthop->seg6_src));
 	copy->alibgp_flags = nexthop->alibgp_flags;
-	memcpy(copy->sidlist_name, nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	strlcpy(copy->sidlist_name, nexthop->sidlist_name, sizeof(copy->sidlist_name));
 	copy->my_discriminator = nexthop->my_discriminator;
 	copy->rparent = rparent;
 
@@ -918,7 +918,7 @@ void nexthop_copy_no_recurse(struct nexthop *copy,
 				&nexthop->nh_srv6->seg6_segs,
 				&nexthop->nh_srv6->seg6_src);
 	}
-	memcpy(copy->sidlist_name, nexthop->sidlist_name, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
+	strlcpy(copy->sidlist_name, nexthop->sidlist_name, sizeof(copy->sidlist_name));
 	copy->my_discriminator = nexthop->my_discriminator;
 }
 
