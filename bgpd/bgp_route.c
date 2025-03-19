@@ -3227,10 +3227,6 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 		break;
  
 	case ANNOUNCE_CHK_ERROR:
-		if (CHECK_FLAG(peer->af_flags[afi][safi],
-					    PEER_FLAG_DEFAULT_ORIGINATE)
-					    && is_default_prefix(bgp_dest_get_prefix(dest)))
-			break;
 		bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
 		bgp_attr_flush(pattr);
 		break;
