@@ -445,6 +445,10 @@ static void show_nexthop_detail_helper(struct vty *vty,
 	char addrstr[32];
 	char buf[MPLS_LABEL_STRLEN];
 	int i;
+	struct in_addr local_ipv4;
+	struct in_addr *ipv4 = NULL;
+	struct in6_addr *ipv6 = NULL;
+	afi_t afi = AFI_UNSPEC;
 
 	if (is_backup)
 		vty_out(vty, "    b%s",
@@ -594,14 +598,31 @@ static void show_nexthop_detail_helper(struct vty *vty,
 		for (i = 1; i < nexthop->backup_num; i++)
 			vty_out(vty, ",%d", nexthop->backup_idx[i]);
 	}
-    if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
-    {
-    	if(inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, INET6_ADDRSTRLEN))
-    		vty_out(vty, ", srv6tunnel(endpoint|color):%s|%u", 
-                buf,
-                nexthop->srte_color);
-        else
-            vty_out(vty, ", srv6tunnel(endpoint|color):unknown tunnel");
+    if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL)) {
+		if (nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+			if(IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
+				ipv4 = &local_ipv4;
+				afi = AFI_IP;
+				ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
+			} else {
+				afi = AFI_IP6;
+				ipv6 = &nexthop->gate.ipv6;
+			}
+		} else if (nexthop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
+			afi = AFI_IP;
+			ipv4 = &nexthop->gate.ipv4;
+		}
+
+		if (afi == AFI_IP)
+			vty_out(vty, ", srv6tunnel(endpoint|color):%pI4|%u",
+				ipv4,
+				nexthop->srte_color);
+		else if (afi == AFI_IP6)
+			vty_out(vty, ", srv6tunnel(endpoint|color):%pI6|%u",
+				ipv6,
+				nexthop->srte_color);
+		else
+			vty_out(vty, ", srv6tunnel(endpoint|color):unknown tunnel");
     }
 
 	/* Print the supplementary debug info for inactive routes
@@ -820,6 +841,10 @@ static void show_route_nexthop_helper(struct vty *vty,
 {
 	char buf[MPLS_LABEL_STRLEN];
 	int i;
+	struct in_addr local_ipv4;
+	struct in_addr *ipv4 = NULL;
+	struct in6_addr *ipv6 = NULL;
+	afi_t afi = AFI_UNSPEC;
 
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IPV4:
@@ -867,23 +892,30 @@ static void show_route_nexthop_helper(struct vty *vty,
 		}
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP))
-			vty_out(vty, " via %pI4(backup)", &nexthop->gate.ipv4);
-		else
-			vty_out(vty, " via %pI4", &nexthop->gate.ipv4);
+		vty_out(vty, " via %pI4%s",&nexthop->gate.ipv4, CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP) ? "(backup)" : "");
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
 		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		vty_out(vty, " color %d", nexthop->srte_color);
 		break;
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP))
-			vty_out(vty, " via %s(backup)",
-				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
-					sizeof(buf)));
-		else
-			vty_out(vty, " via %s",
-				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
-					sizeof(buf)));
+		if (strlen(nexthop->sidlist_name) == 0) {
+			afi = AFI_IP6;
+			ipv6 = &nexthop->gate.ipv6;
+		} else {
+			if(IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
+				ipv4 = &local_ipv4;
+				afi = AFI_IP;
+				ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
+			} else {
+				afi = AFI_IP6;
+				ipv6 = &nexthop->gate.ipv6;
+			}
+		}
+		if (afi == AFI_IP)
+			vty_out(vty, " via %pI4%s",ipv4, CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP) ? "(backup)" : "");
+		if (afi == AFI_IP6)
+			vty_out(vty, " via %pI6%s",ipv6, CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP) ? "(backup)" : "");
+
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
 		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		vty_out(vty, " color %d", nexthop->srte_color);
@@ -1728,7 +1760,7 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe,
 		vty_out(vty, "ID: %u (%s %p)\n", nhe->id,
 			zebra_route_string(nhe->type), nhe);
 		vty_out(vty, "     Afi: %u\n", nhe->afi);
-		vty_out(vty, "     RefCnt: %u", nhe->refcnt);
+		vty_out(vty, "     RefCnt: %u\n", nhe->refcnt);
 		vty_out(vty, "     segment_ref: %u\n", nhe->segment_ref);
 
 		vty_out(vty, "     Uptime: %s\n", up_str);
