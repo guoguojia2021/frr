@@ -489,7 +489,11 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	else if (safi == SAFI_UNICAST && pi
 		 && pi->sub_type == BGP_ROUTE_IMPORTED && pi->extra
 		 && pi->extra->num_labels && !bnc->is_evpn_gwip_nexthop && !isServiceRoute) {
-		return bgp_isvalid_labeled_nexthop(bnc);
+		 if (!CHECK_FLAG(bgp_nexthop->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
+			return (bgp_isvalid_labeled_nexthop(bnc));
+		 else {
+			return ((bgp_isvalid_labeled_nexthop(bnc)) || (bgp_isvalid_nexthop(te_bnc)));
+		 }
 	} else {
 		if (!CHECK_FLAG(bgp_nexthop->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
 			return (bgp_isvalid_nexthop(bnc));
