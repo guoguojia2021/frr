@@ -392,6 +392,7 @@ struct srte_candidate {
 	/* bfd name*/
 	char bfd_name[BFD_NAME_SIZE + 1];
 	uint32_t my_discriminator;
+	time_t status_change_time;
 };
 
 RB_HEAD(srte_candidate_head, srte_candidate);
@@ -537,6 +538,7 @@ struct srte_policy {
     struct sbfd_session_config *bfd_config;
 
    	struct thread *wait_sbfd_timer;
+	time_t updatetime;
 	/* SRP id for PcInitiated support */
 	int srp_id;
 };

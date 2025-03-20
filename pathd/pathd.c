@@ -1045,6 +1045,7 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		policy->status = SRTE_POLICY_STATUS_DOWN;
 		policy->up_cpath_group_num = 0;
 	}
+	policy->updatetime = monotime(NULL);
 }
 
 void srv6_policy_apply_changes(struct srte_policy *policy)
@@ -1116,6 +1117,7 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 	}
 	lsp->candidate = candidate;
 	candidate->lsp = lsp;
+	candidate->status_change_time = monotime(NULL);
 
 	RB_INSERT(srte_candidate_head, &policy->candidate_paths, candidate);
 
@@ -2118,6 +2120,9 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta)
 {
+	if (candidate->status != sta)
+		candidate->status_change_time = monotime(NULL);
+
 	switch (sta)
 	{
 	case SRTE_DETECT_DOWN:

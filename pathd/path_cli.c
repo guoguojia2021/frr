@@ -122,6 +122,8 @@ DEFPY(show_srte_policy,
 	struct ttable *tt;
 	struct srte_policy *policy;
 	char *table;
+	time_t updatetime;
+	char up_str[MONOTIME_STRLEN];
 
 	if (RB_EMPTY(srte_policy_head, &srte_policies)) {
 		vty_out(vty, "No SR Policies to display.\n\n");
@@ -130,26 +132,31 @@ DEFPY(show_srte_policy,
 
 	/* Prepare table. */
 	tt = ttable_new(&ttable_styles[TTSTYLE_BLANK]);
-	ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status");
+	ttable_add_row(tt, "Endpoint|Color|Name|BSID|Status|UpdateTime");
 	tt->style.cell.rpad = 2;
 	tt->style.corner = '+';
 	ttable_restyle(tt);
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
+	updatetime = monotime(NULL);
 
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
 		char endpoint[46];
 		char binding_sid[16] = "-";
+		memset(up_str, 0, sizeof(up_str));
 
 		prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 		if (policy->binding_sid != MPLS_LABEL_NONE)
 			snprintf(binding_sid, sizeof(binding_sid), "%u",
 				 policy->binding_sid);
 
-		ttable_add_row(tt, "%s|%u|%s|%s|%s", endpoint, policy->color,
+		updatetime -= policy->updatetime;
+		frrtime_to_interval(updatetime, up_str, sizeof(up_str));
+		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s", endpoint, policy->color,
 			       policy->name, binding_sid,
 			       policy->status == SRTE_POLICY_STATUS_UP
 				       ? "Active"
-				       : "Inactive");
+				       : "Inactive",
+					   up_str);
 	}
 
 	/* Dump the generated table. */
@@ -168,7 +175,14 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 	struct srte_candidate_group *cpath_group, *safe_cpg;
 	char endpoint[46];
 	char binding_sid[46] = "-";
+	time_t updatetime;
+	char up_str[MONOTIME_STRLEN];
+	time_t status_change_time;
+	char status_change_str[MONOTIME_STRLEN];
 
+	updatetime = monotime(NULL);
+	updatetime -= policy->updatetime;
+	frrtime_to_interval(updatetime, up_str, sizeof(up_str));
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	if (policy->binding_sid != MPLS_LABEL_NONE)
 		snprintf(binding_sid, sizeof(binding_sid), "%u",
@@ -178,9 +192,10 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 		ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
 
 	vty_out(vty,
-		"Endpoint: %s  Color: %u  Name: %s  BSID: %s  Status: %s\n",
+		"Endpoint: %s  Color: %u  Name: %s  BSID: %s  Status: %s  UpdateTime: %s\n",
 		endpoint, policy->color, policy->name, binding_sid,
-		policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive");
+		policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive",
+		up_str);
 
 	/* show cpath group first*/
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cpg) {
@@ -217,15 +232,17 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 				has_bfd = true;
 				snprintf(binding_bfd, sizeof(binding_bfd), "%s", candidate->bfd_name);
 			}
-
+			memset(status_change_str, 0, sizeof(status_change_str));
+			status_change_time = monotime(NULL);
+			status_change_time -= candidate->status_change_time;
+			frrtime_to_interval(status_change_time, status_change_str, sizeof(status_change_str));
 			vty_out(vty,
-				"       Candidate Name: %s  Type: %s  Segment-List: %s  Weight: %d  BindingBFD: %s  Status: %s\n",
+				"       CandidateName: %s  SegmentList: %s  BindingBFD: %s  Status: %s  %s\n",
 				candidate->name,
-				"explicit",
 				candidate->segment_list ? candidate->segment_list->name : "-",
-				candidate->weight,
 				binding_bfd,
-				has_bfd ? (candidate->status == SRTE_DETECT_UP ? "UP" : (candidate->status == SRTE_DETECT_NONE ?"NONE": "DOWN")) : "UP");
+				has_bfd ? (candidate->status == SRTE_DETECT_UP ? "UP" : (candidate->status == SRTE_DETECT_NONE ?"NONE": "DOWN")) : "UP",
+				status_change_str);
 		}
 	}
 	vty_out(vty, "\n");
