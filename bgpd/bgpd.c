@@ -8812,6 +8812,11 @@ void bgp_master_init(struct thread_master *master, const int buffer_size,
 	memset(&bgp_master, 0, sizeof(struct bgp_master));
 
 	bm = &bgp_master;
+
+	/* Initialize the peer connection FIFO list */
+	peer_connection_fifo_init(&bm->connection_fifo);
+	pthread_mutex_init(&bm->peer_connection_mtx, NULL);
+
 	bm->bgp = list_new();
 	bm->listen_sockets = list_new();
 	bm->port = BGP_PORT_DEFAULT;

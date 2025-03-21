@@ -113,7 +113,11 @@ void bgp_reads_off(struct peer_connection *connection)
 	assert(fpt->running);
 
 	thread_cancel_async(fpt->master, &connection->t_read, NULL);
-	THREAD_OFF(connection->t_process_packet);
+
+	frr_with_mutex (&bm->peer_connection_mtx) {
+		if (peer_connection_fifo_member(&bm->connection_fifo, connection))
+			peer_connection_fifo_del(&bm->connection_fifo, connection);
+	}
 
 	UNSET_FLAG(connection->thread_flags, PEER_THREAD_READS_ON);
 }
@@ -303,11 +307,15 @@ done:
 		return 0;
 	}
 
-	thread_add_read(fpt->master, bgp_process_reads, peer, connection->fd,
+	thread_add_read(fpt->master, bgp_process_reads, connection, connection->fd,
 		       &connection->t_read);
-	if (added_pkt)
-		thread_add_read(bm->master, bgp_process_packet, connection, 0,
-				&connection->t_process_packet);
+	if (added_pkt) {
+		frr_with_mutex (&bm->peer_connection_mtx) {
+			if (!peer_connection_fifo_member(&bm->connection_fifo, connection))
+				peer_connection_fifo_add_tail(&bm->connection_fifo, connection);
+		}
+		thread_add_event(bm->master, bgp_process_packet, NULL, 0, &bm->e_process_packet);
+	}
 
 	return 0;
 }

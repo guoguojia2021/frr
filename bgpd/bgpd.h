@@ -128,6 +128,9 @@ struct bm_rmap {
 	struct bgp_rmap default_map[AFI_MAX][SAFI_MAX][RMAP_MAX];
 };
 
+/* FIFO list for peer connections */
+PREDECL_LIST(peer_connection_fifo);
+
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master {
 	/* BGP instance list.  */
@@ -141,6 +144,11 @@ struct bgp_master {
 
 	/* BGP port number.  */
 	uint16_t port;
+
+	/* FIFO list head for peer connections */
+	struct peer_connection_fifo_head connection_fifo;
+	struct thread *e_process_packet;
+	pthread_mutex_t peer_connection_mtx;
 
 	/* Listener addresses */
 	struct list *addresses;
@@ -1327,8 +1335,6 @@ struct peer_connection {
 	struct thread *t_process_packet;
 	struct thread *t_process_packet_error;
 
-	struct thread *t_stop_with_notify;
-
 	/* Linkage for list connections with errors, from IO pthread */
 	struct bgp_peer_conn_errlist_item conn_err_link;
 
@@ -1343,7 +1349,15 @@ struct peer_connection {
 	_Atomic uint32_t thread_flags;
 #define PEER_THREAD_WRITES_ON (1U << 0)
 #define PEER_THREAD_READS_ON (1U << 1)
+
+	/* For FIFO list */
+	struct peer_connection_fifo_item fifo_item;
 };
+
+/* Declare the FIFO list implementation */
+DECLARE_LIST(peer_connection_fifo, struct peer_connection, fifo_item);
+
+const char *bgp_peer_get_connection_direction(struct peer_connection *connection);
 extern struct peer_connection *bgp_peer_connection_new(struct peer *peer);
 extern void bgp_peer_connection_free(struct peer_connection **connection);
 extern void bgp_peer_connection_buffers_free(struct peer_connection *connection);

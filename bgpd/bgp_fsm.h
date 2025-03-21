@@ -53,11 +53,11 @@
 	do {								       \
 		if (BGP_SUPPRESS_FIB_ENABLED(peer->bgp) &&		       \
 		    PEER_ROUTE_ADV_DELAY(peer))				       \
-			thread_add_timer_msec(bm->master, (F), peer,	       \
+			thread_add_timer_msec(bm->master, (F), connection,	       \
 				(BGP_DEFAULT_UPDATE_ADVERTISEMENT_TIME * 1000),\
 				(T));					       \
 		else							       \
-			thread_add_timer_msec(bm->master, (F), peer,	       \
+			thread_add_timer_msec(bm->master, (F), connection,	       \
 					      0, (T));			       \
 	} while (0)							       \
 
