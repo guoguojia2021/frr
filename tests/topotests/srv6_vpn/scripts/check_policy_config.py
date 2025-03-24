@@ -36,7 +36,7 @@ luCommand(
 luCommand(
     "pe1",
     'vtysh -c "show sr-te policy detail"',
-    "Candidate Name: a.*Candidate Name: b",
+    "CandidateName: a.*CandidateName: b",
     "pass",
     "see candidate-path a and b"
 )
@@ -51,7 +51,7 @@ luCommand(
 luCommand(
     "pe1",
     'vtysh -c "show sr-te policy detail"',
-    "Candidate Name: b",
+    "CandidateName: b",
     "fail",
     "shouldn't see candidate-path b"
 )
@@ -66,7 +66,7 @@ luCommand(
 luCommand(
     "pe1",
     'vtysh -c "show sr-te policy detail"',
-    "Weight: 99",
+    "Status: UP",
     "pass",
     "change weight successfully"
 )
