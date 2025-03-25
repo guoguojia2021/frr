@@ -613,8 +613,9 @@ static int
 bgp_adv_lprio_timer (struct thread *thread)
 {
 	struct peer *peer;
+	struct peer_connection *connection = THREAD_ARG(thread);
 
-	peer = THREAD_ARG (thread);
+	peer = connection->peer;
 	bgp_peer_adv_lprio_t_off(peer);
 
 	if (BGP_DEBUG (update, UPDATE_OUT))
