@@ -83,7 +83,7 @@ get_route_parent_evpn(struct bgp_path_info *ri)
 
 /* Flag if the route's parent is a EVPN route. */
 static inline int is_route_parent_evpn(struct bgp_path_info *ri)
-    {
+{
     struct bgp_path_info *parent_ri;
     struct bgp_table *table;
     struct bgp_dest *dest;
@@ -114,7 +114,8 @@ static inline int is_route_parent_evpn(struct bgp_path_info *ri)
             return 1;
         }
     }
-    }
+	return 0;
+}
 
 /* Flag if the route path's family is EVPN. */
 static inline bool is_pi_family_evpn(struct bgp_path_info *pi)
