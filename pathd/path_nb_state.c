@@ -143,10 +143,11 @@ int pathd_srte_policy_candidate_path_get_keys(struct nb_cb_get_keys_args *args)
 	const struct srte_candidate *candidate =
 		(struct srte_candidate *)args->list_entry;
 
-	args->keys->num = 1;
+	args->keys->num = 2;
 	snprintf(args->keys->key[0], sizeof(args->keys->key[0]), "%u",
 		 candidate->preference);
-
+	snprintf(args->keys->key[1], sizeof(args->keys->key[1]), "%s",
+		 candidate->name);
 	return NB_OK;
 }
 
