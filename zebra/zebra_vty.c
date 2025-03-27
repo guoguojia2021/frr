@@ -504,15 +504,17 @@ static void show_nexthop_detail_helper(struct vty *vty,
 		}
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-		vty_out(vty, " %pI4",
-			&nexthop->gate.ipv4);
+		vty_out(vty, " %pI4%s",
+			&nexthop->gate.ipv4,
+			CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP) ? "(B)" : "");
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
 		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		break;
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		vty_out(vty, " %s",
+		vty_out(vty, " %s%s",
 			inet_ntop(AF_INET6, &nexthop->gate.ipv6,
-				  buf, sizeof(buf)));
+				  buf, sizeof(buf)),
+			CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP) ? "(B)" : "");
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
 		vty_out(vty, " discriminator %u", nexthop->my_discriminator);
 		break;
