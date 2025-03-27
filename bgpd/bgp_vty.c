@@ -17736,7 +17736,7 @@ static void bgp_config_write_peer_global(struct vty *vty, struct bgp *bgp,
 	/* peer-tracking-check */
 	if (peergroup_flag_check(peer, PEER_FLAG_TRACKING))
 		if (peer->tracking_delay)
-			vty_out(vty, " neighbor %s tracking delay %u\n", addr);
+			vty_out(vty, " neighbor %s tracking delay %u\n", addr, peer->tracking_delay);
 		else
 			vty_out(vty, " neighbor %s tracking\n", addr);
 }
