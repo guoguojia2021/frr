@@ -536,11 +536,12 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 					continue;
 
 			if (strcmp(candidate_tmp->segment_list->name, segment_list_name) == 0
-				&& candidate_tmp->preference == preference)
-				snprintf(args->errmsg, args->errmsg_len,
-						"One policy not allow config the same segment-list");
+				&& candidate_tmp->preference == preference) {
+					snprintf(args->errmsg, args->errmsg_len,
+							"One policy not allow config the same segment-list");
 
-				return NB_ERR_VALIDATION;
+					return NB_ERR_VALIDATION;
+				}
 		}
 		return NB_OK;
 	}
