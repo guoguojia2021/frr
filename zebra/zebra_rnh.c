@@ -178,22 +178,30 @@ static void zebra_rnh_clear_nexthop_rnh_filters(struct route_entry *re)
  */
 static int zebra_rnh_apply_nht_rmap(afi_t afi, struct zebra_vrf *zvrf,
 				    struct route_node *prn,
-				    struct route_entry *re, int proto)
+				    struct rnh *rnh, int proto)
 {
 	int at_least_one = 0;
 	struct nexthop *nexthop;
 	route_map_result_t ret;
 
-	if (prn && re) {
-		for (nexthop = re->nhe->nhg.nexthop; nexthop;
-		     nexthop = nexthop->next) {
-			ret = zebra_nht_route_map_check(
-				afi, proto, &prn->p, zvrf, re, nexthop);
-			if (ret != RMAP_DENYMATCH)
-				at_least_one++; /* at least one valid NH */
-			else {
-				SET_FLAG(nexthop->flags,
-					 NEXTHOP_FLAG_RNH_FILTERED);
+	if (prn && rnh->state) {
+		if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_IMPORT_CHECK)) {
+			for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
+			     nexthop = nexthop->next)
+			     at_least_one++; 
+		}
+		else {
+			for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
+			     nexthop = nexthop->next) {
+				
+				ret = zebra_nht_route_map_check(
+					afi, proto, &prn->p, zvrf, rnh->state, nexthop);
+				if (ret != RMAP_DENYMATCH)
+					at_least_one++; /* at least one valid NH */
+				else {
+					SET_FLAG(nexthop->flags,
+						 NEXTHOP_FLAG_RNH_FILTERED);
+				}
 			}
 		}
 	}
@@ -225,7 +233,7 @@ void zebra_rnh_info_del(struct route_node *dest, struct rnh *pi)
 		dest->info = pi->next;
 }
 
-struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color, uint8_t srte_color_flag)
+struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color, uint8_t rnh_type_flag)
 {
 	struct route_table *table;
 	struct route_node *rn;
@@ -258,7 +266,7 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 	rn = route_node_get(table, p);
 	/* Check previously received route. */
 	for (rnh = rn->info; rnh; rnh = rnh->next)
-		if ((rnh->srte_color == srte_color) && (rnh->srte_color_flag == srte_color_flag))
+		if ((rnh->srte_color == srte_color) && (rnh->type_flags == rnh_type_flag))
 			break;
 
 	if (!rnh) {
@@ -280,7 +288,7 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		route_lock_node(rn);
 		rnh->node = rn;
 		rnh->srte_color = srte_color;
-		rnh->srte_color_flag = srte_color_flag;
+		rnh->type_flags = rnh_type_flag;
 		rnh->srp_status = ZEBRA_SR_POLICY_DOWN;
 		*exists = false;
         
@@ -415,7 +423,7 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 	if(rn && rnh->state) {
 		zebra_rnh_clear_nexthop_rnh_filters(rnh->state);
 		num_resolving_nh = zebra_rnh_apply_nht_rmap(
-				family2afi(p->family), zvrf, rn, rnh->state, client->proto);
+				family2afi(p->family), zvrf, rn, rnh, client->proto);
 		if (num_resolving_nh)
 			rnh->filtered[client->proto] = 0;
 		else
@@ -565,7 +573,7 @@ static void zebra_rnh_notify_protocol_clients(struct zebra_vrf *zvrf, afi_t afi,
 			 */
 			zebra_rnh_clear_nexthop_rnh_filters(re);
 			num_resolving_nh = zebra_rnh_apply_nht_rmap(
-				afi, zvrf, prn, re, client->proto);
+				afi, zvrf, prn, rnh, client->proto);
 			if (num_resolving_nh)
 				rnh->filtered[client->proto] = 0;
 			else
@@ -989,14 +997,14 @@ void zebra_evaluate_rnh_by_srte(afi_t afi,
 	struct zebra_sr_policy *policy = NULL;
 	struct route_node *nrn = rnh->node;
 
-	if (rnh->srte_color_flag == 0) {
+	if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH)) {
 		policy = zebra_sr_policy_lookup_by_prefix(&nrn->p, rnh->srte_color);
 		if (!policy || policy->status != ZEBRA_SR_POLICY_UP)
 			policy = NULL;
 	}
-	else if (rnh->srte_color_flag == 1 || rnh->srte_color_flag == 3)
+	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH))
 		policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_color);
-	else if (rnh->srte_color_flag == 2) {
+	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH)) {
 		struct prefix endpoint = {0};
 		endpoint.family = AF_INET6;
 		policy = zebra_sr_policy_match_by_prefix(&endpoint, rnh->srte_color);
@@ -1530,10 +1538,10 @@ static void print_rnh(struct route_node *rn, struct vty *vty)
 
 	rnh = rn->info;
 	for (; rnh; rnh = rnh->next) {
-		vty_out(vty, "%s%s - color flag:%d, %u\n",
+		vty_out(vty, "%s%s - type flag:%d, %u\n",
 			inet_ntop(rn->p.family, &rn->p.u.prefix, buf, BUFSIZ),
 			CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED) ? "(Connected)"
-								    : "", rnh->srte_color_flag, rnh->srte_color);
+								    : "", rnh->type_flags, rnh->srte_color);
 		if (rnh->state) {
 			vty_out(vty, " resolved via %s\n",
 				zebra_route_string(rnh->state->type));

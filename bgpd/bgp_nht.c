@@ -1148,6 +1148,9 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
 					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_COLOR, &tmp);
 	}
+	else if (CHECK_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH))
+		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
+					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_IMPORTCHECK, NULL);
 	else
 		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
 					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);

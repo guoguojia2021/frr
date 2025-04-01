@@ -704,6 +704,7 @@ int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy
 	int ret;
 	struct nexthop nh = {0};
 	struct route_node *rn;
+	uint8_t srte_color_flag = 0;
 	rn = rnh->node;
 
 	/* Get output stream. */
@@ -748,7 +749,13 @@ int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy
 	}
 
 	stream_putl(s, rnh->srte_color);
-	stream_putc(s, rnh->srte_color_flag);
+	if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH))
+		srte_color_flag == 0;
+	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH))
+		srte_color_flag == 1;
+	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH))
+		srte_color_flag == 2;
+	stream_putc(s, srte_color_flag);
 
 	num = 0;
 	if (policy && policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
@@ -850,6 +857,7 @@ int zebra_sr_policy_notify_unknown(struct rnh *rnh,
 	struct stream *s;
 	uint32_t message = 0;
     struct route_node *rn;
+	uint8_t srte_color_flag = 0;
 
     rn = rnh->node;
 
@@ -888,7 +896,13 @@ int zebra_sr_policy_notify_unknown(struct rnh *rnh,
 	}
 
 	stream_putl(s, rnh->srte_color);
-	stream_putc(s, rnh->srte_color_flag);
+	if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH))
+		srte_color_flag == 0;
+	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH))
+		srte_color_flag == 1;
+	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH))
+		srte_color_flag == 2;
+	stream_putc(s, srte_color_flag);
 
     stream_putc(s, ZEBRA_ROUTE_SRTE);
 	stream_putw(s, 0); /* instance - not available */

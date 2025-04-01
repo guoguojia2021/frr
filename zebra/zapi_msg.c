@@ -1218,6 +1218,7 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 	uint32_t userdata_type = 0;
 	uint32_t srte_color = 0;
 	uint8_t srte_color_flag = 0;
+	uint8_t rnh_type_flag = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
 		zlog_debug(
@@ -1233,6 +1234,7 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 	while (l < hdr->length) {
 		srte_color = 0;
 		srte_color_flag = 0;
+		rnh_type_flag = 0;
 		STREAM_GETC(s, flags);
 		STREAM_GETC(s, resolve_via_default);
 		STREAM_GETW(s, safi);
@@ -1273,6 +1275,12 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 			case NEXTHOP_REGISTER_TYPE_COLOR:
 				STREAM_GETL(s, srte_color);
 				STREAM_GETC(s, srte_color_flag);
+				if (srte_color_flag == 0)
+					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH);
+				else if (srte_color_flag == 1)
+					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH);
+				else if (srte_color_flag == 2)
+					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH);
 				l += 9;
 				break;
 			default:
@@ -1281,7 +1289,9 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 				break;
 			}
 		}
-		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, srte_color_flag);
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK))
+			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
+		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, rnh_type_flag);
 		if (!rnh)
 			return;
 
@@ -1322,6 +1332,7 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 	safi_t safi;
 	uint32_t userdata_type = 0;
 	uint32_t srte_color = 0;
+	uint8_t rnh_type_flag = 0;
 	uint8_t srte_color_flag = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
@@ -1381,6 +1392,12 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 			case NEXTHOP_REGISTER_TYPE_COLOR:
 				STREAM_GETL(s, srte_color);
 				STREAM_GETC(s, srte_color_flag);
+				if (srte_color_flag == 0)
+					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH);
+				else if (srte_color_flag == 1)
+					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH);
+				else if (srte_color_flag == 2)
+					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH);
 				l += 9;
 				break;
 			default:
@@ -1389,10 +1406,12 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 				break;
 			}
 		}
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK))
+			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
 		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
 		for (rnh; rnh; rnh = rnh->next)
-			if (rnh->srte_color == srte_color && rnh->srte_color_flag == srte_color_flag)
+			if (rnh->srte_color == srte_color && rnh->type_flags == rnh_type_flag)
 				break;
 		if (rnh) {
 			client->nh_dereg_time = monotime(NULL);

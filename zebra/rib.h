@@ -56,12 +56,23 @@ struct rnh {
     struct rnh *prev;
 
 	uint8_t flags;
-	uint8_t srte_color_flag;
+	uint8_t type_flags;
 
 #define ZEBRA_NHT_CONNECTED 0x1
 #define ZEBRA_NHT_DELETED 0x2
 #define ZEBRA_NHT_RESOLVE_VIA_DEFAULT 0x4
-#define ZEBRA_NHT_TRACK_MATCH   0x8
+#define ZEBRA_NHT_TRACK_MATCH    0x8
+
+/* Color flag: 00 */
+#define ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH          0x1
+/* Color flag: 01 */
+#define ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH    0x2
+/* Color flag: 10 */
+#define ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH       0x4
+/* BGP Track route */
+#define ZEBRA_NHT_TYPE_TRACK_MATCH               0x8
+/* BGP Import Check */
+#define ZEBRA_NHT_TYPE_IMPORT_CHECK              0x10
 
 	/* VRF identifier. */
 	vrf_id_t vrf_id;

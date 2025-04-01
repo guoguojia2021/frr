@@ -783,6 +783,8 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 		SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_EXTRAMATCH);
 	if (userdata)
 		SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_USERDATA);
+	if (type == NEXTHOP_REGISTER_TYPE_IMPORTCHECK)
+		SET_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK);
 
 	stream_putc(s, flags);
 	stream_putc(s, (resolve_via_def) ? 1 : 0);
