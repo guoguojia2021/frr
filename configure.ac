@@ -313,12 +313,6 @@ if test "$enable_scripting" = "yes"; then
    ])
 fi
 
-AM_CONDITIONAL([ZEBRA_UNIT_TESTING], [test "$enable_zebra_unit_testing" = "yes"])
-
-if test "$enable_zebra_unit_testing" = "yes"; then
-    AC_DEFINE([ZEBRA_UNIT_TESTING], [1], [In zebra unit testing mode])
-fi
-
 dnl the following flags go in CFLAGS rather than AC_CFLAGS since they make
 dnl sense to be overridden by the user
 if test "$enable_dev_build" = "yes"; then
@@ -775,9 +769,6 @@ AC_ARG_ENABLE([dev_build],
 
 AC_ARG_ENABLE([scripting],
     AS_HELP_STRING([--enable-scripting], [Build with scripting support]))
-
-AC_ARG_ENABLE([zebra_unit_testing],
-    AS_HELP_STRING([--enable-zebra-unit-testing], [Build in Zebra unit testing mode]))
 
 AC_ARG_ENABLE([netlink-debug],
   AS_HELP_STRING([--disable-netlink-debug], [pretty print netlink debug messages]))

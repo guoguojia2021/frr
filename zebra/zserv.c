@@ -538,13 +538,11 @@ static int zserv_process_messages(struct thread *thread)
 
 int zserv_send_message(struct zserv *client, struct stream *msg)
 {
-#ifndef ZEBRA_UNIT_TESTING
 	frr_with_mutex(&client->obuf_mtx) {
 		stream_fifo_push(client->obuf_fifo, msg);
 	}
 
 	zserv_client_event(client, ZSERV_CLIENT_WRITE);
-#endif
 
 	return 0;
 }

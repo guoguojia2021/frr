@@ -1,2 +1,0 @@
-.*zebra_sr_policy_activate.*
-.*zebra_sr_policy_update.*

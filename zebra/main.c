@@ -71,7 +71,6 @@ extern int graceful_restart;
 extern int ZEBRA_TABLE_FIB_MAX;
 extern unsigned long zebra_config_fib_max;
 extern bool v6_rr_semantics;
-extern struct zebra_privs_t zserv_privs;
 
 /* Command line options. */
 const struct option longopts[] = {
@@ -91,6 +90,22 @@ const struct option longopts[] = {
 #endif /* HAVE_NETLINK */
 	{0}};
 
+zebra_capabilities_t _caps_p[] = {
+	ZCAP_NET_ADMIN, ZCAP_SYS_ADMIN, ZCAP_NET_RAW,
+};
+
+/* zebra privileges to run with */
+struct zebra_privs_t zserv_privs = {
+#if defined(FRR_USER) && defined(FRR_GROUP)
+	.user = FRR_USER,
+	.group = FRR_GROUP,
+#endif
+#ifdef VTY_GROUP
+	.vty_group = VTY_GROUP,
+#endif
+	.caps_p = _caps_p,
+	.cap_num_p = array_size(_caps_p),
+	.cap_num_i = 0};
 
 /* SIGHUP handler. */
 static void sighup(void)

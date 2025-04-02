@@ -37,7 +37,6 @@ using std::memory_order_release;
 using std::memory_order_acq_rel;
 using std::memory_order_consume;
 using std::memory_order_seq_cst;
-#define _Atomic volatile
 
 typedef std::atomic<bool>		atomic_bool;
 typedef std::atomic<size_t>		atomic_size_t;

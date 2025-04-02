@@ -3522,16 +3522,11 @@ done:
  */
 enum zebra_dplane_result dplane_nexthop_add(struct nhg_hash_entry *nhe)
 {
-#ifdef ZEBRA_UNIT_TESTING
-	zlog_warn("dplane_nexthop_add skipped");
-	return ZEBRA_DPLANE_REQUEST_SUCCESS;
-#elif
 	enum zebra_dplane_result ret = ZEBRA_DPLANE_REQUEST_FAILURE;
 
 	if (nhe)
 		ret = dplane_nexthop_update_internal(nhe, DPLANE_OP_NH_INSTALL);
 	return ret;
-#endif
 }
 
 /*
@@ -3553,16 +3548,12 @@ enum zebra_dplane_result dplane_nexthop_update(struct nhg_hash_entry *nhe)
  */
 enum zebra_dplane_result dplane_nexthop_delete(struct nhg_hash_entry *nhe)
 {
-#ifdef ZEBRA_UNIT_TESTING
-	return ZEBRA_DPLANE_REQUEST_SUCCESS;
-#elif
 	enum zebra_dplane_result ret = ZEBRA_DPLANE_REQUEST_FAILURE;
 
 	if (nhe)
 		ret = dplane_nexthop_update_internal(nhe, DPLANE_OP_NH_DELETE);
 
 	return ret;
-#endif
 }
 
 enum zebra_dplane_result dplane_pic_context_add(struct nhg_hash_entry *nhe)
