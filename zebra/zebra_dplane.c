@@ -3525,7 +3525,7 @@ enum zebra_dplane_result dplane_nexthop_add(struct nhg_hash_entry *nhe)
 #ifdef ZEBRA_UNIT_TESTING
 	zlog_warn("dplane_nexthop_add skipped");
 	return ZEBRA_DPLANE_REQUEST_SUCCESS;
-#elif
+#else
 	enum zebra_dplane_result ret = ZEBRA_DPLANE_REQUEST_FAILURE;
 
 	if (nhe)
@@ -3555,7 +3555,7 @@ enum zebra_dplane_result dplane_nexthop_delete(struct nhg_hash_entry *nhe)
 {
 #ifdef ZEBRA_UNIT_TESTING
 	return ZEBRA_DPLANE_REQUEST_SUCCESS;
-#elif
+#else
 	enum zebra_dplane_result ret = ZEBRA_DPLANE_REQUEST_FAILURE;
 
 	if (nhe)

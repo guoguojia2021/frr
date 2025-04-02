@@ -1332,7 +1332,7 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 
 #ifdef ZEBRA_UNIT_TESTING
 	zlog_warn("rib_process_add_fib: rib_install_kernel skipped in UT mode\n");
-#elif
+#else
 	rib_install_kernel(rn, new, NULL);
 #endif
 
@@ -3280,7 +3280,7 @@ int rib_queue_add(struct route_node *rn)
 	route_lock_node(rn);
 	immediate_process_subq_route(rn);
 	return 0;
-#elif
+#else
 	return mq_add_handler(rn, rib_meta_queue_add);
 #endif
 }
