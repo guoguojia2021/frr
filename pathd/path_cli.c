@@ -40,7 +40,7 @@
 #define XPATH_MAXKEYSIZE 42
 #define XPATH_POLICY_BASELEN 100
 #define XPATH_POLICY_MAXLEN (XPATH_POLICY_BASELEN + XPATH_MAXATTRSIZE)
-#define XPATH_CANDIDATE_BASELEN (XPATH_POLICY_BASELEN + XPATH_MAXKEYSIZE)
+#define XPATH_CANDIDATE_BASELEN (XPATH_POLICY_MAXLEN + XPATH_MAXKEYSIZE)
 #define XPATH_CANDIDATE_MAXLEN (XPATH_CANDIDATE_BASELEN + XPATH_MAXATTRSIZE)
 
 
@@ -804,7 +804,7 @@ DEFPY_YANG_NOSH(
 	"SR Policy endpoint IPv6 address\n"
 	"SR Policy endpoint IPv6 address\n")
 {
-	char xpath[XPATH_POLICY_BASELEN];
+	char xpath[XPATH_POLICY_MAXLEN];
 	int ret;
 
 	snprintf(xpath, sizeof(xpath),
@@ -831,7 +831,7 @@ DEFPY_YANG(srte_no_policy,
       "SR Policy endpoint IPv6 address\n"
       "SR Policy endpoint IPv6 address\n")
 {
-	char xpath[XPATH_POLICY_BASELEN];
+	char xpath[XPATH_POLICY_MAXLEN];
 
 	snprintf(xpath, sizeof(xpath),
 		 "/frr-pathd:pathd/srte/policy[color='%s'][endpoint='%s']",
