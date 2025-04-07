@@ -583,8 +583,10 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 		frr_each_safe(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
 			node_sid_name = rb_node_dep->nhe->nhg.nexthop->sidlist_name;
 
-			if (strncmp(node_sid_name, policy_sid_name, sizeof(rb_node_dep->nhe->nhg.nexthop->sidlist_name)) == 0)
+			if (strncmp(node_sid_name, policy_sid_name, sizeof(rb_node_dep->nhe->nhg.nexthop->sidlist_name)) == 0) {
+				zebra_nhg_seg_decrement_ref(rb_node_dep->nhe);
 				zebra_nhg_seg_release(rb_node_dep->nhe);
+			}
 		}
 	}
 
