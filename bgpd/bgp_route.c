@@ -8587,6 +8587,8 @@ void bgp_static_delete(struct bgp *bgp)
 								     NULL);
 					bgp_dest_unlock_node(rm);
 				}
+
+				bgp_table_unlock(table);
 			} else {
 				bgp_static = bgp_dest_get_bgp_static_info(dest);
 				bgp_static_withdraw(bgp,
