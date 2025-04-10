@@ -520,7 +520,7 @@ module frr-bfdd {
           }
 
           leaf segment-list {
-            type inet:ip-address;
+            type string;
             description "segment list address of sbfd session packet";
           }
 
@@ -580,7 +580,7 @@ module frr-bfdd {
           }
 
           leaf segment-list {
-            type inet:ip-address;
+            type string;
             description "segment list address of sbfd session packet";
           }
 

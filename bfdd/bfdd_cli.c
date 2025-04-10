@@ -279,7 +279,7 @@ int determine_ip_version(const char *ip)
 
 DEFPY_YANG_NOSH(
 	sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
-	"peer <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [{outer-dest-address <A.B.C.D|X:X::X:X>}] segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"peer <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [{outer-dest-address <A.B.C.D|X:X::X:X>}] segment-list LIST source-ipv6 X:X::X:X [{vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
@@ -329,7 +329,7 @@ DEFPY_YANG_NOSH(
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
 	snprintf(xpath_sl, sizeof(xpath_sl), "%s/segment-list", xpath);
-	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, segment_list_str);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, list);
 
 	snprintf(xpath_sl, sizeof(xpath_sl), "%s/source-ipv6", xpath);
 	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, source_ipv6_str);
@@ -357,7 +357,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	sbfd_echo_no_peer, sbfd_echo_no_peer_cmd,
-	"no peer <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [{outer-dest-address <A.B.C.D|X:X::X:X>}] segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"no peer <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [{outer-dest-address <A.B.C.D|X:X::X:X>}] segment-list LIST source-ipv6 X:X::X:X [{vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR
@@ -402,7 +402,7 @@ DEFPY_YANG(
 
 DEFPY_YANG_NOSH(
 	sbfd_init_peer_enter, sbfd_init_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (1-4294967295)$discr [{vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list LIST source-ipv6 X:X::X:X remote-discr (1-4294967295)$discr [{vrf NAME}]",
 	PEER_STR
 	PEER_IPV4_STR
 	PEER_IPV6_STR
@@ -466,7 +466,7 @@ DEFPY_YANG_NOSH(
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
 	snprintf(xpath_sl, sizeof(xpath_sl), "%s/segment-list", xpath);
-	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, segment_list_str);
+	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, list);
 
 	snprintf(xpath_sl, sizeof(xpath_sl), "%s/source-ipv6", xpath);
 	nb_cli_enqueue_change(vty, xpath_sl, NB_OP_MODIFY, source_ipv6_str);
@@ -488,7 +488,7 @@ DEFPY_YANG_NOSH(
 
 DEFPY_YANG(
 	sbfd_init_no_peer, sbfd_init_no_peer_cmd,
-	"no peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
+	"no peer  <A.B.C.D|X:X::X:X> name BFDNAME$bfdname mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list LIST source-ipv6 X:X::X:X remote-discr (0-4294967295)$discr [{vrf NAME}]",
 	NO_STR
 	PEER_STR
 	PEER_IPV4_STR

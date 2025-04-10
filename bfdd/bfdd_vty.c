@@ -120,6 +120,24 @@ static char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
     }
 }
 
+static char *sbfd_sidlist_to_string(struct in6_addr *sidlist, uint8_t segnum)
+{
+	static char buf[INET6_ADDRSTRLEN * SRV6_MAX_SEGS];
+	int pos = 0;
+	uint8_t i = 0;
+	char addr_buf[INET6_ADDRSTRLEN];
+
+	memset(buf, 0, sizeof(buf));
+
+	pos = snprintf(buf, sizeof(buf), "%s",
+		       inet_ntop(AF_INET6, &sidlist[0], addr_buf, sizeof(addr_buf)));
+
+	for (i = 1; i < segnum; i++)
+		pos += snprintf(buf + pos, sizeof(buf) - pos, ",%s",
+				inet_ntop(AF_INET6, &sidlist[i], addr_buf, sizeof(addr_buf)));
+
+	return buf;
+}
 
 /*
  * Show commands helper functions
@@ -160,9 +178,7 @@ static void _display_peer_header(struct vty *vty, struct bfd_session *bs)
 	{
 		if (bs->bfd_name[0])
 		{
-			vty_out(vty, " segment-list %s",
-				inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf,
-					sizeof(addr_buf)));
+			vty_out(vty, " segment-list %s", sbfd_sidlist_to_string(bs->seg_list, bs->segnum));
 			vty_out(vty, " source-ipv6 %s",
 				inet_ntop(AF_INET6, &bs->out_sip6, addr_buf,
 					sizeof(addr_buf)));
@@ -912,9 +928,9 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
 	vty_out(vty, "%-11s", bfd_mode_type_to_string(bs->bfd_mode));
 	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
 	{
-		inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf, sizeof(addr_buf));
-		vty_out(vty, "%s", addr_buf);
-		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
+		char *list = sbfd_sidlist_to_string(bs->seg_list, bs->segnum);
+		vty_out(vty, "%s", list);
+		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - strlen(list) + 2, " ");
 		inet_ntop(AF_INET6, &bs->out_sip6, addr_buf, sizeof(addr_buf));
 		vty_out(vty, "%s", addr_buf);
 		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
@@ -976,9 +992,9 @@ static void _get_display_peer_brief_wide(struct hash_bucket *hb, void *arg)
 	}
 	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
 	{
-		inet_ntop(AF_INET6, &bs->seg_list[0], addr_buf, sizeof(addr_buf));
-		if (bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] < strlen(addr_buf)) {
-			bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] = strlen(addr_buf);
+		char *list = sbfd_sidlist_to_string(bs->seg_list, bs->segnum);
+		if (bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] < strlen(list)) {
+			bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] = strlen(list);
 		}
 		inet_ntop(AF_INET6, &bs->out_sip6, addr_buf, sizeof(addr_buf));
 		if (bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] < strlen(addr_buf)) {

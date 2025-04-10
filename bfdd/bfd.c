@@ -1039,6 +1039,14 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 	return bs;
 }
 
+void bfd_common_session_destroy(struct bfd_session *bs)
+{
+	if (!bs)
+		return;
+
+	XFREE(MTYPE_BFDD_CONFIG, bs);
+}
+
 int bfd_session_update_label(struct bfd_session *bs, const char *nlabel)
 {
 	/* New label treatment:
@@ -1356,8 +1364,8 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 
 		/*get segnum and seglist entry*/
 		bfd->segnum = bpc->seg_num;
-		int i ;
-		for (i=0; i < bpc->seg_num; i++)
+
+		for (int i=0; i < bpc->seg_num; i++)
 		{
 			memcpy(&bfd->seg_list[i], &bpc->seg_list[i], sizeof(struct in6_addr));
 		}

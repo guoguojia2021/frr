@@ -132,6 +132,51 @@ static int session_iter_cb(const struct lyd_node *dnode, void *arg)
 	return YANG_ITER_CONTINUE;
 }
 
+static int segment_list_resolve(const char* list, struct in6_addr *seg_list, uint8_t segnum)
+{
+	char *ips = NULL;
+	uint8_t i = 0;
+
+	if (!list || strlen(list) <= 0)
+	{
+		return -1;
+	}
+
+	ips = strndup(list, strlen(list));
+	if (!ips)
+	{
+		return -1;
+	}
+
+	char *ip = strtok(ips, ",");
+	while(ip)
+	{
+		struct sockaddr_any sa;
+		if (strtosa(ip, &sa) < 0 || sa.sa_sin6.sin6_family != AF_INET6) {
+			free(ips);
+			return -1;
+		}
+
+		memcpy(&seg_list[i], &sa.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+		i++;
+
+		if (i > segnum) {
+			free(ips);
+			return -2;
+		}
+
+		ip = strtok(NULL, ",");
+	}
+
+	free(ips);
+
+	if (i != segnum) {
+		return -3;
+	}
+
+	return 0;
+}
+
 static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32_t bfd_mode)
 {
 	const struct lyd_node *sess_dnode;
@@ -270,6 +315,17 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 					args->errmsg, args->errmsg_len,
 					"segment-list should not be null");
 				return NB_ERR_RESOURCE;
+			} else {
+				const char *list = yang_dnode_get_string(args->dnode, "./segment-list");
+				for(int i = 0; i < strlen(list); i++)
+				{
+					if (list[i] == ',') segnum++;
+				}
+
+				if (segnum > SRV6_MAX_SEGS) {
+					snprintf(args->errmsg, args->errmsg_len, "segment-list ipv6 num exceeds");
+					return NB_ERR_RESOURCE;
+				}
 			}
 
 			if (!yang_dnode_exists(args->dnode, "source-ipv6")){ 
@@ -304,8 +360,17 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 			bs->bfd_mode = bfd_mode;
 			bs->segnum = segnum;
 
-			strtosa(yang_dnode_get_string(args->dnode, "./segment-list"), &slist);
-			memcpy(&bs->seg_list[0], &slist.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+			//strtosa(yang_dnode_get_string(args->dnode, "./segment-list"), &slist);
+			//memcpy(&bs->seg_list[0], &slist.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+			if(segment_list_resolve(yang_dnode_get_string(args->dnode, "./segment-list"), bs->seg_list, segnum) < 0) {
+				snprintf(args->errmsg, args->errmsg_len, "failed to extract ipv6 from segment-list");
+				bfd_common_session_destroy(bs);
+				return NB_ERR_RESOURCE;
+			}
+
+			if (segnum > 2) {
+				bs->allow_offload = false;
+			}
 
 			strtosa(yang_dnode_get_string(args->dnode, "./source-ipv6"), &out_sip6);
 			memcpy(&bs->out_sip6, &out_sip6.sa_sin6.sin6_addr, sizeof(struct in6_addr));

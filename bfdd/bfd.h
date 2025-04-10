@@ -702,6 +702,7 @@ void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 
 struct bfd_session *bfd_session_new(void);
 struct bfd_session *bfd_common_session_new(uint8_t);
+void   bfd_common_session_destroy(struct bfd_session *bs);
 struct bfd_session *bs_registrate(struct bfd_session *bs);
 void bfd_session_free(struct bfd_session *bs);
 const struct bfd_session *bfd_session_next(const struct bfd_session *bs,

@@ -2329,7 +2329,7 @@ DEFUNSH(VTYSH_BFDD, bfd_peer_enter, bfd_peer_enter_cmd,
 }
 
 DEFUNSH(VTYSH_BFDD, sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
-	"peer <A.B.C.D|X:X::X:X> name BFDNAME mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [outer-dest-address <A.B.C.D|X:X::X:X>] segment-list X:X::X:X source-ipv6 X:X::X:X [{vrf NAME}]",
+	"peer <A.B.C.D|X:X::X:X> name BFDNAME mode sbfd-echo local-address <A.B.C.D|X:X::X:X> [outer-dest-address <A.B.C.D|X:X::X:X>] segment-list LIST source-ipv6 X:X::X:X [{vrf NAME}]",
 	"Configure peer\n"
 	"IPv4 peer address\n"
 	"IPv6 peer address\n"
@@ -2355,7 +2355,7 @@ DEFUNSH(VTYSH_BFDD, sbfd_echo_peer_enter, sbfd_echo_peer_enter_cmd,
 }
 
 DEFUNSH(VTYSH_BFDD, sbfd_init_peer_enter, sbfd_init_peer_enter_cmd,
-	"peer  <A.B.C.D|X:X::X:X> name BFDNAME mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list X:X::X:X source-ipv6 X:X::X:X remote-discr (1-4294967295) [{vrf NAME}]",
+	"peer  <A.B.C.D|X:X::X:X> name BFDNAME mode sbfd local-address <A.B.C.D|X:X::X:X> segment-list LIST source-ipv6 X:X::X:X remote-discr (1-4294967295) [{vrf NAME}]",
 	"Configure peer\n"
 	"IPv4 peer address\n"
 	"IPv6 peer address\n"
