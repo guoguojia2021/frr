@@ -33,7 +33,7 @@
 #endif
 
 #ifdef ENABLE_TC_MALLOC
-#include <google/malloc_extension_c.h>
+#include <gperftools/malloc_extension_c.h>
 #endif
 
 #include "log.h"

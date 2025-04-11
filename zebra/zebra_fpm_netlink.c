@@ -636,6 +636,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 		switch (encap) {
 		case FPM_NH_ENCAP_NONE:
 		case FPM_NH_ENCAP_MAX:
+		case FPM_NH_ENCAP_SRV6_SERVICE_SID:
 			break;
 		case FPM_NH_ENCAP_VXLAN:
 			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,
@@ -715,6 +716,7 @@ static int netlink_route_info_encode(struct netlink_route_info *ri,
 		switch (encap) {
 		case FPM_NH_ENCAP_NONE:
 		case FPM_NH_ENCAP_MAX:
+		case FPM_NH_ENCAP_SRV6_SERVICE_SID:
 			break;
 		case FPM_NH_ENCAP_VXLAN:
 			nl_attr_put16(&req->n, in_buf_len, RTA_ENCAP_TYPE,

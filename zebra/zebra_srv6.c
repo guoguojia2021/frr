@@ -168,7 +168,6 @@ void zebra_srv6_locator_delete(struct srv6_locator *locator)
 	struct zserv *client;
 	struct seg6_sid *sid = NULL;
 	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
-	struct seg6_sid_endx_params *sid_endx_params = NULL;
 	struct listnode *client_node;
 
 	for (ALL_LIST_ELEMENTS(locator->sids, n, nnode, sid)) {
