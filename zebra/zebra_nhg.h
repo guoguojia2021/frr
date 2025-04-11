@@ -373,6 +373,7 @@ extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);
 struct zebra_dplane_ctx;
 extern void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx);
 
+struct nhg_hash_entry *zebra_nhe_copy_no_recurse(const struct nhg_hash_entry *orig);
 
 /* Sweep the nhg hash tables for old entries on restart */
 extern void zebra_nhg_sweep_table(struct hash *hash);

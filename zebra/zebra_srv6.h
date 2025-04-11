@@ -63,11 +63,6 @@ DECLARE_HOOK(srv6_manager_get_sid,
 	      const char *locator_name,
 	      vrf_id_t vrf_id),
 	     (loc, client, locator_name, vrf_id));
-DECLARE_HOOK(srv6_manager_release_sid,
-	     (struct zserv *client,
-	      const char *locator_name,
-	      vrf_id_t vrf_id),
-	     (client, locator_name, vrf_id));
 DECLARE_HOOK(srv6_manager_get_locator_sid_all,
 	     (struct zserv *client,
 	      vrf_id_t vrf_id),
