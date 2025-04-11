@@ -827,23 +827,28 @@ void sbfd_sip_update_by_srv6_config()
 		}
 	}
 }
-
-void sbfd_candidate_seglist_disable(struct srte_candidate *candidate)
+int _sbfd_candidate_seglist_disable(struct srte_candidate *candidate)
 {
 	bool ret = false;
 
 	if (!candidate || !candidate->segment_list || !candidate->policy->bfd_config
-	  || CHECK_FLAG(candidate->policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
+	    || CHECK_FLAG(candidate->policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
 	{
-		return;
+		return 0;
 	}
 
-    ret = is_exist_seglist_in_policy_exclude_cpath(candidate->policy, candidate->segment_list, candidate);
+	ret = is_exist_seglist_in_policy_exclude_cpath(candidate->policy, candidate->segment_list, candidate);
 	if (!ret)
-	{  
+	{
 		// has no same segmentlist in policy, del bfd session
-        sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
+		sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
 	}
+	return 0;
+}
+
+void sbfd_candidate_seglist_disable(struct srte_candidate *candidate)
+{
+	_sbfd_candidate_seglist_disable(candidate);
 	return;
 }
 
@@ -1019,21 +1024,7 @@ DEFPY(
 
 static int sbfd_pathd_candidate_removed_handler(struct srte_candidate *candidate)
 {
-	bool ret = false;
-
-	if (!candidate || !candidate->policy->bfd_config
-	  || CHECK_FLAG(candidate->policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
-	{
-		return 0;
-	}
-
-    ret = is_exist_seglist_in_policy_exclude_cpath(candidate->policy, candidate->segment_list, candidate);
-	if (!ret)
-	{  
-		// has no same segmentlist in policy, del bfd session
-        sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
-	}
-	return 0;
+	return _sbfd_candidate_seglist_disable(candidate);
 }
 
 static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)

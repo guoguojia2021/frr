@@ -571,6 +571,7 @@ int pathd_srte_policy_candidate_path_destroy(struct nb_cb_destroy_args *args)
 
 	candidate = nb_running_unset_entry(args->dnode);
 	if(candidate->segment_list){
+		sbfd_candidate_seglist_disable(candidate);
 		refcounter_decrease(candidate->segment_list);
 		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
 		candidate->segment_list = NULL;
