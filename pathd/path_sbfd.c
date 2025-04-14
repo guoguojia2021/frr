@@ -1130,7 +1130,6 @@ static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr
 
 void sr_sbfd_init()
 {
-	hook_register(pathd_candidate_removed, sbfd_pathd_candidate_removed_handler);
 	/* after add or update cpath case */
     hook_register(pathd_candidate_created, sbfd_pathd_candidate_status_handler);
 	hook_register(pathd_candidate_updated, sbfd_pathd_candidate_status_handler);

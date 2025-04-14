@@ -410,9 +410,6 @@ void srte_policy_del(struct srte_policy *policy)
 {
 	struct srte_candidate *candidate;
 
-    // del sbfd config
-	path_delete_sbfd_config(policy);
-
 	path_zebra_delete_srv6_policy(policy);
 
 	// path_zebra_release_label(policy->binding_sid);
@@ -423,6 +420,8 @@ void srte_policy_del(struct srte_policy *policy)
 		trigger_pathd_candidate_removed(candidate);
 		srte_candidate_del(candidate);
 	}
+	// del sbfd config
+	path_delete_sbfd_config(policy);
 
 	RB_REMOVE(srte_policy_head, &srte_policies, policy);
 	XFREE(MTYPE_PATH_SR_POLICY, policy);
@@ -1210,6 +1209,13 @@ void srte_candidate_del(struct srte_candidate *candidate)
 			    cpath_group);
 			XFREE(MTYPE_PATH_SR_CANDIDATE_GROUP, cpath_group);
 		}
+	}
+
+	if(candidate && candidate->segment_list){
+		sbfd_candidate_seglist_disable(candidate);
+		refcounter_decrease(candidate->segment_list);
+		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
+		candidate->segment_list = NULL;
 	}
 
 	if(candidate && candidate->bfd_name[0]){
