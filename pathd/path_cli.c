@@ -1376,7 +1376,7 @@ DEFPY(show_segment_list_detail,
 
 	RB_FOREACH (s_list, srte_segment_list_head, &srte_segment_lists) {
 		vty_out(vty,
-			"Segment-list Name: %s\n", s_list->name);
+			"Segment-list Name: %s Ref-count: %-10u\n", s_list->name,s_list->refcount);
 
 		RB_FOREACH (s_entry, srte_segment_entry_head,
 			    &s_list->segments) {
@@ -1413,7 +1413,7 @@ DEFPY(show_segment_list_by_name_detail,
 		return CMD_SUCCESS;
 
 	vty_out(vty,
-		"Segment-list Name: %s\n", name);
+		"Segment-list Name: %s Ref-count: %-10u\n", name, s_list->refcount);
 
 	RB_FOREACH (s_entry, srte_segment_entry_head,
 			&s_list->segments) {
