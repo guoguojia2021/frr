@@ -368,6 +368,11 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 				return NB_ERR_RESOURCE;
 			}
 
+			if (segnum == 2 && bs->seg_list[0].__in6_u.__u6_addr32[0] != bs->seg_list[1].__in6_u.__u6_addr32[0]) {
+				//offload only allowed when 2 IPs have same 32bits prefix on Q200
+				bs->allow_offload = false;
+			}
+
 			if (segnum > 2) {
 				bs->allow_offload = false;
 			}
