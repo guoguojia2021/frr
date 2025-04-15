@@ -31,7 +31,7 @@ TEST = os.path.basename(CWD)
 
 from lib.ltemplate import *
 
-pytestmark = [pytest.mark.bgpd]
+pytestmark = [pytest.mark.bgpd, pytest.mark.esr]
 
 def test_check_linux_vrf():
     CliOnFail = None
