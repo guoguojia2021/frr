@@ -1066,13 +1066,13 @@ static void zebra_track_per_prefix(const struct prefix *p, vrf_id_t vrf_id,
 
 	/* We are debugging all prefixes so return true */
 	if (!per_prefix_list || list_isempty(per_prefix_list))
-		return 0;
+		return;
 	else {
 		if (!p)
-			return 0;
+			return;
 		for (ALL_LIST_ELEMENTS(per_prefix_list, node, nnode,
 				       trackp))
-			if (trackp->p.prefixlen == p->prefixlen && prefix_match(trackp, p)
+			if (trackp->p.prefixlen == p->prefixlen && prefix_match(&(trackp->p), p)
 				&& trackp->vrf_id == vrf_id) {
 					prefix2str(p, buf_prefix, sizeof(buf_prefix));
 					cur_time = monotime(NULL);
@@ -1198,7 +1198,7 @@ static void rib_install_ipv6_pending_to_fib(rib_dest_t *dest)
 	}
 }
 
-static void rib_install_pending_to_fib()
+static void rib_install_pending_to_fib(void)
 {
 	rib_dest_t * top_dest;
 	if (ip4_pending_fib_count > 0) {

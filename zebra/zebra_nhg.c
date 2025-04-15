@@ -496,16 +496,6 @@ nhg_segment_tree_decrement_ref(struct nhg_segment_tree_head *head)
 	}
 }
 
-static void
-nhg_segment_tree_increment_ref(struct nhg_segment_tree_head *head)
-{
-	struct nhg_segment *rb_node_dep = NULL;
-
-	frr_each(nhg_segment_tree, head, rb_node_dep) {
-		zebra_nhg_seg_increment_ref(rb_node_dep->nhe);
-	}
-}
-
 unsigned int zebra_nhg_segdepends_count(const struct nhg_hash_entry *nhe)
 {
 	return nhg_segment_tree_count(&nhe->nhg_segdepends);
@@ -1080,7 +1070,7 @@ void zebra_nhe_change_gateway_address(struct nexthop *nexthop)
 		return;
 
 	if (nexthop->srte_color == 0)
-		return NULL;
+		return;
 
 	policy = zebra_sr_policy_match_by_nexthop(nexthop);
 
@@ -3470,11 +3460,8 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 			  const struct prefix *top)
 {
 	int resolved;
-	struct in_addr local_ipv4;
-	struct in_addr *ipv4;
 	afi_t afi = AFI_IP;
 	uint32_t path_num = 0;
-	struct prefix endpoint = {0};
 
 	/* Reset some nexthop attributes that we'll recompute if necessary */
 	nexthop->ifindex = 0;
