@@ -759,9 +759,6 @@ DEFUN_NOSH (srv6_compress_locator_sid,
 {
 	struct srv6_locator *locator_sid = NULL;
 	struct seg6_sid *sid = NULL;
-	struct listnode *node = NULL;
-	struct zserv *client;
-	struct listnode *client_node;
 	char *prefix = NULL;
 	int ret = 0;
 	int idx = 0;
@@ -887,7 +884,6 @@ DEFPY (locator_prefix,
 	struct seg6_sid *sid_unua = NULL;
 	struct seg6_sid *sid_ua = NULL;
 	struct listnode *node = NULL;
-	struct listnode *node_ua = NULL;
 
 	struct seg6_sid_endx_ecmp *sid_endx_ecmp_node = NULL;
 	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
@@ -908,10 +904,9 @@ DEFPY (locator_prefix,
 	bool is_found_endx_param = false;
 	bool sidmarking = false;
 
-	char buf[BUFSIZ] = {0};
 	enum seg6local_action_t sidaction = ZEBRA_SEG6_LOCAL_ACTION_UNSPEC;
 	int idx = 0;
-	char *vrfName = VRF_DEFAULT_NAME;
+	char *vrfName = (char *)VRF_DEFAULT_NAME;
 	char *prefix = NULL;
 	int ret = 0;
 	struct prefix_ipv6 ipv6prefix = {0};
@@ -920,8 +915,6 @@ DEFPY (locator_prefix,
 	char *ifName = NULL;
 	struct ipaddr nexthop = {0};
 	char *nhpstr = NULL;
-	struct listnode *sidnode, *sidnnode;
-	struct seg6_sid *sid_end_x = NULL;
 
 
 	if (argv_find(argv, argc, "end", &idx))
@@ -1337,8 +1330,6 @@ DEFPY (no_locator_endx_prefix,
     char *prefix = NULL;
     int ret = 0;
     struct prefix_ipv6 ipv6prefix = {0};
-    struct zserv *client;
-    struct listnode *client_node;
 
 	struct seg6_sid_endx_ecmp *sid_ecmp_index = NULL;
 	struct seg6_sid_endx_ecmp *sid_ua_ecmp = NULL;
@@ -1363,7 +1354,7 @@ DEFPY (no_locator_endx_prefix,
 	int ecmp_member_ua_cnt = 0;
 	int ecmp_member_unua_cnt = 0;
 	int ecmp_member_endx_cnt = 0;
-	char *vrfName = VRF_DEFAULT_NAME;
+	char *vrfName = (char *)VRF_DEFAULT_NAME;
 	struct seg6local_context ctx = {};
 
 

@@ -578,29 +578,6 @@ int zebra_rib_labeled_unicast(struct route_entry *re)
 
 	return 1;
 }
-static bool check_update_fib(struct route_entry *old,
-				   struct route_entry *new)
-{
-	if (CHECK_FLAG(old->flags, ZEBRA_FLAG_VRF_GROUP) != CHECK_FLAG(new->flags, ZEBRA_FLAG_VRF_GROUP))
-		// vrf group enable or disable
-		return true;
-	if (old->vrf_group != new->vrf_group)
-		return true;
-	if (old->nhe && !new->nhe)
-		return false;
-	if (!old->nhe && new->nhe)
-		return false;
-	if (!old->nhe && !new->nhe)
-		return false;
-    
-	if (old->nhe->nhg.nexthop && new->nhe->nhg.nexthop) {
-		if (nexthop_group_equal_no_recurse(&old->nhe->nhg, &new->nhe->nhg))
-			return false;
-	}
-	else if (!old->nhe->nhg.nexthop && !new->nhe->nhg.nexthop)
-		return false;
-	return true;
-}
 
 /* Update flag indicates whether this is a "replace" or not. Currently, this
  * is only used for IPv4.
@@ -821,38 +798,6 @@ static int zebra_update_pic_nhe_walk(struct hash_bucket *bucket, void *arg)
 
 done:
 	return HASHWALK_CONTINUE;
-}
-
-static void zebra_update_seg_pic_nhe(struct nexthop *nexthop, afi_t afi)
-{
-	struct nhg_update_entry *nhg_entry = NULL;
-	struct nhe_update_context ctx = {0};
-
-	ctx.afi = afi;
-	ctx.nexthop = nexthop;
-
-	hash_walk(zrouter.nhgs, zebra_update_pic_nhe_walk, &ctx);
-
-	frr_each_safe(nhg_update_entry_list, &zrouter.nhg_update_list, nhg_entry) {
-
-		if (nhg_entry->nhe == NULL) {
-			nhg_update_entry_list_del(&zrouter.nhg_update_list, nhg_entry);
-			nhg_entry->nhe = NULL;
-			nhg_update_entry_free(nhg_entry);
-			continue;
-		}
-
-		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-			zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
-				nhg_entry->nhe->id, nhg_entry->nhe->flags);
-
-		UNSET_FLAG(nhg_entry->nhe->flags, NEXTHOP_GROUP_INSTALLED);
-		zebra_nhg_seg_install_kernel(nhg_entry->nhe);
-
-		nhg_update_entry_list_del(&zrouter.nhg_update_list, nhg_entry);
-		nhg_entry->nhe = NULL;
-		nhg_update_entry_free(nhg_entry);
-	}
 }
 
 bool zebra_update_pic_nhe(struct route_node *rn)
@@ -1212,7 +1157,7 @@ static void rib_install_pending_to_fib(void)
 	return;
 }
 
-static inline unsigned long fib_total_count()
+static inline unsigned long fib_total_count(void)
 {
 	unsigned long ip6_sent_count = ip6_sent_fib_count << 1;
 	return ip4_sent_fib_count + ip6_sent_count;
@@ -1228,7 +1173,6 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		srcdest_rnode2str(rn, buf, sizeof(buf));
 		zlog_debug("%u:%s: rib_process_add_fib rn %p", zvrf_id(zvrf), buf, rn);
 	}
-	struct route_table * table = srcdest_rnode_table(rn);
 	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	if((info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))
 	{
@@ -1369,7 +1313,6 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 	else
 		UNSET_FLAG(old->status, ROUTE_ENTRY_CHANGED);
 
-	struct route_table * table = srcdest_rnode_table(rn);
 	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	if(CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
 		if(info && (info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))

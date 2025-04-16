@@ -608,11 +608,11 @@ static void show_nexthop_detail_helper(struct vty *vty,
 				ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
 			} else {
 				afi = AFI_IP6;
-				ipv6 = &nexthop->gate.ipv6;
+				ipv6 = (struct in6_addr *)&nexthop->gate.ipv6;
 			}
 		} else if (nexthop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
 			afi = AFI_IP;
-			ipv4 = &nexthop->gate.ipv4;
+			ipv4 = (struct in_addr *)&nexthop->gate.ipv4;
 		}
 
 		if (afi == AFI_IP)
@@ -902,7 +902,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		if (strlen(nexthop->sidlist_name) == 0) {
 			afi = AFI_IP6;
-			ipv6 = &nexthop->gate.ipv6;
+			ipv6 = (struct in6_addr *)&nexthop->gate.ipv6;
 		} else {
 			if(IS_MAPPED_IPV6(&nexthop->gate.ipv6)) {
 				ipv4 = &local_ipv4;
@@ -910,7 +910,7 @@ static void show_route_nexthop_helper(struct vty *vty,
 				ipv4_mapped_ipv6_to_ipv4(&nexthop->gate.ipv6, ipv4);
 			} else {
 				afi = AFI_IP6;
-				ipv6 = &nexthop->gate.ipv6;
+				ipv6 = (struct in6_addr *)&nexthop->gate.ipv6;
 			}
 		}
 		if (afi == AFI_IP)
@@ -1732,7 +1732,6 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe,
 	struct nhg_segment *rb_node_segdep = NULL;
 	struct nexthop_group *backup_nhg;
 	char up_str[MONOTIME_STRLEN];
-	char time_left[MONOTIME_STRLEN];
 	json_object *json_dependants = NULL;
 	json_object *json_depends = NULL;
 	json_object *json_nexthop_array = NULL;
@@ -4509,7 +4508,6 @@ static int config_write_protocol(struct vty *vty)
 	if (zebra_track_routes && zebra_track_routes->count != 0) {
 		struct listnode *node, *nnode;
 		struct zebra_trackroute_node *trackp;
-		vrf_id_t vrf_id;
 		char pfx_buf[PREFIX2STR_BUFFER];
 		char *vrf_name = NULL;
 		for (ALL_LIST_ELEMENTS(zebra_track_routes, node, nnode, trackp)) {
@@ -4517,7 +4515,7 @@ static int config_write_protocol(struct vty *vty)
 			if (trackp->vrf_id == 0)
 				vty_out(vty, "track-route %s %s\n", pfx_buf, trackp->eventname);
 			else {
-				vrf_name = vrf_id_to_name(trackp->vrf_id);
+				vrf_name = (char *)vrf_id_to_name(trackp->vrf_id);
 				vty_out(vty, "track-route %s vrf %s %s\n", pfx_buf, vrf_name, trackp->eventname);
 			}
 		}
@@ -4923,7 +4921,7 @@ DEFPY (set_fib_count,
        "Set fib size\n")
 {
 	if (count <= 0 || count > 4194304) {
-		vty_out(vty, "%% The limit count  %s is invalid \n", count);
+		vty_out(vty, "%% The limit count  %ld is invalid \n", count);
 		return CMD_SUCCESS;
 	}
 	zebra_config_fib_max = count;

@@ -1439,7 +1439,7 @@ static void *route_vrf_group_compile(const char *arg)
 	return vrf_group;
 }
 
-static void *route_vrf_group_free(void *rule)
+static void route_vrf_group_free(void *rule)
 {
 	XFREE(MTYPE_ROUTE_MAP_COMPILED, rule);
 }
@@ -4284,7 +4284,7 @@ static void bgp_route_map_process_update(struct bgp *bgp, const char *rmap_name,
 	}
 }
 
-static void bgp_peer_high_route_map_update(char *rmap_name)
+static void bgp_peer_high_route_map_update(const char *rmap_name)
 {
 	afi_t afi;
 	safi_t safi;
@@ -4418,7 +4418,7 @@ static void bgp_route_map_event(const char *rmap_name)
 }
 
 
-static route_map_result_t
+static enum route_map_cmd_result_t
 route_set_aspath_overwrite (void *rule, struct prefix *dummy, void *object)
 {
 	struct aspath *new_path;
@@ -4445,7 +4445,7 @@ struct route_map_rule_cmd route_set_aspath_overwrite_cmd =
     route_aspath_free,
   };
 
-static route_map_result_t
+static enum route_map_cmd_result_t
 route_set_aspath_replace (void *rule, struct prefix *prefix, void *object)
 {
 	struct aspath *new, *old;

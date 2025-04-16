@@ -3062,6 +3062,9 @@ DEFUN (show_ip_rip,
 					vty_out(vty, "%*s", len, " ");
 
 				switch (rinfo->nh.type) {
+				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+					break;
 				case NEXTHOP_TYPE_IPV4:
 				case NEXTHOP_TYPE_IPV4_IFINDEX:
 					vty_out(vty, "%-20pI4 %2d ",

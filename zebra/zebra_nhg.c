@@ -1010,7 +1010,7 @@ static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *
 {
 
 	struct prefix endpoint = {0};
-	struct zebra_sr_policy *policy;
+	struct zebra_sr_policy *policy = NULL;
 
 	if (nexthop == NULL)
 		return NULL;
@@ -3303,7 +3303,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			return 1;
 		} else if (CHECK_FLAG(flags, ZEBRA_FLAG_ALLOW_RECURSION)) {
 			struct nexthop_group *nhg;
-			struct nexthop *resolver;
+			struct nexthop *resolver = NULL;
 			struct backup_nh_map_s map = {};
 
 			resolved = 0;

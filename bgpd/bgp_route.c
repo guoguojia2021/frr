@@ -3219,9 +3219,10 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
 		 * route
 		 */
 		advertise = bgp_check_advertise(bgp, dest);
-		if (advertise)
+		if (advertise) {
 			if (!bgp_adj_out_set_subgroup(dest, subgrp, pattr, pi))
 				bgp_attr_flush(pattr);
+		}
 		else
 			bgp_attr_flush(pattr);
 		break;
@@ -5421,9 +5422,10 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 
 		if (bgp_find_or_add_nexthop(bgp, bgp, nh_afi, safi, new, NULL,
 					    connected, p)
-		    || CHECK_FLAG(peer->flags, PEER_FLAG_IS_RFAPI_HD))
+		    || CHECK_FLAG(peer->flags, PEER_FLAG_IS_RFAPI_HD)) {
 		    if (!CHECK_FLAG(new->flags, BGP_PATH_SUPERNET))
 			    bgp_path_info_set_flag(dest, new, BGP_PATH_VALID);
+		}
 		else {
 			// If we need print nht log for prefix, format msg here
 			char nht_debug_buf[PREFIX2STR_BUFFER * 4] = "";

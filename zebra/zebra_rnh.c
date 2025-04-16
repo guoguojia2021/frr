@@ -1367,8 +1367,8 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 {
 	struct stream *s = NULL;
 	struct route_entry *re;
-	unsigned long nump;
-	uint8_t num;
+	unsigned long nump = 0;
+	uint8_t num = 0;
 	struct nexthop *nh;
 	struct route_node *rn;
 	int ret;

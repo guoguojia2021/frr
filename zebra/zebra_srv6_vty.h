@@ -28,5 +28,6 @@ struct zebra_sr_policy_show_para {
 };
 
 extern void zebra_srv6_vty_init(void);
+const char *policystatus2str(enum zebra_sr_policy_status status, struct zebra_sr_policy_show_para *para);
 
 #endif /* _ZEBRA_SRV6_VTY_H */

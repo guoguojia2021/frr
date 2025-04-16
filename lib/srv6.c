@@ -278,7 +278,7 @@ struct seg6_sid_endx_params *srv6_locator_sid_endx_params_alloc(void)
 	return sid_endx_params;
 }
 
-void srv6_locator_sid_endx_params_free(struct seg6_sid_endx_ecmp *sid_endx_params)
+void srv6_locator_sid_endx_params_free(struct seg6_sid_endx_params *sid_endx_params)
 {
 	XFREE(MTYPE_SRV6_SID_ENDX_PARAMS, sid_endx_params);
 	return;

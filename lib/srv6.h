@@ -273,7 +273,7 @@ extern void srv6_locator_sid_free(struct seg6_sid *sid);
 extern struct seg6_sid_endx_ecmp *srv6_locator_sid_endx_ecmp_alloc(void);
 extern void srv6_locator_sid_endx_ecmp_free(struct seg6_sid_endx_ecmp *sid_endx_ecmp);
 extern struct seg6_sid_endx_params *srv6_locator_sid_endx_params_alloc(void);
-extern void srv6_locator_sid_endx_params_free(struct seg6_sid_endx_ecmp *sid_endx_params);
+extern void srv6_locator_sid_endx_params_free(struct seg6_sid_endx_params *sid_endx_params);
 
 json_object *srv6_locator_chunk_json(const struct srv6_locator_chunk *chunk);
 json_object *srv6_locator_json(const struct srv6_locator *loc);

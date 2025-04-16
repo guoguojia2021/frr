@@ -276,6 +276,7 @@ extern const struct frr_yang_module_info frr_zebra_info;
 
 extern void nhg_update_entry_free(struct nhg_update_entry *nhg_entry);
 extern struct nhg_update_entry *nhg_update_entry_create(void);
+void nhg_update_entry_list_free(void);
 #ifdef __cplusplus
 }
 #endif

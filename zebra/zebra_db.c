@@ -239,6 +239,9 @@ int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
     DB_Key_List *pKeyList = NULL;
     DB_Key_List *pKeyNode = NULL;
     char aliasId[10] = {0};
+    char VRF_NAME[] = "vrf_name";
+    char ALIAS_NAME[] = "alias_name";
+    char VRF_NAMEID[] = "vrf_nameid";
 
     if (!g_bZebraRedisInUse)
     {
@@ -248,11 +251,11 @@ int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
 
     /*1.try to check mgmt vrf*/
     snprintf(keyType, ZEBRA_DB_MAX_KEY_LEN, "MGMT_VRF_CONFIG|vrf_global");
-    g_zebra_redis.redis_Db_HGetKeyAndValueNoCursor(keyType, "vrf_name", result,
+    g_zebra_redis.redis_Db_HGetKeyAndValueNoCursor(keyType, VRF_NAME, result,
                                     ZEBRA_DB_MAX_VALUE_LEN, dbErrMsg, sizeof(dbErrMsg), &errNo, REDIS_CONFIG_DB);
     if (strlen(result) && (strlen(result) == strlen(vrfname)) && !strncmp(vrfname, result, strlen(result)))
     {
-        g_zebra_redis.redis_Db_HGetKeyAndValueNoCursor(keyType, "alias_name", result,
+        g_zebra_redis.redis_Db_HGetKeyAndValueNoCursor(keyType, ALIAS_NAME, result,
                                     ZEBRA_DB_MAX_VALUE_LEN, dbErrMsg, sizeof(dbErrMsg), &errNo, REDIS_CONFIG_DB);
         if (strlen(result))
         {
@@ -268,7 +271,7 @@ int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
 
     while(pKeyList)
     {
-        g_zebra_redis.redis_Db_HGetKeyAndValueNoCursor(pKeyList->key, "vrf_nameid", result, ZEBRA_DB_MAX_VALUE_LEN,
+        g_zebra_redis.redis_Db_HGetKeyAndValueNoCursor(pKeyList->key, VRF_NAMEID, result, ZEBRA_DB_MAX_VALUE_LEN,
                                                                             dbErrMsg, sizeof(dbErrMsg), &errNo, REDIS_STATE_DB);
         if (strlen(result) && (strlen(result) == strlen(aliasId)) &&!strncmp(aliasId, result, strlen(result)))
         {
@@ -348,7 +351,8 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     char set_value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
     char channel[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
-    
+    char G[] = "G";
+
     struct seg6_sid_endx_params *sid_ua_params_node = NULL;
     struct listnode *node = NULL;
 
@@ -468,12 +472,12 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
             inet_ntop(AF_INET, &sid_ua_params_node->nexthop.ipaddr_v4, nhp_buf, sizeof(nhp_buf));
         else if (sid_ua_params_node->nexthop.ipa_type == IPADDR_V6)
             inet_ntop(AF_INET6, &sid_ua_params_node->nexthop.ipaddr_v6, nhp_buf, sizeof(nhp_buf));
-        
+
         if (strlen(nhp_val) + strlen(nhp_buf) + 1 >= ZEBRA_DB_IF_MAX_VALUE_LEN) {
             zlog_err("create nexthop field segment failed.");
             return;
         }
-        
+
         if (nhp_val[0] != '\0') {
             // Add comma separator if not the first element
             strncat(nhp_val, ",", ZEBRA_DB_IF_MAX_VALUE_LEN - strlen(nhp_val) - 1); 
@@ -526,7 +530,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
 
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %d", channel);
-    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, "G", REDIS_APP_DB);
+    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
         destroy_DB_Data(pstDataLst_head);
@@ -550,6 +554,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     char set_value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
     char channel[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
+    char G[] = "G";
 
     DB_FieldValue_List *pstDataLst_head = NULL;
     DB_FieldValue_List *pstDataLst_block_len = NULL;
@@ -720,7 +725,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
 
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %d", channel);
-    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, "G", REDIS_APP_DB);
+    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
         destroy_DB_Data(pstDataLst_head);
@@ -741,6 +746,7 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
     char channel[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
     DB_Key_List item = {0};
+    char G[] = "G";
 
     if (!g_bZebraRedisInUse_appdb) {
         zlog_err("redis err, redis app db handle init failed");
@@ -789,7 +795,7 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
     /*publish*/
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
     zlog_debug("redis publishMsg channel : %d", channel);
-    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, "G", REDIS_APP_DB);
+    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_PublishMsg error code : %d", ret);

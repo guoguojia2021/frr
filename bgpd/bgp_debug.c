@@ -2860,7 +2860,7 @@ bool bgp_debug_update(const struct peer *peer, const struct prefix *p,
 
     /* alibaba begin */
     if (term_bgp_debug_update_strict) {
-        return bgp_debug_update_strict(peer, p, updgrp, inbound);
+        return bgp_debug_update_strict((struct peer *)peer, (struct prefix *)p, updgrp, inbound);
     }
     /* alibaba end */
 

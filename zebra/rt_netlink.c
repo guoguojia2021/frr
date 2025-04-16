@@ -2017,7 +2017,7 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 	bool setsrc = false;
 	union g_addr src;
 	const struct prefix *p, *src_p;
-	uint32_t table_id;
+	uint32_t table_id = 0;
 
 	struct {
 		struct nlmsghdr n;

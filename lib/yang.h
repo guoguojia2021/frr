@@ -40,7 +40,7 @@ extern "C" {
 #define LIST_MAXKEYS 8
 
 /* Maximum list key length. */
-#define LIST_MAXKEYLEN 128
+#define LIST_MAXKEYLEN 288
 
 /* Maximum string length of an YANG value. */
 #define YANG_VALUE_MAXLEN 1024

@@ -2145,6 +2145,8 @@ extern struct peer_group *peer_group_lookup_dynamic_neighbor(struct bgp *,
 extern struct peer *peer_lookup_dynamic_neighbor(struct bgp *,
 						 union sockunion *);
 
+extern void bgp_local_vrf_leak_enable_set(bool set);
+
 /*
  * Peers are incredibly easy to memory leak
  * due to the various ways that they are actually used
