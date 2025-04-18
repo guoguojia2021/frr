@@ -1041,9 +1041,14 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 
 		bgp_adj_out_remove_subgroup(dest, adj, subgrp);
 	}
-	while ((tmp_adv = bgp_adv_fifo_first(&tmp_withdraw) != NULL)) {
-		bgp_adv_fifo_del(&tmp_withdraw, adv);
-		bgp_adv_fifo_add_tail(&subgrp->sync->withdraw, adv);
+
+	tmp_adv = bgp_adv_fifo_first(&tmp_withdraw);
+	if (tmp_adv != NULL) {
+		do {
+			bgp_adv_fifo_del(&tmp_withdraw, tmp_adv);
+			bgp_adv_fifo_add_tail(&subgrp->sync->withdraw, tmp_adv);
+		}while((tmp_adv = bgp_adv_fifo_first(&tmp_withdraw)) != NULL);
+		subgroup_trigger_write(subgrp);
 	}
 
 	if (!stream_empty(s)) {

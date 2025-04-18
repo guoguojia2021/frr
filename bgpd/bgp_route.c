@@ -4837,7 +4837,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 
 	if (new_attr.aspath) {
 		if (strlen(new_attr.aspath->str) + 1 > ZAPI_MESSAGE_OPAQUE_LENGTH) {
-			zlog_err("AS path overflow for opaque data %d",
+			zlog_err("AS path overflow for opaque data %zu",
 				strlen(new_attr.aspath->str) + 1);
 			reason = "as path overflow;";
 			bgp_attr_flush(&new_attr);
@@ -14938,7 +14938,7 @@ show_adj_route(struct vty *vty, struct peer *peer, struct bgp_table *table,
 					  rmap_name);
 
 		if (ret != RMAP_DENY) {
-			show_adj_route_header(vty, peer, table, header1,
+			show_adj_route_header(vty, peer->bgp, table, header1,
 					      header2, json, json_scode,
 					      json_ocode, wide, detail);
 

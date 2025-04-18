@@ -383,14 +383,14 @@ srv6_locator_sid_detailed_json(const struct srv6_locator *locator,
 	jo_root = json_object_new_object();
 
 	if (sid->sidtype == ZEBRA_SEG6_LOCAL_SID_TYPE_UA) {
-		combine_hide_sid(locator, &sid->ipv6Addr.prefix, &result_sid, sid->sidtype);
+		combine_hide_sid((struct srv6_locator *)locator, (struct in6_addr *)&sid->ipv6Addr.prefix, &result_sid, sid->sidtype);
 		p.family = AF_INET6;
 		p.prefixlen = 128;
 		p.u.prefix6 = result_sid;
 		prefix2str(&p, buf, sizeof(buf));
 	}
 	else {
-		combine_sid(locator, &sid->ipv6Addr.prefix, &result_sid);
+		combine_sid((struct srv6_locator *)locator, (struct in6_addr *)&sid->ipv6Addr.prefix, &result_sid);
 		p.family = AF_INET6;
 		p.prefixlen = 128;
 		p.u.prefix6 = result_sid;

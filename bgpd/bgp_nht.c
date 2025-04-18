@@ -911,7 +911,6 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	struct prefix match;
 	struct zapi_route nhr;
 	afi_t afi;
-    struct bgp_nexthop_cache_head *cond_tree = NULL;
 
 	bgp = bgp_lookup_by_vrf_id(vrf_id);
 	if (!bgp) {
@@ -1108,7 +1107,6 @@ static int make_prefix(int afi, struct bgp_path_info *pi, struct prefix *p)
 static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 {
 	bool exact_match = false;
-	bool resolve_via_default = false;
 	int ret;
 
     if (!zclient)
@@ -1132,8 +1130,6 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 	if (command == ZEBRA_NEXTHOP_REGISTER) {
 		if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_CONNECTED))
 			exact_match = true;
-		if (CHECK_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH))
-			resolve_via_default = true;
 	}
 
 	if (BGP_DEBUG(zebra, ZEBRA))
@@ -1533,7 +1529,7 @@ void bgp_nht_update_paths(struct bgp *bgp)
 {
 	if (!bgp)
 		return;
-	
+
 	bgp_nht_update_paths_from_bnc(bgp, &bgp->nexthop_cache_table[AFI_IP]);
 	bgp_nht_update_paths_from_bnc(bgp, &bgp->nexthop_cache_table[AFI_IP6]);
 }

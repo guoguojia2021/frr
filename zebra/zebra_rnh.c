@@ -1479,7 +1479,7 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 	{
 		struct prefix *dp = &rnh->node->p;
-		zlog_debug("%s: (%pFX) re %p, num %d <nump %d>",__func__, dp, re, num, nump);
+		zlog_debug("%s: (%pFX) re %p, num %u <nump %lu>",__func__, dp, re, num, nump);
 	}
 
 	return zserv_send_message(client, s);

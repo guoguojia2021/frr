@@ -1093,7 +1093,7 @@ static bool update_ipv4nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 			else
 			{
 				char if_vni[20];
-				if_vni[0] = "\0";
+				if_vni[0] = '\0';
 				sprintf(if_vni, "Brvxlan%d", attr->vni);
 				struct interface *ifp = NULL;
 				ifp = if_lookup_by_name(if_vni, api_nh->vrf_id);
@@ -1104,7 +1104,7 @@ static bool update_ipv4nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 				}
 				else
 				{
-					zlog_debug("not find vni %d related ifindex,use default l3vni svi ifindex", attr->vni, nh_bgp->l3vni_svi_ifindex);
+					zlog_debug("not find vni %d related ifindex, use default l3vni svi ifindex %d", attr->vni, nh_bgp->l3vni_svi_ifindex);
 					api_nh->ifindex = nh_bgp->l3vni_svi_ifindex;
 				}
 			}
@@ -3258,7 +3258,7 @@ static int bgp_zebra_process_srv6_locator_chunk(ZAPI_CALLBACK_ARGS)
 	return 0;
 }
 
-static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
+static int bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
 {
     struct stream *s = NULL;
     struct bgp *bgp = bgp_get_default();
@@ -3271,10 +3271,10 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
     if (len > SRV6_LOCNAME_SIZE)
     {
         zlog_err("error locator name len:%d", len);
-        return;
+        return 0;
     }
     if (!bgp)
-        return;
+        return 0;
 
     STREAM_GET(loc_name, s, len);
 
@@ -3301,18 +3301,18 @@ static void bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
 
 	if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0) {
 		zlog_err("can not find the locator by name :%s", loc_name);
-		return;
+		return 0;
 	}
 
     /* post-change: re-export vpn routes */
     vpn_leak_postchange_checksid();
 
 stream_failure:
-    return;
+    return 0;
 
 }
 
-static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
+static int bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 {
 	struct stream *s = NULL;
 	struct bgp *bgp = bgp_get_default();
@@ -3325,23 +3325,23 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 	if (len > SRV6_LOCNAME_SIZE)
 	{
         zlog_err("error locator name len:%d", len);
-		return;
+		return 0;
 	}
 
     if (!bgp)
-        return;
+        return 0;
 
 	STREAM_GET(loc_name, s, len);
     loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
     if (!loc)
 	{
         zlog_err("can not find the locator by name :%s", loc_name);
-		return;
+		return 0;
 	}
     if (zapi_srv6_del_sid_decode(s, loc->sids) < 0)
     {
         zlog_err("can not find the locator by name :%s", loc_name);
-		return;
+		return 0;
     }
 
 #if 0
@@ -3380,11 +3380,11 @@ static void bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 	vpn_leak_postchange_checksid();
 
 stream_failure:
-	return;
+	return 0;
 
 }
 
-static void bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
+static int bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
 {
 	struct stream *s = NULL;
 	struct bgp *bgp = bgp_get_default();
@@ -3398,11 +3398,11 @@ static void bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
 	if (len > SRV6_LOCNAME_SIZE)
 	{
         zlog_err("error locator name len:%d", len);
-		return;
+		return 0;
 	}
 
     if (!bgp)
-        return;
+        return 0;
 
 	STREAM_GET(loc_name, s, len);
     loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
@@ -3430,16 +3430,16 @@ static void bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
 
 	if (ret == -2) {
 		zlog_err("The locator sid has added:%s", loc_name);
-		return;
+		return 0;
 	} else if (ret < 0) {
 		zlog_err("can not find the locator by name :%s", loc_name);
-		return;
+		return 0;
 	}
 
 	vpn_leak_postchange_checksid();
 
 stream_failure:
-	return;
+	return 0;
 
 }
 

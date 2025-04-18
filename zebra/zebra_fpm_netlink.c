@@ -772,7 +772,8 @@ static void zfpm_log_route_info(struct netlink_route_info *ri,
 	zfpm_debug("%s : %s %pFX, Proto: %s, Metric: %u, Vrf Group: %u", label,
 			nl_msg_type_to_str(ri->nlmsg_type), ri->prefix,
 			nl_rtproto_to_str(ri->rtm_protocol),
-			ri->metric ? *ri->metric : 0, ri->vrf_group);
+			ri->metric ? *ri->metric : 0,
+			ri->vrf_group ? *ri->vrf_group : 0);
 
 	for (i = 0; i < ri->num_nhs; i++) {
 		nhi = &ri->nhs[i];

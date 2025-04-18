@@ -1370,7 +1370,7 @@ struct srv6_locator *locator_lookup_by_name(struct hash *hash, const char *name)
 	if (!name)
 		return NULL;
 
-    strncpy(tmp_loc.name, name, SRV6_LOCNAME_SIZE);
+    strlcpy(tmp_loc.name, name, SRV6_LOCNAME_SIZE);
 	loc = hash_lookup(hash, &tmp_loc);
 	return loc;
 }

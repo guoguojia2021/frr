@@ -633,9 +633,8 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 		return;
 
 	if (bgp_debug_update(NULL, bgp_dest_get_prefix(dest), subgrp->update_group, 0)) {
-		char attr_str[BUFSIZ] = {0};
-		zlog_debug("%s: %s Withdraw dest %p tx_id %d p %pFX flags %x adj %s", 
-					__func__, peer->host, dest, addpath_tx_id, bgp_dest_get_prefix(dest), dest->flags, 
+		zlog_debug("%s: %s Withdraw dest %p tx_id %d p %pFX flags %x adj %s",
+					__func__, peer->host, dest, addpath_tx_id, bgp_dest_get_prefix(dest), dest->flags,
 					(adj == NULL)? "Null" : "Not null");
 	}
 
@@ -949,16 +948,20 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 			for (pi = bgp_dest_get_bgp_path_info(dest); pi;
 			     pi = pi->next) {
 				if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED))
+				{
 					if (subgroup_announce_check(
 						    dest, pi, subgrp,
 						    bgp_dest_get_prefix(dest),
 						    &attr, NULL, 1))
+					{
 						if (!bgp_adj_out_set_subgroup(
 							dest, subgrp, &attr,
 							pi))
 							bgp_attr_flush(&attr);
+					}
 					else
 						bgp_attr_flush(&attr);
+				}
 			}
 			bgp_dest_unlock_node(dest);
 		}

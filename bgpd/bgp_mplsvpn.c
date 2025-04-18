@@ -48,6 +48,7 @@
 #include "bgpd/bgp_nht.h"
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_memory.h"
+#include "bgpd/bgp_evpn_private.h"
 
 #ifdef ENABLE_BGP_VNC
 #include "bgpd/rfapi/rfapi_backend.h"
@@ -784,7 +785,6 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	struct bgp_path_info *new;
 	char buf[PREFIX2STR_BUFFER];
 
-	struct bgp_path_info_extra *extra;
 	void *parent = source_bpi;
 #if 0
 	uint32_t num_sids = 0;

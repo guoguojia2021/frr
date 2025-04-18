@@ -242,5 +242,7 @@ bgp_evpn_handle_resolve_overlay_index_set(struct hash_bucket *bucket,
 extern void
 bgp_evpn_handle_resolve_overlay_index_unset(struct hash_bucket *bucket,
 					    void *arg);
+void bgp_evpn_install_uninstall_for_vrf(struct bgp_path_info *pi, bool install);
+void bgp_evpn_install_uninstall(struct bgp *bgp_vrf, bool install);
 
 #endif /* _QUAGGA_BGP_EVPN_H */

@@ -3959,15 +3959,6 @@ static void netlink_handle_5549(struct ndmsg *ndm, struct zebra_if *zif,
 #define NUD_LOCAL_ACTIVE                                                 \
 	(NUD_PERMANENT | NUD_NOARP | NUD_REACHABLE)
 
-static int netlink_nbr_entry_state_to_zclient(int nbr_state)
-{
-	/* an exact match is done between
-	 * - netlink neighbor state values: NDM_XXX (see in linux/neighbour.h)
-	 * - zclient neighbor state values: ZEBRA_NEIGH_STATE_XXX
-	 *  (see in lib/zclient.h)
-	 */
-	return nbr_state;
-}
 static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 {
 	struct ndmsg *ndm;
@@ -4045,7 +4036,7 @@ static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 		/* copy LLADDR information */
 		l2_len = RTA_PAYLOAD(tb[NDA_LLADDR]);
 	}
-	union sockunion link_layer_ipv4;
+	//union sockunion link_layer_ipv4;
 #if 0   /*Alibaba*/
 	if (l2_len == IPV4_MAX_BYTELEN || l2_len == 0) {
 		if (l2_len) {
@@ -4054,7 +4045,7 @@ static int netlink_ipneigh_change(struct nlmsghdr *h, int len, ns_id_t ns_id)
 			       &mac, l2_len);
 		} else
 			sockunion_family(&link_layer_ipv4) = AF_UNSPEC;
-		
+
 		zsend_nhrp_neighbor_notify(cmd, ifp, &ip, ndm->ndm_state,&link_layer_ipv4);
 	}
 #else

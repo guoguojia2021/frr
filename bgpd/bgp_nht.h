@@ -121,5 +121,8 @@ extern void bgp_nht_ifp_down(struct interface *ifp);
 
 extern void bgp_nht_interface_events(struct peer *peer);
 
-extern void bgp_nht_update_path(struct bgp *bgp);
+extern void bgp_nht_update_paths(struct bgp *bgp);
+
+void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_info *path);
+
 #endif /* _BGP_NHT_H */

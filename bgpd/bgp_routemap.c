@@ -4419,7 +4419,7 @@ static void bgp_route_map_event(const char *rmap_name)
 
 
 static enum route_map_cmd_result_t
-route_set_aspath_overwrite (void *rule, struct prefix *dummy, void *object)
+route_set_aspath_overwrite (void *rule, const struct prefix *dummy, void *object)
 {
 	struct aspath *new_path;
   	struct bgp_path_info *path;
@@ -4446,7 +4446,7 @@ struct route_map_rule_cmd route_set_aspath_overwrite_cmd =
   };
 
 static enum route_map_cmd_result_t
-route_set_aspath_replace (void *rule, struct prefix *prefix, void *object)
+route_set_aspath_replace (void *rule, const struct prefix *prefix, void *object)
 {
 	struct aspath *new, *old;
 	struct bgp_path_info *path;

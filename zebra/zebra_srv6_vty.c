@@ -1073,7 +1073,7 @@ DEFPY (locator_prefix,
 				strlcpy(sid_unua->vrfName, vrfName, VRF_ALIASNAMESIZ);
 
 			sid_unua->ipv6Addr = ipv6prefix;
-			strncpy(sid_unua->sidstr, prefix, PREFIX_STRLEN);
+			strlcpy(sid_unua->sidstr, prefix, PREFIX_STRLEN);
 			if (ifName)
 				strlcpy(sid_unua->ifname, ifName, INTERFACE_NAMSIZ);
 			else
@@ -1109,7 +1109,7 @@ DEFPY (locator_prefix,
 				strlcpy(sid_ua->vrfName, vrfName, VRF_ALIASNAMESIZ);
 
 			sid_ua->ipv6Addr = ipv6prefix;
-			strncpy(sid_ua->sidstr, prefix, PREFIX_STRLEN);
+			strlcpy(sid_ua->sidstr, prefix, PREFIX_STRLEN);
 			if (ifName)
 				strlcpy(sid_ua->ifname, ifName, INTERFACE_NAMSIZ);
 			else
@@ -1189,7 +1189,7 @@ DEFPY (locator_prefix,
 			strlcpy(sid->vrfName, vrfName, VRF_ALIASNAMESIZ);
 
 		sid->ipv6Addr = ipv6prefix;
-		strncpy(sid->sidstr, prefix, PREFIX_STRLEN);
+		strlcpy(sid->sidstr, prefix, PREFIX_STRLEN);
 		if (ifName)
 			strlcpy(sid->ifname, ifName, INTERFACE_NAMSIZ);
 		else

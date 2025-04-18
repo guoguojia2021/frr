@@ -3182,7 +3182,7 @@ dplane_route_update_internal(struct route_node *rn,
 	enum zebra_dplane_result result = ZEBRA_DPLANE_REQUEST_FAILURE;
 	int ret = EINVAL;
 	struct zebra_dplane_ctx *ctx = NULL;
-	struct nexthop *nexthop, *old_nexthop;
+	struct nexthop *nexthop;
 	uint32_t flags = 0;
 	uint32_t old_flags = 0;
 
@@ -3210,7 +3210,6 @@ dplane_route_update_internal(struct route_node *rn,
 
 		if ((op == DPLANE_OP_ROUTE_UPDATE) &&
 		    old_re && (old_re != re)) {
-			old_nexthop = old_re->nhe->nhg.nexthop;
 			old_flags = old_re->flags;
 			/* Assign ZEBRA_FLAG_KERNEL_BYPASS to dplane route info */
 			if (CHECK_FLAG(old_re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
@@ -5363,16 +5362,16 @@ static int kernel_dplane_process_one_err_result(struct zebra_dplane_ctx *ctx)
 	struct dplane_ctx_list_head work_list;
 	dplane_ctx_list_init(&work_list);
 	enum zebra_dplane_result res;
-	struct zebra_dplane_ctx *ictx, *tctx;
+	struct zebra_dplane_ctx *ictx;
 
 	dplane_ctx_list_add_tail(&work_list, ctx);
 
 	kernel_update_multi(&work_list);
 	frr_each_safe (dplane_ctx_list, &work_list, ictx)
 	{
-		if (res = dplane_ctx_get_status(ictx) == ZEBRA_DPLANE_REQUEST_FAILURE )
+		if ((res = dplane_ctx_get_status(ictx)) == ZEBRA_DPLANE_REQUEST_FAILURE )
 		{
-			zlog_err("%s: re-add res=%d,%d,op=%u,seq=%u,pid=%u ", __func__, res, dplane_ctx_get_op(ctx),
+			zlog_err("%s: re-add res=%d, op=%d, seq=%d, pid=%u ", __func__, res, dplane_ctx_get_op(ctx),
 					dplane_ctx_get_ns(ctx)->nls.seq, dplane_ctx_get_ns(ctx)->nls.snl.nl_pid);
 			dplane_ctx_list_del(&work_list, ictx);
 			return -1;

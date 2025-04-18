@@ -89,5 +89,6 @@ extern struct attr *bgp_path_info_mpath_attr(struct bgp_path_info *path);
 extern bool bgp_path_info_mpath_chkwtd(struct bgp *bgp,
 				       struct bgp_path_info *path);
 extern uint64_t bgp_path_info_mpath_cumbw(struct bgp_path_info *path);
+int bgp_path_vni_cmp(struct bgp_path_info *bpi1, struct bgp_path_info *bpi2);
 
 #endif /* _QUAGGA_BGP_MPATH_H */

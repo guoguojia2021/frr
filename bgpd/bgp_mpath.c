@@ -114,8 +114,6 @@ static int bgp_interface_same(struct interface *ifp1, struct interface *ifp2)
 
 int bgp_path_vni_cmp(struct bgp_path_info *bpi1, struct bgp_path_info *bpi2)
 {
-	vni_t vni1 = 0;
-	vni_t vni2 = 0;
 	if (!is_route_parent_evpn(bpi1) || !is_route_parent_evpn(bpi2))
 		return 0;
 	if (bpi1->extra->num_labels != bpi2->extra->num_labels)

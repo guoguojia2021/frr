@@ -35,6 +35,7 @@
 #include "stream.h"
 #include "libfrr.h"
 #include "lib/version.h"
+#include "lib/sockopt.h"
 #include "jhash.h"
 #include "termtable.h"
 #include "vrf.h"
@@ -280,7 +281,7 @@ static struct hash *bmp_upd_bgp_hash_get(void)
 static void bmp_next_vrf_compare(struct bgp *bgp, struct bmp_vrf_sync *arg)
 {
 	struct bmp_vrf_sync *result = (struct bmp_vrf_sync *)arg;
-	int diff = 0;
+	uint32_t diff = 0;
 
 	if (bgp->vrf_id == VRF_UNKNOWN)
 		return;
@@ -1500,7 +1501,6 @@ afibreak:
 		return true;
 	}
 
-    struct listnode *lnbgp;
 	struct bgp *bgp;
 
     if (is_gbmp_en())
@@ -2112,14 +2112,13 @@ static void global_bmp_bgp_ins_del(struct bgp *bgp)
 {
 	struct bmp_targets *bt = NULL;
 	struct bmp *bmp = NULL;
-	struct bgp *bgp_del = NULL;
 	struct bmp_bgp *gbmp = NULL;
 
     struct hash *h = bmp_upd_bgp_hash_get();
 	if (!h || h->count == 0)
 	    return;
 
-    bgp_del = (struct bgp *)hash_release(h, bgp);
+    (struct bgp *)hash_release(h, bgp);
 
 	gbmp = global_bmp_get();
 	if(gbmp == NULL)

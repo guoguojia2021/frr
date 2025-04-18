@@ -1084,12 +1084,12 @@ void zebra_nhe_change_gateway_address(struct nexthop *nexthop)
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL) {
 		if (family == AF_INET)
-			zlog_debug("%s: %pRN color %d gate %s prefixlen %d",
+			zlog_debug("%s: %pRN color %u gate %s prefixlen %u",
 				__func__, prn, nexthop->srte_color,
 				inet_ntop(AF_INET, &nexthop->gate.ipv4, buf, sizeof(buf)),
 				prn->p.prefixlen);
 		else if (family == AF_INET6)
-			zlog_debug("%s: %pRN color %d gate %s",
+			zlog_debug("%s: %pRN color %u gate %s prefixlen %u",
 				__func__, prn, nexthop->srte_color,
 				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, sizeof(buf)),
 				prn->p.prefixlen);

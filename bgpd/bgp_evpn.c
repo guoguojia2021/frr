@@ -2491,7 +2491,7 @@ static int install_evpn_route_entry_in_vrf(struct bgp *bgp_vrf,
 			pp, &info);
 		if (RMAP_DENYMATCH == ret) {
 			bgp_attr_flush(&static_attr); /* free any added parts */
-			if (debug)
+			if (bgp_debug_zebra(NULL))
 				zlog_debug(
 					"%s: evpn, vrf %s route map \"%s\" says DENY, returning",
 					__func__, bgp_vrf->name_pretty,
@@ -5769,7 +5769,7 @@ void bgp_evpn_install_uninstall(struct bgp *bgp_vrf, bool install)
 	safi = SAFI_EVPN;
 	bgp_evpn = bgp_get_evpn();
 	if (!bgp_evpn)
-		return 0;
+		return ;
 
 	/* Walk entire global routing table and evaluate routes which could be
 	 * imported into this VRF. Note that we need to loop through all global

@@ -621,8 +621,7 @@ static int bgp_accept(struct thread *thread)
 /* BGP socket bind. */
 static char *bgp_get_bound_name(struct peer *peer)
 {
-	char *name = NULL;
-    struct vrf *vrf = NULL;
+	struct vrf *vrf = NULL;
 
 	if (!peer)
 		return NULL;
@@ -647,7 +646,7 @@ static char *bgp_get_bound_name(struct peer *peer)
 
 	if (peer->bgp->inst_type == BGP_INSTANCE_TYPE_VIEW)
 		return NULL;
-	
+
 	vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
 	if (!vrf)
 		return NULL;

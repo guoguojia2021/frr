@@ -992,8 +992,6 @@ void zsend_nhrp_neighbor_notify(int cmd, struct interface *ifp,
 	       family2addrsize(sockunion_family(&ip)));
 
 	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
-		if(client->redist_default != ZEBRA_ROUTE_NHRP)
-			continue;
 		if (!vrf_bitmap_check(client->nhrp_neighinfo[afi],
 							ifp->vrf->vrf_id))
 			continue;
@@ -1410,7 +1408,7 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
 		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
-		for (rnh; rnh; rnh = rnh->next)
+		for (; rnh; rnh = rnh->next)
 			if (rnh->srte_color == srte_color && rnh->type_flags == rnh_type_flag)
 				break;
 		if (rnh) {

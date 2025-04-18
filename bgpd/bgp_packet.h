@@ -24,7 +24,7 @@
 #include "hook.h"
 
 DECLARE_HOOK(bgp_packet_dump,
-		(struct peer *peer, uint8_t type, bgp_size_t size,
+		(struct peer *peer, uint8_t type, uint8_t bmitye, bgp_size_t size,
 			struct stream *s),
 		(peer, type, size, s));
 
