@@ -52,7 +52,7 @@ void bfd_db_init(void)
         dlsym(g_bfddhandleRedis, "Redis_Db_HGetKeyAndValueNoCursor");
 
     g_bfdcounter_redis.redis_Db_HGetAllKeyAndValueNoCursor =
-        (DB_KeyFieldValue_List* (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
+        (DB_KeyFieldValue_List* (*)(char *key_prefix, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
         dlsym(g_bfddhandleRedis, "Redis_Db_HGetAllKeyAndValueNoCursor");
 
     g_bfdcounter_redis.redis_Set_Timeout(1);

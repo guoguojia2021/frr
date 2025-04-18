@@ -131,9 +131,6 @@ void zebra_db_init(void)
         (void (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, int *errNo, DB_TYPE_E enDbType))
         dlsym(g_zebrahandleRedis, "Redis_Db_HGetKeyAndValueNoCursor");
 
-    g_zebra_redis.redis_Db_HGetAllKeyAndValueNoCursor =
-        (DB_KeyFieldValue_List* (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
-        dlsym(g_zebrahandleRedis, "Redis_Db_HGetAllKeyAndValueNoCursor");
     g_zebra_redis.redis_Db_GetKey =
         (DB_Key_List* (*)(char *key_prefix, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
         dlsym(g_zebrahandleRedis, "Redis_Db_GetKey");
@@ -182,10 +179,6 @@ void zebra_db_init(void)
     g_zebra_redis_appdb.redis_Db_HGetKeyAndValueNoCursor =
         (void (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, int *errNo, DB_TYPE_E enDbType))
         dlsym(g_zebrahandleRedis, "Redis_Db_HGetKeyAndValueNoCursor");
-
-    g_zebra_redis_appdb.redis_Db_HGetAllKeyAndValueNoCursor =
-        (DB_KeyFieldValue_List* (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
-        dlsym(g_zebrahandleRedis, "Redis_Db_HGetAllKeyAndValueNoCursor");
 
     g_zebra_redis_appdb.redis_Db_GetKey =
         (DB_Key_List* (*)(char *key_prefix, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
@@ -529,7 +522,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     }
 
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
@@ -724,7 +717,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     }
 
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
@@ -794,7 +787,7 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
 
     /*publish*/
     snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
-    zlog_debug("redis publishMsg channel : %d", channel);
+    zlog_debug("redis publishMsg channel : %s", channel);
     ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {

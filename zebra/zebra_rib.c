@@ -743,63 +743,6 @@ static int rib_can_delete_dest(rib_dest_t *dest)
 	return 1;
 }
 
-static int zebra_update_pic_nhe_walk(struct hash_bucket *bucket, void *arg)
-{
-	struct nhe_update_context *ctx = arg;
-	struct nhg_hash_entry *nhe = bucket->data;
-	struct nhg_update_entry *nhg_entry = NULL;
-	struct nexthop *nexthop = NULL;
-	struct nhg_segment *rb_node_dep = NULL;
-	int ret = 0;
-
-	for (nexthop = nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
-
-		if (!CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
-			goto done;
-
-		if (!CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT))
-			goto done;
-
-		if (!CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
-			goto done;
-
-		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-			zlog_debug("%s: nhe->id=%d", __func__, nhe->id);
-
-		switch (ctx->afi) {
-		case AFI_IP:
-			ret = memcmp(&nexthop->gate.ipv4, &ctx->nexthop->gate.ipv4, sizeof(struct in_addr));
-			break;
-		case AFI_IP6:
-			ret = memcmp(&nexthop->gate.ipv6, &ctx->nexthop->gate.ipv6, sizeof(struct in6_addr));
-			break;
-		default:
-			goto done;
-		}
-
-		if (ret != 0)
-			continue;
-
-		if (nexthop->next == NULL && nexthop->prev == NULL) {
-			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_VALID);
-
-			frr_each_safe(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
-				UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_VALID);
-			}
-
-			goto done;
-		}
-
-		nhg_entry = nhg_update_entry_create();
-		nhg_entry->nhe = nhe;
-		nhg_update_entry_list_add_head(&zrouter.nhg_update_list, nhg_entry);
-		goto done;
-	}
-
-done:
-	return HASHWALK_CONTINUE;
-}
-
 bool zebra_update_pic_nhe(struct route_node *rn)
 {
 	afi_t afi;

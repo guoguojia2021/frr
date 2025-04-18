@@ -55,10 +55,6 @@ void path_db_init(void)
         (void (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, int *errNo, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_Db_HGetKeyAndValueNoCursor");
 
-    g_sidlist_appdb_redis.redis_Db_HGetAllKeyAndValueNoCursor =
-        (DB_KeyFieldValue_List* (*)(char *key_prefix, char *field, char* result, int resultlen, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
-        dlsym(g_sidlistHandleRedis, "Redis_Db_HGetAllKeyAndValueNoCursor");
-
     g_sidlist_appdb_redis.redis_Db_GetKey =
         (DB_Key_List* (*)(char *key_prefix, char *dbErrMsg, int msglen, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_Db_GetKey");
