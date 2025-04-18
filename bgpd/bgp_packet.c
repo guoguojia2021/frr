@@ -585,8 +585,8 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			bpacket_queue_advance_peer(paf);
 
 		}
-	} while (s && (++generated < wpq) &&
-		 (connection->obuf->count <= bm->outq_limit));
+	} while (s && (++generated < wpq) && (connection->obuf->count <= bm->outq_limit) &&
+		 !thread_should_yield(thread));
 
 	if (generated)
 		bgp_writes_on(connection);
