@@ -785,9 +785,7 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 	/* Encode result into extended community.  */
 	if (dot)
 		ecomm_type = ECOMMUNITY_ENCODE_IP;
-	else if (as > BGP_AS_MAX)
-		ecomm_type = ECOMMUNITY_ENCODE_AS4;
-	if (type == ECOMMUNITY_COLOR) {
+	else if (type == ECOMMUNITY_COLOR) {
 		ecomm_type = ECOMMUNITY_ENCODE_OPAQUE;
 		sub_type = ECOMMUNITY_COLOR;
 		if (val_color) {
@@ -795,6 +793,8 @@ static const char *ecommunity_gettoken(const char *str, void *eval_ptr,
 			as = 0;
 		}
 	}
+	else if (as > BGP_AS_MAX)
+		ecomm_type = ECOMMUNITY_ENCODE_AS4;
 	else if (as > 0)
 		ecomm_type = ECOMMUNITY_ENCODE_AS;
 
