@@ -1859,6 +1859,8 @@ static void zebra_nhg_seg_release_all_deps(struct nhg_hash_entry *nhe)
 	/* Remove it from any lists it may be on */
 	zebra_nhg_segdepends_release(nhe);
 	zebra_nhg_segdependents_release(nhe);
+	/* Remove connect dependents nhe */
+	zebra_nhg_dependents_release(nhe);
 }
 
 static void zebra_nhg_release(struct nhg_hash_entry *nhe)
