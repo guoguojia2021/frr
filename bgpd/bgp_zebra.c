@@ -1142,6 +1142,7 @@ static bool update_ipv6nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 					    struct zapi_nexthop *api_nh)
 {
 	struct attr *attr;
+	struct in_addr ipv4;
 
 	attr = pi->attr;
 	api_nh->vrf_id = nh_bgp->vrf_id;
@@ -1212,8 +1213,16 @@ static bool update_ipv6nh_for_route_install(int nh_othervrf, struct bgp *nh_bgp,
 		}
 	}
 	/* api_nh structure has union of gate and bh_type */
-	if (nexthop && api_nh->type != NEXTHOP_TYPE_BLACKHOLE)
-		api_nh->gate.ipv6 = *nexthop;
+	if (nexthop && api_nh->type != NEXTHOP_TYPE_BLACKHOLE) {
+		if (IS_MAPPED_IPV6(nexthop) && api_nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+			api_nh->type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
+			ipv4_mapped_ipv6_to_ipv4(nexthop, &ipv4);
+			memcpy(&api_nh->gate.ipv4, &ipv4,
+			       sizeof(api_nh->gate.ipv4));
+		}
+		else
+			api_nh->gate.ipv6 = *nexthop;
+	}
 
 	return true;
 }

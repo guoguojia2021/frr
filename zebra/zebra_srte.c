@@ -301,7 +301,7 @@ static struct nhg_hash_entry *zebra_srv6_find_pic_nhe_by_policy(struct zebra_sr_
 	return pic_nhe;
 }
 
-static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
+static struct nexthop *zebra_nhg_seg_add_del_nexthop(struct nexthop *nexthop,
 	char *sidlist_name, uint32_t discriminator, bool add,
 	bool *skip_depend, bool is_backup)
 {
@@ -319,14 +319,6 @@ static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
 
 	strlcpy(resolved_hop->sidlist_name, sidlist_name,
 		sizeof(resolved_hop->sidlist_name));
-	resolved_hop->my_discriminator = discriminator;
-	resolved_hop->flags = 0;
-	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
-	SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
-	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_DUPLICATE))
-		SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_DUPLICATE);
-	if (is_backup)
-		SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_BACKUP);
 
 	exist_hop = nexthop_exists_in_list(nexthop->resolved, resolved_hop);
 
@@ -337,6 +329,14 @@ static struct nexthop *zebra_nhg_seg_update_nexthop(struct nexthop *nexthop,
 			*skip_depend = true;
 			nexthop_free(resolved_hop);
 		} else {
+			resolved_hop->my_discriminator = discriminator;
+			resolved_hop->flags = 0;
+			SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_ACTIVE);
+			SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
+			if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_DUPLICATE))
+				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_DUPLICATE);
+			if (is_backup)
+				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_BACKUP);
 			_nexthop_add_sorted(&nexthop->resolved, resolved_hop);
 		}
 	}
@@ -362,7 +362,7 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 	if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_BACKUP))
 		is_backup = true;
 
-	add_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, discriminator, true, &skip_update_depend, is_backup);
+	add_hop = zebra_nhg_seg_add_del_nexthop(nexthop, policy_sid_name, discriminator, true, &skip_update_depend, is_backup);
 
 	if (skip_update_depend) {
 		if (IS_ZEBRA_DEBUG_SRV6)
@@ -377,6 +377,7 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 		handle_recursive_segdepend(&nhe->nhg_segdepends, add_hop, AFI_IP6, nhe->type, true);
 
 	zebra_nhg_segment_depends(nhe, &nhe->nhg_segdepends);
+	nhe->uptime = monotime(NULL);
 	return;
 }
 
@@ -509,9 +510,8 @@ static void zebra_nhg_seg_update_sidlist(struct nhg_hash_entry *nhe, struct zebr
 		return;
 	/* update depends nhe*/
 	zebra_nhg_seg_update_depend(nhe, nexthop, policy_sid_name, discriminator, is_backup);
-
 	zebra_nhg_seg_update_dependent(nhe, nexthop, policy_sid_name, discriminator, is_backup);
-
+	nhe->uptime = monotime(NULL);
 }
 static void zebra_nhg_seg_add_and_update_sidlist(struct nhg_hash_entry *nhe, struct zebra_sr_policy *policy,
 	struct nexthop *nexthop, bool skip_depend)
@@ -555,11 +555,11 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 			continue;
 
 		policy_sid_name = policy->srv6_segment_list.sidlists_old[path_num].sidlist_name;
-		discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
-		if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_BACKUP))
+		discriminator = policy->srv6_segment_list.sidlists_old[path_num].my_discriminator;
+		if (CHECK_FLAG(policy->srv6_segment_list.sidlists_old[path_num].flags, SRV6_SID_LIST_BACKUP))
 			is_backup = true;
 
-		del_hop = zebra_nhg_seg_update_nexthop(nexthop, policy_sid_name, discriminator, false, &skip_depend, is_backup);
+		del_hop = zebra_nhg_seg_add_del_nexthop(nexthop, policy_sid_name, discriminator, false, &skip_depend, is_backup);
 
 		if (del_hop == NULL)
 			continue;
@@ -588,6 +588,7 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 				zebra_nhg_seg_release(rb_node_dep->nhe);
 			}
 		}
+		nhe->uptime = monotime(NULL);
 	}
 
 	return;

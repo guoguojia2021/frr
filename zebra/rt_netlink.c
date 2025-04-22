@@ -2509,6 +2509,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 	struct rtattr *nest;
 	uint16_t encap;
 	uint32_t flag;
+	struct in6_addr ipv6;
 
 	if (!id) {
 		flog_err(
@@ -2599,10 +2600,18 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 			switch (nh->type) {
 			case NEXTHOP_TYPE_IPV4:
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
-			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				if (!nl_attr_put(&req->n, buflen, NHA_GATEWAY,
 						 &nh->gate.ipv4,
 						 IPV4_MAX_BYTELEN))
+					return 0;
+				break;
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+				req->nhm.nh_family = AF_INET6;
+				ipv4_to_ipv4_mapped_ipv6(&ipv6,
+					nh->gate.ipv4);
+				if (!nl_attr_put(&req->n, buflen, NHA_GATEWAY,
+						 &ipv6,
+						 IPV6_MAX_BYTELEN))
 					return 0;
 				break;
 			case NEXTHOP_TYPE_IPV6:

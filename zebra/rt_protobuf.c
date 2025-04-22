@@ -363,6 +363,8 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 	int type = dplane_ctx_get_nhe_type(ctx);
 	uint16_t encap;
 	uint32_t flag;
+	struct in6_addr ipv6;
+
 	Fpm__Encap *encap_message;
 	Fpm__AttrNest *nest_message;
 	Fpm__EncapNest *encap_nest;
@@ -452,10 +454,18 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 			switch (nh->type) {
 			case NEXTHOP_TYPE_IPV4:
 			case NEXTHOP_TYPE_IPV4_IFINDEX:
-			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				nhg->gate = create_gate_message(allocator,
 				         NHA_GATEWAY, &nh->gate.ipv4,
 						 IPV4_MAX_BYTELEN, AF_INET);
+				if(!nhg->gate) return NULL;
+				break;
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+				nhg->nh_family = AF_INET6;
+				ipv4_to_ipv4_mapped_ipv6(&ipv6,
+					nh->gate.ipv4);
+				nhg->gate = create_gate_message(allocator,
+				         NHA_GATEWAY, &ipv6,
+						 IPV6_MAX_BYTELEN, AF_INET6);
 				if(!nhg->gate) return NULL;
 				break;
 			case NEXTHOP_TYPE_IPV6:
