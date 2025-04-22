@@ -54,7 +54,7 @@ void pim_sendmsg_zebra_rnh(struct pim_instance *pim, struct zclient *zclient,
 	int ret;
 
 	p = &(pnc->rpf.rpf_addr);
-	ret = zclient_send_rnh(zclient, command, p, false, pim->vrf->vrf_id, false, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);
+	ret = zclient_send_rnh(zclient, command, p, false, false, pim->vrf->vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);
 	if (ret == ZCLIENT_SEND_FAILURE)
 		zlog_warn("sendmsg_nexthop: zclient_send_message() failed");
 

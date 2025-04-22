@@ -1423,8 +1423,8 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 		goto failure;
 	}
 
-	if (srte_color)
-		stream_putl(s, srte_color);
+	//if (srte_color)
+	//	stream_putl(s, srte_color);
 
 	if (re) {
 		struct zapi_nexthop znh;
