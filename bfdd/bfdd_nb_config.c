@@ -1083,6 +1083,8 @@ int bfdd_bfd_sessions_bfd_name_modify(
 			snprintf(args->errmsg, args->errmsg_len,"bfd name already exist.");
 			return NB_ERR_VALIDATION;
 		}
+		return NB_OK;
+
 	case NB_EV_PREPARE:
 		return NB_OK;
 
@@ -1117,6 +1119,8 @@ int bfdd_bfd_sessions_bfd_mode_modify(
 			snprintf(args->errmsg, args->errmsg_len,"bfd mode is invalid.");
 			return NB_ERR_VALIDATION;
 		}
+		return NB_OK;
+
 	case NB_EV_PREPARE:
 		return NB_OK;
 
@@ -1135,7 +1139,7 @@ int bfdd_bfd_sessions_bfd_mode_modify(
 }
 
 int bfdd_bfd_sessions_bfd_mode_destroy(
-	struct nb_cb_modify_args *args)
+	struct nb_cb_destroy_args *args)
 {
 	return NB_OK;
 }
@@ -1333,7 +1337,7 @@ int bfdd_bfd_sessions_segment_list_modify(
 }
 
 int bfdd_bfd_sessions_segment_list_destroy(
-	struct nb_cb_modify_args *args)
+	struct nb_cb_destroy_args *args)
 {
 	return NB_OK;
 }

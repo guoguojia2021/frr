@@ -357,6 +357,8 @@ void ospf6_route_zebra_copy_nexthops(struct ospf6_route *route,
 
 			switch (nh->type) {
 			case NEXTHOP_TYPE_BLACKHOLE:
+			case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+			case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				/* NOTHING */
 				break;
 

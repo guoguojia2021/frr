@@ -152,6 +152,8 @@ extern void nb_cli_install_default(int node);
 extern void nb_cli_init(struct thread_master *tm);
 extern void nb_cli_terminate(void);
 
+int nb_cli_apply_changes_skip_check_validate(struct vty *vty, const char *xpath_base_fmt, ...);
+
 #ifdef __cplusplus
 }
 #endif

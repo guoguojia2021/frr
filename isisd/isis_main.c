@@ -192,11 +192,13 @@ static void isis_config_finish(struct thread *t)
 	}
 }
 
-static void isis_config_end_timeout(struct thread *t)
+static int isis_config_end_timeout(struct thread *t)
 {
 	zlog_err("IS-IS configuration end timer expired after %d seconds.",
 		 ISIS_PRE_CONFIG_MAX_WAIT_SECONDS);
 	isis_config_finish(t);
+
+	return 0;
 }
 
 static void isis_config_start(void)

@@ -150,7 +150,7 @@ struct nexthop *nexthop_exists_in_list(const struct nexthop *head,
 {
 	struct nexthop *nexthop;
 
-	for (nexthop = head; nexthop; nexthop = nexthop->next) {
+	for (nexthop = (struct nexthop *)head; nexthop; nexthop = nexthop->next) {
 		if (nexthop_same(nh, nexthop))
 			return nexthop;
 	}
@@ -1178,6 +1178,8 @@ void nexthop_group_json_nexthop(json_object *j, const struct nexthop *nh)
 				       ifindex2ifname(nh->ifindex, nh->vrf_id));
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 

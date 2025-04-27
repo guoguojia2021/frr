@@ -446,7 +446,7 @@ bool isis_level2_adj_up(struct isis_area *area)
 /*
  * Unset the overload bit after the timer expires
  */
-void set_overload_on_start_timer(struct thread *thread)
+int set_overload_on_start_timer(struct thread *thread)
 {
 	struct isis_area *area = THREAD_ARG(thread);
 	assert(area);
@@ -456,6 +456,8 @@ void set_overload_on_start_timer(struct thread *thread)
 	/* Check if set-overload-bit is not currently configured */
 	if (!area->overload_configured)
 		isis_area_overload_bit_set(area, false);
+
+	return 0;
 }
 
 static uint8_t lsp_bits_generate(int level, int overload_bit, int attached_bit,

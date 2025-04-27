@@ -2698,7 +2698,6 @@ DEFUN(show_isis_route, show_isis_route_cmd,
 	struct listnode *node;
 	const char *vrf_name = VRF_DEFAULT_NAME;
 	bool all_vrf = false;
-	bool all_algorithm = false;
 	bool prefix_sid = false;
 	bool backup = false;
 	bool uj = use_json(argc, argv);

@@ -105,5 +105,7 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create);
 
 extern int bfpm_init(struct thread_master *master);
 
+const char *bfd_status_translate(int status);
+void extract_segment_from_addr_list(char * segment, size_t max_size, struct in6_addr seg_list[], int seg_num);
 
 #endif /* _BFD_H_ */

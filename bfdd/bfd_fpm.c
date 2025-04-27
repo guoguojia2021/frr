@@ -357,7 +357,7 @@ static void bfpm_connection_down(const char *detail)
 	bfpm_set_state(BFPM_STATE_IDLE, detail);
 }
 
-char *bfd_status_translate(int status)
+const char *bfd_status_translate(int status)
 {
 	switch (status) {
     case BFD_NOTIFY_UP:
@@ -416,10 +416,10 @@ static int bfpm_read_cb(struct thread *thread)
 
 		if (nbyte != (ssize_t)(BFDSYNC_MSG_HDR_LEN - already))
 		{
-			zlog_info("read bfd_msg hdr from bfdsyncd incomplete, nbyte:%u actual:%u", nbyte, (ssize_t)(BFDSYNC_MSG_HDR_LEN - already));
+			zlog_info("read bfd_msg hdr from bfdsyncd incomplete, nbyte:%ld actual:%ld", nbyte, (ssize_t)(BFDSYNC_MSG_HDR_LEN - already));
 			goto done;
 		}
-			
+
 		already = BFDSYNC_MSG_HDR_LEN;
 	}
 
@@ -452,18 +452,18 @@ static int bfpm_read_cb(struct thread *thread)
 
 		if (nbyte != (ssize_t)(hdr.msg_len - already))
 		{
-			zlog_info("read bfd_msg notify from bfdsyncd incomplete, nbyte:%u actual:%u", nbyte, (ssize_t)(hdr.msg_len - already));
+			zlog_info("read bfd_msg notify from bfdsyncd incomplete, nbyte:%ld actual:%ld", nbyte, (ssize_t)(hdr.msg_len - already));
 			goto done;
 		}
 	}
-    
+
     data.recvCount = stream_getq(ibuf);
     data.sendCount = stream_getq(ibuf);
     STREAM_GETL(ibuf, data.remote_discr);
-    STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN); 
-    STREAM_GET(data.bfd_name, ibuf, MAXNAMELEN + 1); 
+    STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN);
+    STREAM_GET(data.bfd_name, ibuf, MAXNAMELEN + 1);
 
-    zlog_info("read from bfdsyncd, bfd_name:%s, ver:%d, notify status:%s, msglen:%d, peer:%s, remote_discr:%u, already:%u", 
+    zlog_info("read from bfdsyncd, bfd_name:%s, ver:%u, notify status:%s, msglen:%u, peer:%s, remote_discr:%u, already:%zu",
         data.bfd_name, hdr.version, bfd_status_translate(hdr.msg_type), hdr.msg_len, data.bpc_peer, data.remote_discr, already);
     strtosa(data.bpc_peer, &peer);
     bs = bfd_find_disc(&peer, data.remote_discr);
@@ -508,9 +508,9 @@ static int bfpm_read_cb(struct thread *thread)
             SET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
 			if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 			{
-				/* 
-				 *  It is possible that the offload will be triggered again when the offload has already been sent. 
-				 *  If it is confirmed that the peer has been sent, the offload timer is deleted. 
+				/*
+				 *  It is possible that the offload will be triggered again when the offload has already been sent.
+				 *  If it is confirmed that the peer has been sent, the offload timer is deleted.
 				*/
 				sbfd_echo_hwoffloadtimer_delete(bs);
 
@@ -532,7 +532,7 @@ static int bfpm_read_cb(struct thread *thread)
 				THREAD_OFF(bs->xmttimer_delay);
 				thread_add_timer(master, bfd_xmtdel_delay_cb, bs, BFD_XMTDEL_DELAY_TIMER, &bs->xmttimer_delay);
 			}
-			
+
         }
     }
 
@@ -855,7 +855,7 @@ static int bfdsync_flush_data(struct thread *thread)
     return 0;
 }
 
-static int bfdsync_send_message()
+static int bfdsync_send_message(void)
 {
     if (bfpm_g->sock < 0)
         return -1;
@@ -880,7 +880,7 @@ static int bfdsync_send_message()
 
 }
 
-void extract_segment_from_addr_list(char * segment, int max_size, struct in6_addr seg_list[], int seg_num)
+void extract_segment_from_addr_list(char * segment, size_t max_size, struct in6_addr seg_list[], int seg_num)
 {
 	char tmp[64];
 	int i = 0;
@@ -979,7 +979,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
           sizeof(data->bpc_local));
     inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_peer,
           sizeof(data->bpc_peer));
-    
+
     data->src_port = htons((uint16_t)bfd->srcport);
     data->dest_port = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH))
                      ? htons(BFD_DEF_MHOP_DEST_PORT)
@@ -1002,7 +1002,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		data->bpc_txinterval = htonl((uint32_t)bfd->echo_hw_xmt_TO);
 		data->bpc_recvinterval = htonl((uint32_t)bfd->echo_hw_detect_TO / bfd->detect_mult);
 		data->discrs.remote_discr = htonl(bfd->discrs.my_discr);
-        
+
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 
@@ -1018,7 +1018,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 	}
 
-	strncpy(data->bfd_name, bfd->bfd_name, MAXNAMELEN);
+	strlcpy(data->bfd_name, bfd->bfd_name, MAXNAMELEN);
 
     msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
     hdr->msg_len = htons(msg_len);

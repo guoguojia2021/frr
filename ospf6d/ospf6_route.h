@@ -66,6 +66,8 @@ static inline bool ospf6_nexthop_is_same(const struct ospf6_nexthop *nha,
 
 	switch (nha->type) {
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		/* NOTHING */
 		break;
 

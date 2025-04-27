@@ -621,6 +621,8 @@ void ptm_sbfd_echo_snd(struct bfd_session *bfd);
 void ptm_sbfd_initiator_snd(struct bfd_session *bfd, int fbit);
 
 int bfd_recv_cb(struct thread *t);
+int sbfd_echo_hw_offload_delay_cb(struct thread *t);
+void bp_set_addr_reuse(int sd, const char* info);
 
 
 /*

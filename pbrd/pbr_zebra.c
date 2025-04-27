@@ -275,6 +275,9 @@ static void route_add_helper(struct zapi_route *api, struct nexthop_group nhg,
 		api_nh->type = nhop->type;
 		api_nh->weight = nhop->weight;
 		switch (nhop->type) {
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+			break;
 		case NEXTHOP_TYPE_IPV4:
 			api_nh->gate.ipv4 = nhop->gate.ipv4;
 			break;
@@ -464,6 +467,8 @@ void pbr_send_rnh(struct nexthop *nhop, bool reg)
 	switch (nhop->type) {
 	case NEXTHOP_TYPE_IFINDEX:
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		return;
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:

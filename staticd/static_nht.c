@@ -35,7 +35,6 @@ static void static_nht_update_path(struct static_path *pn, struct prefix *nhp,
 				   struct vrf *vrf, bool set_etag, uint32_t color)
 {
 	struct static_nexthop *nh;
-	bool valid_srv6_nh = false;
 	bool add_route = false;
 	bool old_valid_srv6_nh = pn->valid_srv6_nh;
 

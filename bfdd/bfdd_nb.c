@@ -27,21 +27,6 @@
 
 #include "bfdd_nb.h"
 
-static int dummy_create(struct nb_cb_create_args *args)
-{
-	return NB_OK;
-}
-
-static int dummy_modify(struct nb_cb_modify_args *args)
-{
-	return NB_OK;
-}
-
-static int dummy_destroy(struct nb_cb_destroy_args *args)
-{
-	return NB_OK;
-}
-
 /* clang-format off */
 const struct frr_yang_module_info frr_bfdd_info = {
 	.name = "frr-bfdd",

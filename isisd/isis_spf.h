@@ -74,6 +74,7 @@ struct isis_lsp *isis_root_system_lsp(struct lspdb_head *lspdb,
 			   __FILE__, __LINE__)
 int _isis_spf_schedule(struct isis_area *area, int level,
 		       const char *func, const char *file, int line);
+void _isis_spftree_del(struct isis_spftree *spftree);
 void isis_print_spftree(struct vty *vty, struct isis_spftree *spftree,
 			struct json_object **json);
 void isis_print_routes(struct vty *vty, struct isis_spftree *spftree,

@@ -159,6 +159,9 @@ static bool pbr_nh_hash_equal(const void *arg1, const void *arg2)
 		return false;
 
 	switch (pbrnc1->nexthop.type) {
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		return false;
 	case NEXTHOP_TYPE_IFINDEX:
 		return pbrnc1->nexthop.ifindex == pbrnc2->nexthop.ifindex;
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
@@ -409,6 +412,8 @@ static afi_t pbr_nht_which_afi(struct nexthop_group nhg,
 			return AFI_IP6;
 		case NEXTHOP_TYPE_IFINDEX:
 		case NEXTHOP_TYPE_BLACKHOLE:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			return AFI_MAX;
 		}
 	}
@@ -420,6 +425,8 @@ static afi_t pbr_nht_which_afi(struct nexthop_group nhg,
 
 		switch (nh_type) {
 		case NEXTHOP_TYPE_IFINDEX:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			break;
 		case NEXTHOP_TYPE_IPV4:
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
@@ -795,6 +802,8 @@ pbr_nht_individual_nexthop_gw_update(struct pbr_nexthop_cache *pnhc,
 		case NEXTHOP_TYPE_BLACKHOLE:
 		case NEXTHOP_TYPE_IPV4:
 		case NEXTHOP_TYPE_IPV6:
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			goto done;
 		case NEXTHOP_TYPE_IFINDEX:
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
@@ -903,6 +912,9 @@ static void pbr_nht_individual_nexthop_update(struct pbr_nexthop_cache *pnhc,
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
 		pnhc->valid = true;
+		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		break;
 	}
 }

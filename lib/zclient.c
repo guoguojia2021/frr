@@ -1244,6 +1244,8 @@ int zapi_srv6_locator_one_sid_encode(struct stream *s, struct srv6_locator *loc,
 	stream_putl(s, sid->sidaction);
 	stream_putw(s, strlen(sid->vrfName));
 	stream_put(s, sid->vrfName, strlen(sid->vrfName));
+
+	return 0;
 }
 
 int zapi_srv6_locator_sid_decode(struct stream *s,
@@ -1252,7 +1254,6 @@ int zapi_srv6_locator_sid_decode(struct stream *s,
 	struct seg6_sid *sid = NULL;
 	struct listnode *node, *nnode;
 	unsigned int sid_count;
-	unsigned int vrf_name_len;
 	vrf_id_t vrf_id;
 	struct vrf *vrf = NULL;
 

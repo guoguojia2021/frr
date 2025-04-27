@@ -262,8 +262,8 @@ int bfdd_bfd_sessions_bfd_mode_modify(
 int bfdd_bfd_sessions_segment_list_modify(
 	struct nb_cb_modify_args *args);
 int bfdd_bfd_sessions_segment_list_destroy(
-	struct nb_cb_modify_args *args);
+	struct nb_cb_destroy_args *args);
 int bfdd_bfd_sessions_bfd_mode_destroy(
-	struct nb_cb_modify_args *args);
+	struct nb_cb_destroy_args *args);
 
 #endif /* _FRR_BFDD_NB_H_ */

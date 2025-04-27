@@ -44,7 +44,7 @@
 #include "static_vty.h"
 #include "static_debug.h"
 
-#define IN6_IS_ADDR_LINKLOCAL(a)        \
+#define in6_is_addr_linklocal(a)        \
        (((a)->s6_addr[0] == 0xfe) && (((a)->s6_addr[1] & 0xc0) == 0x80))
 
 /* Zebra structure to hold current status. */
@@ -227,18 +227,18 @@ static int static_neighbor_operation(ZAPI_CALLBACK_ARGS)
 	zclient_neigh_ip_decode(zclient->ibuf, &api);
 	if (api.ip_in.ipa_type != IPADDR_V6)
 	{
-		return;
+		return 0;
 	}
 
 	ifp = if_lookup_by_index(api.index, vrf_id);
 	if (!ifp)
-		return;
-	
+		return 0;
+
 	sockunion_family(&addr) = api.ip_in.ipa_type;
 	memcpy((uint8_t *)sockunion_get_addr(&addr), &api.ip_in.ip.addr,
 	       family2addrsize(api.ip_in.ipa_type));
-	
-	if (!IN6_IS_ADDR_LINKLOCAL(&addr.sin6.sin6_addr))
+
+	if (!in6_is_addr_linklocal(&addr.sin6.sin6_addr))
 		return 0;
 
 	afi  =  AFI_IP6;
@@ -827,8 +827,8 @@ void static_zebra_vrf_unregister(struct vrf *vrf)
 	zclient_send_dereg_requests(zclient, vrf->vrf_id);
 }
 
-void show_static_nexthop_tracking_info(struct vty *vty, struct static_nht_data  *nht){
-
+static void show_static_nexthop_tracking_info(struct vty *vty, struct static_nht_data *nht)
+{
 	char buf[PREFIX_STRLEN];
 	vty_out(vty, "Prefix: %s\n", prefix2str(nht->nh, buf, sizeof(buf)));
 	vty_out(vty, "  Color: %d", nht->color);
@@ -844,7 +844,7 @@ static int nht_show_walker(struct hash_bucket *bucket, void *arg)
 	struct static_nht_data  *nht;
 
 	nht = bucket->data; /* We won't be offered NULL buckets */
-			    
+
 	if(!nht || !ctx){
 		goto done;
 	}

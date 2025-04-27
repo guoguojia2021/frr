@@ -815,14 +815,16 @@ void apply_mask_ipv6(struct prefix_ipv6 *p)
 	}
 }
 
-void apply_mask(struct prefix *p)
+void apply_mask(union prefixptr pu)
 {
+	struct prefix *p = pu.p;
+
 	switch (p->family) {
 	case AF_INET:
-		apply_mask_ipv4((struct prefix_ipv4 *)p);
+		apply_mask_ipv4(pu.p4);
 		break;
 	case AF_INET6:
-		apply_mask_ipv6((struct prefix_ipv6 *)p);
+		apply_mask_ipv6(pu.p6);
 		break;
 	default:
 		break;
@@ -1416,7 +1418,7 @@ static int evpn_check_bracketsIsValid(const char *str, int *count)
 {
 	int bracketCount = 0;
 	/* 检查str的中括号的顺序是否合法，并且返回count */
-	for (int i = 0; i < strlen(str); i++) {
+	for (size_t i = 0; i < strlen(str); i++) {
 		if (bracketCount < 0)
 			return 1;
 		if (str[i] == '[') {
@@ -1461,7 +1463,7 @@ static int evpn_type1_str2prefix(char *str, struct prefix_evpn *p, const int cou
 {
 	/* EVPN type-1 prefix: [1]:[ESI]:[EthTag]:[IPlen]:[VTEP-IP] */
 	int str_len = 0;
-	esi_t *esi;
+	esi_t esi = {};
 	int eth_tag = 0;
 	int ip_len = 0;
 	struct ipaddr vtep_ip = {0};
@@ -1488,7 +1490,7 @@ static int evpn_type1_str2prefix(char *str, struct prefix_evpn *p, const int cou
 		return 1;
 	}
     memset(&esi, 0, sizeof(esi_t));
-	if (!str2esi(prefixstr[2], esi)) {
+	if (!str2esi(prefixstr[2], &esi)) {
 		snprintf(buf, len, "the esi is invalid.\n");
 		return 1;
 	}
@@ -1515,7 +1517,7 @@ static int evpn_type1_str2prefix(char *str, struct prefix_evpn *p, const int cou
 	p->prefix.ead_addr.eth_tag = eth_tag;
 	p->prefix.ead_addr.ip.ipa_type = IPADDR_V4;
 	p->prefix.ead_addr.ip.ipaddr_v4 = vtep_ip.ipaddr_v4;
-	memcpy(&p->prefix.ead_addr.esi, esi, sizeof(esi_t));
+	memcpy(&p->prefix.ead_addr.esi, &esi, sizeof(esi_t));
 	return 0;
 }
 
@@ -1663,7 +1665,7 @@ static int evpn_type4_str2prefix(char *str, struct prefix_evpn *p, const int cou
 {
 	/* EVPN type-4 prefix: [4]:[ESI]:[IPlen]:[OrigIP] */
 	int str_len = 0;
-	esi_t *esi;
+	esi_t esi = {};
 	int ip_len = 0;
 	struct ipaddr originator_ip = {0};
 	char prefixstr[10][50];
@@ -1685,7 +1687,7 @@ static int evpn_type4_str2prefix(char *str, struct prefix_evpn *p, const int cou
 		return 1;
 	}
     memset(&esi, 0, sizeof(esi_t));
-	if (!str2esi(prefixstr[2], esi)) {
+	if (!str2esi(prefixstr[2], &esi)) {
 		snprintf(buf, len, "the esi is invalid.\n");
 		return 1;
 	}
@@ -1707,7 +1709,7 @@ static int evpn_type4_str2prefix(char *str, struct prefix_evpn *p, const int cou
 	p->prefix.es_addr.ip_prefix_length = IPV4_MAX_BITLEN;
 	p->prefix.es_addr.ip.ipa_type = IPADDR_V4;
 	p->prefix.es_addr.ip.ipaddr_v4 = originator_ip.ipaddr_v4;
-	memcpy(&p->prefix.es_addr.esi, esi, sizeof(esi_t));
+	memcpy(&p->prefix.es_addr.esi, &esi, sizeof(esi_t));
 	return 0;
 }
 
@@ -1775,7 +1777,7 @@ int evpn_str2prefix(char *str, int type, struct prefix_evpn *p,
 	char *prefixstr = NULL;
 	if (!str)
 		return 1;
-	/* 过滤掉字符串前后掉空�?*/
+	/* 过滤掉字符串前后掉空�?*/
 	prefixstr = trim(str);
 	if (evpn_check_bracketsIsValid(prefixstr, &count) == 1)
 		return 1;

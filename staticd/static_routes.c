@@ -145,7 +145,7 @@ void static_uninstall_path(struct static_path *pn)
 				pn->valid_srv6_nh = true;
 		}
 	}
-	DEBUGD(&static_dbg_route, "%pRN  nexthop count %u", pn->rn, static_nexthop_list_count(&pn->nexthop_list));
+	DEBUGD(&static_dbg_route, "%pRN  nexthop count %zu", pn->rn, static_nexthop_list_count(&pn->nexthop_list));
 	if (static_nexthop_list_count(&pn->nexthop_list) == 1 && rttype == ZEBRA_ROUTE_BGP)
 	{
 		set_etag = true;

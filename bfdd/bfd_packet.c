@@ -2244,14 +2244,6 @@ int bp_raw_sbfd_send(int sd,  uint8_t *data, size_t datalen, struct in6_addr* si
 
 }
 
-static void bp_sbfd_encap_ether(struct ether_header *eth, uint8_t *smac, uint8_t *dmac, uint16_t family)
-{
-	memcpy(eth->ether_shost, smac, sizeof(eth->ether_shost));
-	memcpy(eth->ether_dhost, dmac, sizeof(eth->ether_dhost));
-    eth->ether_type = (family == AF_INET6) ? htons(ETH_P_IPV6) : htons(ETH_P_IP);  
-}
-
-
 /**
  * @brief encap srv6 to send raw socker red mode, just support ecore 2.5 case
  * 
@@ -2329,7 +2321,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 		{
             iph = (struct ip *)(sendbuf + total_len);
 			bp_sbfd_encap_outer_iph(iph, &outer_dip->sa_sin.sin_addr, family, datalen);
-			iph->ip_sum = in_cksum((const void *)iph, sizeof(struct ip));
+			iph->ip_sum = in_cksum((void *)iph, sizeof(struct ip));
 			total_len += sizeof(struct ip);
 		}
 	}
@@ -2367,7 +2359,7 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 		bp_sbfd_encap_udp4(udp, iph, src_port, dst_port, data, datalen);
 		total_len += sizeof(struct udphdr);
 
-		iph->ip_sum = in_cksum((const void *)iph, sizeof(struct ip));
+		iph->ip_sum = in_cksum((void *)iph, sizeof(struct ip));
 	}
 
 	/* BFD payload*/

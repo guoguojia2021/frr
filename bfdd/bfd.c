@@ -2955,9 +2955,9 @@ struct bfd_session * bfd_session_get_by_name(const char * name)
 		return NULL;
 
     struct bfd_session_name_match_unique match;
-	match.bfd_name = name;
+	match.bfd_name = (char *)name;
 	match.bfd_found = NULL;
-	
+
 	hash_walk(bfd_key_hash, _bfd_session_name_cmp, &match);
 
 	return match.bfd_found;

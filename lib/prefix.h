@@ -461,7 +461,7 @@ extern int prefix_same(union prefixconstptr, union prefixconstptr);
 extern int prefix_cmp(union prefixconstptr, union prefixconstptr);
 extern int prefix_common_bits(const struct prefix *, const struct prefix *);
 extern void prefix_copy(union prefixptr, union prefixconstptr);
-extern void apply_mask(struct prefix *);
+extern void apply_mask(union prefixptr pu);
 
 #ifdef __clang_analyzer__
 /* clang-SA doesn't understand transparent unions, making it think that the

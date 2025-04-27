@@ -88,7 +88,7 @@ static void debug_printbpc(const struct bfd_peer_cfg *bpc, const char *fmt, ...)
 {
 	char timers[3][128] = {};
 	char minttl_str[32] = {};
-	char addr[3][128] = {};
+	char addr[3][272] = {};
 	char profile[128] = {};
 	char cbit_str[32];
 	char msgbuf[512];

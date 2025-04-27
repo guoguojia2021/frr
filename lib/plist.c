@@ -1164,7 +1164,7 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 
 		if (match) {
 			json_object *jentry = json_object_new_object();
-			sprintf(key, "%s_seq_%u", plist->name, pentry->seq);
+			sprintf(key, "%s_seq_%lld", plist->name, pentry->seq);
             if (uj) {
                 json_object_object_add(jentry, "seq", json_object_new_int((int)pentry->seq));
                 json_object_object_add(jentry, "type", json_object_new_string(prefix_list_type_str(pentry)));
@@ -1189,12 +1189,14 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
                 }
 
                 if (uj) {
-                    if (pentry->ge)
+                    if (pentry->ge) {
                         sprintf(buf, " ge %d", pentry->ge);
                         strcat(buff, buf);
-                    if (pentry->le)
+                    }
+                    if (pentry->le) {
                         sprintf(buff, " le %d", pentry->le);
                         strcat(buff, buf);
+                    }
                 } else {
                     if (pentry->ge)
                         vty_out(vty, " ge %d", pentry->ge);
@@ -1205,7 +1207,7 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 			json_object_object_add(jentry, "rule", json_object_new_string(buff));
 
 			if (type == normal_display
-			    || type == first_match_display)
+			    || type == first_match_display) {
 				if (uj) {
                     sprintf(buff, "%ld", pentry->hitcnt);
                     json_object_object_add(jentry, "hitcount", json_object_new_string(buff));
@@ -1214,7 +1216,8 @@ static int vty_show_prefix_list_prefix(struct vty *vty, afi_t afi,
 				} else {
                     vty_out(vty, " (hit count: %ld, refcount: %ld)",
                         pentry->hitcnt, pentry->refcnt);
-                }
+				}
+			}
             if (!uj)
 			    vty_out(vty, "\n");
 
