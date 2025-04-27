@@ -963,6 +963,37 @@ bool bgp_update_delay_configured(struct bgp *bgp)
 	return false;
 }
 
+bool bgp_advertise_delay_onstartup_configured(struct bgp *bgp)
+{
+	zlog_debug("%s: %s: v_onstartup_advertise_delay = %d.\n", __func__,bgp->name_pretty, bgp->v_onstartup_advertise_delay);
+	if (bgp->v_onstartup_advertise_delay != BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED)
+		return true;
+	return false;
+}
+
+bool bgp_advertise_delay_onstartup_applicable(struct bgp *bgp)
+{
+	zlog_debug("%s:%s:onstartup_advertise_delay_over = %d.\n", __func__, bgp->name_pretty, bgp->onstartup_advertise_delay_over);
+
+	if (!bgp_advertise_delay_onstartup_configured(bgp))
+		return false;
+	if (!bgp->onstartup_advertise_delay_over)
+		return true;
+
+	return false;
+}
+
+bool bgp_advertise_delay_onstartup_active(struct bgp *bgp)
+{
+	if (bgp->t_onstartup_advertise_delay)
+	{
+		zlog_debug("%s: %s: t_onstartup_advertise_delay active.\n", __func__, bgp->name_pretty);
+		return true;
+	}
+	zlog_debug("%s: %s:t_onstartup_advertise_delay not active.\n", __func__, bgp->name_pretty);	
+	return false;
+}
+
 /* Do the post-processing needed when bgp comes out of the read-only mode
    on ending the update delay. */
 void bgp_update_delay_end(struct bgp *bgp)
@@ -1317,6 +1348,123 @@ static void bgp_update_delay_begin(struct bgp *bgp)
 		      sizeof(bgp->update_delay_begin_time));
 }
 
+static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
+{
+	afi_t afi;
+	safi_t safi;
+	struct peer_af *paf = NULL;
+	struct bgp_filter *filter = NULL;
+
+	frr_timestamp(3, peer->advertise_delay_onstartup_start_time,
+			 sizeof(peer->advertise_delay_onstartup_start_time));
+
+	zlog_debug( "%s: %s: end advertise delay onstartup start time(%s).\n",
+			__func__, peer->host, peer->advertise_delay_onstartup_start_time);
+
+	FOREACH_AFI_SAFI (afi, safi) {
+
+		if (!peer->afc_nego[afi][safi])
+			continue;
+
+		filter = &peer->filter[afi][safi];
+		if (!ADVERTISE_DELAY_MAP_NAME(filter))
+			continue;
+
+		if (BGP_DEBUG(update, UPDATE_OUT))
+			zlog_debug("%s: advertise delay onstartup time end %s for %s, send the all route update.",
+				__func__, peer->host, get_afi_safi_str(afi, safi, false));
+
+		paf = peer_af_find(peer, afi, safi);
+		if (paf && paf->subgroup)
+			SET_FLAG(paf->subgroup->sflags, SUBGRP_STATUS_FORCE_UPDATES);
+
+		update_group_adjust_peer(paf);
+		bgp_announce_route(peer, afi, safi, true);
+	}
+
+	BGP_TIMER_OFF(peer->t_routeadv);
+	BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
+
+	frr_timestamp(3, peer->advertise_delay_onstartup_end_time,
+			 sizeof(peer->advertise_delay_onstartup_end_time));
+
+	zlog_debug( "%s: %s: end advertise delay onstartup end time(%s).\n",
+			__func__, peer->host, peer->advertise_delay_onstartup_end_time);
+}
+
+static void bgp_advertise_delay_onstartup_end(struct bgp *bgp)
+{
+	struct listnode *node, *nnode;
+	struct peer *peer;
+
+	zlog_notice( "%s: %s: advertise delay onstartup timer end and advertise route start time.\n",
+			__func__, bgp->name_pretty);
+
+	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
+		if (!peer_established(peer))
+			continue;
+		bgp_advertise_delay_onstartup_peer_end(peer);
+	}
+	zlog_notice( "%s: %s: advertise delay onstartup timer end and advertise route end time.\n",
+			__func__, bgp->name_pretty);
+}
+
+/* The advertise delay onstartup timer expiry callback. */
+static int bgp_advertise_delay_onstartup_timer(struct thread *thread)
+{
+	struct bgp *bgp;
+
+	zlog_notice("advertise delay onstartup ended - timer expired.\n");
+
+	bgp = THREAD_ARG(thread);
+	// avoid timer run more than one time
+	THREAD_OFF(bgp->t_onstartup_advertise_delay);
+	bgp->onstartup_advertise_delay_over = 1;
+
+	frr_timestamp(3, bgp->advertise_delay_onstartup_end_time,
+				sizeof(bgp->advertise_delay_onstartup_end_time));
+
+	zlog_debug( "%s: bgp end advertise delay onstart up end time(%s).\n",
+			__func__, bgp->advertise_delay_onstartup_end_time);
+
+	bgp_advertise_delay_onstartup_end(bgp);
+
+	return 0;
+}
+
+static void bgp_advertise_delay_onstartup_begin(struct bgp *bgp)
+{
+	zlog_debug("%s: bgp(%s): onstartup_advertise_delay_over=%d.\n",__func__, bgp->name_pretty, bgp->onstartup_advertise_delay_over);
+	
+	if (bgp_advertise_delay_onstartup_active(bgp))
+	{
+		return;
+	}
+	
+	/* Applicable only once in the process lifetime on the startup */
+	if (bgp->onstartup_advertise_delay_over)
+		return;
+
+	zlog_notice("Begin advertise delay onstartup mode - timer %d seconds",
+		  bm->v_onstartup_advertise_delay);
+
+	thread_add_timer(bm->master, bgp_advertise_delay_onstartup_timer, bgp,
+			 bm->v_onstartup_advertise_delay, &bgp->t_onstartup_advertise_delay);
+
+	frr_timestamp(3, bgp->advertise_delay_onstartup_start_time,
+				sizeof(bgp->advertise_delay_onstartup_start_time));
+}
+
+static void bgp_advertise_delay_onstartup_process_status_change(struct peer *peer)
+{
+	zlog_debug("%s: peer status %d  peer->bgp->established_peers %d (%s)",
+			__func__,peer->status, peer->bgp->established_peers, peer->bgp->name_pretty);
+	if (peer->status == Established && peer->bgp->established_peers == 1) {
+		// timer enable when first peer established
+		bgp_advertise_delay_onstartup_begin(peer->bgp);
+	}
+}
+
 static void bgp_update_delay_process_status_change(struct peer *peer)
 {
 	if (peer_established(peer)) {
@@ -1558,6 +1706,16 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 			bgp_maxmed_onstartup_process_status_change(peer);
 		else
 			peer->bgp->maxmed_onstartup_over = 1;
+	}
+
+
+	/* If advertise delay onstartup processing is applicable, do the necessary. */
+	if (status == Established) {
+		if (bgp_advertise_delay_onstartup_configured(peer->bgp)
+		    && bgp_advertise_delay_onstartup_applicable(peer->bgp))
+			bgp_advertise_delay_onstartup_process_status_change(peer);
+		else
+			peer->bgp->onstartup_advertise_delay_over = 1;
 	}
 
 	/* If update-delay processing is applicable, do the necessary. */

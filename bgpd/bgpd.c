@@ -3495,6 +3495,7 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 	bgp->v_update_delay = bm->v_update_delay;
 	bgp->v_advertise_delay = bm->v_advertise_delay;
 	bgp->v_establish_wait = bm->v_establish_wait;
+	bgp->v_onstartup_advertise_delay = bm->v_onstartup_advertise_delay;
 	bgp->default_local_pref = BGP_DEFAULT_LOCAL_PREF;
 	bgp->default_subgroup_pkt_queue_max =
 		BGP_DEFAULT_SUBGROUP_PKT_QUEUE_MAX;
@@ -3959,6 +3960,7 @@ int bgp_delete(struct bgp *bgp, int check_gr)
 	THREAD_OFF(bgp->t_startup);
 	THREAD_OFF(bgp->t_maxmed_onstartup);
 	THREAD_OFF(bgp->t_update_delay);
+	THREAD_OFF(bgp->t_onstartup_advertise_delay);
 	THREAD_OFF(bgp->t_establish_wait);
 	THREAD_OFF(bgp->t_adv_to_all);
 

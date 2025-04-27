@@ -11191,6 +11191,54 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 				}
 			}
 
+
+			if (bgp_advertise_delay_onstartup_configured(bgp)) {
+				if (use_json) {
+					json_object_int_add(
+						json, "advertiseDelayOnstartupLimit",
+						bgp->v_onstartup_advertise_delay);
+					if (bgp_advertise_delay_onstartup_active(bgp)) {
+						json_object_string_add(
+							json,
+							"advertiseDelayFirstNeighbor",
+							bgp->advertise_delay_onstartup_start_time);
+						json_object_boolean_true_add(
+							json,
+							"updateDelayInProgress");
+					} else {
+						if (bgp->onstartup_advertise_delay_over) {
+							json_object_string_add(
+								json,
+								"advertiseDelayFirstNeighbor",
+								bgp->advertise_delay_onstartup_start_time);
+							json_object_string_add(
+								json,
+								"advertiseDelayOnstartupResumed",
+								bgp->advertise_delay_onstartup_end_time);
+						}
+					}
+				} else {
+					vty_out(vty,
+						"Advertise-delay-onstartup limit: %d seconds\n",
+						bgp->v_onstartup_advertise_delay);
+					if (bgp_advertise_delay_onstartup_active(bgp)) {
+						vty_out(vty,
+							"  First neighbor established: %s\n",
+							bgp->advertise_delay_onstartup_start_time);
+						vty_out(vty,
+							"  Advertise delay onstartup in progress\n");
+					} else {
+						if (bgp->onstartup_advertise_delay_over) {
+							vty_out(vty,
+								"         First neighbor established: %s\n",
+								bgp->advertise_delay_onstartup_start_time);
+							vty_out(vty,
+								"  advertise-delay-onstartup resumed: %s\n",
+								bgp->advertise_delay_onstartup_end_time);
+						}
+					}
+				}
+			}
 			if (use_json) {
 				if (bgp_maxmed_onstartup_configured(bgp)
 				    && bgp->maxmed_active)
@@ -14854,6 +14902,71 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		}
 	}
 
+
+#if 1
+	if (bgp_advertise_delay_onstartup_configured(p->bgp)) {
+		if (use_json) {
+			json_object_int_add(
+				json_neigh, "advertiseDelayOnstartupLimit",
+				p->bgp->v_onstartup_advertise_delay);
+
+
+			if (p->bgp->onstartup_advertise_delay_over) {
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayOnstartupFirstNeighbor",
+					p->bgp->advertise_delay_onstartup_start_time);
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayOnstartupBegin",
+					p->advertise_delay_onstartup_start_time);
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayOnstartupEnd",
+					p->advertise_delay_onstartup_end_time);
+			}
+			else
+			{
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayOnstartupFirstNeighbor",
+					p->bgp->advertise_delay_onstartup_start_time);
+				json_object_boolean_true_add(
+					json_neigh,
+					"advertiseDelayOnstartupInProgress");
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayOnstartupBegin",
+					p->advertise_delay_onstartup_start_time);
+				json_object_string_add(
+					json_neigh,
+					"advertiseDelayOnstartupEnd",
+					p->advertise_delay_onstartup_end_time);
+			}
+		} else {
+			vty_out(vty,
+				"advertise-delay-onstartup limit: %d seconds\n",
+				p->bgp->v_onstartup_advertise_delay);
+			if (p->bgp->onstartup_advertise_delay_over) {
+				vty_out(vty,
+					"First Neighbor established: %s\n",
+					p->bgp->advertise_delay_onstartup_start_time);
+				vty_out(vty,
+					"advertise start time : %s\n",
+					p->advertise_delay_onstartup_start_time);
+				vty_out(vty,
+					"advertise end time : %s\n",
+					p->advertise_delay_onstartup_end_time);
+			} else {
+					vty_out(vty,
+						"  First Neighbor established: %s\n",
+						p->bgp->advertise_delay_onstartup_start_time);
+					vty_out(vty,
+						"  Delay in progress\n");
+			}
+		}
+	}
+#endif 
 	if (p->notify.code == BGP_NOTIFY_OPEN_ERR
 	    && p->notify.subcode == BGP_NOTIFY_OPEN_UNSUP_CAPBL)
 		bgp_capability_vty_out(vty, p, use_json, json_neigh);
@@ -17029,6 +17142,13 @@ static int bgp_global_advertise_delay_config_vty(struct vty *vty,
 		return CMD_WARNING;
 	}
 
+
+	if (bm->v_onstartup_advertise_delay != BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED) {
+		vty_out(vty,
+			"%%Failed: global advertise-delay-onstartup config conflict with global advertise-delay\n");
+		return CMD_WARNING;
+	}
+
 	bm->v_advertise_delay = advertise_delay;
 
 	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
@@ -17077,6 +17197,75 @@ DEFUN (no_bgp_global_advertise_delay,
        "Max delay in seconds\n")
 {
 	return bgp_global_advertise_delay_deconfig_vty(vty);
+}
+
+
+static int bgp_global_advertise_delay_onstartup_config_vty(struct vty *vty,
+					      uint16_t advertise_delay)
+{
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+
+
+	if (bm->v_advertise_delay != BGP_ADVERTISE_DELAY_DEF) {
+		vty_out(vty,
+			"%%Failed: global advertise-delay config conflict with global advertise-delay-onstartup\n");
+		return CMD_WARNING;
+	}
+
+
+	bm->v_onstartup_advertise_delay = advertise_delay;
+
+	zlog_debug("bm v_onstartup_advertise_delay %d.\n", bm->v_onstartup_advertise_delay);
+
+	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
+		bgp->v_onstartup_advertise_delay = bm->v_onstartup_advertise_delay;
+		zlog_debug("bgp:%s: v_onstartup_advertise_delay %d.\n ", bgp->name_pretty, bgp->v_onstartup_advertise_delay);
+	}
+
+	return CMD_SUCCESS;
+}
+
+static int bgp_global_advertise_delay_onstartup_deconfig_vty(struct vty *vty)
+{
+	struct listnode *node, *nnode;
+	struct bgp *bgp;
+
+	bm->v_onstartup_advertise_delay = BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED;
+
+	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
+		bgp->v_onstartup_advertise_delay = bm->v_onstartup_advertise_delay;
+	}
+
+	return CMD_SUCCESS;
+}
+
+
+/* Global advertise-delay configuration */
+DEFUN (bgp_global_advertise_delay_onstartup,
+       bgp_global_advertise_delay_onstartup_cmd,
+       "bgp advertise-delay-onstartup (0-3600)",
+       BGP_STR
+       "Force initial delay for advertise routes for all bgp instances and only work on bgp startup\n"
+       "Max delay in seconds\n")
+{
+	int idx_number = 2;
+	uint16_t advertise_delay;
+
+	advertise_delay = strtoul(argv[idx_number]->arg, NULL, 10);
+	return bgp_global_advertise_delay_onstartup_config_vty(vty, advertise_delay);
+}
+
+/* Global advertise-delay deconfiguration */
+DEFUN (no_bgp_global_advertise_delay_onstartup,
+       no_bgp_global_advertise_delay_onstartup_cmd,
+       "no bgp advertise-delay-onstartup [(0-3600)]",
+       NO_STR
+       BGP_STR
+       "Force initial delay for advertise routes and only work on bgp startup\n"
+       "Max delay in seconds\n")
+{
+	return bgp_global_advertise_delay_onstartup_deconfig_vty(vty);
 }
 
 /* Set advertise-delay-map to the peer. */
@@ -18276,6 +18465,11 @@ int bgp_config_write(struct vty *vty)
 		vty_out(vty, "\n");
 	}
 
+	if (bm->v_onstartup_advertise_delay != BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED) {
+		vty_out(vty, "bgp advertise-delay-onstartup %d", bm->v_onstartup_advertise_delay);
+		vty_out(vty, "\n");
+	}
+
 	if (bm->wait_for_fib)
 		vty_out(vty, "bgp suppress-fib-pending\n");
 
@@ -18949,6 +19143,9 @@ void bgp_vty_init(void)
 
 	install_element(CONFIG_NODE, &bgp_global_advertise_delay_cmd);
 	install_element(CONFIG_NODE, &no_bgp_global_advertise_delay_cmd);
+
+	install_element(CONFIG_NODE, &bgp_global_advertise_delay_onstartup_cmd);
+	install_element(CONFIG_NODE, &no_bgp_global_advertise_delay_onstartup_cmd);
 
 	/* Dummy commands (Currently not supported) */
 	install_element(BGP_NODE, &no_synchronization_cmd);

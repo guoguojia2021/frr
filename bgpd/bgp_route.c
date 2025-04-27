@@ -2579,7 +2579,9 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 					      &rmap_path);
 		}
 
-		if (bgp_advertise_delay_applicable(peer) && ADVERTISE_DELAY_MAP(filter)) {
+		if ((bgp_advertise_delay_applicable(peer) 
+				|| bgp_advertise_delay_onstartup_applicable(peer->bgp)) 
+				&& ADVERTISE_DELAY_MAP(filter)) {
 			adv_ret = route_map_apply(ADVERTISE_DELAY_MAP(filter), p,
 					      &rmap_path);
 		}
