@@ -163,6 +163,8 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 
 	int seg_num;
 	struct in6_addr* segment_list = NULL;
+	struct in6_addr peer;
+	struct in6_addr local;
 
 	if (!bvrf)
 		return -1;
@@ -173,7 +175,10 @@ int _ptm_sbfd_send(struct bfd_session *bfd, const void *data, size_t datalen)
 
 	sd = bfd->sock;
 
-    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local, &bfd->key.peer, 
+	local = bfd->key.local;
+	peer = bfd->key.peer;
+
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &local, &peer,
 	   NULL, BFD_DEFDESTPORT, BFD_DEF_SBFD_DEST_PORT, seg_num, segment_list) < 0)
 	{
 		if(bfd->stats.tx_fail_pkt <= 1){
@@ -204,6 +209,8 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 
 	int seg_num;
 	struct in6_addr* segment_list = NULL;
+	struct in6_addr peer;
+	struct in6_addr local;
 
 	if (!bvrf)
 		return -1;
@@ -214,7 +221,10 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 
 	sd = bfd->sock;
 
-    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &bfd->key.local , &bfd->key.peer, 
+	local = bfd->key.local;
+	peer = bfd->key.peer;
+
+    if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &local, &peer,
 	   &bfd->outer_dip, BFD_DEF_ECHO_PORT, BFD_DEF_ECHO_PORT, seg_num, segment_list) < 0)
 	{
 		if(bfd->stats.tx_fail_pkt <= 1){

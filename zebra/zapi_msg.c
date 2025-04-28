@@ -1022,8 +1022,6 @@ void zsend_neighbor_notify(int cmd, struct interface *ifp,
 	       family2addrsize(sockunion_family(&ip)));
 
 	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
-		if(client->redist_default == ZEBRA_ROUTE_NHRP)
-			continue;
 		if (!vrf_bitmap_check(client->nhrp_neighinfo[afi], ifp->vrf->vrf_id))
 			continue;
 

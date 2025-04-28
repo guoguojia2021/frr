@@ -218,8 +218,6 @@ int pathd_srte_segment_list_segment_v6_sid_value_modify(
 {
 	struct ipaddr sid_value;
 	struct srte_segment_entry *segment;
-    char xpath[XPATH_MAXLEN];
-    char xpath_buf[XPATH_MAXLEN - 3];
 
 	switch (args->event)
 	{
@@ -878,8 +876,6 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 {
 	struct srte_candidate *candidate;
 	const char *segment_list_name;
-	struct srte_policy *policy = NULL;
-	uint32_t preference = 0;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;

@@ -232,7 +232,7 @@ extern void zebra_stable_node_cleanup(struct route_table *table,
 extern void static_get_nh_str(struct static_nexthop *nh, char *nexthop,
 			      size_t size);
 
-extern void static_route_show(struct vty *vty, afi_t afi, char* vrfname);
+extern void static_route_show(struct vty *vty, afi_t afi, const char* vrfname);
 
 #ifdef __cplusplus
 }

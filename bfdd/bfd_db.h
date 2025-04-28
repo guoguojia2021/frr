@@ -8,7 +8,7 @@
 
 #include "/usr/local/include/sw/redis++/redis_db.h"
 
-#define BFD_DB_MAX_KEY_LEN      256
+#define BFD_DB_MAX_KEY_LEN      320
 #define BFD_DB_MAX_VALUE_LEN    50
 
 extern void bfd_db_init(void);

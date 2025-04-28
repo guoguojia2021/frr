@@ -98,14 +98,14 @@ _find_peer_or_error(struct vty *vty, int argc, struct cmd_token **argv,
 		    const char *vrfname);
 static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg);
 static void _display_bfd_by_bfdname_iter(struct hash_bucket *hb, void *arg);
-static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool is_detail, bool use_json);
+static void _display_bfd_by_bfdname(struct vty *vty, const char *vrfname, const char *bfdname, bool is_detail, bool use_json);
 static void _display_bfd_counters_by_bfdname_iter(struct hash_bucket *hb, void *arg);
 static void _display_bfd_counters_json_by_bfdname_iter(struct hash_bucket *hb, void *arg);
-static void _display_bfd_counters_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json);
-static void _clear_bfd_counters_by_bfdname(char *vrfname, char *bfdname);
+static void _display_bfd_counters_by_bfdname(struct vty *vty, const char *vrfname, const char *bfdname, bool use_json);
+static void _clear_bfd_counters_by_bfdname(const char *vrfname, const char *bfdname);
 static void _clear_peer_counter(struct bfd_session *bs);
 
-static char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
+static const char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
         case BFD_MODE_TYPE_NONE:
             return "bgp-bfd";
@@ -288,13 +288,13 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs, bool is_detai
 				bs->timers.desired_min_echo_tx / 1000);
 		if (is_detail)
 		{
-			vty_out(vty, "\t\t\tCurrent soft-echo transmission interval: %ums\n",
+			vty_out(vty, "\t\t\tCurrent soft-echo transmission interval: %llums\n",
 					bs->echo_xmt_TO / 1000);
-			vty_out(vty, "\t\t\tCurrent soft-detect echo receive interval: %ums\n",
+			vty_out(vty, "\t\t\tCurrent soft-detect echo receive interval: %llums\n",
 					bs->echo_detect_TO / 1000);
-			vty_out(vty, "\t\t\tCurrent hw-echo transmission interval: %ums\n",
+			vty_out(vty, "\t\t\tCurrent hw-echo transmission interval: %llums\n",
 					bs->echo_hw_xmt_TO / 1000);
-			vty_out(vty, "\t\t\tCurrent hw-detect echo receive interval: %ums\n",
+			vty_out(vty, "\t\t\tCurrent hw-detect echo receive interval: %llums\n",
 					bs->echo_hw_detect_TO / 1000);
 		}
 	}
@@ -580,7 +580,7 @@ static void _display_bfd_by_bfdname_json_iter(struct hash_bucket *hb, void *arg)
 }
 
 
-static void _display_bfd_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool is_detail, bool use_json)
+static void _display_bfd_by_bfdname(struct vty *vty, const char *vrfname, const char *bfdname, bool is_detail, bool use_json)
 {
 	struct json_object *jo;
 	struct bfd_vrf_tuple bvt = {0};
@@ -821,7 +821,7 @@ static void _display_bfd_counters_json_by_bfdname_iter(struct hash_bucket *hb, v
 	json_object_array_add(jo, jon);
 }
 
-static void _display_bfd_counters_by_bfdname(struct vty *vty, char *vrfname, char *bfdname, bool use_json)
+static void _display_bfd_counters_by_bfdname(struct vty *vty, const char *vrfname, const char *bfdname, bool use_json)
 {
 	struct json_object *jo;
 	struct bfd_vrf_tuple bvt = {0};
@@ -868,7 +868,7 @@ static void _clear_bfd_counters_by_bfdname_iter(struct hash_bucket *hb, void *ar
 	_clear_peer_counter(bs);
 }
 
-static void _clear_bfd_counters_by_bfdname(char *vrfname, char *bfdname)
+static void _clear_bfd_counters_by_bfdname(const char *vrfname, const char *bfdname)
 {
 	struct bfd_vrf_tuple bvt = {0};
 
@@ -916,13 +916,13 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
 				struct bfd_vrf_tuple *bvt)
 {
 	char addr_buf[INET6_ADDRSTRLEN];
-	char *buf = "N/A";
+	const char *buf = "N/A";
 
 	vty_out(vty, "%s", strlen(bs->bfd_name) == 0 ? buf : bs->bfd_name);
 	if (strlen(bs->bfd_name) == 0) {
-		vty_out(vty, "%*s", bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] - 1, " ");
+		vty_out(vty, "%*s", (int)(bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] - 1), " ");
 	} else {
-		vty_out(vty, "%*s", bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] - strlen(bs->bfd_name) + 2, " ");
+		vty_out(vty, "%*s", (int)(bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] - strlen(bs->bfd_name) + 2), " ");
 	}
 	vty_out(vty, "%-13u", bs->discrs.my_discr);
 	vty_out(vty, "%-11s", bfd_mode_type_to_string(bs->bfd_mode));
@@ -930,24 +930,24 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
 	{
 		char *list = sbfd_sidlist_to_string(bs->seg_list, bs->segnum);
 		vty_out(vty, "%s", list);
-		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - strlen(list) + 2, " ");
+		vty_out(vty, "%*s", (int)(bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - strlen(list) + 2), " ");
 		inet_ntop(AF_INET6, &bs->out_sip6, addr_buf, sizeof(addr_buf));
 		vty_out(vty, "%s", addr_buf);
-		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
+		vty_out(vty, "%*s", (int)(bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
 	}
 	else
 	{
 		vty_out(vty, "%s", buf);
-		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - 1, " ");
+		vty_out(vty, "%*s", (int)(bvt->max_wide_list[ENCAP_DIP_WIDE_INDEX] - 1), " ");
 		vty_out(vty, "%s", buf);
-		vty_out(vty, "%*s", bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - 1, " ");
+		vty_out(vty, "%*s", (int)(bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - 1), " ");
 	}
 	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
 	vty_out(vty, "%s", addr_buf);
-	vty_out(vty, "%*s", bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
+	vty_out(vty, "%*s", (int)(bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
 	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
 	vty_out(vty, "%s", addr_buf);
-	vty_out(vty, "%*s", bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2, " ");
+	vty_out(vty, "%*s", (int)(bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
 	vty_out(vty, "%-8s\n", state_list[bs->ses_state].str);
 	update_session_statistic(bs, &bvt->session_statistic);
 }
@@ -1023,7 +1023,7 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 				     ENCAP_SIP_WIDE_MIN,
 				     LOCAL_ADDR_WIDE_MIN,
 				     PEER_ADDR_WIDE_MIN};
-	bvt.max_wide_list=&max_wide_list;
+	bvt.max_wide_list = max_wide_list;
 
 	if (!use_json) {
 		bvt.vty = vty;

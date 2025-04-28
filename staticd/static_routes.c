@@ -1010,7 +1010,7 @@ static void static_route_show_path(struct vty *vty, struct route_table *stable)
 	}
 }
 
-void static_route_show(struct vty *vty, afi_t afi, char* vrfname)
+void static_route_show(struct vty *vty, afi_t afi, const char* vrfname)
 {
 	struct route_table *stable;
 	struct vrf *vrf;
@@ -1020,7 +1020,7 @@ void static_route_show(struct vty *vty, afi_t afi, char* vrfname)
 
 		if (vrfname && strcmp(vrfname, vrf->aliasName) == 0) {
 			struct static_vrf *svrf;
-	
+
 			svrf = vrf->info;
 			stable = static_vrf_static_table(afi, SAFI_UNICAST, svrf);
 			if (stable) {

@@ -530,7 +530,7 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	bpc->bpc_sbfd = true;
 
 	STREAM_GETC(msg, bpc->bpc_echo);
-	
+
 	STREAM_GETL(msg, bpc->srte_color);
 
 	STREAM_GET(&bpc->srte_endpoint, msg, sizeof(struct in6_addr));

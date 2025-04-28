@@ -122,7 +122,7 @@ struct bfd_peer_cfg {
     /* sbfd */
 	bool bpc_sbfd;
 	uint8_t seg_num;
-	uint8_t seglist_name_len;
+	uint16_t seglist_name_len;
 	char seglist_name[MAXNAMELEN + 1];
 	uint32_t srte_color;
 	struct in6_addr srte_endpoint;

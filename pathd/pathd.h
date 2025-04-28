@@ -702,4 +702,8 @@ bool is_refcounter_retain(struct srte_segment_list *segment_list);
 void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate);
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta);
 struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_name);
+
+extern void path_zebra_encode_srv6_policy(struct srte_policy *policy,
+	struct srte_candidate_group *candidate_group, struct zapi_sr_policy *zp);
+
 #endif /* _FRR_PATHD_H_ */

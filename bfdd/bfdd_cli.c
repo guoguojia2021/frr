@@ -182,9 +182,9 @@ DEFPY_YANG_NOSH(
 
 	snprintf(xpath_bfdname, sizeof(xpath_bfdname), "%s/bfd-name", xpath);
 	nb_cli_enqueue_change(vty, xpath_bfdname, NB_OP_MODIFY, bfdname);
-	
+
 	snprintf(xpath_bfdmode, sizeof(xpath_bfdmode), "%s/bfd-mode", xpath);
-	snprintf(value, sizeof(value), "%ld", BFD_MODE_TYPE_BFD);
+	snprintf(value, sizeof(value), "%d", BFD_MODE_TYPE_BFD);
 	nb_cli_enqueue_change(vty, xpath_bfdmode, NB_OP_MODIFY, value);
 
 	if (multihop == NULL && local_address_str != NULL) {
@@ -264,17 +264,17 @@ DEFPY_YANG(
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-int determine_ip_version(const char *ip) 
+static int determine_ip_version(const char *ip)
 {
-    struct in_addr inaddr4; 
-    struct in6_addr inaddr6; 
+    struct in_addr inaddr4;
+    struct in6_addr inaddr6;
 
-    if (inet_pton(AF_INET, ip, &inaddr4) == 1) 
+    if (inet_pton(AF_INET, ip, &inaddr4) == 1)
 		return IPV4_ADDRESS;
-    if (inet_pton(AF_INET6, ip, &inaddr6) == 1) 
+    if (inet_pton(AF_INET6, ip, &inaddr6) == 1)
 		return IPV6_ADDRESS;
 
-    return INVALID_IP; 
+    return INVALID_IP;
 }
 
 DEFPY_YANG_NOSH(
@@ -425,12 +425,12 @@ DEFPY_YANG_NOSH(
 	int ret, slen, peer_ver, local_ver;
 	char value[32];
 	char xpath[XPATH_MAXLEN], xpath_sl[XPATH_MAXLEN + 32],xpath_bfdmode[XPATH_MAXLEN + 32],xpath_rd[XPATH_MAXLEN + 32];
-	
+
 	if (!bfdname) {
 		vty_out(vty,"%% ERROR: bfd name is required\n");
 			return CMD_WARNING_CONFIG_FAILED;
 	}
-	
+
 	peer_ver = determine_ip_version(peer_str);
 	if (peer_ver == INVALID_IP)
 	{
@@ -450,7 +450,7 @@ DEFPY_YANG_NOSH(
 		vty_out(vty,"%% ERROR: peer and local_address are not the same ip version\n");
         return CMD_WARNING_CONFIG_FAILED;
 	}
-	
+
 	slen = snprintf(xpath, sizeof(xpath),
 			"/frr-bfdd:bfdd/bfd/sessions/srte-sbfd-init[source-addr='%s'][dest-addr='%s'][bfd-name='%s']",
             local_address_str,
@@ -530,7 +530,7 @@ DEFPY_YANG(
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-static char *_bfd_cli_bfd_mode_type_to_string(enum bfd_mode_type mode) {
+static const char *_bfd_cli_bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
         case BFD_MODE_TYPE_NONE:
             return "None";
@@ -554,7 +554,7 @@ static void _bfd_cli_show_peer(struct vty *vty, const struct lyd_node *dnode,
 
 	vty_out(vty, " peer %s",
 		yang_dnode_get_string(dnode, "dest-addr"));
-		
+
 	if (yang_dnode_exists(dnode, "bfd-name"))
 	    vty_out(vty, " name %s", yang_dnode_get_string(dnode, "bfd-name"));
 

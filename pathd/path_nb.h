@@ -155,10 +155,10 @@ void cli_show_srte_policy_candidate_path(struct vty *vty,
 					 bool show_defaults);
 void cli_show_srte_policy_candidate_path_end(struct vty *vty,
 					     const struct lyd_node *dnode);
-void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
+void cli_show_srte_policy_sbfd(struct vty *vty, const struct lyd_node *dnode,
 			  bool show_defaults);
 
-void cli_show_srte_policy_binding_v6_sid(struct vty *vty, struct lyd_node *dnode,
+void cli_show_srte_policy_binding_v6_sid(struct vty *vty, const struct lyd_node *dnode,
 				      bool show_defaults);
 /* Utility functions */
 typedef void (*of_pref_cp_t)(enum objfun_type type, void *arg);

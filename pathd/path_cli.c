@@ -944,7 +944,7 @@ void cli_show_srte_policy_binding_sid(struct vty *vty,
 }
 
 void cli_show_srte_policy_binding_v6_sid(struct vty *vty,
-				      struct lyd_node *dnode,
+				      const struct lyd_node *dnode,
 				      bool show_defaults)
 {
 	vty_out(vty, "   binding-sid %s\n", yang_dnode_get_string(dnode, NULL));

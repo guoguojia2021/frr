@@ -189,7 +189,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 	struct prefix p;
 	const char * bfd_name = NULL;
 	uint8_t segnum = 1;
-	struct sockaddr_any slist, out_sip6;
+	struct sockaddr_any out_sip6;
 
 	switch (args->event) {
 	case NB_EV_VALIDATE:
@@ -317,7 +317,7 @@ static int 	bfd_session_create(struct nb_cb_create_args *args, bool mhop, uint32
 				return NB_ERR_RESOURCE;
 			} else {
 				const char *list = yang_dnode_get_string(args->dnode, "./segment-list");
-				for(int i = 0; i < strlen(list); i++)
+				for(size_t i = 0; i < strlen(list); i++)
 				{
 					if (list[i] == ',') segnum++;
 				}

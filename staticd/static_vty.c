@@ -173,7 +173,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 		distance = ZEBRA_STATIC_DISTANCE_DEFAULT;
 
 	if (tag_str && etag_str) {
-		vty_out(vty, "%s%s Failed to create route entry for setting both tag and etag.\n\n");
+		vty_out(vty, " Failed to create route entry for setting both tag and etag.\n\n");
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 	/* tag */
@@ -187,7 +187,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	/* TableID */
 	if (table_str)
 		table_id = atol(table_str);
-	
+
 	if (color_str)
 		color = strtoul(color_str, NULL, 10);
 
@@ -845,7 +845,6 @@ DEFPY_YANG(ip_route_v6gate_vrf,
 	  "bfd session name\n")
 {
 	const char *nh_vrf;
-	const char *flag = NULL;
 	const struct lyd_node *vrf_dnode;
 	const char *vrfname;
 
@@ -1326,6 +1325,7 @@ DEFPY_YANG(ipv6_route_evpn_vrf,
 	const struct lyd_node *vrf_dnode;
 	const char *vrfname;
 	char buf[IF_NAMESIZE];
+	char buf_prefix[PREFIX_STRLEN];
 
 	vrf_dnode =
 		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
@@ -1334,11 +1334,12 @@ DEFPY_YANG(ipv6_route_evpn_vrf,
 		return CMD_WARNING_CONFIG_FAILED;
 	}
 	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
-	
+
 	snprintf(buf, IF_NAMESIZE, "Brvxlan%s", nexthop_vni_str);
 
 	return static_route_leak(vty, vrfname, vrfname, AFI_IP6, SAFI_UNICAST,
-				 no, prefix, NULL, NULL, gate_str,
+				 no, prefix2str(prefix, buf_prefix, sizeof(buf_prefix)),
+				 NULL, NULL, gate_str,
 				 buf, NULL, tag_str, NULL, distance_str, NULL,
 				 NULL, true, NULL,  nexthop_vni_str,
 				 nexthop_rmac, NULL);
@@ -1402,7 +1403,7 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 	const char *nexthop_vrf;
 	uint32_t table_id;
 	bool onlink;
-    char *rmac;
+    const char *rmac;
     uint32_t vni;
 	uint32_t color = 0;
 
@@ -1467,11 +1468,13 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
     case STATIC_IPV4_GATEWAY_EVPN:
         rmac = yang_dnode_get_string(nexthop, "rmac");
         vni = yang_dnode_get_uint32(nexthop, "vni");
-        vty_out(vty, " %s vni %d rmac %s", vni, rmac);
+        vty_out(vty, " vni %u rmac %s", vni, rmac);
+		break;
     case STATIC_IPV6_GATEWAY_EVPN:
         rmac = yang_dnode_get_string(nexthop, "rmac");
         vni = yang_dnode_get_uint32(nexthop, "vni");
-        vty_out(vty, " %s nexthop-vni %d nexthop-rmac %s", vni, rmac);
+        vty_out(vty, " nexthop-vni %u nexthop-rmac %s", vni, rmac);
+		break;
 	}
 
 	if (yang_dnode_exists(path, "tag")) {
@@ -1553,6 +1556,9 @@ int static_nexthop_cli_cmp(const struct lyd_node *dnode1,
 		return (int)color1 - (int)color2;
 
 	switch (nh_type1) {
+	case STATIC_IPV4_GATEWAY_EVPN:
+	case STATIC_IPV6_GATEWAY_EVPN:
+		break;
 	case STATIC_IFNAME:
 		ret = if_cmp_name_func(
 			yang_dnode_get_string(dnode1, "interface"),

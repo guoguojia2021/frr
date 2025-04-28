@@ -737,14 +737,14 @@ int pathd_srte_policy_sbfd_mti_modify(struct nb_cb_modify_args *args)
 	return NB_OK;
 }
 
-void cli_show_srte_policy_sbfd(struct vty *vty, struct lyd_node *dnode,
+void cli_show_srte_policy_sbfd(struct vty *vty, const struct lyd_node *dnode,
 			  bool show_defaults)
 {
 	enum srte_sbfd_type type;
 
 	type = yang_dnode_get_enum(dnode, "type");
 
-	if (type == SRTE_SBFD_ECHO) 
+	if (type == SRTE_SBFD_ECHO)
 	{
 		vty_out(vty, "   sbfd echo source-address %s %d %d %d\n",
 		    yang_dnode_get_string(dnode, "source-address"),
@@ -1020,11 +1020,6 @@ DEFPY(
 {
 	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);
 	return nb_cli_apply_changes(vty, NULL);
-}
-
-static int sbfd_pathd_candidate_removed_handler(struct srte_candidate *candidate)
-{
-	return _sbfd_candidate_seglist_disable(candidate);
 }
 
 static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)

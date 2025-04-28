@@ -36,6 +36,7 @@
 #include "path_ted.h"
 #include "path_sbfd.h"
 #include "path_db.h"
+#include "path_debug.h"
 
 char backup_config_file[256];
 

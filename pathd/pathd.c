@@ -158,8 +158,8 @@ static inline int srte_sbfd_session_compare(const struct srte_sbfd_session *a,
 					     const struct srte_sbfd_session *b)
 {
 	struct prefix endpointa, endpointb;
-	addr2prefix(&a->policy_endpoint, &endpointa);
-	addr2prefix(&b->policy_endpoint, &endpointb);
+	addr2prefix((struct ipaddr *)&a->policy_endpoint, &endpointa);
+	addr2prefix((struct ipaddr *)&b->policy_endpoint, &endpointb);
 	return sr_policy_compare(&endpointa, &endpointb,
 	    a->policy_color, b->policy_color);
 }
@@ -603,7 +603,6 @@ srte_policy_best_candidate(const struct srte_policy *policy)
 static int srte_policy_select_candidate_group(struct srte_policy *policy)
 {
 	struct srte_candidate_group *cpath_group;
-	struct srte_candidate *candidate;
 	bool select_bast = false;
 
 	RB_FOREACH_REVERSE (cpath_group, srte_candidate_group_head,
@@ -1606,7 +1605,7 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_n
 	if (bfd_name == NULL)
 		return NULL;
 
-	strncpy(search.bfd_name, bfd_name, sizeof(search.bfd_name));
+	strlcpy(search.bfd_name, bfd_name, sizeof(search.bfd_name));
 
 	group = RB_FIND(srte_candidate_bfd_group_head, &sbfd_groups, &search);
 	return group;
@@ -1620,7 +1619,7 @@ void srte_candidate_bfd_group_add_with_status(const char *bfd_name,
 
 	group->cpath_num = 0;
 	group->status = status;
-	strncpy(group->bfd_name, bfd_name, sizeof(group->bfd_name));
+	strlcpy(group->bfd_name, bfd_name, sizeof(group->bfd_name));
 	group->my_discriminator = my_discriminator;
 	RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
 
@@ -1640,7 +1639,7 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_na
 		group->cpath_num = 0;
 		group->status = SRTE_DETECT_DOWN;
 		group->my_discriminator = 0;
-		strncpy(group->bfd_name, bfd_name, sizeof(group->bfd_name));
+		strlcpy(group->bfd_name, bfd_name, sizeof(group->bfd_name));
 
 		RB_INIT(srte_candidate_bfd_head, &group->candidate_paths);
 
@@ -1661,6 +1660,8 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_add(const char *bfd_na
 	group->cpath_num += 1;
 	candidate->status = group->status;
 	candidate->my_discriminator = group->my_discriminator;
+
+	return group;
 }
 
 void srte_candidate_bfd_group_del(const char *bfd_name, struct srte_candidate *candidate)
@@ -2110,11 +2111,12 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 	switch (candidate->status)
 	{
 	case SRTE_DETECT_DOWN:
-		// down -> down, do nothing		
+		// down -> down, do nothing
 		break;
 	case SRTE_DETECT_NONE:
-		candidate->status=SRTE_DETECT_DOWN;
 		// none -> down
+		candidate->status=SRTE_DETECT_DOWN;
+		break;
 	case SRTE_DETECT_UP:
 		// up->down
 		candidate->status=SRTE_DETECT_DOWN;

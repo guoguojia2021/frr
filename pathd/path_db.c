@@ -68,7 +68,7 @@ void path_db_init(void)
         dlsym(g_sidlistHandleRedis, "Redis_Db_DelKeyLst");
 
     g_sidlist_appdb_redis.redis_PublishMsg =
-        (int (*)(char *key, const char *msg, DB_TYPE_E enDbType))
+        (int (*)(char *key, char *msg, DB_TYPE_E enDbType))
         dlsym(g_sidlistHandleRedis, "Redis_PublishMsgForce");
 
     g_sidlist_appdb_redis.redis_Db_SetSadd =
@@ -181,6 +181,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     char channel[PATH_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
     char tmpbuf[INET6_ADDRSTRLEN] = {0};
+    char G[] = "G";
     bool first = true;
     struct srte_segment_entry *s_entry;
     DB_FieldValue_List *pstDataLst = NULL;
@@ -240,7 +241,7 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
     if (IS_PATHD_DEBUG_DB)
         zlog_debug("redis publishMsg channel : %s", channel);
-    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
+    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_PublishMsg error code : %d", ret);
@@ -259,6 +260,7 @@ void sidlist_Db_DelEntry(struct srte_segment_list *segl)
     char set_value[PATH_DB_MAX_VALUE_LEN] = {0};
     char channel[PATH_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
+    char G[] = "G";
     DB_Key_List item = {0};
     const char *name = segl->name;
 
@@ -300,7 +302,7 @@ void sidlist_Db_DelEntry(struct srte_segment_list *segl)
     snprintf(channel, PATH_DB_MAX_KEY_LEN, "%s_CHANNEL@%s",SRV6_SID_LIST_TABLE, TAG);
     if (IS_PATHD_DEBUG_DB)
         zlog_debug("redis publishMsg channel : %s", channel);
-    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, "G", REDIS_APP_DB);
+    ret = g_sidlist_appdb_redis.redis_PublishMsg(channel, G, REDIS_APP_DB);
     if (ret)
     {
         zlog_err("redis_PublishMsg error code : %d", ret);

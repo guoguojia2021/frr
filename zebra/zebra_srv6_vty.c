@@ -42,6 +42,7 @@
 #include "zebra/zebra_routemap.h"
 #include "zebra/zebra_dplane.h"
 #include "zebra/zapi_msg.h"
+#include "zebra/zebra_db.h"
 
 #ifndef VTYSH_EXTRACT_PL
 #include "zebra/zebra_srv6_vty_clippy.c"
@@ -1384,12 +1385,12 @@ DEFPY (no_locator_endx_prefix,
 		return CMD_WARNING;
 	}
 
-	
+
 	if (locator->compress == true)
 	{
 		combine_hide_sid(locator, &ipv6prefix.prefix, &result_sid_ua, ZEBRA_SEG6_LOCAL_SID_TYPE_UA);
 		combine_sid(locator, &ipv6prefix.prefix, &result_sid_unua);
-	
+
 		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
 			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_ua)) {
 				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_ua_params)) {
@@ -1447,9 +1448,9 @@ DEFPY (no_locator_endx_prefix,
 		if (!is_found_unua)
 		{
 			vty_out(vty, "%% del opcode fail: invalid unua sid\n");
-			return CMD_WARNING;		
+			return CMD_WARNING;
 		}
-		
+
 		ecmp_member_ua_cnt = list_count(sid_ua_ecmp->sid_endx_params);
 		ecmp_member_unua_cnt = list_count(sid_unua_ecmp->sid_endx_params);
 
@@ -1510,7 +1511,7 @@ DEFPY (no_locator_endx_prefix,
 	else
 	{
 		combine_sid(locator, &ipv6prefix.prefix, &result_sid_endx);
-	
+
 		for (ALL_LIST_ELEMENTS_RO(locator->sid_endx_ecmps, node, sid_ecmp_index)) {
 			if (IPV6_ADDR_SAME(&sid_ecmp_index->ipv6Addr.prefix, &result_sid_endx)) {
 				for (ALL_LIST_ELEMENTS(sid_ecmp_index->sid_endx_params, node, next, sid_endx_params)) {
@@ -1522,13 +1523,13 @@ DEFPY (no_locator_endx_prefix,
 							vty_out(vty, "%% find endx sid fail, ifname:%s\n", ifName);
 							return CMD_WARNING;
 						}
-						
+
 						if (list_count(sid_ecmp_index->sid_endx_params) > 1)
 						{
 							listnode_delete(locator->sids, sid);
 							srv6_locator_sid_free(sid);
 						}
-	
+
 						listnode_delete(sid_ecmp_index->sid_endx_params, sid_endx_params);
 						srv6_locator_sid_endx_params_free(sid_endx_params);
 						is_found_endx = true;
@@ -1542,7 +1543,7 @@ DEFPY (no_locator_endx_prefix,
 			vty_out(vty, "%% del opcode fail: invalid endx sid\n");
 			return CMD_WARNING;
 		}
-		
+
 		ecmp_member_endx_cnt = list_count(sid_endx_ecmp->sid_endx_params);
 
 		if (ecmp_member_endx_cnt >= 1)
@@ -1571,8 +1572,8 @@ DEFPY (no_locator_endx_prefix,
 			}
 		}
 	}
-	
-	
+
+
     return CMD_SUCCESS;
 }
 
