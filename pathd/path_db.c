@@ -175,7 +175,6 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     char key[PATH_DB_MAX_KEY_LEN] = {0};
     char field[PATH_DB_MAX_KEY_LEN] = {0};
     char value[PATH_DB_MAX_VALUE_LEN] = {0};
-    char seg_value[PATH_DB_MAX_VALUE_LEN] = {0};
     char set_key[PATH_DB_MAX_KEY_LEN] = {0};
     char set_value[PATH_DB_MAX_VALUE_LEN] = {0};
     char channel[PATH_DB_MAX_KEY_LEN] = {0};
@@ -196,19 +195,18 @@ void sidlist_Db_SetEntry(struct srte_segment_list *segl)
     /* set segment value*/
 	RB_FOREACH (s_entry, srte_segment_entry_head, &segl->segments)
     {
+        const char *seg_value = inet_ntop(s_entry->srv6_sid_value.ipa_type,
+                                        &s_entry->srv6_sid_value.ipaddr_v6,
+                                        tmpbuf, sizeof(tmpbuf));
         if (first)
         {
-            snprintf(value, PATH_DB_MAX_VALUE_LEN, "%s",
-                inet_ntop(s_entry->srv6_sid_value.ipa_type, &s_entry->srv6_sid_value.ipaddr_v6,
-                tmpbuf, sizeof(tmpbuf)));
+            strncat(value, seg_value, PATH_DB_MAX_VALUE_LEN - strlen(value) - 1);
             first = false;
         }
         else
         {
-            strncpy(seg_value, value, PATH_DB_MAX_VALUE_LEN);
-            snprintf(value, PATH_DB_MAX_VALUE_LEN, "%s,%s", seg_value,
-                inet_ntop(s_entry->srv6_sid_value.ipa_type, &s_entry->srv6_sid_value.ipaddr_v6,
-                tmpbuf, sizeof(tmpbuf)));
+            strncat(value, ",", PATH_DB_MAX_VALUE_LEN - strlen(value) - 1);
+            strncat(value, seg_value, PATH_DB_MAX_VALUE_LEN - strlen(value) - 1);
         }
     }
 

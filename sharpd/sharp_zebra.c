@@ -650,6 +650,9 @@ static int sharp_debug_nexthops(struct zapi_route *api)
 		struct zapi_nexthop *znh = &api->nexthops[i];
 
 		switch (znh->type) {
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+			break;
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
 		case NEXTHOP_TYPE_IPV4:
 			zlog_debug(

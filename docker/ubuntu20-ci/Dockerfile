@@ -88,6 +88,7 @@ RUN cd ~/frr && \
        --enable-protobuf \
        --enable-fpm \
        --enable-gcov \
+       --enable-werror \
        --with-pkg-extra-version=-my-manual-build && \
     make -j $(nproc) && \
     sudo make install

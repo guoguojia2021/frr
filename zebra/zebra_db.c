@@ -335,7 +335,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     enum seg6local_action_t act, const struct seg6local_context *ctx, const struct list *sid_endx_params)
 {
     int ret;
-    char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char key[ZEBRA_DB_MAX_KEY_LEN + 24] = {0};
     char field[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
     char intf_val[ZEBRA_DB_IF_MAX_VALUE_LEN] = {0};
@@ -373,7 +373,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     }
 
     /* block len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "block_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->block_bits_length);
     pstDataLst_block_len = create_DB_Data(key, field, value);
@@ -385,7 +385,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     pstDataLst_head = pstDataLst_block_len;
 
     /* node len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "node_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->node_bits_length);
     pstDataLst_node_len = create_DB_Data(key, field, value);
@@ -398,7 +398,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     pstDataLst_block_len->next = pstDataLst_node_len;
 
     /* func_len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "func_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->function_bits_length);
     pstDataLst_func_len = create_DB_Data(key, field, value);
@@ -411,7 +411,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     pstDataLst_node_len->next = pstDataLst_func_len;
 
     /* argu len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "argu_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->argument_bits_length);
     pstDataLst_argu_len = create_DB_Data(key, field, value);
@@ -424,7 +424,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     pstDataLst_func_len->next = pstDataLst_argu_len;
 
     /* action */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "action");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", local_action2str(act));
     pstDataLst_action = create_DB_Data(key, field, value);
@@ -437,7 +437,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     pstDataLst_argu_len->next = pstDataLst_action;
 
     /* vrf */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "vrf");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", vrf_name);
     pstDataLst_vrf = create_DB_Data(key, field, value);
@@ -479,7 +479,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     }
 
     /* ifname */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "ifname");
     pstDataLst_ifname = create_DB_Data(key, field, intf_val);
     if (pstDataLst_ifname == NULL)
@@ -491,7 +491,7 @@ void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const c
     pstDataLst_vrf->next = pstDataLst_ifname;
 
     /* nexthop */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "nexthop");
     pstDataLst_nhp = create_DB_Data(key, field, nhp_val);
     if (pstDataLst_nhp == NULL)
@@ -540,7 +540,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     enum seg6local_action_t act, const struct seg6local_context *ctx, const char *ifname, const struct ipaddr *nexthop, const bool sidmarking)
 {
     int ret;
-    char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char key[ZEBRA_DB_MAX_KEY_LEN + 24] = {0};
     char field[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
     char set_key[ZEBRA_DB_MAX_KEY_LEN] = {0};
@@ -574,7 +574,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     }
 
     /* block len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "block_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->block_bits_length);
     pstDataLst_block_len = create_DB_Data(key, field, value);
@@ -586,7 +586,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_head = pstDataLst_block_len;
 
     /* node len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "node_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->node_bits_length);
     pstDataLst_node_len = create_DB_Data(key, field, value);
@@ -599,7 +599,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_block_len->next = pstDataLst_node_len;
 
     /* func_len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "func_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->function_bits_length);
     pstDataLst_func_len = create_DB_Data(key, field, value);
@@ -612,7 +612,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_node_len->next = pstDataLst_func_len;
 
     /* argu len */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "argu_len");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->argument_bits_length);
     pstDataLst_argu_len = create_DB_Data(key, field, value);
@@ -625,7 +625,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_func_len->next = pstDataLst_argu_len;
 
     /* action */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "action");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", local_action2str(act));
     pstDataLst_action = create_DB_Data(key, field, value);
@@ -638,7 +638,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_argu_len->next = pstDataLst_action;
 
     /* vrf */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "vrf");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", vrf_name);
     pstDataLst_vrf = create_DB_Data(key, field, value);
@@ -651,7 +651,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_action->next = pstDataLst_vrf;
 
     /* sidmarking */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "sidmarking");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%d", sidmarking);
     pstDataLst_sidmarking = create_DB_Data(key, field, value);
@@ -664,7 +664,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
     pstDataLst_vrf->next = pstDataLst_sidmarking;
 
     /* ifname */
-    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
     snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "ifname");
     snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", ifname ? ifname : "NULL");
     pstDataLst_ifname = create_DB_Data(key, field, value);
@@ -685,7 +685,7 @@ void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const char *
         else if (nexthop->ipa_type == IPADDR_V6)
             inet_ntop(AF_INET6, &nexthop->ipaddr_v6, nhp_buf, sizeof(nhp_buf));
 
-        snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+        snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
         snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "nexthop");
         snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", nhp_buf);
         pstDataLst_nhp = create_DB_Data(key, field, value);
