@@ -416,7 +416,6 @@ void bgp_trackroute_adv_enable(struct peer *peer, afi_t afi, safi_t safi, struct
             bnc->peerfilters_count, peer);
     }
     SET_FLAG(bnc->flags, BGP_CONDITION_TRACK_ROUTE);
-    SET_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH);
 
     if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED))
         register_zebra_rnh(bnc);

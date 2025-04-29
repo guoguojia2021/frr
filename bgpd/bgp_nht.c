@@ -940,7 +940,7 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 		bgp_process_nexthop_update(bnc_nhc, &nhr, false);
 
 	tree = &bgp->condition_track_table[afi];
-	bnc_cond = bnc_find(tree, &match, 0, 0);
+	bnc_cond = bnc_find(tree, &match, nhr.srte_color, nhr.srte_color_flag);
 	if (bnc_cond) {
 		bgp_process_cond_nexthop_update(bnc_cond, &nhr);
 	}
@@ -1147,6 +1147,9 @@ static void sendmsg_zebra_rnh(struct bgp_nexthop_cache *bnc, int command)
 	else if (CHECK_FLAG(bnc->flags, BGP_STATIC_ROUTE_EXACT_MATCH))
 		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
 					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_IMPORTCHECK, NULL);
+	else if (CHECK_FLAG(bnc->flags, BGP_CONDITION_TRACK_ROUTE))
+		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
+					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_TRACK, NULL);
 	else
 		ret = zclient_send_rnh(zclient, command, &bnc->prefix, exact_match,
 					   false, bnc->bgp->vrf_id, NEXTHOP_REGISTER_TYPE_DEFAULT, NULL);

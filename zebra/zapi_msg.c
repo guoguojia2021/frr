@@ -1287,6 +1287,8 @@ static void zread_rnh_register(ZAPI_HANDLER_ARGS)
 		}
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK))
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_TRACKROUTE))
+			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TRACK_MATCH);
 		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, rnh_type_flag);
 		if (!rnh)
 			return;

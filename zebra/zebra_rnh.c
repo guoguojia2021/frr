@@ -185,7 +185,8 @@ static int zebra_rnh_apply_nht_rmap(afi_t afi, struct zebra_vrf *zvrf,
 	route_map_result_t ret;
 
 	if (prn && rnh->state) {
-		if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_IMPORT_CHECK)) {
+		if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_IMPORT_CHECK)
+			|| CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_TRACK_MATCH)) {
 			for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
 			     nexthop = nexthop->next)
 			     at_least_one++; 
