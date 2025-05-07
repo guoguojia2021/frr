@@ -1637,6 +1637,15 @@ void bgp_nht_register_nexthops(struct bgp *bgp)
 			register_zebra_rnh(bnc);
 		}
 	}
+
+	for (afi_t afi = AFI_IP; afi < AFI_MAX; afi++) {
+		struct bgp_nexthop_cache *bnc;
+
+		frr_each (bgp_nexthop_cache, &bgp->condition_track_table[afi],
+			  bnc) {
+			register_zebra_rnh(bnc);
+		}
+	}
 }
 
 void bgp_nht_reg_enhe_cap_intfs(struct peer *peer)
