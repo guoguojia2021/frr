@@ -1406,6 +1406,8 @@ static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 		}
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK))
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
+		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_TRACKROUTE))
+			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TRACK_MATCH);
 		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
 		for (; rnh; rnh = rnh->next)
