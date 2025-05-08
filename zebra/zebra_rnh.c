@@ -911,22 +911,19 @@ static void zebra_rnh_evaluate_entry(struct zebra_vrf *zvrf, afi_t afi,
 	rnh = nrn->info;
 	/* check color */
 	for (; rnh; rnh = rnh->next)
-		if (rnh->srte_color == 0)
-			break;
-	if (!rnh)
-		return;
+		if (rnh->srte_color == 0) {
+			/* Identify route entry (RE) resolving this tracked entry. */
+			re = zebra_rnh_resolve_nexthop_entry(zvrf, afi, nrn, rnh, &prn);
 
-	/* Identify route entry (RE) resolving this tracked entry. */
-	re = zebra_rnh_resolve_nexthop_entry(zvrf, afi, nrn, rnh, &prn);
+			/* If the entry cannot be resolved and that is also the existing state,
+			 * there is nothing further to do.
+			 */
+			if (!re && rnh->state == NULL && !force)
+				continue;
 
-	/* If the entry cannot be resolved and that is also the existing state,
-	 * there is nothing further to do.
-	 */
-	if (!re && rnh->state == NULL && !force)
-		return;
-
-	/* Process based on type of entry. */
-	zebra_rnh_eval_nexthop_entry(zvrf, afi, force, nrn, rnh, prn, re);
+			/* Process based on type of entry. */
+			zebra_rnh_eval_nexthop_entry(zvrf, afi, force, nrn, rnh, prn, re);
+		}
 }
 
 /*
