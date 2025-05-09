@@ -62,6 +62,8 @@ typedef struct bfd_msg_data_t_
 	uint8_t bpc_detectmultiplier;
 	uint32_t bpc_recvinterval;
 	uint32_t bpc_txinterval;
+	uint32_t desired_tx_interval;
+	uint32_t desired_rx_interval;
 
 	uint32_t bpc_echointerval;
 
