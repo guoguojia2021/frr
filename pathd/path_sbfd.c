@@ -999,26 +999,22 @@ DEFPY_NOSH(seamless_bfd_echo,
 }
 
 DEFPY(
-      no_seamless_bfd_echo,
-      no_seamless_bfd_echo_cmd,
-      "no sbfd echo",
+      no_seamless_bfd,
+	no_seamless_bfd_cmd,
+      "no sbfd",
 	  NO_STR
 	  "seamless BFD\n"
       "echo mode\n")
 {
-	nb_cli_enqueue_change(vty, "./sbfd[type='echo']", NB_OP_DESTROY, NULL);
-	return nb_cli_apply_changes(vty, NULL);
-}
-
-DEFPY(
-      no_seamless_bfd_enable,
-      no_seamless_bfd_enable_cmd,
-      "no sbfd enable",
-	  NO_STR
-	  "seamless BFD\n"
-      "enable\n")
-{
+	int ret;
 	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);
+	ret = nb_cli_apply_changes(vty, NULL);
+	if (ret != NB_OK)
+	{
+		vty_out(vty, "Delete Sbfd initiator config failed.\n");
+		return ret;
+	}
+	nb_cli_enqueue_change(vty, "./sbfd[type='echo']", NB_OP_DESTROY, NULL);
 	return nb_cli_apply_changes(vty, NULL);
 }
 
@@ -1137,6 +1133,5 @@ void sr_sbfd_init()
     install_element(SR_POLICY_NODE, &seamless_bfd_init_enable_cmd);
 	install_element(SR_POLICY_NODE, &seamless_bfd_init_param_cmd);
 	install_element(SR_POLICY_NODE, &seamless_bfd_echo_cmd);
-	install_element(SR_POLICY_NODE, &no_seamless_bfd_echo_cmd);
-    install_element(SR_POLICY_NODE, &no_seamless_bfd_enable_cmd);
+	install_element(SR_POLICY_NODE, &no_seamless_bfd_cmd);
 }
