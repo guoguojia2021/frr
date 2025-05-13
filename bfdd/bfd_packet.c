@@ -44,7 +44,6 @@
 #include "lib/network.h"
 
 #define BUF_SIZ 1024
-#define ACCEPT_LOCAL_PATH "/proc/sys/net/ipv4/conf/all/accept_local"
 
 #define SOCK_OPT_PRIO_HIGH 6
 // for bfdd server, a read socket will process all bfd pakcets.
@@ -1712,29 +1711,6 @@ int bp_udp6_mhop(const struct vrf *vrf)
 	return sd;
 }
 
-static int linux_ipv4_accept_all_enable(const char* path) {
-    int fd, ret = -1;
-    fd = open(path, O_WRONLY);
-    if (fd < 0) {
-        zlog_err("Failed to open file: %s\n", path);
-        return -1;
-    }
-
-    if (write(fd, "1", 1) == 1) {
-		zlog_warn("%s is set to 1\n", path);
-        ret = 0;
-    } else {
-        zlog_err("Failed to write to file: %s\n", path);
-    }
-
-    if (close(fd) < 0) {
-        zlog_err("Failed to close file: %s\n", path);
-        return -1;
-    }
-
-    return ret;
-}
-
 int bp_echo_socket(const struct vrf *vrf)
 {
 	int s;
@@ -1749,9 +1725,6 @@ int bp_echo_socket(const struct vrf *vrf)
 	bp_set_addr_reuse(s, "bp_echo_socket");
 	bp_bind_ip(s, BFD_DEF_ECHO_PORT);
 	bp_set_prio(s, SOCK_OPT_PRIO_HIGH);
-
-	//enable accept_local
-    linux_ipv4_accept_all_enable(ACCEPT_LOCAL_PATH);
 
 	return s;
 }
