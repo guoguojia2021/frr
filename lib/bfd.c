@@ -338,6 +338,7 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 		stream_putl(s, args->sr_color);  // color
 		addrlen = sizeof(struct in6_addr);
 		stream_put(s, &args->sr_endpoint, addrlen); // endpoint
+		stream_put(s, &args->outer_src, addrlen); // outer_src
 		/*sbfd remote discr ,if is sbfd echo discr == 0*/
         stream_putl(s, args->sbfd_remote_discr);
 		// sidlist name
@@ -357,6 +358,7 @@ int zclient_bfd_command(struct zclient *zc, struct bfd_session_arg *args)
 		stream_putl(s, args->sr_color);  // color
 		addrlen = sizeof(struct in6_addr);
 		stream_put(s, &args->sr_endpoint, addrlen); // endpoint
+		stream_put(s, &args->outer_src, addrlen); // outer_src
 		/*sbfd remote discr ,if is sbfd echo discr == 0*/
         stream_putl(s, args->sbfd_remote_discr);
 		// sidlist name

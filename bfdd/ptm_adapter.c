@@ -403,6 +403,8 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	 *  -c: is_sbfdecho 
 	 *  -l: color
 	 *  -16 bytes: IPv6(endpoint)
+	 *  -16 bytes: IPv6(outer_src)
+	 *  - l: sbfd_remote_discr
 	 *  -c: seglist_name_length
 	 *  -X bytes: seglist_name
 	 *  -c: seg_num
@@ -415,6 +417,8 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	 *  -c: is_sbfdecho 
 	 *  -l: color
 	 *  -16 bytes: IPv6(endpoint)
+	 *  -16 bytes: IPv6(outer_src)
+	 *  - l: sbfd_remote_discr
 	 *  -c: seglist_name_length
 	 *  -X bytes: seglist_name
 	 * 
@@ -534,6 +538,7 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	STREAM_GETL(msg, bpc->srte_color);
 
 	STREAM_GET(&bpc->srte_endpoint, msg, sizeof(struct in6_addr));
+	STREAM_GET(&bpc->outer_src, msg, sizeof(struct in6_addr));
 
 	STREAM_GETL(msg, bpc->sbfd_remote_discr);
 

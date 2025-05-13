@@ -1436,6 +1436,8 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 	bfd->key.srte_color = bpc->srte_color;
 	strlcpy(bfd->key.seglist_name, bpc->seglist_name, sizeof(bfd->key.seglist_name));
 
+	memcpy(&bfd->out_sip6, &bpc->outer_src, sizeof(bpc->outer_src));
+
 	if (bs_registrate(bfd) == NULL)
 		return NULL;
 

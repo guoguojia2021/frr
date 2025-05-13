@@ -244,6 +244,9 @@ typedef enum {
 	ZEBRA_SRV6_MANAGER_GET_ONE_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID,
 	ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL,
+	ZEBRA_SRV6_ENCAP_SOURCE_ADD,
+	ZEBRA_SRV6_ENCAP_SOURCE_DEL,
+	ZEBRA_SRV6_ENCAP_SOURCE_GET,
 	ZEBRA_ERROR,
 	ZEBRA_CLIENT_CAPABILITIES,
 	ZEBRA_OPAQUE_MESSAGE,
@@ -948,6 +951,12 @@ int zclient_loc_sid_info_encode(struct stream *s,
 
 int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api);
 
+struct zapi_srv6_encap_source_info {
+	struct in6_addr src;
+};
+
+int zclient_srv6_encap_source_info_encode(struct stream *s, int cmd, struct in6_addr *src);
+int zclient_srv6_encap_source_info_decode(struct stream *s, struct zapi_srv6_encap_source_info *api);
 /*
  * We reserve the top 4 bits for l2-NHG, everything else
  * is for zebra/proto l3-NHG.

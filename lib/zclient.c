@@ -4779,6 +4779,36 @@ int zclient_loc_sid_info_decode(struct stream *s, struct zapi_loc_sid_info *api)
 	return -1;
 }
 
+int zclient_srv6_encap_source_info_encode(struct stream *s, int cmd, struct in6_addr *src)
+{
+	/*
+	 * Message format:
+	 * - header: command, vrf
+	 * - w: src addr
+	 *
+	 * q(64), l(32), w(16), c(8)
+	 */
+
+	int ret = 0;
+
+	zclient_create_header(s, cmd, VRF_DEFAULT);
+	// fill src
+	stream_put(s, src, sizeof(struct in6_addr));
+
+	return ret;
+}
+
+int zclient_srv6_encap_source_info_decode(struct stream *s, struct zapi_srv6_encap_source_info *api)
+{
+	//get sid
+	STREAM_GET(&api->src, s, sizeof(struct in6_addr));
+
+	return 0;
+ stream_failure:
+	return -1;
+
+}
+
 int zclient_send_zebra_gre_request(struct zclient *client,
 				   struct interface *ifp)
 {

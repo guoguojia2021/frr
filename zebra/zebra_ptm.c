@@ -42,6 +42,8 @@
 #include "zebra/zebra_ptm.h"
 #include "zebra/zebra_ptm_redistribute.h"
 #include "zebra/zebra_router.h"
+#include "zebra/zebra_srv6.h"
+#include "zebra/zapi_msg.h"
 #include "zebra_vrf.h"
 
 /*
@@ -1606,6 +1608,12 @@ void zebra_ptm_if_set_ptm_state(struct interface *i __attribute__((__unused__)),
 				struct zebra_if *zi __attribute__((__unused__)))
 {
 	/* NOTHING */
+}
+
+void zebra_ptm_srv6_encap_source_get(ZAPI_HANDLER_ARGS)
+{
+	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+	zsend_srv6_encap_source_info(ZEBRA_SRV6_ENCAP_SOURCE_ADD, &srv6->encap_src_addr);
 }
 
 #endif /* HAVE_BFDD */

@@ -451,8 +451,6 @@ struct sbfd_session_config {
 	bool cbit;
 	/** sbfd echo or sbfd initiator**/
 	bool is_echo;
-	/** is self sip or srv6 global**/
-	bool is_self_sip;
 	/** Detection multiplier. */
 	uint8_t detection_multiplier;
 	/** Minimum required RX interval. */

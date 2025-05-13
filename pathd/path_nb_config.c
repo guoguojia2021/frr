@@ -1069,33 +1069,3 @@ int pathd_srte_policy_candidate_path_weight_modify(struct nb_cb_modify_args *arg
 
 	return NB_OK;
 }
-
-/*
- * XPath: /frr-pathd:pathd/srte/encap-source-address
- */
-int pathd_srte_encap_source_address_modify(struct nb_cb_modify_args *args)
-{
-	struct ipaddr source;
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
-	yang_dnode_get_ip(&source, args->dnode, NULL);
-    
-    encap_source_address.ipa_type = IPADDR_V6;
-	encap_source_address.ipaddr_v6 = source.ipaddr_v6;
-
-	sbfd_sip_update_by_srv6_config();
-	
-	return NB_OK;
-}
-
-int pathd_srte_encap_source_address_destroy(struct nb_cb_destroy_args *args)
-{
-	encap_source_address.ipa_type = IPADDR_NONE;
-	memset(&encap_source_address.ipaddr_v6, 0, sizeof(encap_source_address.ipaddr_v6));
-
-	sbfd_sip_update_by_srv6_config();
-
-	return NB_OK;
-}

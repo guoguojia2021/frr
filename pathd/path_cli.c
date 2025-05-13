@@ -45,7 +45,7 @@
 
 
 static int config_write_segment_routing(struct vty *vty);
-static int config_write_segment_routing_srv6(struct vty *vty);
+
 static int segment_list_has_src_dst(
 	struct vty *vty, char *xpath, long index, const char *index_str,
 	struct in_addr adj_src_ipv4, struct in_addr adj_dst_ipv4,
@@ -70,14 +70,6 @@ static struct cmd_node segment_routing_node = {
 	.parent_node = CONFIG_NODE,
 	.prompt = "%s(config-sr)# ",
 	.config_write = config_write_segment_routing,
-};
-
-static struct cmd_node srv6_node = {
-	.name = "srv6",
-	.node = SRV6_NODE,
-	.parent_node = SEGMENT_ROUTING_NODE,
-	.prompt = "%s(config-srv6)# ",
-	.config_write = config_write_segment_routing_srv6,
 };
 
 static struct cmd_node sr_traffic_eng_node = {
@@ -358,39 +350,6 @@ DEFPY_NOSH(
 {
 	VTY_PUSH_CONTEXT_NULL(SR_TRAFFIC_ENG_NODE);
 	return CMD_SUCCESS;
-}
-
-DEFPY_NOSH (segment_routing_srv6,
-            segment_routing_srv6_cmd,
-            "srv6",
-            "Segment Routing SRv6\n")
-{
-	VTY_PUSH_CONTEXT_NULL(SRV6_NODE);
-    return CMD_SUCCESS;
-}
-
-DEFPY_YANG_NOSH (segment_routing_srv6_source_address,
-            segment_routing_srv6_source_address_cmd,
-            "encapsulation source-address X:X::X:X$addrv6",
-            "Encapsulation Segment Routing SRv6\n"
-			"Source Address\n"
-			"IPv6 address\n")
-{
-	nb_cli_enqueue_change(vty, "/frr-pathd:pathd/srte/encap-source-address", NB_OP_MODIFY, addrv6_str);
-	return nb_cli_apply_changes(vty, NULL);
-}
-
-
-DEFPY_YANG_NOSH (no_segment_routing_srv6_source_address,
-            no_segment_routing_srv6_source_address_cmd,
-            "no encapsulation source-address X:X::X:X",
-			NO_STR
-            "Encapsulation Segment Routing SRv6\n"
-			"Source Address\n"
-			"IPv6 address\n")
-{
-	nb_cli_enqueue_change(vty, "/frr-pathd:pathd/srte/encap-source-address", NB_OP_DESTROY, NULL);
-	return nb_cli_apply_changes(vty, NULL);
 }
 
 /*
@@ -1586,30 +1545,14 @@ int config_write_segment_routing(struct vty *vty)
 	return 1;
 }
 
-int config_write_segment_routing_srv6(struct vty *vty)
-{
-	vty_out(vty, " srv6\n");
-
-	if (IS_IPADDR_V6(&encap_source_address))
-	{
-		char buf[INET6_ADDRSTRLEN];
-		ipaddr2str(&encap_source_address, buf, sizeof(buf)),
-        vty_out(vty, "  encapsulation source-address %s\n", buf);
-	}
-
-	return 1;
-}
-
 void path_cli_init(void)
 {
 	install_node(&segment_routing_node);
-	install_node(&srv6_node);
 	install_node(&sr_traffic_eng_node);
 	install_node(&srte_segment_list_node);
 	install_node(&srte_policy_node);
 	install_node(&srte_candidate_dyn_node);
 	install_default(SEGMENT_ROUTING_NODE);
-	install_default(SRV6_NODE);
 	install_default(SR_TRAFFIC_ENG_NODE);
 	install_default(SR_SEGMENT_LIST_NODE);
 	install_default(SR_POLICY_NODE);
@@ -1622,12 +1565,9 @@ void path_cli_init(void)
 	install_element(ENABLE_NODE, &show_segment_list_detail_cmd);
 	install_element(ENABLE_NODE, &show_segment_list_by_name_detail_cmd);
 	install_element(CONFIG_NODE, &segment_routing_cmd);
-	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &sr_traffic_eng_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_segment_list_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_no_segment_list_cmd);
-	install_element(SRV6_NODE, &segment_routing_srv6_source_address_cmd);
-    install_element(SRV6_NODE, &no_segment_routing_srv6_source_address_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,
 			&srte_segment_list_segment_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,

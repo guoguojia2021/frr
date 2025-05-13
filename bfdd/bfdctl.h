@@ -126,6 +126,7 @@ struct bfd_peer_cfg {
 	char seglist_name[MAXNAMELEN + 1];
 	uint32_t srte_color;
 	struct in6_addr srte_endpoint;
+	struct in6_addr outer_src;
 	struct in6_addr seg_list[16];
 	uint32_t sbfd_remote_discr;
 

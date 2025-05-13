@@ -323,13 +323,12 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 	/* SBFD just support IPV6. */
 	if (policy->bfd_config->is_echo)
 	{
-		if ((policy->bfd_config->is_self_sip && IS_IPADDR_V6(&policy->bfd_config->update_source))
-		    || (!policy->bfd_config->is_self_sip && IS_IPADDR_V6(&encap_source_address)))
+		if (IS_IPADDR_V6(&policy->bfd_config->update_source))
 		{
 			bfd_sess_set_ipv6_addrs(
 				sbs->session,
-				policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6,
-				policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6);
+				&policy->bfd_config->update_source.ipaddr_v6,
+				&policy->bfd_config->update_source.ipaddr_v6);
 		}
 		else
 		{
@@ -343,8 +342,12 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 	{
 		bfd_sess_set_ipv6_addrs(
 			sbs->session,
-			policy->bfd_config->is_self_sip ?  &policy->bfd_config->update_source.ipaddr_v6 : &encap_source_address.ipaddr_v6,
+			&policy->bfd_config->update_source.ipaddr_v6,
 			&policy->endpoint.u.prefix6);
+	}
+
+	if (IS_IPADDR_V6(&encap_source_address)) {
+		sbs->session->args.outer_src = encap_source_address.ipaddr_v6;
 	}
 
 
@@ -487,7 +490,6 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 	struct srte_policy *policy;
 	enum srte_sbfd_type type;
 	bool is_echo;
-	bool is_self_sip;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -498,9 +500,6 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 
     sr_config_sbfd_create(policy, is_echo);
 
-	is_self_sip = yang_dnode_get_bool(args->dnode, "is-self-source-address");
-	policy->bfd_config->is_self_sip = is_self_sip;
-	
     SET_FLAG(policy->flags, F_POLICY_CONF_BFD);
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -820,8 +819,7 @@ void sbfd_sip_update_by_srv6_config()
 	struct srte_policy *policy;
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
         if (policy->bfd_config 
-		    && !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE)
-			&& !policy->bfd_config->is_self_sip)
+		    && !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
 		{
 			SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
 		}
@@ -895,7 +893,7 @@ DEFPY_NOSH(seamless_bfd_init_param,
  */
 DEFPY_NOSH(seamless_bfd_init_enable,
       seamless_bfd_init_enable_cmd,
-      "sbfd enable remote (0-4294967295)$discr [source-address$has_sip X:X::X:X$srcip]",
+      "sbfd enable remote (0-4294967295)$discr source-address X:X::X:X$srcip",
       "seamless BFD\n"
       "enable\n"
 	  "remote sbfd reflector\n"
@@ -904,7 +902,6 @@ DEFPY_NOSH(seamless_bfd_init_enable,
 	  IPV6_STR)
 {
     int ret;
-	char sip_buf[INET6_ADDRSTRLEN];
 
 	/* del sbfd initiator first */
 	nb_cli_enqueue_change(vty, "./sbfd[type='echo']", NB_OP_DESTROY, NULL);
@@ -919,23 +916,7 @@ DEFPY_NOSH(seamless_bfd_init_enable,
     nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_CREATE, NULL);
     nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/remote-discr", NB_OP_MODIFY, discr_str);
 
-	if (has_sip != NULL)
-	{
-	    nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/source-address", NB_OP_MODIFY, srcip_str);
-        nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/is-self-source-address", NB_OP_MODIFY, "true");
-	}
-	else
-	{
-		if (!IS_IPADDR_V6(&encap_source_address))
-		{
-            vty_out(vty, "Please config the srv6 encapsulation source-address first or use command : sbfd enable remote discriminator source-address X:X::X:X\n");
-			return CMD_WARNING;
-		}
-
-		ipaddr2str(&encap_source_address, sip_buf, sizeof(sip_buf));
-		nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/source-address", NB_OP_MODIFY, sip_buf);
-		nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/is-self-source-address", NB_OP_MODIFY, "false");	
-	}
+	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/source-address", NB_OP_MODIFY, srcip_str);
 
 	return nb_cli_apply_changes(vty, NULL);
 }
@@ -945,7 +926,7 @@ DEFPY_NOSH(seamless_bfd_init_enable,
  */
 DEFPY_NOSH(seamless_bfd_echo,
       seamless_bfd_echo_cmd,
-      "sbfd echo [source-address$has_sip <A.B.C.D|X:X::X:X>$srcip] [(2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx]",
+      "sbfd echo source-address <A.B.C.D|X:X::X:X>$srcip [(2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx]",
       "seamless BFD\n"
       "echo mode\n"
 	  "binding source ip address\n"
@@ -956,7 +937,6 @@ DEFPY_NOSH(seamless_bfd_echo,
       "Desired min transmit interval\n")
 {
     int ret;
-	char sip_buf[INET6_ADDRSTRLEN];
 
 	/* del sbfd initiator first */
 	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);
@@ -969,24 +949,7 @@ DEFPY_NOSH(seamless_bfd_echo,
 
     /* then config sbfd echo */
 	nb_cli_enqueue_change(vty, "./sbfd[type='echo']", NB_OP_CREATE, NULL);
-
-	if (has_sip != NULL)
-	{
-	    nb_cli_enqueue_change(vty, "./sbfd[type='echo']/source-address", NB_OP_MODIFY, srcip_str);
-		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/is-self-source-address", NB_OP_MODIFY, "true");
-	}
-	else
-	{
-		if (!IS_IPADDR_V6(&encap_source_address))
-		{
-            vty_out(vty, "Please config the srv6 encapsulation source-address first or use command : sbfd echo source-address X:X::X:X\n");
-			return CMD_WARNING;
-		}
-
-		ipaddr2str(&encap_source_address, sip_buf, sizeof(sip_buf));
-		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/source-address", NB_OP_MODIFY, sip_buf);
-		nb_cli_enqueue_change(vty, "./sbfd[type='echo']/is-self-source-address", NB_OP_MODIFY, "false");
-	}
+	nb_cli_enqueue_change(vty, "./sbfd[type='echo']/source-address", NB_OP_MODIFY, srcip_str);
 
 	if (detection_multiplier_str != NULL)
 	{

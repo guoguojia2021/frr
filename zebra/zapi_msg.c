@@ -2976,6 +2976,26 @@ int zsend_srv6_manager_del_sid(struct zserv *client,
 	return zserv_send_message(client, s);
 }
 
+void zsend_srv6_encap_source_info(int cmd, struct in6_addr *src)
+{
+    struct stream *s;
+	struct listnode *node, *nnode;
+	struct zserv *client;
+
+	if (IS_ZEBRA_DEBUG_PACKET)
+		zlog_debug("%s: Notifying Srv6 encap source addr cmd:%u", __func__, cmd);
+
+	for (ALL_LIST_ELEMENTS(zrouter.client_list, node, nnode, client)) {
+		if (client->proto != ZEBRA_ROUTE_SRTE)
+		    continue;
+
+		s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+		zclient_srv6_encap_source_info_encode(s, cmd, src);
+		stream_putw_at(s, 0, stream_get_endp(s));
+		zserv_send_message(client, s);
+	}
+}
+
 /* Send response to a table manager connect request to client */
 static void zread_table_manager_connect(struct zserv *client,
 					struct stream *msg, vrf_id_t vrf_id)
@@ -4060,6 +4080,7 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID] = zread_srv6_manager_request,
 	[ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID] = zread_srv6_manager_request,
 	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_ALL] = zread_srv6_manager_request,
+	[ZEBRA_SRV6_ENCAP_SOURCE_GET] = zebra_ptm_srv6_encap_source_get,
 	[ZEBRA_CLIENT_CAPABILITIES] = zread_client_capabilities,
 	[ZEBRA_NEIGH_DISCOVER] = zread_neigh_discover,
 	[ZEBRA_NHG_ADD] = zread_nhg_add,

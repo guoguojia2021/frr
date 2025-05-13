@@ -413,9 +413,9 @@ struct bfd_session_arg {
 	 * - `AF_INET6`.
 	 */
 	uint32_t family;
-	/** Source address. */
+	/** inner Source address. */
 	struct in6_addr src;
-	/** Source address. */
+	/** inner dst address. */
 	struct in6_addr dst;
 
 	/** Multi hop indicator. */
@@ -456,9 +456,12 @@ struct bfd_session_arg {
 	uint8_t is_sbfd_echo;
 	uint8_t seglist_seg_num;
 	char seglist_name[64];
+	/*outer dest addr*/
 	struct in6_addr seglist[16];
 	uint32_t sr_color;
 	struct in6_addr sr_endpoint;
+	/*outer src addr*/
+	struct in6_addr outer_src;
 	uint32_t sbfd_remote_discr;
 };
 

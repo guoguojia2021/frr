@@ -1593,6 +1593,7 @@ DEFPY (srv6_src_addr,
        "Specify source address for SRv6 encapsulation\n")
 {
 	zebra_srv6_encap_src_addr_set(&encap_src_addr);
+	zsend_srv6_encap_source_info(ZEBRA_SRV6_ENCAP_SOURCE_ADD, &encap_src_addr);
 	return CMD_SUCCESS;
 }
 
@@ -1603,7 +1604,9 @@ DEFPY (no_srv6_src_addr,
        "Segment Routing SRv6 source address\n"
        "Specify source address for SRv6 encapsulation\n")
 {
+	struct in6_addr zero_src = {0};
 	zebra_srv6_encap_src_addr_unset();
+	zsend_srv6_encap_source_info(ZEBRA_SRV6_ENCAP_SOURCE_DEL, &zero_src);
 	return CMD_SUCCESS;
 }
 

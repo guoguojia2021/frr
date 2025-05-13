@@ -199,7 +199,7 @@ struct srv6_locator *zebra_srv6_locator_lookup(const char *name)
 
 struct zebra_srv6 *zebra_srv6_get_default(void)
 {
-	static struct zebra_srv6 srv6;
+	static struct zebra_srv6 srv6 = {0};
 	static bool first_execution = true;
 
 	if (first_execution) {

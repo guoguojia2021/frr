@@ -38,6 +38,7 @@
 #include "lib/link_state.h"
 #include "pathd/path_db.h"
 #include "pathd/path_debug.h"
+#include "pathd/path_sbfd.h"
 
 static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS);
 
@@ -90,6 +91,18 @@ bool get_ipv6_router_id(struct in6_addr *router_id)
 	return retval;
 }
 
+static void pathd_zebra_send_srv6_encap_source_get(struct zclient *zclient)
+{
+	struct stream *msg = zclient->obuf;
+
+	stream_reset(msg);
+	zclient_create_header(msg, ZEBRA_SRV6_ENCAP_SOURCE_GET, VRF_DEFAULT);
+	stream_putl(msg, ZEBRA_SRV6_ENCAP_SOURCE_GET);
+	stream_putw_at(msg, 0, stream_get_endp(msg));
+	/* Send requests. */
+	zclient_send_message(zclient);
+}
+
 static void path_zebra_connected(struct zclient *zclient)
 {
 	struct srte_policy *policy;
@@ -97,6 +110,8 @@ static void path_zebra_connected(struct zclient *zclient)
 	zclient_send_reg_requests(zclient, VRF_DEFAULT);
 	zclient_send_router_id_update(zclient, ZEBRA_ROUTER_ID_ADD, AFI_IP6,
 				      VRF_DEFAULT);
+
+	pathd_zebra_send_srv6_encap_source_get(zclient);
 
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
 		struct srte_candidate *candidate;
@@ -453,10 +468,39 @@ static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS)
 	return ret;
 }
 
+static int path_zebra_srv6_encap_source_handle(ZAPI_CALLBACK_ARGS)
+{
+	struct stream *msg = zclient->ibuf;
+
+	struct zapi_srv6_encap_source_info lsapi = {0};
+    if (zclient_srv6_encap_source_info_decode(msg, &lsapi) == -1)
+	    return -1;
+
+	switch (cmd) {
+	case ZEBRA_SRV6_ENCAP_SOURCE_ADD:
+		encap_source_address.ipa_type = IPADDR_V6;
+		encap_source_address.ipaddr_v6 = lsapi.src;
+		break;
+	case ZEBRA_SRV6_ENCAP_SOURCE_DEL:
+		encap_source_address.ipa_type = IPADDR_NONE;
+		memset(&encap_source_address.ipaddr_v6, 0, sizeof(encap_source_address.ipaddr_v6));
+		break;
+	default:
+		zlog_warn("%s invalid message type %u", __func__, cmd);
+		return -1;
+	}
+
+	sbfd_sip_update_by_srv6_config();
+	srte_apply_changes();
+	return 0;
+}
+
 static zclient_handler *const path_handlers[] = {
 	[ZEBRA_SR_POLICY_NOTIFY_STATUS] = path_zebra_sr_policy_notify_status,
 	[ZEBRA_ROUTER_ID_UPDATE] = path_zebra_router_id_update,
-	[ZEBRA_OPAQUE_MESSAGE] = path_zebra_opaque_msg_handler
+	[ZEBRA_OPAQUE_MESSAGE] = path_zebra_opaque_msg_handler,
+	[ZEBRA_SRV6_ENCAP_SOURCE_ADD] = path_zebra_srv6_encap_source_handle,
+	[ZEBRA_SRV6_ENCAP_SOURCE_DEL] = path_zebra_srv6_encap_source_handle
 };
 
 /**

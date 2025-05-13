@@ -98,6 +98,7 @@ void zebra_ptm_if_set_ptm_state(struct interface *ifp,
 				struct zebra_if *zebra_ifp);
 void zebra_ptm_if_write(struct vty *vty, struct zebra_if *zebra_ifp);
 
+void zebra_ptm_srv6_encap_source_get(ZAPI_HANDLER_ARGS);
 #ifdef __cplusplus
 }
 #endif
