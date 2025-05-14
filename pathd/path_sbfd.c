@@ -963,11 +963,10 @@ DEFPY_NOSH(seamless_bfd_echo,
 
 DEFPY(
       no_seamless_bfd,
-	no_seamless_bfd_cmd,
+      no_seamless_bfd_cmd,
       "no sbfd",
-	  NO_STR
-	  "seamless BFD\n"
-      "echo mode\n")
+      NO_STR
+      "seamless BFD\n")
 {
 	int ret;
 	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);
