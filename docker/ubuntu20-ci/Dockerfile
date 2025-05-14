@@ -89,7 +89,6 @@ RUN cd ~/frr && \
        --enable-fpm \
        --enable-gcov \
        --enable-werror \
-       --enable-address-sanitizer \
        --with-pkg-extra-version=-my-manual-build && \
     make -j $(nproc) && \
     sudo make install
