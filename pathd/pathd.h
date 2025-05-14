@@ -704,4 +704,5 @@ struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_n
 extern void path_zebra_encode_srv6_policy(struct srte_policy *policy,
 	struct srte_candidate_group *candidate_group, struct zapi_sr_policy *zp);
 
+const char* cpath_status_str(enum detection_status status);
 #endif /* _FRR_PATHD_H_ */

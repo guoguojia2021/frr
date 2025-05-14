@@ -51,8 +51,10 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 	struct srte_policy *policy;
 	uint32_t cpath_up_count = 0;
 	uint32_t policy_up_count = 0;
+	char endpoint[46];
 
     policy = sbfd_event->policy;
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	/*sidlist down -> up*/
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
@@ -60,26 +62,16 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			if (IS_PATHD_DEBUG_SBFD) {
-				zlog_debug("%s: before sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state:%u.",
-					__func__, candidate->preference, candidate->name,
-					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
-					candidate->status);
-			}
-
             if (!candidate->segment_list)
 			{
 				continue;
 			}
 			if (candidate->segment_list == sbfd_event->segl)
 			{
+				zlog_info("SR-TE(%s, %u), sbfd update cpath:%s, status:%s->%s, pref:%u, has_bfd:%u",
+						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), cpath_status_str(status),
+						candidate->preference, (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) > 0));
 				cpath_status_refresh(candidate, status);
-			}
-			if (IS_PATHD_DEBUG_SBFD) {
-				zlog_debug("%s: after sbfd cpath (pref:%u, name:%s) has_bfd:%u ,cpath_state %u.",
-					__func__, candidate->preference, candidate->name,
-					CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD),
-					candidate->status);
 			}
 
 			if (candidate->status == SRTE_DETECT_UP)

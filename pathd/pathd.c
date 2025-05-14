@@ -982,16 +982,19 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 	struct srte_candidate *candidate, *safe_cpath;
 	uint32_t cpath_up_count = 0;
 	uint32_t policy_up_count = 0;
+	char endpoint[46];
+	bool is_bfd_active = policy->bfd_config && (CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) > 0);
+
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
 	{
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			zlog_info("%s:  cpath (pref:%u, name:%s) policy flags:0x%x ,is_bfd_active:%u, status:%u, flags:0x%x",
-						__func__, candidate->preference, candidate->name, policy->flags,
-						policy->bfd_config ? CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) : 0,
-						candidate->status, candidate->flags);
+			zlog_info("SR-TE(%s, %u), refresh cpath:%s, status:%s, pref:%u, bfd_active:%u, policy-flags:0x%x, cpath-flags:0x%x",
+						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), candidate->preference,
+						is_bfd_active, policy->flags, candidate->flags);
 
             if (!candidate->segment_list 
 			  || CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))
@@ -2144,5 +2147,20 @@ void cpath_status_refresh(struct srte_candidate *candidate, enum detection_statu
 		break;
 	default:
 		break;
+	}
+}
+
+const char* cpath_status_str(enum detection_status status)
+{
+	switch (status)
+	{
+	case SRTE_DETECT_DOWN:
+		return "DOWN";
+	case SRTE_DETECT_UP:
+		return "UP";
+	case SRTE_DETECT_NONE:
+		return "NONE";
+	default:
+		return "ERROR";
 	}
 }
