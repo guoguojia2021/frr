@@ -390,7 +390,7 @@ struct srte_policy *srte_policy_add(uint32_t color, struct prefix *endpoint,
 	if (originator != NULL)
 		strlcpy(policy->originator, originator,
 			sizeof(policy->originator));
-
+	policy->updatetime = monotime(NULL);
 	RB_INIT(srte_candidate_head, &policy->candidate_paths);
 	RB_INIT(srte_candidate_group_head, &policy->candidate_groups);
 	RB_INSERT(srte_policy_head, &srte_policies, policy);
@@ -983,6 +983,7 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 	uint32_t cpath_up_count = 0;
 	uint32_t policy_up_count = 0;
 	char endpoint[46];
+	enum srte_policy_status status = policy->status;
 	bool is_bfd_active = policy->bfd_config && (CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE) > 0);
 
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
@@ -1046,7 +1047,8 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		policy->status = SRTE_POLICY_STATUS_DOWN;
 		policy->up_cpath_group_num = 0;
 	}
-	policy->updatetime = monotime(NULL);
+	if (status != policy->status)
+		policy->updatetime = monotime(NULL);
 }
 
 void srv6_policy_apply_changes(struct srte_policy *policy)

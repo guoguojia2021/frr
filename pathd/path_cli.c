@@ -136,7 +136,6 @@ DEFPY(show_srte_policy,
 	tt->style.corner = '+';
 	ttable_restyle(tt);
 	ttable_rowseps(tt, 0, BOTTOM, true, '-');
-	updatetime = monotime(NULL);
 
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
 		char endpoint[46];
@@ -147,7 +146,7 @@ DEFPY(show_srte_policy,
 		if (policy->binding_sid != MPLS_LABEL_NONE)
 			snprintf(binding_sid, sizeof(binding_sid), "%u",
 				 policy->binding_sid);
-
+		updatetime = monotime(NULL);
 		updatetime -= policy->updatetime;
 		frrtime_to_interval(updatetime, up_str, sizeof(up_str));
 		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s", endpoint, policy->color,
