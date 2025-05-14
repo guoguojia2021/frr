@@ -249,6 +249,9 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	}
 	endpoint.family = AF_INET6;
 	endpoint.prefixlen = IPV6_MAX_BITLEN;
+	if (IPV6_ADDR_SAME(&bsp->args.sr_endpoint, &in6addr_any))
+	    endpoint.prefixlen = 0;
+
 	endpoint.u.prefix6 = bsp->args.sr_endpoint;
 	policy = srte_policy_find(sbfd_sess_get_srpolicy_color(bsp), &endpoint);
     if (!policy)
