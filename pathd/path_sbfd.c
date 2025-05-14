@@ -850,7 +850,7 @@ void sbfd_candidate_seglist_disable(struct srte_candidate *candidate)
 	return;
 }
 
-DEFPY_NOSH(seamless_bfd_init_param,
+DEFPY(seamless_bfd_init_param,
       seamless_bfd_init_param_cmd,
       "sbfd enable remote (0-4294967295)$discr source-address X:X::X:X$srcip (2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx",
       "seamless BFD\n"
@@ -891,7 +891,7 @@ DEFPY_NOSH(seamless_bfd_init_param,
 /*
  * XPath: /frr-pathd:pathd/srte/policy/sbfd
  */
-DEFPY_NOSH(seamless_bfd_init_enable,
+DEFPY(seamless_bfd_init_enable,
       seamless_bfd_init_enable_cmd,
       "sbfd enable remote (0-4294967295)$discr source-address X:X::X:X$srcip",
       "seamless BFD\n"
@@ -924,7 +924,7 @@ DEFPY_NOSH(seamless_bfd_init_enable,
 /*
  * XPath: /frr-pathd:pathd/srte/policy/sbfd
  */
-DEFPY_NOSH(seamless_bfd_echo,
+DEFPY(seamless_bfd_echo,
       seamless_bfd_echo_cmd,
       "sbfd echo source-address <A.B.C.D|X:X::X:X>$srcip [(2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx]",
       "seamless BFD\n"
@@ -961,12 +961,11 @@ DEFPY_NOSH(seamless_bfd_echo,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY(
-      no_seamless_bfd,
-      no_seamless_bfd_cmd,
+DEFPY(no_seamless_bfd,
+	  no_seamless_bfd_cmd,
       "no sbfd",
-      NO_STR
-      "seamless BFD\n")
+	  NO_STR
+	  "seamless BFD\n")
 {
 	int ret;
 	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);

@@ -2188,48 +2188,6 @@ DEFUNSH(VTYSH_PATHD, srte_policy_candidate_dyn_path,
 	return CMD_SUCCESS;
 }
 
-DEFSH(VTYSH_PATHD,
-      vtysh_seamless_bfd_init_enable_cmd,
-      "sbfd enable remote (0-4294967295)$discr [source-address$has_sip X:X::X:X$srcip]",
-      "seamless BFD\n"
-      "enable\n"
-	  "remote sbfd reflector\n"
-	  "remote discriminator\n"	  
-	  "binding source ip address\n"
-	  IPV6_STR)
-
-DEFSH(VTYSH_PATHD,
-      vtysh_seamless_bfd_init_param_cmd,
-      "sbfd enable remote (0-4294967295)$discr source-address X:X::X:X$srcip (2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx",
-      "seamless BFD\n"
-      "enable\n"
-	  "remote sbfd reflector\n"
-	  "remote discriminator\n"
-	  "binding source ip address\n"
-	  IPV6_STR
-      "Detect Multiplier\n"
-      "Required min receive interval\n"
-      "Desired min transmit interval\n")
-
-DEFSH(VTYSH_PATHD,
-      vtysh_seamless_bfd_echo_cmd,
-      "sbfd echo [source-address$has_sip <A.B.C.D|X:X::X:X>] [(2-255)$detection_multiplier (50-60000)$min_rx (50-60000)$min_tx]",
-      "seamless BFD\n"
-      "echo mode\n"
-	  "binding source ip address\n"
-	  IP_STR
-	  IPV6_STR
-      "Detect Multiplier\n"
-      "Required min receive interval\n"
-      "Desired min transmit interval\n")
-
-DEFSH(VTYSH_PATHD,
-      vtysh_srv6_source_address_cmd,
-        "[no] encapsulation source-address X:X::X:X$src_addr",
-		NO_STR
-        "Encapsulation Segment Routing SRv6\n"
-		"Source Address\n"
-		"IPv6 address\n")
 DEFUNSH(VTYSH_PATHD, pcep, pcep_cmd,
 	"pcep",
 	"Configure SR pcep\n")
@@ -4964,9 +4922,6 @@ void vtysh_init_vty(void)
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_policy_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_candidate_dyn_path_cmd);
 
-    install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_init_enable_cmd);
-	install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_init_param_cmd);
-	install_element(SR_POLICY_NODE, &vtysh_seamless_bfd_echo_cmd);
 	install_node(&pcep_node);
 	install_node(&pcep_pcc_node);
 	install_node(&pcep_pce_node);
@@ -5089,7 +5044,6 @@ void vtysh_init_vty(void)
 	install_element(SRV6_NODE, &srv6_locators_cmd);
 	install_element(SRV6_NODE, &exit_srv6_config_cmd);
 	install_element(SRV6_NODE, &vtysh_end_all_cmd);
-	install_element(SRV6_NODE, &vtysh_srv6_source_address_cmd);
 	install_element(SRV6_NODE, &srv6_encap_cmd);
 
 	install_node(&srv6_locs_node);

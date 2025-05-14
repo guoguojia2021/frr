@@ -72,6 +72,13 @@ static struct cmd_node segment_routing_node = {
 	.config_write = config_write_segment_routing,
 };
 
+static struct cmd_node srv6_node = {
+    .name = "srv6",
+    .node = SRV6_NODE,
+    .parent_node = SEGMENT_ROUTING_NODE,
+    .prompt = "%s(config-srv6)# ",
+};
+
 static struct cmd_node sr_traffic_eng_node = {
 	.name = "sr traffic-eng",
 	.node = SR_TRAFFIC_ENG_NODE,
@@ -350,6 +357,15 @@ DEFPY_NOSH(
 {
 	VTY_PUSH_CONTEXT_NULL(SR_TRAFFIC_ENG_NODE);
 	return CMD_SUCCESS;
+}
+
+DEFPY_NOSH (segment_routing_srv6,
+            segment_routing_srv6_cmd,
+            "srv6",
+            "Segment Routing SRv6\n")
+{
+    VTY_PUSH_CONTEXT_NULL(SRV6_NODE);
+    return CMD_SUCCESS;
 }
 
 /*
@@ -1548,11 +1564,13 @@ int config_write_segment_routing(struct vty *vty)
 void path_cli_init(void)
 {
 	install_node(&segment_routing_node);
+	install_node(&srv6_node);
 	install_node(&sr_traffic_eng_node);
 	install_node(&srte_segment_list_node);
 	install_node(&srte_policy_node);
 	install_node(&srte_candidate_dyn_node);
 	install_default(SEGMENT_ROUTING_NODE);
+	install_default(SRV6_NODE);
 	install_default(SR_TRAFFIC_ENG_NODE);
 	install_default(SR_SEGMENT_LIST_NODE);
 	install_default(SR_POLICY_NODE);
@@ -1565,6 +1583,7 @@ void path_cli_init(void)
 	install_element(ENABLE_NODE, &show_segment_list_detail_cmd);
 	install_element(ENABLE_NODE, &show_segment_list_by_name_detail_cmd);
 	install_element(CONFIG_NODE, &segment_routing_cmd);
+	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &sr_traffic_eng_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_segment_list_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_no_segment_list_cmd);
