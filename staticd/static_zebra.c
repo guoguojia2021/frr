@@ -445,6 +445,9 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 		if (nhtd->type == ZEBRA_ROUTE_BGP)
 			set_etag = true;
 		if (nhtd->refcount > 1 && nhtd->nh_num) {
+            if (nh->state == STATIC_NOT_INSTALLED ||
+			    nh->state == STATIC_SENT_TO_ZEBRA)
+				nh->state = STATIC_START;
 			static_nht_update(&rn->p, nhtd->nh, nhtd->nh_num, afi,
 					  nh->nh_vrf_id, set_etag, nh->color);
 			if (afi == AFI_IP6) {
