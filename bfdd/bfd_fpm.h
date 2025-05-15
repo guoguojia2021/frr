@@ -52,14 +52,15 @@ typedef enum {
 
 typedef struct bfd_msg_data_t_
 {
-    bool bpc_mhop;
+	bool bpc_mhop;
 	bool bpc_ipv4;
-    char bpc_local[INET6_ADDRSTRLEN];
-    char bpc_peer[INET6_ADDRSTRLEN];
-    char bpc_vrfname[MAXNAMELEN + 1];
-    char bpc_localif[MAXNAMELEN + 1];
+	char bpc_local[INET6_ADDRSTRLEN];
+	char bpc_peer[INET6_ADDRSTRLEN];
+	char bpc_vrfname[MAXNAMELEN + 1];
+	char bpc_localif[MAXNAMELEN + 1];
 
 	uint8_t bpc_detectmultiplier;
+	uint8_t bpc_localmultiplier;
 	uint32_t bpc_recvinterval;
 	uint32_t bpc_txinterval;
 	uint32_t desired_tx_interval;
@@ -72,14 +73,14 @@ typedef struct bfd_msg_data_t_
 
 	uint8_t bpc_cbit;
 
-    struct bfd_discrs discrs;
-    uint16_t src_port;
-    uint16_t dest_port;
-    uint8_t ttl;
-    uint8_t bpc_type; 
-    char bpc_segment[MAXNAMELEN + 1];
-    char bpc_endpoint[INET6_ADDRSTRLEN];
-    char bfd_name[MAXNAMELEN + 1];
+	struct bfd_discrs discrs;
+	uint16_t src_port;
+	uint16_t dest_port;
+	uint8_t ttl;
+	uint8_t bpc_type;
+	char bpc_segment[MAXNAMELEN + 1];
+	char bpc_endpoint[INET6_ADDRSTRLEN];
+	char bfd_name[MAXNAMELEN + 1];
 
 } bfd_msg_data_t;
 

@@ -920,83 +920,84 @@ void extract_segment_from_addr_list(char * segment, size_t max_size, struct in6_
  */
 void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 {
-    struct stream *msg = NULL;
-    int ret;
-    bfd_msg_hdr_t *hdr = NULL;
-    bfd_msg_data_t *data = NULL;
-    unsigned char *buf;
-    int msg_len = 0;
+	struct stream *msg = NULL;
+	int ret;
+	bfd_msg_hdr_t *hdr = NULL;
+	bfd_msg_data_t *data = NULL;
+	unsigned char *buf;
+	int msg_len = 0;
 
-    if (!bfd->allow_offload)
-        return;
+	if (!bfd->allow_offload)
+		return;
 
-    /* Individual reg/dereg messages are suppressed during shutdown. 
-    if (CHECK_FLAG(bfd_gbl.flags, BFD_GBL_FLAG_IN_SHUTDOWN)) {
-        if (bfd_debug)
-            zlog_debug(
-                "%s: Suppressing BFD peer reg/dereg messages",
-                __FUNCTION__);
-        return;
-    }*/
+	/* Individual reg/dereg messages are suppressed during shutdown.
+	if (CHECK_FLAG(bfd_gbl.flags, BFD_GBL_FLAG_IN_SHUTDOWN)) {
+		if (bfd_debug)
+			zlog_debug(
+				"%s: Suppressing BFD peer reg/dereg messages",
+				__FUNCTION__);
+		return;
+	}*/
 
-    /* Check socket. */
-    if (!bfpm_g || bfpm_g->sock < 0) {
-        zlog_debug(
-            "%s: Can't send BFD peer register, BfdFpm client not "
-            "established",
-            __FUNCTION__);
-        return;
-    }
-    msg = bfpm_g->obuf;
-    stream_reset(msg);
-    buf = STREAM_DATA(msg);
-    hdr = (bfd_msg_hdr_t *)buf;
-    hdr->version = BFDSYNC_PROTO_VERSION;
-    if (create)
-    {
-        hdr->msg_type = BFD_CREATE_SESSION;
-        SET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
-    }
-    else
-    {
-        hdr->msg_type = BFD_DELETE_SESSION;
-        UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
+	/* Check socket. */
+	if (!bfpm_g || bfpm_g->sock < 0) {
+		zlog_debug(
+			"%s: Can't send BFD peer register, BfdFpm client not "
+			"established",
+			__FUNCTION__);
+		return;
+	}
+	msg = bfpm_g->obuf;
+	stream_reset(msg);
+	buf = STREAM_DATA(msg);
+	hdr = (bfd_msg_hdr_t *)buf;
+	hdr->version = BFDSYNC_PROTO_VERSION;
+	if (create)
+	{
+		hdr->msg_type = BFD_CREATE_SESSION;
+		SET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
+	}
+	else
+	{
+		hdr->msg_type = BFD_DELETE_SESSION;
+		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE);
 		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS);
 		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
-        bfd->counterOid = 0;
-    }
+		bfd->counterOid = 0;
+	}
 
-    data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
-    data->bpc_mhop = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH)) ? 1:0;
-    if (bfd->key.family == AF_INET)
-        data->bpc_ipv4 = 1;
-    else
-        data->bpc_ipv4 = 0;
-    data->bpc_detectmultiplier = bfd->detect_mult;
-    data->bpc_txinterval = htonl((uint32_t)bfd->xmt_TO);
-    data->bpc_recvinterval = htonl((uint32_t)bfd->detect_TO / bfd->remote_detect_mult);
-    data->desired_tx_interval = htonl((uint32_t)bfd->timers.desired_min_tx);
-    data->desired_rx_interval = htonl((uint32_t)bfd->timers.required_min_rx);
-    inet_ntop(bfd->key.family, &bfd->key.local, data->bpc_local,
-          sizeof(data->bpc_local));
-    inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_peer,
-          sizeof(data->bpc_peer));
+	data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
+	data->bpc_mhop = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH)) ? 1:0;
+	if (bfd->key.family == AF_INET)
+		data->bpc_ipv4 = 1;
+	else
+		data->bpc_ipv4 = 0;
+	data->bpc_detectmultiplier = bfd->remote_detect_mult;
+	data->bpc_localmultiplier = bfd->detect_mult;
+	data->bpc_txinterval = htonl((uint32_t)bfd->xmt_TO);
+	data->bpc_recvinterval = htonl((uint32_t)bfd->detect_TO / bfd->remote_detect_mult);
+	data->desired_tx_interval = htonl((uint32_t)bfd->timers.desired_min_tx);
+	data->desired_rx_interval = htonl((uint32_t)bfd->timers.required_min_rx);
+	inet_ntop(bfd->key.family, &bfd->key.local, data->bpc_local,
+		  sizeof(data->bpc_local));
+	inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_peer,
+		  sizeof(data->bpc_peer));
 
-    data->src_port = htons((uint16_t)bfd->srcport);
-    data->dest_port = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH))
-                     ? htons(BFD_DEF_MHOP_DEST_PORT)
-                     : htons(BFD_DEFDESTPORT);
-    data->discrs.my_discr = htonl(bfd->discrs.my_discr);
-    data->discrs.remote_discr = htonl(bfd->discrs.remote_discr);
-    data->ttl = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH))
-                     ? bfd->mh_ttl
-                     : 255;
-    strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
-    strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
+	data->src_port = htons((uint16_t)bfd->srcport);
+	data->dest_port = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH))
+					 ? htons(BFD_DEF_MHOP_DEST_PORT)
+					 : htons(BFD_DEFDESTPORT);
+	data->discrs.my_discr = htonl(bfd->discrs.my_discr);
+	data->discrs.remote_discr = htonl(bfd->discrs.remote_discr);
+	data->ttl = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH))
+					 ? bfd->mh_ttl
+					 : 255;
+	strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
+	strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
 
 	data->bpc_type = BPC_TYPE_CLASSIC_BFD;
 
-    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
 		data->src_port = htons(BFD_DEFDESTPORT);
 		data->dest_port = htons(BFD_DEF_ECHO_PORT);
@@ -1010,7 +1011,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 
 	}
 
-    if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
 	{
 		data->src_port = htons(BFD_DEFDESTPORT);
 		data->dest_port = htons(BFD_DEF_SBFD_DEST_PORT);
@@ -1022,17 +1023,17 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 
 	strlcpy(data->bfd_name, bfd->bfd_name, MAXNAMELEN);
 
-    msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
-    hdr->msg_len = htons(msg_len);
-    stream_forward_endp(msg, msg_len);
-    ret = bfdsync_send_message();
+	msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
+	hdr->msg_len = htons(msg_len);
+	stream_forward_endp(msg, msg_len);
+	ret = bfdsync_send_message();
 
-    if (ret < 0) {
-        zlog_debug(
-            "bfd_peer_sendmsg: zclient_send_message() failed");
-    }
+	if (ret < 0) {
+		zlog_debug(
+			"bfd_peer_sendmsg: zclient_send_message() failed");
+	}
 
-    return;
+	return;
 }
 
 /*

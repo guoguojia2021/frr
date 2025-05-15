@@ -325,7 +325,7 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs, bool is_detai
 			vty_out(vty, "\t\t\tEcho receive interval: %ums\n",
 				bs->remote_timers.required_min_echo / 1000);
 		else
-			vty_out(vty, "\t\t\tEcho receive interval: disabled\n");		
+			vty_out(vty, "\t\t\tEcho receive interval: disabled\n");
 	}
 
 	if (is_detail)
@@ -455,6 +455,16 @@ static struct json_object *__display_peer_json(struct bfd_session *bs)
 			    bs->remote_timers.required_min_echo / 1000);
 	json_object_int_add(jo, "remote-detect-multiplier",
 			    bs->remote_detect_mult);
+
+	if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT)
+	    && !CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		json_object_int_add(jo, "Receive interval", bs->detect_TO / 1000);
+		json_object_int_add(jo, "Transmission interval", bs->xmt_TO / 1000);
+		if (bs->cur_timers.required_min_echo != 0)
+			json_object_int_add(jo, "Echo receive interval",
+							bs->cur_timers.required_min_echo / 1000);
+	}
 
 	return jo;
 }
