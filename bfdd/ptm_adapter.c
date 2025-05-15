@@ -225,6 +225,7 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 	 *   - c: prefix length
 	 * - c: cbit
 	 * - l: color
+	 * - w: endpoint
 	 * - c: ifname length
 	 * - X bytes: interface name
 	 * Commands: ZEBRA_BFD_DEST_REPLAY
@@ -268,7 +269,11 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 		{
             stream_putl(msg, BFD_STATUS_ADMIN_DOWN);
 		}
-        else
+		else if (PTM_BFD_INIT == notify_state && (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD))
+		{
+			stream_putl(msg, BFD_STATUS_UNKNOWN);
+		}
+		else
 		{
             stream_putl(msg, BFD_STATUS_DOWN);
 		}
@@ -286,13 +291,18 @@ int ptm_bfd_notify(struct bfd_session *bs, uint8_t notify_state)
 
 	stream_putc(msg, bs->remote_cbit);
 
-	stream_putc(msg, strlen(bs->bfd_name));
-	stream_put(msg, bs->bfd_name, strlen(bs->bfd_name));
+	len = strlen(bs->bfd_name);
+	stream_putc(msg, len);
+	if (len > 0)
+	{
+        stream_put(msg, bs->bfd_name, len);
+	}
 	stream_putl(msg, bs->bfd_mode);
 
-	/*support sbfd , add color and sidlist name*/
+	/*support sbfd , add color and endpoint and sidlist name*/
 	stream_putl(msg, bs->key.srte_color);
 	stream_putl(msg, bs->discrs.my_discr);
+	stream_put(msg, &bs->key.endpoint, sizeof(struct in6_addr));
 	len = strlen(bs->key.seglist_name);
 	stream_putc(msg, len);
 	if (len > 0)

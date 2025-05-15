@@ -213,6 +213,7 @@ struct bfd_key {
 	char vrfname[MAXNAMELEN];
 	char vrfaliasname[MAXALIASNAMELEN];
 	uint32_t srte_color;
+	struct in6_addr endpoint;
 	char seglist_name[MAXNAMELEN];
 	char bfdname[MAXNAMELEN];
 } __attribute__((packed));
@@ -700,7 +701,7 @@ void gen_sbfd_key(struct bfd_key *key, struct sockaddr_any *peer,
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname, uint32_t srte_color, const char *seglist_name,
-		 const char *bfdname);
+		 const char *bfdname, struct in6_addr *endpoint);
 
 struct bfd_session *bfd_session_new(void);
 struct bfd_session *bfd_common_session_new(uint8_t);

@@ -74,7 +74,7 @@ static const struct in6_addr i6a_zero;
 static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 					   struct prefix *sp, int *status, int *remote_cbit,
 					   uint32_t *srte_color, uint32_t *my_discr, char *seglist_name,
-					   vrf_id_t vrf_id, char *bfd_name, uint32_t *bfd_mode)
+					   vrf_id_t vrf_id, char *bfd_name, uint32_t *bfd_mode, struct in6_addr* endpoint)
 {
 	unsigned int ifindex;
 	struct interface *ifp = NULL;
@@ -84,6 +84,7 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	uint8_t seglist_name_len;
 	uint8_t bfd_name_len = 0;
 	uint32_t discr = 0;
+	struct in6_addr ep = {0};
 
 	/*
 	 * If the ifindex lookup fails the
@@ -145,7 +146,11 @@ static struct interface *bfd_get_peer_info(struct stream *s, struct prefix *dp,
 	*srte_color = color;
 	STREAM_GETL(s, discr);
 	*my_discr = discr;
-    
+
+	STREAM_GET(&ep, s, sizeof(struct in6_addr));
+	if (endpoint)
+		*endpoint = ep;
+
 	STREAM_GETC(s, seglist_name_len);
 	if (seglist_name_len > 0 && seglist_name_len < 64)
 	{
@@ -1030,6 +1035,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 	char seglist_name[64] = {0};
     char bfd_name[BFD_NAME_SIZE+1] = {0};
 	uint32_t my_discr = 0;
+	struct in6_addr endpoint = {0};
 
 	if (!zclient->bfd_integration)
 		return 0;
@@ -1039,7 +1045,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 		return 0;
 
 	ifp = bfd_get_peer_info(zclient->ibuf, &dp, &sp, &state, &remote_cbit,  &srte_color,
-		&my_discr, seglist_name, vrf_id, bfd_name, &bfd_mode);
+		&my_discr, seglist_name, vrf_id, bfd_name, &bfd_mode, &endpoint);
 	/*
 	 * When interface lookup fails or an invalid stream is read, we must
 	 * not proceed otherwise it will trigger an assertion while checking
@@ -1128,7 +1134,10 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 		/*support sbfd*/
 		if (bsp->args.sr_color != srte_color)
 		    continue;
-	    
+
+		if (memcmp(&bsp->args.sr_endpoint, &endpoint, sizeof(struct in6_addr)) != 0)
+			continue;
+
 		if (bsp->args.seglist_name[0] && seglist_name[0] 
 		    && strcmp(bsp->args.seglist_name, seglist_name) != 0)
 			continue;

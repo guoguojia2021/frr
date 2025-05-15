@@ -367,7 +367,7 @@ struct bfd_session *bs_peer_find(struct bfd_peer_cfg *bpc)
 
 	/* Otherwise fallback to peer/local hash lookup. */
     gen_bfd_common_key(&key, &bpc->bpc_peer, &bpc->bpc_local, bpc->bpc_mhop, 
-	    bpc->bpc_localif, bpc->bpc_vrfname, bpc->srte_color, bpc->seglist_name, bpc->bfd_name);
+	    bpc->bpc_localif, bpc->bpc_vrfname, bpc->srte_color, bpc->seglist_name, bpc->bfd_name, &bpc->srte_endpoint);
 
 	return bfd_key_lookup(key);
 }
@@ -581,7 +581,7 @@ void ptm_bfd_start_xmt_timer(struct bfd_session *bfd, bool is_echo)
 void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 		 struct sockaddr_any *local, bool mhop, const char *ifname,
 		 const char *vrfname, uint32_t srte_color, const char *seglist_name,
-		 const char *bfdname)
+		 const char *bfdname, struct in6_addr *endpoint)
 {
 	memset(key, 0, sizeof(*key));
 
@@ -617,6 +617,8 @@ void gen_bfd_common_key(struct bfd_key *key, struct sockaddr_any *peer,
 	
 	if (bfdname && bfdname[0])
 		strlcpy(key->bfdname, bfdname, sizeof(key->bfdname));
+
+	key->endpoint = *endpoint;
 }
 
 static void ptm_bfd_echo_xmt_TO(struct bfd_session *bfd)
@@ -798,7 +800,7 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	}
 
 	/* only signal clients when going from up->down state */
-	if (old_state == PTM_BFD_UP)
+	if (old_state != PTM_BFD_DOWN)
 		control_notify(bfd, PTM_BFD_DOWN);
 
 	ptm_sbfd_echo_reset(bfd);
@@ -1022,7 +1024,7 @@ struct bfd_session *bfd_common_session_new(uint8_t segnum)
 	bs->timers.required_min_echo_rx = BFD_DEF_REQ_MIN_ECHO_RX;
 	bs->detect_mult = BFD_DEFDETECTMULT;
 	bs->mh_ttl = BFD_DEF_MHOP_TTL;
-	bs->ses_state = PTM_BFD_DOWN;
+	bs->ses_state = PTM_BFD_INIT;
 
 	/* Initiate connection with slow timers. */
 	bs_set_slow_timers(bs);
@@ -1350,9 +1352,11 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 		    bfd->timers.desired_min_echo_tx = bfd->timers.desired_min_tx;
 		    bfd->echo_xmt_TO = bfd->timers.desired_min_echo_tx;
 		    bfd->echo_detect_TO = bfd->detect_mult * bfd->echo_xmt_TO;
+			bfd->bfd_mode = BFD_MODE_TYPE_SBFD_ECHO;
 		}else{
 		    bfd->xmt_TO = bfd->timers.desired_min_tx;
 		    bfd->detect_TO = bfd->detect_mult * bfd->xmt_TO;
+			bfd->bfd_mode = BFD_MODE_TYPE_SBFD;
 		}
 	}
     
@@ -1437,6 +1441,7 @@ struct bfd_session *ptm_bfd_sess_new(struct bfd_peer_cfg *bpc)
 	strlcpy(bfd->key.seglist_name, bpc->seglist_name, sizeof(bfd->key.seglist_name));
 
 	memcpy(&bfd->out_sip6, &bpc->outer_src, sizeof(bpc->outer_src));
+	bfd->key.endpoint = bpc->srte_endpoint;
 
 	if (bs_registrate(bfd) == NULL)
 		return NULL;
@@ -1624,6 +1629,26 @@ static void bs_init_handler(struct bfd_session *bs, int nstate)
 	}
 }
 
+static void sbfd_init_handler(struct bfd_session *bs, int nstate)
+{
+	switch (nstate) {
+	case PTM_BFD_ADM_DOWN:
+	case PTM_BFD_DOWN:
+		ptm_sbfd_sess_dn(bs, BD_PATH_DOWN);
+		break;
+	case PTM_BFD_UP:
+		/* down - > up*/
+		ptm_sbfd_sess_up(bs);
+		break;
+
+	default:
+		if (bglobal.debug_peer_event)
+			zlog_err("state-change: unhandled sbfd state: %d",
+				   nstate);
+		break;
+	}
+}
+
 static void bs_neighbour_admin_down_handler(struct bfd_session *bfd,
 					    uint8_t diag)
 {
@@ -1749,6 +1774,9 @@ void sbfd_echo_state_handler(struct bfd_session *bs, int nstate)
 	case PTM_BFD_ADM_DOWN:
 		// bs_admin_down_handler(bs, nstate);
 		break;
+	case PTM_BFD_INIT:
+		sbfd_init_handler(bs, nstate);
+		break;
 	case PTM_BFD_DOWN:
 		sbfd_down_handler(bs, nstate);
 		break;
@@ -1774,6 +1802,9 @@ void sbfd_initiator_state_handler(struct bfd_session *bs, int nstate)
 	switch (bs->ses_state) {
 	case PTM_BFD_ADM_DOWN:
 		// bs_admin_down_handler(bs, nstate);
+		break;
+	case PTM_BFD_INIT:
+		sbfd_init_handler(bs, nstate);
 		break;
 	case PTM_BFD_DOWN:
 		sbfd_down_handler(bs, nstate);

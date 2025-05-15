@@ -707,7 +707,6 @@ void srte_apply_changes(void)
 			else if (CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW) 
 				|| CHECK_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED))
 			{
-                policy_sbfd_enabled(policy);
 				srte_policy_sbfd_each_seglist_apply(policy);
 				srte_clear_bfdflag(policy->bfd_config);
 				SET_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE);
@@ -993,10 +992,6 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
-			zlog_info("SR-TE(%s, %u), refresh cpath:%s, status:%s, pref:%u, bfd_active:%u, policy-flags:0x%x, cpath-flags:0x%x",
-						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), candidate->preference,
-						is_bfd_active, policy->flags, candidate->flags);
-
             if (!candidate->segment_list 
 			  || CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED))
 			{
@@ -1022,6 +1017,10 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 				candidate->status = SRTE_DETECT_NONE;
                 cpath_up_count++;
 			}
+
+			zlog_info("SR-TE(%s, %u), refresh cpath:%s, status:%s, pref:%u, bfd_active:%u, policy-flags:0x%x, cpath-flags:0x%x",
+						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), candidate->preference,
+						is_bfd_active, policy->flags, candidate->flags);
 
 		}
 		if (cpath_up_count > 0)

@@ -251,18 +251,12 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 		zlog_err("sbfd can't find the policy.");
 		return;
 	}
-    
+
 	sbfd_event = XCALLOC(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sizeof(struct srte_sbfd_event));
     sbfd_event->segl = segl;
 	sbfd_event->policy = policy;
 
-	if (bss->state == BSS_UP)
-	{
-		// up event stop first sbfd timer
-		THREAD_OFF(policy->wait_sbfd_timer);
-	}
-
-	if (bss->state == BSS_DOWN && bss->previous_state == BSS_UP) {
+	if (bss->state == BSS_DOWN && bss->previous_state != BSS_DOWN) {
 		if (IS_PATHD_DEBUG_SBFD)
 			zlog_debug( "%s:  sidlist %s SBFD DOWN", __func__, segl->name);
 		// seglist sbfd down event
@@ -486,12 +480,18 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 	enum srte_sbfd_type type;
 	bool is_echo;
 
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	type = yang_dnode_get_enum(args->dnode, "type");
 	is_echo = (type == SRTE_SBFD_ECHO) ? true : false;
+
+	if (args->event == NB_EV_VALIDATE)
+        if (type == SRTE_SBFD_INIATIOR && policy->endpoint.family == AF_INET6 && IPV6_ADDR_SAME(&policy->endpoint.u.prefix6, &in6addr_any)) {
+            flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE, "enable sbfd iniatior not allowed on :: endpoint in policy");
+            return NB_ERR_RESOURCE;
+        }
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
 
     sr_config_sbfd_create(policy, is_echo);
 
@@ -1006,36 +1006,6 @@ static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)
 	}
 	
 	return 0;
-}
-
-static int policy_sbfd_first_timeout(struct thread *t)
-{
-    struct srte_policy *policy = THREAD_ARG(t);
-    THREAD_OFF(policy->wait_sbfd_timer);
-
-	struct srte_sbfd_event sbfd_event = {0};
-	sbfd_event.policy = policy;
-
-	struct srte_candidate *candidate, *safe;
-
-	RB_FOREACH_SAFE (candidate, srte_candidate_head,
-			 &policy->candidate_paths, safe) {
-        if (candidate->segment_list == NULL)
-		    continue;
-
-        sbfd_event.segl = candidate->segment_list;
-	    sbfd_status_event_action(&sbfd_event, BSS_DOWN);
-	}
-    return 0;
-}
-
-void policy_sbfd_enabled(struct srte_policy *policy)
-{
-    if (policy->wait_sbfd_timer != NULL)
-        return;
-
-    thread_add_timer(master, policy_sbfd_first_timeout,
-             (void *)policy, SBFD_FIRST_TIMEOUT, &policy->wait_sbfd_timer);
 }
 
 static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr)

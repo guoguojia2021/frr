@@ -535,7 +535,6 @@ struct srte_policy {
    
     struct sbfd_session_config *bfd_config;
 
-   	struct thread *wait_sbfd_timer;
 	time_t updatetime;
 	/* SRP id for PcInitiated support */
 	int srp_id;
