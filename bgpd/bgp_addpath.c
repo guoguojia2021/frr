@@ -233,8 +233,10 @@ void bgp_addpath_flush_type(struct bgp *bgp, afi_t afi, safi_t safi,
 		}
 	}
 
-	idalloc_destroy(bgp->tx_addpath.id_allocators[afi][safi][addpath_type]);
-	bgp->tx_addpath.id_allocators[afi][safi][addpath_type] = NULL;
+	if (bgp->tx_addpath.id_allocators[afi][safi][addpath_type]) {
+		idalloc_destroy(bgp->tx_addpath.id_allocators[afi][safi][addpath_type]);
+		bgp->tx_addpath.id_allocators[afi][safi][addpath_type] = NULL;
+	}
 }
 
 /*
