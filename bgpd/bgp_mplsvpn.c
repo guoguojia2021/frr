@@ -3576,13 +3576,21 @@ void vpn_leak_postchange_checksid(void)
 			combine_sid(locator, &sid4->ipv6Addr.prefix, &sid_buf);
 			if (sid_same(bgp->vpn_policy[AFI_IP].tovpn_sid, &sid_buf))
 				sid4_skip = true;
+		} else {
+			if (bgp->vpn_policy[AFI_IP].tovpn_sid == NULL)
+				sid4_skip = true;
 		}
+
 		if (sid6) {
 			memset(&sid_buf, 0x0, sizeof(struct in6_addr));
 			combine_sid(locator, &sid6->ipv6Addr.prefix, &sid_buf);
 			if (sid_same(bgp->vpn_policy[AFI_IP6].tovpn_sid, &sid_buf))
 				sid6_skip = true;
+		} else {
+			if (bgp->vpn_policy[AFI_IP6].tovpn_sid == NULL)
+				sid6_skip = true;
 		}
+
 		if (!sid4_skip) {
 			vpn_leak_postchange(
 				BGP_VPN_POLICY_DIR_TOVPN,
