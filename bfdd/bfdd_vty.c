@@ -46,16 +46,16 @@
 #define DETAIL_STR "BFD detail information\n"
 
 #define SESSION_NAME_WIDE_INDEX 0
-#define ENCAP_DIP_WIDE_INDEX 1
-#define ENCAP_SIP_WIDE_INDEX 2
-#define LOCAL_ADDR_WIDE_INDEX 3
-#define PEER_ADDR_WIDE_INDEX 4
+#define PEER_ADDR_WIDE_INDEX 1
+#define LOCAL_ADDR_WIDE_INDEX 2
+#define ENCAP_DIP_WIDE_INDEX 3
+#define ENCAP_SIP_WIDE_INDEX 4
 
 #define SESSION_NAME_WIDE_MIN 8
-#define ENCAP_DIP_WIDE_MIN 14
-#define ENCAP_SIP_WIDE_MIN 14
-#define LOCAL_ADDR_WIDE_MIN 12
 #define PEER_ADDR_WIDE_MIN 11
+#define LOCAL_ADDR_WIDE_MIN 12
+#define ENCAP_DIP_WIDE_MIN 8
+#define ENCAP_SIP_WIDE_MIN 8
 
 /*
  * Prototypes
@@ -936,6 +936,12 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
 	}
 	vty_out(vty, "%-13u", bs->discrs.my_discr);
 	vty_out(vty, "%-11s", bfd_mode_type_to_string(bs->bfd_mode));
+	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
+	vty_out(vty, "%s", addr_buf);
+	vty_out(vty, "%*s", (int)(bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
+	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
+	vty_out(vty, "%s", addr_buf);
+	vty_out(vty, "%*s", (int)(bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
 	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
 	{
 		char *list = sbfd_sidlist_to_string(bs->seg_list, bs->segnum);
@@ -952,12 +958,6 @@ static void _display_peer_brief(struct vty *vty, struct bfd_session *bs,
 		vty_out(vty, "%s", buf);
 		vty_out(vty, "%*s", (int)(bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] - 1), " ");
 	}
-	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
-	vty_out(vty, "%s", addr_buf);
-	vty_out(vty, "%*s", (int)(bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
-	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
-	vty_out(vty, "%s", addr_buf);
-	vty_out(vty, "%*s", (int)(bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] - strlen(addr_buf) + 2), " ");
 	vty_out(vty, "%-8s\n", state_list[bs->ses_state].str);
 	update_session_statistic(bs, &bvt->session_statistic);
 }
@@ -995,10 +995,18 @@ static void _get_display_peer_brief_wide(struct hash_bucket *hb, void *arg)
 		return;
 	}
 
-	char addr_buf[INET6_ADDRSTRLEN];
+	if(bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] < (strlen(bs->bfd_name))) {
+		bvt->max_wide_list[SESSION_NAME_WIDE_INDEX] = strlen(bs->bfd_name);
+	}
 
-	if(bvt->max_wide_list[SESSION_NAME_WIDE_INDEX]<(strlen(bs->bfd_name))) {
-		bvt->max_wide_list[SESSION_NAME_WIDE_INDEX]=strlen(bs->bfd_name);
+	char addr_buf[INET6_ADDRSTRLEN];
+	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
+	if (bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] < strlen(addr_buf)){
+		bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] = strlen(addr_buf);
+	}
+	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
+	if(bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] < strlen(addr_buf)){
+		bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] = strlen(addr_buf);
 	}
 	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO || bs->bfd_mode == BFD_MODE_TYPE_SBFD)
 	{
@@ -1011,15 +1019,6 @@ static void _get_display_peer_brief_wide(struct hash_bucket *hb, void *arg)
 			bvt->max_wide_list[ENCAP_SIP_WIDE_INDEX] = strlen(addr_buf);
 		}
 	}
-
-	inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf));
-	if(bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] < strlen(addr_buf)){
-		bvt->max_wide_list[LOCAL_ADDR_WIDE_INDEX] = strlen(addr_buf);
-	}
-	inet_ntop(bs->key.family, &bs->key.peer, addr_buf, sizeof(addr_buf));
-	if (bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] < strlen(addr_buf)){
-		bvt->max_wide_list[PEER_ADDR_WIDE_INDEX] = strlen(addr_buf);
-	}
 }
 
 static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_json)
@@ -1029,10 +1028,10 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 
 	bvt.vrfname = vrfname;
 	uint32_t max_wide_list[5]={SESSION_NAME_WIDE_MIN,
-				     ENCAP_DIP_WIDE_MIN,
-				     ENCAP_SIP_WIDE_MIN,
 				     LOCAL_ADDR_WIDE_MIN,
-				     PEER_ADDR_WIDE_MIN};
+				     PEER_ADDR_WIDE_MIN,
+				     ENCAP_DIP_WIDE_MIN,
+				     ENCAP_SIP_WIDE_MIN};
 	bvt.max_wide_list = max_wide_list;
 
 	if (!use_json) {
@@ -1043,29 +1042,30 @@ static void _display_peers_brief(struct vty *vty, const char *vrfname, bool use_
 		vty_out(vty, "%*s",bvt.max_wide_list[SESSION_NAME_WIDE_INDEX] - SESSION_NAME_WIDE_MIN + 2, " ");
 		vty_out(vty, "%-13s", "SessId");
 		vty_out(vty, "%-11s", "Mode");
-		vty_out(vty, "%s", "Encap-data-dip");
-		vty_out(vty, "%*s",bvt.max_wide_list[ENCAP_DIP_WIDE_INDEX] - ENCAP_DIP_WIDE_MIN + 2, " ");
-		vty_out(vty, "%s", "Encap-data-sip");
-		vty_out(vty, "%*s",bvt.max_wide_list[ENCAP_SIP_WIDE_INDEX] - ENCAP_SIP_WIDE_MIN + 2, " ");
-		vty_out(vty, "%s", "LocalAddress");
-		vty_out(vty, "%*s",bvt.max_wide_list[LOCAL_ADDR_WIDE_INDEX] - LOCAL_ADDR_WIDE_MIN + 2, " ");
 		vty_out(vty, "%s", "PeerAddress");
 		vty_out(vty, "%*s",bvt.max_wide_list[PEER_ADDR_WIDE_INDEX] - PEER_ADDR_WIDE_MIN + 2, " ");
+		vty_out(vty, "%s", "LocalAddress");
+		vty_out(vty, "%*s",bvt.max_wide_list[LOCAL_ADDR_WIDE_INDEX] - LOCAL_ADDR_WIDE_MIN + 2, " ");
+		vty_out(vty, "%s", "EncapDIP");
+		vty_out(vty, "%*s",bvt.max_wide_list[ENCAP_DIP_WIDE_INDEX] - ENCAP_DIP_WIDE_MIN + 2, " ");
+		vty_out(vty, "%s", "EncapSIP");
+		vty_out(vty, "%*s",bvt.max_wide_list[ENCAP_SIP_WIDE_INDEX] - ENCAP_SIP_WIDE_MIN + 2, " ");
 		vty_out(vty, "%-8s\n", "Status");
 
-	        bfd_id_iterate(_display_peer_brief_iter, &bvt);
-	        vty_out(vty, "\nAll session count: %lu\n",
-		        bvt.session_statistic.all_session_count);
-	        vty_out(vty, "Up session count: %lu\n",
-		        bvt.session_statistic.up_session_count);
-	        vty_out(vty, "Down session count: %lu\n",
-		        bvt.session_statistic.down_session_count);
-	        vty_out(vty, "Init session count: %lu\n",
-		        bvt.session_statistic.init_session_count);
-	        vty_out(vty, "Admin down session count: %lu\n",
-		        bvt.session_statistic.admin_down_session_count);
-	        return;
-       }
+		bfd_id_iterate(_display_peer_brief_iter, &bvt);
+
+		vty_out(vty, "\nAll session count: %lu\n",
+			bvt.session_statistic.all_session_count);
+		vty_out(vty, "Up session count: %lu\n",
+			bvt.session_statistic.up_session_count);
+		vty_out(vty, "Down session count: %lu\n",
+			bvt.session_statistic.down_session_count);
+		vty_out(vty, "Init session count: %lu\n",
+			bvt.session_statistic.init_session_count);
+		vty_out(vty, "Admin down session count: %lu\n",
+			bvt.session_statistic.admin_down_session_count);
+		return;
+    }
 
 	jo = json_object_new_array();
 	bvt.jo = jo;
