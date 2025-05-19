@@ -463,6 +463,7 @@ struct bfd_session_arg {
 	/*outer src addr*/
 	struct in6_addr outer_src;
 	uint32_t sbfd_remote_discr;
+	uint32_t sbfd_my_discr;
 };
 
 /** Events definitions. */

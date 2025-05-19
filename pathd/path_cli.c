@@ -211,9 +211,7 @@ static void srte_policy_detail_display(struct srte_policy *policy, struct vty *v
 			bool has_bfd = false;
 
 			binding_bfd[0] = '-';
-			if (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD)
-				&& policy->bfd_config
-				&& CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
+			if (policy->bfd_config)
 			{
 				has_bfd = true;
 				if (policy->bfd_config->is_echo)

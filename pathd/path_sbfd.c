@@ -70,11 +70,13 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 			{
 				zlog_info("SR-TE(%s, %u), sbfd update cpath:%s, status:%s->%s, pref:%u, has_bfd:%u",
 						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), cpath_status_str(status),
-						candidate->preference, (CHECK_FLAG(policy->flags, F_POLICY_CONF_BFD) > 0));
+						candidate->preference, policy->bfd_config != NULL);
 				cpath_status_refresh(candidate, status);
+				candidate->my_discriminator = sbfd_event->my_discriminator;
+				SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);
 			}
 
-			if (candidate->status == SRTE_DETECT_UP)
+			if (candidate->status != SRTE_DETECT_DOWN)
 			{
 				cpath_up_count++;
 			}
@@ -145,12 +147,11 @@ static int segment_list_up_handle(struct srte_sbfd_event *sbfd_event)
     if (new_status == SRTE_POLICY_STATUS_UP)
 	{
 		/*policy update*/
-		SET_FLAG(sbfd_event->policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 		srv6_choose_best_cpath_group(sbfd_event->policy);
 		return 0;
 	}
 
-    zlog_err("segment_list_up_handle unexpected situation");
+	zlog_info("segment_list_up_handle seglist:%s status update, policy status:%d ignored", sbfd_event->segl->name, new_status);
 	
 	return 0;
 }
@@ -164,7 +165,7 @@ static int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
     sbfd_refresh_policy_state(sbfd_event, SRTE_DETECT_DOWN);
     new_status = sbfd_event->policy->status;
 
-	if (old_status == SRTE_POLICY_STATUS_UP
+	if (old_status != SRTE_POLICY_STATUS_DOWN
 	    && new_status == SRTE_POLICY_STATUS_DOWN)
 	{
         /* policy up -> down*/
@@ -179,7 +180,7 @@ static int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
 		return 0;
 	}
 	
-	zlog_err("segment_list_down_handle unexpected situation");
+	zlog_info("segment_list_down_handle seglist:%s status update, policy status:%d->%d ignored", sbfd_event->segl->name, old_status, new_status);
 
 	return 0;	
 }
@@ -255,6 +256,7 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	sbfd_event = XCALLOC(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sizeof(struct srte_sbfd_event));
     sbfd_event->segl = segl;
 	sbfd_event->policy = policy;
+	sbfd_event->my_discriminator = bsp->args.sbfd_my_discr;
 
 	if (bss->state == BSS_DOWN && bss->previous_state != BSS_DOWN) {
 		if (IS_PATHD_DEBUG_SBFD)
@@ -271,7 +273,7 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	}
 }
 
-static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *policy)
+void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *policy)
 {
 	struct srte_segment_entry *s_entry;
 	uint32_t seg_num = 0;
@@ -345,7 +347,7 @@ static void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_pol
 	return;
 }
 
-static void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_policy *policy)
+void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_policy *policy)
 {
 	/* Create new session and assign callback. */
 	struct srte_sbfd_session * sbs;
@@ -354,7 +356,7 @@ static void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_po
  	if (sbs == NULL)
 	{
 		zlog_err(
-				"%s: [sbfd] have not sbfd echo config !", __func__);
+				"%s: [sbfd] seglist:%s have not sbfd config !", __func__, segl->name);
 	    return;
 	}
 
@@ -380,62 +382,6 @@ static void sbfd_for_policy_reset(struct srte_policy *policy)
 	memset(&policy->bfd_config->update_source, 0 , sizeof(struct ipaddr));
 }
 
-void srte_policy_sbfd_each_seglist_apply(struct srte_policy *policy)
-{
-	struct srte_candidate *candidate;
-
-	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths) 
-	{
-		if (candidate->segment_list == NULL) {
-			continue;
-		}
-
-		if (candidate->bfd_name[0]){
-			//bfd_name already attached, ignore
-			zlog_warn(
-				"cancel sbfd apply on cpath:%s, already bond to bfd:%s", candidate->name, candidate->bfd_name);
-			continue;
-		}	
-
-		sr_config_sbfd_apply(candidate->segment_list, policy);
-	}
-}
-
-void srte_policy_sbfd_each_seglist_remove(struct srte_policy *policy)
-{
-	struct srte_candidate *candidate;
-
-	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths) 
-	{
-		if (candidate->segment_list == NULL) {
-			continue;
-		}	
-        sr_config_sbfd_remove(candidate->segment_list, policy);
-	}
-}
-
-void srte_policy_sbfd_each_seglist_del_then_apply(struct srte_policy *policy)
-{
-	struct srte_candidate *candidate;
-
-	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths) 
-	{
-		if (candidate->segment_list == NULL) {
-			continue;
-		}
-
-		if(candidate->bfd_name[0]){
-			//bfd_name already attached, ignore
-			zlog_warn(
-				"cancel sbfd del-apply on cpath:%s, already bond to bfd:%s", candidate->name, candidate->bfd_name);
-			continue;
-		}
-
-        sr_config_sbfd_remove(candidate->segment_list, policy);
-		sr_config_sbfd_apply(candidate->segment_list, policy);
-	}
-}
-
 void path_delete_sbfd_config(struct srte_policy *policy)
 {
 	if (policy->bfd_config)
@@ -448,7 +394,6 @@ static void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
 	/* Already configured, skip it. */
 	if (policy->bfd_config) {
 		policy->bfd_config->is_echo = is_echo;
-		SET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
 		return ;
 	}
 
@@ -457,37 +402,32 @@ static void sr_config_sbfd_create(struct srte_policy *policy, bool is_echo)
 
 	sbfd_for_policy_reset(policy);
 	policy->bfd_config->is_echo = is_echo;
-	SET_FLAG(policy->bfd_config->bfd_flags, SBFD_NEW);
 
-}
-
-static void sr_config_sbfd_destroy(struct srte_policy *policy)
-{
-	if (policy->bfd_config)
-	{
-		sbfd_for_policy_reset(policy);
-        SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELETED);
-		SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
-	}
 }
 
 /*
- * XPath: /frr-pathd:pathd/srte/policy/sbfd-echo
+ * XPath: /frr-pathd:pathd/srte/policy/sbfd
  */
 int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 {
 	struct srte_policy *policy;
 	enum srte_sbfd_type type;
 	bool is_echo;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	type = yang_dnode_get_enum(args->dnode, "type");
 	is_echo = (type == SRTE_SBFD_ECHO) ? true : false;
+
     sr_config_sbfd_create(policy, is_echo);
 
-    SET_FLAG(policy->flags, F_POLICY_CONF_BFD);
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_NEW;
+	}
+
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
 	return NB_OK;
@@ -496,15 +436,26 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 int pathd_srte_policy_sbfd_destroy(struct nb_cb_destroy_args *args)
 {
     struct srte_policy *policy;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
 	policy = nb_running_get_entry(args->dnode, NULL, true);
-    sr_config_sbfd_destroy(policy);
-    UNSET_FLAG(policy->flags, F_POLICY_CONF_BFD);
-	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
+	if (!policy || !policy->bfd_config) {
+		flog_warn(EC_LIB_NB_CB_CONFIG_APPLY, "The SR Policy has not sbfd config!");
+		return NB_ERR_RESOURCE;
+	}
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_DELETED;
+	}
+
+	path_delete_sbfd_config(policy);
+
+	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 	return NB_OK;
 }
 
@@ -567,12 +518,13 @@ struct srte_sbfd_session *srte_sbfd_session_find(struct srte_segment_list *segme
 }
 
 /*
- * XPath: /frr-pathd:pathd/srte/policy/sbfd-echo/source-address
+ * XPath: /frr-pathd:pathd/srte/policy/sbfd/source-address
  */
 int pathd_srte_policy_sbfd_source_address_modify(struct nb_cb_modify_args *args)
 {
 	struct srte_policy *policy;
 	struct ipaddr source;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -589,14 +541,10 @@ int pathd_srte_policy_sbfd_source_address_modify(struct nb_cb_modify_args *args)
 	yang_dnode_get_ip(&source, args->dnode, NULL);
 
 	memcpy(&policy->bfd_config->update_source, &source, sizeof(struct ipaddr));
-	
-	if (CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_ACTIVE))
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
 	{
-        SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
-	}
-	else
-	{
-	    SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
 	}
 
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
@@ -611,6 +559,7 @@ int pathd_srte_policy_sbfd_remote_discr_modify(struct nb_cb_modify_args *args)
 {
 	struct srte_policy *policy;
     uint32_t discr;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -627,8 +576,11 @@ int pathd_srte_policy_sbfd_remote_discr_modify(struct nb_cb_modify_args *args)
 	discr = yang_dnode_get_uint32(args->dnode, NULL);
 
 	policy->bfd_config->remote_disc = discr;
-	
-	SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
+	}
 
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -643,6 +595,7 @@ int pathd_srte_policy_sbfd_detect_multiplier_modify(struct nb_cb_modify_args *ar
 {
 	struct srte_policy *policy;
 	uint8_t detect_multiplier;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -658,7 +611,11 @@ int pathd_srte_policy_sbfd_detect_multiplier_modify(struct nb_cb_modify_args *ar
 
 	detect_multiplier = yang_dnode_get_uint8(args->dnode, NULL);
 	policy->bfd_config->detection_multiplier = detect_multiplier;
-	SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
+	}
 
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -672,6 +629,7 @@ int pathd_srte_policy_sbfd_mri_modify(struct nb_cb_modify_args *args)
 {
 	struct srte_policy *policy;
 	uint32_t min_rx;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -687,7 +645,11 @@ int pathd_srte_policy_sbfd_mri_modify(struct nb_cb_modify_args *args)
     
 	min_rx = yang_dnode_get_uint32(args->dnode, NULL);
 	policy->bfd_config->min_rx = min_rx;
-	SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
+	}
 
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -701,6 +663,7 @@ int pathd_srte_policy_sbfd_mti_modify(struct nb_cb_modify_args *args)
 {
 	struct srte_policy *policy;
 	uint32_t min_tx;
+	struct srte_candidate *candidate;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
@@ -716,7 +679,11 @@ int pathd_srte_policy_sbfd_mti_modify(struct nb_cb_modify_args *args)
     
 	min_tx = yang_dnode_get_uint32(args->dnode, NULL);
 	policy->bfd_config->min_tx = min_tx;
-	SET_FLAG(policy->bfd_config->bfd_flags, SBFD_MODIFIED);
+
+	RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
+	}
 
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 
@@ -780,61 +747,20 @@ bool is_exist_seglist_in_policy(struct srte_policy *policy, struct srte_segment_
 	return false;
 }
 
-/*for one policy , update bfd flag, callback when cpath update or create */
-void sbfd_update_flag_one_policy(struct srte_policy *policy, uint32_t flag)
-{
-	if (policy->bfd_config &&  !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
-	{
-		SET_FLAG(policy->bfd_config->bfd_flags, flag);
-	}
-}
-
-/*traverse policy change bfd flag to update , callback when encap source-address modify or del */
-void sbfd_update_flag_all_policy(uint32_t flag)
-{
-	struct srte_policy *policy;
-	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
-        if (policy->bfd_config &&  !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
-		{
-			SET_FLAG(policy->bfd_config->bfd_flags, flag);
-		}
-	}
-}
-
 void sbfd_sip_update_by_srv6_config()
 {
 	struct srte_policy *policy;
+	struct srte_candidate *candidate;
 	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
-        if (policy->bfd_config 
-		    && !CHECK_FLAG(policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
+        if (policy->bfd_config)
 		{
-			SET_FLAG(policy->bfd_config->bfd_flags, SBFD_DELADD);
+			RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+			{
+				candidate->policy_bfd_ops = CANDIDATE_SBFD_DELADD;
+			}
+			SET_FLAG(policy->flags, F_POLICY_MODIFIED);
 		}
 	}
-}
-int _sbfd_candidate_seglist_disable(struct srte_candidate *candidate)
-{
-	bool ret = false;
-
-	if (!candidate || !candidate->segment_list || !candidate->policy->bfd_config
-	    || CHECK_FLAG(candidate->policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
-	{
-		return 0;
-	}
-
-	ret = is_exist_seglist_in_policy_exclude_cpath(candidate->policy, candidate->segment_list, candidate);
-	if (!ret)
-	{
-		// has no same segmentlist in policy, del bfd session
-		sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
-	}
-	return 0;
-}
-
-void sbfd_candidate_seglist_disable(struct srte_candidate *candidate)
-{
-	_sbfd_candidate_seglist_disable(candidate);
-	return;
 }
 
 DEFPY(seamless_bfd_init_param,
@@ -966,40 +892,6 @@ DEFPY(no_seamless_bfd,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-static int sbfd_pathd_candidate_status_handler(struct srte_candidate *candidate)
-{
-	struct srte_sbfd_session *sbs;
-    enum bfd_session_state status;
-
-	if (!candidate || !candidate->policy || !candidate->policy->bfd_config || !candidate->segment_list
-	  || CHECK_FLAG(candidate->policy->bfd_config->bfd_active_flags, SBFD_AF_PASSIVE))
-	{
-		return 0;
-	}
-
-	sbs = srte_sbfd_session_find(candidate->segment_list, 
-	    candidate->policy->color, &candidate->policy->endpoint);
-	
-	if (!sbs)
-        return 0;
-
-	status = bfd_sess_status(sbs->session);
-        
-	if (candidate->status == SRTE_DETECT_DOWN 
-		&& status == BFD_STATUS_UP)
-	{
-		if (IS_PATHD_DEBUG_SBFD)
-			zlog_debug( "%s:  cpath %s's status change to up.", __func__, candidate->name);
-
-		candidate->status = SRTE_DETECT_UP;
-
-		srv6_refresh_policy_state(candidate->policy);
-		srv6_choose_best_cpath_group(candidate->policy);
-	}
-	
-	return 0;
-}
-
 static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr)
 {
 	struct srte_candidate *candidate;
@@ -1039,10 +931,6 @@ static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr
 
 void sr_sbfd_init()
 {
-	/* after add or update cpath case */
-    hook_register(pathd_candidate_created, sbfd_pathd_candidate_status_handler);
-	hook_register(pathd_candidate_updated, sbfd_pathd_candidate_status_handler);
-
 	/* Initialize PATHD client functions */
 	bfd_protocol_integration_init(zclient, master);
 	hook_register(sbfd_state_change_hook, policy_sbfd_state_change);

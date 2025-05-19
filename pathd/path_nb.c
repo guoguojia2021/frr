@@ -234,12 +234,6 @@ const struct frr_yang_module_info frr_pathd_info = {
 				.lookup_entry = pathd_srte_policy_candidate_path_lookup_entry,
 			}
 		},
-		// {
-		// 	.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/name",
-		// 	.cbs = {
-		// 		.modify = pathd_srte_policy_candidate_path_name_modify,
-		// 	}
-		// },
 		{
 			.xpath = "/frr-pathd:pathd/srte/policy/candidate-path/is-best-candidate-path",
 			.cbs = {

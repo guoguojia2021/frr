@@ -218,6 +218,9 @@ int pathd_srte_segment_list_segment_v6_sid_value_modify(
 {
 	struct ipaddr sid_value;
 	struct srte_segment_entry *segment;
+	struct srte_policy *policy;
+    struct srte_candidate *candidate;
+	bool found = false;
 
 	switch (args->event)
 	{
@@ -227,6 +230,23 @@ int pathd_srte_segment_list_segment_v6_sid_value_modify(
 			segment->sid_type = SRTE_SEGMENT_SID_TYPE_V6;
 			segment->srv6_sid_value = sid_value;
 			SET_FLAG(segment->segment_list->flags, F_SEGMENT_LIST_MODIFIED);
+
+			RB_FOREACH (policy, srte_policy_head, &srte_policies)
+			{
+				found = false;
+				RB_FOREACH (candidate, srte_candidate_head, &policy->candidate_paths)
+				{
+					if (candidate->segment_list == segment->segment_list) {
+						found = true;
+
+						if (policy->bfd_config)
+							candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
+					}
+				}
+
+				if (found)
+					SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+			}
 			break;
 		default:
 			break;
@@ -481,7 +501,7 @@ int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args)
 		policy = nb_running_get_entry(args->dnode, NULL, true);
 		policy->binding_v6_sid = binding_sid;
 		SET_FLAG(policy->flags, F_POLICY_MODIFIED);
-		SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
+
 		break;
 	}
 
@@ -498,7 +518,6 @@ int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args)
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	memset(&policy->binding_v6_sid, 0 , sizeof(struct ipaddr));
 	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
-	SET_FLAG(policy->flags, F_POLICY_TUNNEL_ATTR_UPDATE);
 
 	return NB_OK;
 }
@@ -553,9 +572,13 @@ int pathd_srte_policy_candidate_path_create(struct nb_cb_create_args *args)
 
 	nb_running_set_entry(args->dnode, candidate);
 	SET_FLAG(candidate->flags, F_CANDIDATE_NEW);
-    
-	sbfd_update_flag_one_policy(policy, SBFD_MODIFIED);
 
+	if (candidate->policy->bfd_config)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_NEW;
+	}
+
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 	return NB_OK;
 }
 
@@ -567,54 +590,13 @@ int pathd_srte_policy_candidate_path_destroy(struct nb_cb_destroy_args *args)
 		return NB_OK;
 
 	candidate = nb_running_unset_entry(args->dnode);
-	if(candidate->segment_list){
-		sbfd_candidate_seglist_disable(candidate);
-		refcounter_decrease(candidate->segment_list);
-		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
-		candidate->segment_list = NULL;
-	}
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_DELETED);
-
-	return NB_OK;
-}
-
-/*
- * XPath: /frr-pathd:pathd/srte/policy/candidate-path/name
- */
-int pathd_srte_policy_candidate_path_name_modify(struct nb_cb_modify_args *args)
-{
-	struct srte_candidate *candidate;
-	const char *name;
-	char xpath[XPATH_MAXLEN];
-	char xpath_buf[XPATH_MAXLEN - 3];
-
-	if (args->event != NB_EV_APPLY && args->event != NB_EV_VALIDATE)
-		return NB_OK;
-
-	/* the candidate name is fixed after setting it once, this is checked
-	 * here */
-	if (args->event == NB_EV_VALIDATE) {
-		/* first get the precise path to the candidate path */
-		yang_dnode_get_path(args->dnode, xpath_buf, sizeof(xpath_buf));
-		snprintf(xpath, sizeof(xpath), "%s%s", xpath_buf, "/..");
-
-		candidate = nb_running_get_entry_non_rec(NULL, xpath, false);
-
-		/* then check if it exists and if the name was provided */
-		if (candidate && strlen(candidate->name) > 0) {
-			flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
-				  "The candidate name is fixed!");
-			return NB_ERR_RESOURCE;
-		} else
-			return NB_OK;
+	if (candidate->policy->bfd_config)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_DELETED;
 	}
-
-	candidate = nb_running_get_entry(args->dnode, NULL, true);
-
-	name = yang_dnode_get_string(args->dnode, NULL);
-	strlcpy(candidate->name, name, sizeof(candidate->name));
-	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 
 	return NB_OK;
 }
@@ -886,7 +868,10 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
     /* old sidlist */
 	if (candidate->segment_list)
 	{
-		sbfd_candidate_seglist_disable(candidate);
+		if (candidate->policy->bfd_config) {
+			sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
+			candidate->status = SRTE_DETECT_NONE;
+		}
 
 		refcounter_decrease(candidate->segment_list);
 		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
@@ -904,8 +889,13 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 	SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
 
-	sbfd_update_flag_one_policy(candidate->policy, SBFD_MODIFIED);
+	//sbfd enabled
+	if (candidate->policy->bfd_config)
+	{
+		candidate->policy_bfd_ops = CANDIDATE_SBFD_MODIFIED;
+	}
 
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 	return NB_OK;
 }
 
@@ -921,13 +911,15 @@ int pathd_srte_policy_candidate_path_segment_list_name_destroy(
 
 	if (candidate->segment_list)
 	{
-		sbfd_candidate_seglist_disable(candidate);
+		if (candidate->policy->bfd_config)
+			sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
 		refcounter_decrease(candidate->segment_list);
 		candidate->segment_list = NULL;
 		candidate->lsp->segment_list = NULL;
 	}
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 	return NB_OK;
 }
 
@@ -938,7 +930,7 @@ static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
 	memset(&bsp, 0, sizeof(struct bfd_session_params));
 	candidate = nb_running_get_entry(args->dnode, NULL, true);
 
-	if(candidate && candidate->policy && CHECK_FLAG(candidate->policy->flags, F_POLICY_CONF_BFD)){
+	if(candidate && candidate->policy && candidate->policy->bfd_config){
 		flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE,
 					"can't bind cpath to bfd_name, policy sbfd already enbled");
         return NB_ERR;
@@ -962,6 +954,7 @@ static int candidate_path_bfd_name_modify(struct nb_cb_modify_args *args)
 	}
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 	bfd_name_register(&bsp);
 	return NB_OK;
 }
@@ -974,9 +967,11 @@ static int candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args)
 	if(candidate && candidate->bfd_name[0]){
 	    srte_candidate_bfd_group_del(candidate->bfd_name, candidate);
 	    candidate->bfd_name[0] = 0;
+		candidate->status = SRTE_DETECT_NONE;
 	}
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 	return NB_OK;
 }
 
@@ -1065,6 +1060,6 @@ int pathd_srte_policy_candidate_path_weight_modify(struct nb_cb_modify_args *arg
 	candidate->weight = weight;
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
-
+	SET_FLAG(candidate->policy->flags, F_POLICY_MODIFIED);
 	return NB_OK;
 }

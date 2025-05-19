@@ -1150,6 +1150,7 @@ int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS)
 		bsp->bss.previous_state = bsp->bss.state;
 		bsp->bss.state = state;
 		bsp->bss.remote_cbit = remote_cbit;
+		bsp->args.sbfd_my_discr = my_discr;
 		bsp->updatecb(bsp, &bsp->bss, bsp->arg);
 		sessions_updated++;
 	}

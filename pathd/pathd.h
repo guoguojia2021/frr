@@ -391,6 +391,11 @@ struct srte_candidate {
 
 	/* bfd name*/
 	char bfd_name[BFD_NAME_SIZE + 1];
+	uint32_t policy_bfd_ops;
+#define CANDIDATE_SBFD_NEW 0x0002
+#define CANDIDATE_SBFD_MODIFIED 0x0004
+#define CANDIDATE_SBFD_DELETED 0x0008
+#define CANDIDATE_SBFD_DELADD 0x0010 // delete first then add new
 	uint32_t my_discriminator;
 	time_t status_change_time;
 };
@@ -467,18 +472,6 @@ struct sbfd_session_config {
 	struct ipaddr update_source;
 	/* remote discr*/
 	uint32_t remote_disc;
-
-	/* Status flags. */
-	uint16_t bfd_flags;
-#define SBFD_NEW 0x0002
-#define SBFD_MODIFIED 0x0004
-#define SBFD_DELETED 0x0008
-#define SBFD_DELADD 0x0010 // delete first then add new
-
-	/*active status*/
-    uint16_t bfd_active_flags;
-#define SBFD_AF_ACTIVE 0x0002
-#define SBFD_AF_PASSIVE 0x0004
 };
 
 struct srte_policy {
@@ -530,9 +523,7 @@ struct srte_policy {
 #define F_POLICY_NEW 0x0002
 #define F_POLICY_MODIFIED 0x0004
 #define F_POLICY_DELETED 0x0008
-#define F_POLICY_CONF_BFD 0x0010
-#define F_POLICY_TUNNEL_ATTR_UPDATE 0x0020
-   
+
     struct sbfd_session_config *bfd_config;
 
 	time_t updatetime;
@@ -553,6 +544,7 @@ struct srte_sbfd_event
 {
     struct srte_segment_list *segl;
 	struct srte_policy *policy;
+	uint32_t my_discriminator;
 };
 
 extern struct srte_segment_list_head srte_segment_lists;
@@ -696,7 +688,6 @@ void refcounter_init(struct srte_segment_list *segment_list);
 void refcounter_increase(struct srte_segment_list *segment_list);
 void refcounter_decrease(struct srte_segment_list *segment_list);
 bool is_refcounter_retain(struct srte_segment_list *segment_list);
-void cpath_status_init(struct srte_policy *policy, struct srte_candidate *candidate);
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta);
 struct srte_candidate_bfd_group *srte_candidate_bfd_group_find(const char *bfd_name);
 
