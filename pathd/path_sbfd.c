@@ -480,19 +480,11 @@ int pathd_srte_policy_sbfd_create(struct nb_cb_create_args *args)
 	enum srte_sbfd_type type;
 	bool is_echo;
 
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	type = yang_dnode_get_enum(args->dnode, "type");
 	is_echo = (type == SRTE_SBFD_ECHO) ? true : false;
-
-	if (args->event == NB_EV_VALIDATE)
-        if (type == SRTE_SBFD_INIATIOR && policy->endpoint.family == AF_INET6 && IPV6_ADDR_SAME(&policy->endpoint.u.prefix6, &in6addr_any)) {
-            flog_warn(EC_LIB_NB_CB_CONFIG_VALIDATE, "enable sbfd iniatior not allowed on :: endpoint in policy");
-            return NB_ERR_RESOURCE;
-        }
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
     sr_config_sbfd_create(policy, is_echo);
 
     SET_FLAG(policy->flags, F_POLICY_CONF_BFD);
