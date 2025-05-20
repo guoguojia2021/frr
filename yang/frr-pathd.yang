@@ -533,9 +533,9 @@ module frr-pathd {
                 value 1;
                 description "echo";
               }
-              enum iniatior {
+              enum initiator {
                 value 2;
-                description "iniatior";
+                description "initiator";
               }
             }
           }

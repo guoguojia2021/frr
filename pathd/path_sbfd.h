@@ -26,7 +26,7 @@
 
 enum srte_sbfd_type {
     SRTE_SBFD_ECHO = 1,
-	SRTE_SBFD_INIATIOR = 2,
+	SRTE_SBFD_INITIATOR = 2,
 };
 
 /* sbfd cli*/

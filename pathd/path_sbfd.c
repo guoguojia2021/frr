@@ -778,23 +778,23 @@ DEFPY(seamless_bfd_init_param,
 {
 	// char xpath[XPATH_POLICY_BASELEN];
 	// snprintf(xpath, sizeof(xpath),
-	// 	 "./sbfd[type='iniatior'][remote-discr='%s']", discr_str);
+	// 	 "./sbfd[type='initiator'][remote-discr='%s']", discr_str);
 	// nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
 	// snprintf(xpath, sizeof(xpath),
-	// 	 "./sbfd[type='iniatior'][remote-discr='%s']/source-address", discr_str);
+	// 	 "./sbfd[type='initiator'][remote-discr='%s']/source-address", discr_str);
 	// nb_cli_enqueue_change(vty, xpath, NB_OP_MODIFY, srcip_str);
 
 	// snprintf(xpath, sizeof(xpath),
-	// 	 "./sbfd[type='iniatior'][remote-discr='%s']/detect-multiplier", discr_str);
+	// 	 "./sbfd[type='initiator'][remote-discr='%s']/detect-multiplier", discr_str);
 	// nb_cli_enqueue_change(vty, xpath, NB_OP_MODIFY, detection_multiplier_str);
 
 	// snprintf(xpath, sizeof(xpath),
-	// 	 "./sbfd[type='iniatior'][remote-discr='%s']/required-min-receive-interval", discr_str);
+	// 	 "./sbfd[type='initiator'][remote-discr='%s']/required-min-receive-interval", discr_str);
 	// nb_cli_enqueue_change(vty, xpath, NB_OP_MODIFY, min_rx_str);
 
 	// snprintf(xpath, sizeof(xpath),
-	// 	 "./sbfd[type='iniatior'][remote-discr='%s']/desired-min-transmit-interval", discr_str);
+	// 	 "./sbfd[type='initiator'][remote-discr='%s']/desired-min-transmit-interval", discr_str);
 	// nb_cli_enqueue_change(vty, xpath, NB_OP_MODIFY, min_tx_str);
 	// return nb_cli_apply_changes(vty, NULL);
 
@@ -826,10 +826,9 @@ DEFPY(seamless_bfd_init_enable,
 	}
 
 	/*then config sbfd initiator*/
-    nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_CREATE, NULL);
-    nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/remote-discr", NB_OP_MODIFY, discr_str);
-
-	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']/source-address", NB_OP_MODIFY, srcip_str);
+    nb_cli_enqueue_change(vty, "./sbfd[type='initiator']", NB_OP_CREATE, NULL);
+    nb_cli_enqueue_change(vty, "./sbfd[type='initiator']/remote-discr", NB_OP_MODIFY, discr_str);
+	nb_cli_enqueue_change(vty, "./sbfd[type='initiator']/source-address", NB_OP_MODIFY, srcip_str);
 
 	return nb_cli_apply_changes(vty, NULL);
 }
@@ -852,7 +851,7 @@ DEFPY(seamless_bfd_echo,
     int ret;
 
 	/* del sbfd initiator first */
-	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);
+	nb_cli_enqueue_change(vty, "./sbfd[type='initiator']", NB_OP_DESTROY, NULL);
 	ret = nb_cli_apply_changes(vty, NULL);
 	if (ret != NB_OK)
 	{
@@ -881,7 +880,7 @@ DEFPY(no_seamless_bfd,
 	  "seamless BFD\n")
 {
 	int ret;
-	nb_cli_enqueue_change(vty, "./sbfd[type='iniatior']", NB_OP_DESTROY, NULL);
+	nb_cli_enqueue_change(vty, "./sbfd[type='initiator']", NB_OP_DESTROY, NULL);
 	ret = nb_cli_apply_changes(vty, NULL);
 	if (ret != NB_OK)
 	{
