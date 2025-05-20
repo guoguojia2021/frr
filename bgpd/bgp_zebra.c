@@ -2158,7 +2158,10 @@ void bgp_zebra_instance_register(struct bgp *bgp)
 		bgp_zebra_advertise_all_vni(bgp, 1);
 
 	bgp_nht_register_nexthops(bgp);
-    bgp_zebra_srv6_manager_get_locator_all();
+
+	if (bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)
+		bgp_zebra_srv6_manager_get_locator_all();
+
 }
 
 /* Deregister this instance with Zebra. Invoked upon the instance
