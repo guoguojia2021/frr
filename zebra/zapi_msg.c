@@ -2941,7 +2941,7 @@ int zsend_srv6_manager_get_locator_sid_response(struct zserv *client,
 						  struct seg6_sid *sid)
 {
 	
-	struct stream *s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+	struct stream *s = stream_new_expandable(ZEBRA_MAX_PACKET_SIZ);
    if (sid == NULL) {
 		zclient_create_header(s, ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID, vrf_id);
 		zapi_srv6_locator_sid_encode(s, loc);
