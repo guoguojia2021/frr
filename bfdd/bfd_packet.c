@@ -229,7 +229,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 		if(bfd->stats.tx_fail_pkt <= 1){
 			char dst[INET6_ADDRSTRLEN] = {0};
 			inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
-			zlog_err("sbfd echo send failed, bfd_name:%s, dst:%s, errno:%s", bfd->bfd_name, dst, safe_strerror(errno));
+			zlog_err("sbfd echo send failed, local-discr:%u,remote-discr:%u,bfd_name:%s,dst:%s,errno:%s", bfd->discrs.my_discr, bfd->discrs.remote_discr, bfd->bfd_name, dst, safe_strerror(errno));
 		}
 
 		bfd->stats.tx_fail_pkt++;
@@ -239,7 +239,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 	if(bfd->stats.tx_fail_pkt > 0){
 		char dst[INET6_ADDRSTRLEN] = {0};
 		inet_ntop(AF_INET6, seg_num > 0?segment_list: (&bfd->key.peer), dst, sizeof(dst));
-		zlog_warn("sbfd echo send success, bfd_name:%s, dst:%s, previous tx_fail_pkt:%d", bfd->bfd_name, dst, (int)bfd->stats.tx_fail_pkt);
+		zlog_warn("sbfd echo send success, local-discr:%u,remote-discr:%u,bfd_name:%s,dst:%s,previous tx_fail_pkt:%d", bfd->discrs.my_discr, bfd->discrs.remote_discr, bfd->bfd_name, dst, (int)bfd->stats.tx_fail_pkt);
 	}
 	bfd->stats.tx_fail_pkt = 0;
 
@@ -382,7 +382,7 @@ int sbfd_echo_hw_offload_delay_cb(struct thread *t)
 	bs->echo_hw_xmt_TO = bs->timers.desired_min_echo_tx;
 	bs->echo_hw_detect_TO = bs->detect_mult * bs->echo_hw_xmt_TO;
 
-    zlog_info("start offload hw,bfd_name:%s, echo_hw_xmt_TO:%llu, echo_hw_detect_TO:%llu",bs->bfd_name,bs->echo_hw_xmt_TO,bs->echo_hw_detect_TO);
+    zlog_info("start offload hw, local-discr:%u, remote-discr:%u, bfd_name:%s, echo_hw_xmt_TO:%llu, echo_hw_detect_TO:%llu",bs->discrs.my_discr,bs->discrs.remote_discr,bs->bfd_name,bs->echo_hw_xmt_TO,bs->echo_hw_detect_TO);
 
 	/* update sbfd status */
 	sbfd_echo_state_handler(bs, PTM_BFD_UP);
@@ -445,7 +445,7 @@ static int ptm_bfd_process_echo_pkt(struct bfd_vrf_global *bvrf, int s)
 			/* delay sbfd echo xmt */
             if (!bfd->sbfd_echo_hw_offload_delay && !CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
             {
-				zlog_info("soft bfd session up,add offload hw timer,bfd_name:%s",bfd->bfd_name);
+				zlog_info("soft bfd session up,add offload hw timer,local-discr:%u,remote-discr:%u,bfd_name:%s",bfd->discrs.my_discr,bfd->discrs.remote_discr,bfd->bfd_name);
 				SET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
                 thread_add_timer(master, sbfd_echo_hw_offload_delay_cb, bfd, SBFD_ECHO_HW_OFFLOAD_DELAY_TIMER, &bfd->sbfd_echo_hw_offload_delay);
             }
@@ -1138,13 +1138,13 @@ int bp_bfd_echo_in(struct bfd_vrf_global *bvrf, int sd,
 	*my_discr = ntohl(bep->my_discr);
 	if (*my_discr == 0) {
 		cp_debug(false, &peer, &local, ifindex, vrfid,
-			 "echo packet discriminator (zero)");
+			 "echo packet local discriminator (zero),remote discriminator (%u)",ntohl(bep->remote_discr));
 	}
 
 	*remote_discr = ntohl(bep->remote_discr);
 	if (*remote_discr == 0) {
 		cp_debug(false, &peer, &local, ifindex, vrfid,
-			 "echo packet discriminator (zero)");
+			 "echo packet remote discriminator (zero),local discriminator (%u)",ntohl(bep->my_discr));
 	}
 
 	return 0;

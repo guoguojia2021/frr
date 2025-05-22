@@ -797,6 +797,7 @@ void ptm_sbfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO) && bfd->sbfd_echo_hw_offload_delay)
 	{
 		THREAD_OFF(bfd->sbfd_echo_hw_offload_delay);
+		UNSET_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
 	}
 
 	/* only signal clients when going from up->down state */
@@ -2243,6 +2244,10 @@ const char *bs_to_string(const struct bfd_session *bs)
 	bool is_mhop = CHECK_FLAG(bs->flags, BFD_SESS_FLAG_MH);
 
 	pos = snprintf(buf, sizeof(buf), "mhop:%s", is_mhop ? "yes" : "no");
+	pos += snprintf(buf + pos, sizeof(buf) - pos, " local-discr:%u",
+			bs->discrs.my_discr);
+	pos += snprintf(buf + pos, sizeof(buf) - pos, " remote-discr:%u",
+			bs->discrs.remote_discr);
 	pos += snprintf(buf + pos, sizeof(buf) - pos, " peer:%s",
 			inet_ntop(bs->key.family, &bs->key.peer, addr_buf,
 				  sizeof(addr_buf)));
