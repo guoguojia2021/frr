@@ -954,6 +954,7 @@ static void test_finish(struct test *test)
 
 	/* Print machine-readable result of test. */
 	printf("%s\n", test->state == TEST_SUCCESS ? "OK" : "failed");
+	fflush(stdout);
 
 	/* Cleanup allocated memory. */
 	if (test->vty) {
