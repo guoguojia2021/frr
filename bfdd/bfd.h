@@ -220,9 +220,7 @@ struct bfd_key {
 
 struct bfd_session_stats {
 	uint64_t rx_ctrl_pkt;
-    uint64_t hw_rx_ctrl_pkt;
 	uint64_t tx_ctrl_pkt;
-    uint64_t hw_tx_ctrl_pkt;
 	uint64_t rx_echo_pkt;
 	uint64_t tx_echo_pkt;
 	uint64_t session_up;

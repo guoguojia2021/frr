@@ -37,7 +37,6 @@
 #include "lib/version.h"
 #include "lib/command.h"
 #include "bfd_fpm.h"
-#include "bfd_db.h"
 
 /*
  * FRR related code.
@@ -398,12 +397,11 @@ int main(int argc, char *argv[])
 	bfd_vrf_init();
 
 	access_list_init();
-    bfd_db_init();
 
 	/* Initialize zebra connection. */
 	bfdd_zclient_init(&bglobal.bfdd_privs);
     
-    bfpm_init(master);
+	bfpm_init(master);
 
 	thread_add_read(master, control_accept, NULL, bglobal.bg_csock,
 			&bglobal.bg_csockev);

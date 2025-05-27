@@ -476,8 +476,6 @@ static int bfpm_read_cb(struct thread *thread)
 			{
 				bs->stats.rx_echo_pkt += data.recvCount;
 				bs->stats.tx_echo_pkt += data.sendCount;
-				bs->stats.hw_rx_ctrl_pkt = 0;
-				bs->stats.hw_tx_ctrl_pkt = 0;
 				bs->echo_hw_xmt_TO = 0;
 				bs->echo_hw_detect_TO = 0;
 				bfd_fpm_peer_sendmsg(bs, false);
@@ -489,8 +487,6 @@ static int bfpm_read_cb(struct thread *thread)
 			{
 				bs->stats.rx_ctrl_pkt += data.recvCount;
 				bs->stats.tx_ctrl_pkt += data.sendCount;
-				bs->stats.hw_rx_ctrl_pkt = 0;
-				bs->stats.hw_tx_ctrl_pkt = 0;
 				bfd_fpm_peer_sendmsg(bs, false);
 				bfd_notify_down(bs);
 				ptm_bfd_start_xmt_timer(bs, false);

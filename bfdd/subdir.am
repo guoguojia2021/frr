@@ -25,7 +25,6 @@ bfdd_libbfd_a_SOURCES = \
 	bfdd/event.c \
 	bfdd/ptm_adapter.c \
 	bfdd/bfd_fpm.c \
-	bfdd/bfd_db.c \
 	# end
 
 # Install headers so it can be used by external data plane
@@ -45,7 +44,6 @@ noinst_HEADERS += \
 	bfdd/bfdd_nb.h \
 	bfdd/bfd.h \
 	bfdd/bfd_fpm_private.h \
-	bfdd/bfd_db.h \
 	# end
 
 nodist_bfdd_bfdd_SOURCES = \

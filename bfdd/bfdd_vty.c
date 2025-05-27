@@ -27,7 +27,6 @@
 #include "lib/vty.h"
 
 #include "bfd.h"
-#include "bfd_db.h"
 
 #ifndef VTYSH_EXTRACT_PL
 #include "bfdd/bfdd_vty_clippy.c"
@@ -639,11 +638,6 @@ static void _display_peer_counter(struct vty *vty, struct bfd_session *bs)
 {
 	_display_peer_header(vty, bs);
 
-    if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
-	{
-        bfd_Db_GetSessStatus(bs);
-	}
-		
 	/* Ask data plane for updated counters. */
 	if (bfd_dplane_update_session_counters(bs) == -1)
 	{
@@ -651,11 +645,10 @@ static void _display_peer_counter(struct vty *vty, struct bfd_session *bs)
 			   __func__, bs_to_string(bs));
 	}
 
-
 	vty_out(vty, "\t\tControl packet input: %" PRIu64 " packets\n",
-		bs->stats.rx_ctrl_pkt + bs->stats.hw_rx_ctrl_pkt);
+		bs->stats.rx_ctrl_pkt);
 	vty_out(vty, "\t\tControl packet output: %" PRIu64 " packets\n",
-		bs->stats.tx_ctrl_pkt + bs->stats.hw_tx_ctrl_pkt);
+		bs->stats.tx_ctrl_pkt);
 	vty_out(vty, "\t\tEcho packet input: %" PRIu64 " packets\n",
 		bs->stats.rx_echo_pkt);
 	vty_out(vty, "\t\tEcho packet output: %" PRIu64 " packets\n",
@@ -676,11 +669,6 @@ static struct json_object *__display_peer_counters_json(struct bfd_session *bs)
 {
 	struct json_object *jo = _peer_json_header(bs);
 
-    if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_SENDCREATE))
-	{
-        bfd_Db_GetSessStatus(bs);
-	}
-		
 	/* Ask data plane for updated counters. */
 	if (bfd_dplane_update_session_counters(bs) == -1)
 	{
@@ -688,8 +676,8 @@ static struct json_object *__display_peer_counters_json(struct bfd_session *bs)
 			   __func__, bs_to_string(bs));
 	}
 
-	json_object_int_add(jo, "control-packet-input", bs->stats.rx_ctrl_pkt + bs->stats.hw_rx_ctrl_pkt);
-	json_object_int_add(jo, "control-packet-output", bs->stats.tx_ctrl_pkt + bs->stats.hw_tx_ctrl_pkt);
+	json_object_int_add(jo, "control-packet-input", bs->stats.rx_ctrl_pkt);
+	json_object_int_add(jo, "control-packet-output", bs->stats.tx_ctrl_pkt);
 	json_object_int_add(jo, "echo-packet-input", bs->stats.rx_echo_pkt);
 	json_object_int_add(jo, "echo-packet-output", bs->stats.tx_echo_pkt);
 	json_object_int_add(jo, "session-up", bs->stats.session_up);
