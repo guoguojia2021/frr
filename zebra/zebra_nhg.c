@@ -4173,7 +4173,7 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 
 		depend = rb_node_dep->nhe;
 		id = depend->id;
-		if (IS_ZEBRA_DEBUG_FPMSYNCD)
+		if (IS_ZEBRA_DEBUG_KERNEL)
 			zlog_debug("%s: depend id=%d flags=0x%x", __func__, depend->id, depend->flags);
 
 		if (!zebra_nhg_segdepends_is_empty(depend)) {
@@ -4181,7 +4181,7 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 			i = zebra_nhg_seg_nhe2grp_internal(grp, i, depend, max_num);
 		} else {
 			if (!CHECK_FLAG(depend->flags, NEXTHOP_GROUP_VALID)) {
-				if (IS_ZEBRA_DEBUG_FPMSYNCD)
+				if (IS_ZEBRA_DEBUG_KERNEL)
 					zlog_debug(
 						"%s: Segment Nexthop ID (%u) not valid, not appending to dataplane install group",
 						__func__, depend->id);
@@ -4197,7 +4197,7 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 			}
 
 			if (duplicate) {
-				if (IS_ZEBRA_DEBUG_FPMSYNCD)
+				if (IS_ZEBRA_DEBUG_KERNEL)
 					zlog_debug(
 						"%s: Segment Nexthop ID (%u) is duplicate, not appending to dataplane install group",
 						__func__, depend->id);
@@ -4212,7 +4212,7 @@ static uint8_t zebra_nhg_seg_nhe2grp_internal(struct nh_grp *grp,
 				grp[i].is_backup = 0;
 
 			i++;
-			if (IS_ZEBRA_DEBUG_FPMSYNCD)
+			if (IS_ZEBRA_DEBUG_KERNEL)
 				zlog_debug("%s: group id %d grp[%d] id=%d ", __func__, id, i, depend->id);
 		}
 	}

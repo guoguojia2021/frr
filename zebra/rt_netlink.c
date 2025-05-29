@@ -2194,9 +2194,6 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 		 || is_proto_nhg(dplane_ctx_get_nhe_id(ctx), 0)))
 	    || (fpm && force_nhg)) {
 		/* Kernel supports nexthop objects */
-		if (IS_ZEBRA_DEBUG_KERNEL)
-			zlog_debug("%s: %pFX nhg_id is %u, fpm:%d", __func__, p,
-				   dplane_ctx_get_nhe_id(ctx), fpm);
 
 		if (!nl_attr_put32(&req->n, datalen, RTA_NH_ID,
 				   dplane_ctx_get_nhe_id(ctx)))
@@ -2229,6 +2226,10 @@ ssize_t netlink_route_multipath_msg_encode(int cmd,
 				   pic_nh_id))
 				return 0;
 		}
+		if (IS_ZEBRA_DEBUG_FPMSYNCD)
+			zlog_debug("%s: %pFX vrf %u(%u) nhe_id=%u pic_nh_id=%u fpm=%d", __func__, p,
+				dplane_ctx_get_vrf(ctx), table_id,
+				dplane_ctx_get_nhe_id(ctx), pic_nh_id, fpm);
 
 		return NLMSG_ALIGN(req->n.nlmsg_len);
 	}
@@ -2633,7 +2634,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				/* Don't need anymore info for this */
 				break;
 			}
-			if (IS_ZEBRA_DEBUG_FPMSYNCD)
+			if (IS_ZEBRA_DEBUG_KERNEL)
 				zlog_debug("%s: ID (%u): %pNHv(%d) vrf %s(%u) sidlist_name %s fpm %s flag %d discriminator %u",
 						__func__, id, nh, nh->ifindex,
 						vrf_id_to_name(nh->vrf_id),
@@ -2878,7 +2879,7 @@ nexthop_done:
 		return -1;
 	}
 	if (IS_ZEBRA_DEBUG_FPMSYNCD)
-		zlog_debug("%s: %s, id=%u", __func__, nl_msg_type_to_str(cmd),
+		zlog_debug("%s: %s, nhe_id=%u", __func__, nl_msg_type_to_str(cmd),
 			   id);
 
 	return NLMSG_ALIGN(req->n.nlmsg_len);

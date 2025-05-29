@@ -631,8 +631,8 @@ nexthop_done:
 		return NULL;
 	}
 
-	if (IS_ZEBRA_DEBUG_KERNEL)
-		zlog_debug("%s: %s, id=%u", __func__, nl_msg_type_to_str(cmd),
+	if (IS_ZEBRA_DEBUG_FPMSYNCD)
+		zlog_debug("%s: %s, nhe_id=%u", __func__, nl_msg_type_to_str(cmd),
 			   id);
 	return nhg;
 }
