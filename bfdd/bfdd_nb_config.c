@@ -28,6 +28,7 @@
 #include "bfd.h"
 #include "bfdd_nb.h"
 #include <ifaddrs.h>
+#include "bfd_fpm.h"
 
 
 /*
@@ -907,6 +908,33 @@ int bfdd_bfd_sessions_single_hop_profile_destroy(
 	return NB_OK;
 }
 
+static void bfd_session_set_attr(struct bfd_session *bs)
+{
+	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	{
+		if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS) && bs->ses_state == PTM_BFD_UP)
+		{
+			bs->echo_hw_xmt_TO = bs->timers.desired_min_echo_tx;
+			bs->echo_hw_detect_TO = bs->echo_hw_xmt_TO * bs->detect_mult;
+			bfd_fpm_peer_sendmsg(bs, true);
+		}
+	}
+	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT))
+	{
+		if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_CREATE_SUCCESS) && bs->ses_state == PTM_BFD_UP)
+		{
+			bs->xmt_TO = bs->timers.desired_min_tx;
+			bs->detect_TO = bs->xmt_TO * bs->detect_mult;
+			bfd_fpm_peer_sendmsg(bs, true);
+		}
+	}
+	else
+	{
+		ptm_bfd_start_xmt_timer(bs, false);
+		bfd_recvtimer_update(bs);
+	}
+}
+
 /*
  * XPath: /frr-bfdd:bfdd/bfd/sessions/single-hop/detection-multiplier
  */
@@ -928,6 +956,7 @@ int bfdd_bfd_sessions_single_hop_detection_multiplier_modify(
 		bs = nb_running_get_entry(args->dnode, NULL, true);
 		bs->peer_profile.detection_multiplier = detection_multiplier;
 		bfd_session_apply(bs);
+		bfd_session_set_attr(bs);
 		break;
 
 	case NB_EV_ABORT:
@@ -964,6 +993,7 @@ int bfdd_bfd_sessions_single_hop_desired_transmission_interval_modify(
 
 		bs->peer_profile.min_tx = tx_interval;
 		bfd_session_apply(bs);
+		bfd_session_set_attr(bs);
 		break;
 
 	case NB_EV_ABORT:
@@ -1000,6 +1030,7 @@ int bfdd_bfd_sessions_single_hop_required_receive_interval_modify(
 
 		bs->peer_profile.min_rx = rx_interval;
 		bfd_session_apply(bs);
+		bfd_session_set_attr(bs);
 		break;
 
 	case NB_EV_ABORT:
@@ -1199,6 +1230,7 @@ int bfdd_bfd_sessions_single_hop_desired_echo_transmission_interval_modify(
 
 		bs->peer_profile.min_echo_tx = echo_interval;
 		bfd_session_apply(bs);
+		bfd_session_set_attr(bs);
 		break;
 
 	case NB_EV_ABORT:
@@ -1238,6 +1270,7 @@ int bfdd_bfd_sessions_single_hop_required_echo_receive_interval_modify(
 
 		bs->peer_profile.min_echo_rx = echo_interval;
 		bfd_session_apply(bs);
+		bfd_session_set_attr(bs);
 		break;
 
 	case NB_EV_ABORT:

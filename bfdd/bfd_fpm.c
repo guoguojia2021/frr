@@ -998,8 +998,11 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		data->src_port = htons(BFD_DEFDESTPORT);
 		data->dest_port = htons(BFD_DEF_ECHO_PORT);
 		data->bpc_type = BPC_TYPE_SBFD_ECHO;
+		data->bpc_detectmultiplier = bfd->detect_mult;
 		data->bpc_txinterval = htonl((uint32_t)bfd->echo_hw_xmt_TO);
 		data->bpc_recvinterval = htonl((uint32_t)bfd->echo_hw_detect_TO / bfd->detect_mult);
+		data->desired_tx_interval = htonl((uint32_t)bfd->timers.desired_min_echo_tx);
+		data->desired_rx_interval = htonl((uint32_t)bfd->timers.required_min_echo_rx);
 		data->discrs.remote_discr = htonl(bfd->discrs.my_discr);
 
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
@@ -1016,6 +1019,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 	}
+	zlog_debug("bfd_peer_sendmsg: tx: %u, rx:%u, desiredTx:%u, desiredRx:%u", ntohl(data->bpc_txinterval), ntohl(data->bpc_recvinterval), ntohl(data->desired_tx_interval), ntohl(data->desired_rx_interval));
 
 	strlcpy(data->bfd_name, bfd->bfd_name, MAXNAMELEN);
 
