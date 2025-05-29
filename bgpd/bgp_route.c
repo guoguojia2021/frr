@@ -11547,6 +11547,60 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 				vty_out(vty, "\n");
 			}
 		}
+		else
+		{
+			for(nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next) {
+				switch (nexthop->type) {
+				case NEXTHOP_TYPE_IPV6:
+				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+					json_object_string_addf(json_path, "Relay-Nexthop(ip)", "gate %s",
+							inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, sizeof(buf)));
+					break;
+				case NEXTHOP_TYPE_IPV6_IFINDEX:
+					json_object_string_addf(json_path, "Relay-Nexthop(ip)", "gate %s, if %s",
+							inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, sizeof(buf)),
+							ifindex2ifname(bnc->ifindex ? bnc->ifindex : nexthop->ifindex, bgp->vrf_id));
+					break;
+				case NEXTHOP_TYPE_IPV4:
+				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+					json_object_string_addf(json_path, "Relay-Nexthop(ip)", "gate %s",
+							inet_ntop(AF_INET, &nexthop->gate.ipv4, buf, sizeof(buf)));
+					break;
+				case NEXTHOP_TYPE_IFINDEX:
+					json_object_string_addf(json_path, "Relay-Nexthop(ip)", "if %s",
+							ifindex2ifname(bnc->ifindex ? bnc->ifindex : nexthop->ifindex, bgp->vrf_id));
+					break;
+				case NEXTHOP_TYPE_IPV4_IFINDEX:
+					json_object_string_addf(json_path, "Relay-Nexthop(ip)", "gate %s, if %s",
+							inet_ntop(AF_INET, &nexthop->gate.ipv4, buf, sizeof(buf)),
+							ifindex2ifname(bnc->ifindex ? bnc->ifindex : nexthop->ifindex, bgp->vrf_id));
+					break;
+				case NEXTHOP_TYPE_BLACKHOLE:
+					json_object_string_add(json_path, "Relay-Nexthop(ip)", "blackhole");
+					break;
+				default:
+					json_object_string_add(json_path, "Relay-Nexthop(ip)", "invalid nexthop type");
+				}
+			}
+
+			if (path->te_nexthop)
+			{
+				bnc = path->te_nexthop;
+				if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
+					json_object_string_addf(json_path, "Relay-Nexthop(tunnel)", "srv6-tunnel:%s|%u(endpoint|color)",
+							inet_ntop(bnc->resolve_prefix.family, &bnc->resolve_prefix.u.prefix, buf, sizeof(buf)),
+							bnc->srte_color);
+			}
+
+			if (path->te_backup_nexthop)
+			{
+				bnc = path->te_backup_nexthop;
+				if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
+					json_object_string_addf(json_path, "Relay-Nexthop(backup-tunnel)", "srv6-tunnel:%s|%u(endpoint|color)",
+							inet_ntop(bnc->resolve_prefix.family, &bnc->resolve_prefix.u.prefix, buf, sizeof(buf)),
+							bnc->srte_color);
+			}
+		}
 	}
 
 	/* display the link-local nexthop */
