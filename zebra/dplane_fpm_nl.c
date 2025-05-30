@@ -715,6 +715,7 @@ static int fpm_connect(struct thread *t)
 	return 0;
 }
 
+#define DPLANE_FPM_NL_BUF_SIZE 65536
 /**
  * Encode data plane operation context into netlink and enqueue it in the FPM
  * output buffer.
@@ -725,7 +726,7 @@ static int fpm_connect(struct thread *t)
  */
 static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 {
-	uint8_t nl_buf[NL_PKT_BUF_SIZE];
+	uint8_t nl_buf[DPLANE_FPM_NL_BUF_SIZE];
 	size_t nl_buf_len;
 	ssize_t rv;
 	uint64_t obytes, obytes_peak;
@@ -1379,7 +1380,7 @@ static int fpm_process_queue(struct thread *t)
 
 	while (true) {
 		/* No space available yet. */
-		if (STREAM_WRITEABLE(fnc->obuf) < NL_PKT_BUF_SIZE) {
+		if (STREAM_WRITEABLE(fnc->obuf) < DPLANE_FPM_NL_BUF_SIZE) {
 			no_bufs = true;
 			break;
 		}
@@ -1512,8 +1513,8 @@ static int fpm_nl_start(struct zebra_dplane_provider *prov)
 	fnc = dplane_provider_get_data(prov);
 	fnc->fthread = frr_pthread_new(NULL, prov_name, prov_name);
 	assert(frr_pthread_run(fnc->fthread, NULL) == 0);
-	fnc->ibuf = stream_new(NL_PKT_BUF_SIZE);
-	fnc->obuf = stream_new(NL_PKT_BUF_SIZE * 128);
+	fnc->ibuf = stream_new(DPLANE_FPM_NL_BUF_SIZE);
+	fnc->obuf = stream_new(DPLANE_FPM_NL_BUF_SIZE * 128);
 	pthread_mutex_init(&fnc->obuf_mutex, NULL);
 	fnc->socket = -1;
 	fnc->disabled = true;
