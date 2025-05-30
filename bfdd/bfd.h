@@ -348,6 +348,7 @@ struct bfd_session {
 	bool   allow_offload;
 	struct sockaddr_any outer_dip; /* packet outer dip before srv6 encap, can be IPv4 or IPv6 */
 	struct in6_addr out_sip6;      /* packet sip for srv6 encap, IPv6 */
+	struct in6_addr inner_sip;     /* due to cisco NPU limitation, SBFD-ECHO use a random inner_sip instead of bfd_key.local for traffic ecmp*/
 	struct in6_addr seg_list[0];   /* packet sidlist for srv6 encap, IPv6 or IPv6 list */
 };
 #define BFD_HWFLAG_SENDCREATE         (1 << 0)

@@ -974,8 +974,14 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 	data->bpc_recvinterval = htonl((uint32_t)bfd->detect_TO / bfd->remote_detect_mult);
 	data->desired_tx_interval = htonl((uint32_t)bfd->timers.desired_min_tx);
 	data->desired_rx_interval = htonl((uint32_t)bfd->timers.required_min_rx);
-	inet_ntop(bfd->key.family, &bfd->key.local, data->bpc_local,
-		  sizeof(data->bpc_local));
+	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO)) {
+		inet_ntop(bfd->key.family, &bfd->inner_sip, data->bpc_local,
+			sizeof(data->bpc_local));
+	} else {
+		inet_ntop(bfd->key.family, &bfd->key.local, data->bpc_local,
+			sizeof(data->bpc_local));
+	}
+
 	inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_peer,
 		  sizeof(data->bpc_peer));
 

@@ -220,7 +220,7 @@ int _ptm_sbfd_echo_send(struct bfd_session *bfd, const void *data, size_t datale
 
 	sd = bfd->sock;
 
-	local = bfd->key.local;
+	local = bfd->inner_sip;
 	peer = bfd->key.peer;
 
     if (bp_raw_sbfd_red_send(sd, (uint8_t *)data, datalen, bfd->key.family, &bfd->out_sip6, &local, &peer,

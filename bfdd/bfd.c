@@ -98,6 +98,35 @@ static void bfd_profile_set_default(struct bfd_profile *bp)
 	bp->min_tx = BFD_DEFDESIREDMINTX;
 }
 
+static void sbfd_generate_packet_inner_sip(struct bfd_session * bs)
+{
+	struct sockaddr_any sa = {0};
+
+	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD) {
+		memcpy(&bs->inner_sip, &bs->key.local, sizeof(struct in6_addr));
+		return;
+	}
+
+	if (bs->bfd_mode == BFD_MODE_TYPE_SBFD_ECHO) {
+		//create packet inner sip for sbfd_echo
+		//1) for ipv4, inner sip = 169.254.0.0/16 + lower 16bits of my_discr
+		//2) for ipv6, inner sip = fe80::/10 + my_discr
+		if (bs->key.family == AF_INET) {
+			inet_pton(AF_INET, "169.254.0.0", &sa.sa_sin.sin_addr);
+			bs->inner_sip.__in6_u.__u6_addr32[0] = sa.sa_sin.sin_addr.s_addr;
+			bs->inner_sip.__in6_u.__u6_addr16[1] = htons(0xFFFF&bs->discrs.my_discr);
+			return;
+		}
+
+		if (bs->key.family == AF_INET6) {
+			inet_pton(AF_INET6, "fe80::", &sa.sa_sin6.sin6_addr);
+			memcpy(&bs->inner_sip, &sa.sa_sin6.sin6_addr, sizeof(struct in6_addr));
+			bs->inner_sip.__in6_u.__u6_addr32[3] = htonl(bs->discrs.my_discr);
+			return;
+		}
+	}
+}
+
 struct bfd_profile *bfd_profile_new(const char *name)
 {
 	struct bfd_profile *bp;
@@ -452,6 +481,8 @@ int bfd_session_enable(struct bfd_session *bs)
 			zlog_err("bp_peer_srh_socketv6 error");
 			return 0;
 		}
+
+		sbfd_generate_packet_inner_sip(bs);
 	}
 	else if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_IPV6) == 0)
 	{
