@@ -457,8 +457,6 @@ static int bfpm_read_cb(struct thread *thread)
 		}
 	}
 
-    data.recvCount = stream_getq(ibuf);
-    data.sendCount = stream_getq(ibuf);
     STREAM_GETL(ibuf, data.remote_discr);
     STREAM_GET(data.bpc_peer, ibuf, INET6_ADDRSTRLEN);
     STREAM_GET(data.bfd_name, ibuf, MAXNAMELEN + 1);
@@ -474,8 +472,6 @@ static int bfpm_read_cb(struct thread *thread)
 
 			if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 			{
-				bs->stats.rx_echo_pkt += data.recvCount;
-				bs->stats.tx_echo_pkt += data.sendCount;
 				bs->echo_hw_xmt_TO = 0;
 				bs->echo_hw_detect_TO = 0;
 				bfd_fpm_peer_sendmsg(bs, false);
@@ -485,8 +481,6 @@ static int bfpm_read_cb(struct thread *thread)
 			}
 			else
 			{
-				bs->stats.rx_ctrl_pkt += data.recvCount;
-				bs->stats.tx_ctrl_pkt += data.sendCount;
 				bfd_fpm_peer_sendmsg(bs, false);
 				bfd_notify_down(bs);
 				ptm_bfd_start_xmt_timer(bs, false);
