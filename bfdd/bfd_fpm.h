@@ -79,7 +79,7 @@ typedef struct bfd_msg_data_t_
 	uint8_t ttl;
 	uint8_t bpc_type;
 	char bpc_segment[MAXNAMELEN + 1];
-	char bpc_endpoint[INET6_ADDRSTRLEN];
+	char bpc_encap_src_ipv6[INET6_ADDRSTRLEN];
 	char bfd_name[MAXNAMELEN + 1];
 
 } bfd_msg_data_t;

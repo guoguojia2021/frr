@@ -1014,6 +1014,8 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
 
+		inet_ntop(AF_INET6, &bfd->out_sip6, data->bpc_encap_src_ipv6, sizeof(data->bpc_encap_src_ipv6));
+
 	}
 
 	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT))
@@ -1024,6 +1026,7 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 
 		extract_segment_from_addr_list(data->bpc_segment, MAXNAMELEN, bfd->seg_list, bfd->segnum);
 		zlog_debug("bfd_peer_sendmsg: segment: %s, sport:%d, dport:%d", data->bpc_segment, htons(data->src_port), htons(data->dest_port));
+		inet_ntop(AF_INET6, &bfd->out_sip6, data->bpc_encap_src_ipv6, sizeof(data->bpc_encap_src_ipv6));
 	}
 	zlog_debug("bfd_peer_sendmsg: tx: %u, rx:%u, desiredTx:%u, desiredRx:%u", ntohl(data->bpc_txinterval), ntohl(data->bpc_recvinterval), ntohl(data->desired_tx_interval), ntohl(data->desired_rx_interval));
 
