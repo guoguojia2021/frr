@@ -7,11 +7,28 @@ This builds an ubuntu 20.04 container for dev / test
 ```
 docker build -t frr-ubuntu20:latest  -f docker/ubuntu20-ci/Dockerfile .
 ```
+## With http proxy
 
+```
+docker build  \
+  --build-arg HTTP_PROXY=$http_proxy \
+  --build-arg HTTPS_PROXY=$https_proxy \
+  -t frr-ubuntu20:latest  -f docker/ubuntu20-ci/Dockerfile .
+```
 # Running
 
 ```
 docker run -d --privileged --name frr-ubuntu20 --mount type=bind,source=/lib/modules,target=/lib/modules frr-ubuntu20:latest
+```
+
+## With tests dir mount
+```
+docker run -d \
+  --privileged \
+  --name frr-ubuntu20 \
+  -v /lib/modules:/lib/modules \
+  -v $(pwd)/tests/topotests:/home/frr/frr/tests/topotests \
+  frr-ubuntu20:latest
 ```
 
 # make check

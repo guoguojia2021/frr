@@ -42,8 +42,11 @@ def setup_module(mod):
 
     # For all registred routers, load the zebra configuration file
     for rname, router in router_list.items():
-        router.load_frr_config(
-            os.path.join(CWD, "{}/frr.conf".format(rname))
+        router.load_config(
+            TopoRouter.RD_ZEBRA, os.path.join(CWD, "{}/zebra.conf".format(rname))
+        )
+        router.load_config(
+            TopoRouter.RD_BGP, os.path.join(CWD, "{}/bgpd.conf".format(rname))
         )
         if rname != "r1":
             router.load_config(
@@ -75,7 +78,7 @@ def test_ebgp_peers():
         expected = json.loads(open(ref_file).read())
         test_func = partial(topotest.router_json_cmp,
                             router, 'show bgp neighbors json', expected)
-        _, res = topotest.run_and_expect(test_func, None, count=10, wait=1)
+        _, res = topotest.run_and_expect(test_func, None, count=10, wait=2)
         assertmsg = '{}: bgp did not established'.format(router.name)
         assert res is None, assertmsg
 
