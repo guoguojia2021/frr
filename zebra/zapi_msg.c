@@ -1199,7 +1199,7 @@ int zsend_zebra_srv6_locator_delete(struct zserv *client,
 /* Inbound message handling ------------------------------------------------ */
 
 /* Nexthop register */
-static void zread_rnh_register(ZAPI_HANDLER_ARGS)
+void zread_rnh_register(ZAPI_HANDLER_ARGS)
 {
 	struct rnh *rnh;
 	struct stream *s;
@@ -1321,7 +1321,7 @@ stream_failure:
 }
 
 /* Nexthop register */
-static void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
+void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 {
 	struct rnh *rnh;
 	struct stream *s;
@@ -2158,7 +2158,7 @@ static void zread_nhg_add(ZAPI_HANDLER_ARGS)
 
 }
 
-static void zread_route_add(ZAPI_HANDLER_ARGS)
+void zread_route_add(ZAPI_HANDLER_ARGS)
 {
 	struct stream *s;
 	struct zapi_route api;
@@ -2341,7 +2341,7 @@ void zapi_opaque_free(struct opaque *opaque)
 	XFREE(MTYPE_OPAQUE, opaque);
 }
 
-static void zread_route_del(ZAPI_HANDLER_ARGS)
+void zread_route_del(ZAPI_HANDLER_ARGS)
 {
 	struct stream *s;
 	struct zapi_route api;
@@ -2793,7 +2793,7 @@ static void zread_sr_policy_delete(ZAPI_HANDLER_ARGS)
 	zebra_sr_policy_delete_by_prefix(policy);
 }
 
-static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
+void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 {
 	struct stream *s;
 	struct zapi_sr_policy zp;
@@ -2839,7 +2839,7 @@ static void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
     zebra_srv6_policy_validate(policy, &zp.srv6_tunnel, new_flag);
 }
 
-static void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
+void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 {
 	struct stream *s;
 	struct zapi_sr_policy zp;

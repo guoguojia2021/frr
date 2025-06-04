@@ -135,6 +135,14 @@ extern int zsend_srv6_manager_del_sid(struct zserv *client,
                               struct seg6_sid *sid);
 extern void zsend_srv6_encap_source_info(int cmd, struct in6_addr *src);
 
+void zread_srv6_policy_set(ZAPI_HANDLER_ARGS);
+void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS);
+void zread_route_add(ZAPI_HANDLER_ARGS);
+void zread_route_del(ZAPI_HANDLER_ARGS);
+void zread_rnh_register(ZAPI_HANDLER_ARGS);
+void zread_rnh_unregister(ZAPI_HANDLER_ARGS);
+
+
 #ifdef __cplusplus
 }
 #endif

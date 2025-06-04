@@ -542,7 +542,9 @@ int zserv_send_message(struct zserv *client, struct stream *msg)
 		stream_fifo_push(client->obuf_fifo, msg);
 	}
 
+#ifndef ZEBRA_UNIT_TESTING
 	zserv_client_event(client, ZSERV_CLIENT_WRITE);
+#endif
 
 	return 0;
 }
