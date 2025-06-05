@@ -105,6 +105,8 @@ static void show_ip_route_nht_dump(struct vty *vty, struct nexthop *nexthop,
 
 static void vty_show_inactive_route_debug_info(struct vty *vty, const struct nexthop *nexthop);
 
+static void vty_show_ip_route_nexthop_type_summary(struct vty *vty,
+					     struct route_table *table);
 DEFUN (ip_multicast_mode,
        ip_multicast_mode_cmd,
        "ip multicast rpf-lookup-mode <urib-only|mrib-only|mrib-then-urib|lower-distance|longer-prefix>",
@@ -5166,6 +5168,124 @@ DEFUN (no_zebra_track_route,
 	return CMD_SUCCESS;
 }
 
+DEFPY (show_route_nexthop_type_summary,
+       show_route_nexthop_type_summary_cmd,
+       "show <ip$ipv4|ipv6$ipv6> route [vrf <NAME$vrf_name|all$vrf_all>] \
+            nexthop-type summary",
+       SHOW_STR
+       IP_STR
+       IP6_STR
+       "IP routing table\n"
+       VRF_FULL_CMD_HELP_STR
+	   "Nexthop type summary\n"
+       "Summary of all routes\n")
+{
+	afi_t afi = ipv4 ? AFI_IP : AFI_IP6;
+	struct route_table *table;
+
+	if (vrf_all) {
+		struct vrf *vrf;
+		struct zebra_vrf *zvrf;
+
+		RB_FOREACH (vrf, vrf_name_head, &vrfs_by_name) {
+			if ((zvrf = vrf->info) == NULL)
+				continue;
+			table = zebra_vrf_table(afi, SAFI_UNICAST,
+						zvrf->vrf->vrf_id);
+
+			if (!table)
+				continue;
+
+			vty_show_ip_route_nexthop_type_summary(vty, table);
+		}
+	} else {
+		vrf_id_t vrf_id = VRF_DEFAULT;
+
+		if (vrf_name)
+			VRF_GET_ID(vrf_id, vrf_name, false);
+
+		table = zebra_vrf_table(afi, SAFI_UNICAST, vrf_id);
+		if (!table)
+			return CMD_SUCCESS;
+		vty_show_ip_route_nexthop_type_summary(vty, table);
+	}
+
+	return CMD_SUCCESS;
+}
+
+static void vty_show_ip_route_nexthop_type_summary(struct vty *vty,
+					     struct route_table *table)
+{
+	struct route_node *rn;
+	struct route_entry *re;
+	struct nexthop *nexthop;
+#define ZEBRA_ROUTE_IP        ZEBRA_ROUTE_MAX
+#define ZEBRA_ROUTE_VPN       (ZEBRA_ROUTE_IP + 1)
+#define ZEBRA_ROUTE_TE        (ZEBRA_ROUTE_VPN + 1)
+#define ZEBRA_ROUTE_ENTRY     (ZEBRA_ROUTE_TE + 1)
+	uint32_t re_cnt[ZEBRA_ROUTE_ENTRY + 1];
+	uint32_t next_cnt[ZEBRA_ROUTE_ENTRY + 1];
+	rib_dest_t *dest;
+
+	memset(&re_cnt, 0, sizeof(re_cnt));
+	memset(&next_cnt, 0, sizeof(next_cnt));
+
+	for (rn = route_top(table); rn; rn = srcdest_route_next(rn))
+		RNODE_FOREACH_RE (rn, re) {
+
+			dest = rib_dest_from_rnode(rn);
+			/*
+			 * In case of ECMP, count only once.
+			 */
+			if (re != dest->selected_fib)
+				continue;
+			if (!CHECK_FLAG(re->status, ROUTE_ENTRY_INSTALLED))
+				continue;
+
+			re_cnt[ZEBRA_ROUTE_ENTRY]++;
+			if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
+				re_cnt[ZEBRA_ROUTE_TE]++;
+			else if (re->nhe->pic_nhe)
+				re_cnt[ZEBRA_ROUTE_VPN]++;
+			else
+				re_cnt[ZEBRA_ROUTE_IP]++;
+
+			for (nexthop = re->nhe->nhg.nexthop; nexthop;
+			     nexthop = nexthop->next) {
+				if (!NEXTHOP_IS_ACTIVE(nexthop->flags))
+					continue;
+				next_cnt[ZEBRA_ROUTE_ENTRY]++;
+				if (nexthop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+					|| nexthop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+					next_cnt[ZEBRA_ROUTE_TE]++;
+				}
+				else if (nexthop->nh_srv6) {
+					next_cnt[ZEBRA_ROUTE_VPN]++;
+				}
+				else {
+					next_cnt[ZEBRA_ROUTE_IP]++;
+				}
+			}
+		}
+
+	vty_out(vty, "%-20s %-20s %s  (vrf %s)\n", "Nexthop Type",
+		"Route Entry", "Nexthop Count",
+		zvrf_alias_name(((struct rib_table_info *)
+					route_table_get_info(table))
+					->zvrf));
+
+	vty_out(vty, "%-20s %-20d %-20d \n",
+		"IP Route", re_cnt[ZEBRA_ROUTE_IP], next_cnt[ZEBRA_ROUTE_IP]);
+	vty_out(vty, "%-20s %-20d %-20d \n",
+		"VPN Route", re_cnt[ZEBRA_ROUTE_VPN], next_cnt[ZEBRA_ROUTE_VPN]);
+	vty_out(vty, "%-20s %-20d %-20d \n",
+		"SRTE Route", re_cnt[ZEBRA_ROUTE_TE], next_cnt[ZEBRA_ROUTE_TE]);
+
+	vty_out(vty, "------\n");
+	vty_out(vty, "%-20s %-20d %-20d \n", "Totals",
+		re_cnt[ZEBRA_ROUTE_ENTRY], next_cnt[ZEBRA_ROUTE_ENTRY]);
+	vty_out(vty, "\n");
+}
 
 /* IP node for static routes. */
 static int zebra_ip_config(struct vty *vty);
@@ -5336,4 +5456,5 @@ void zebra_vty_init(void)
 	install_element(VIEW_NODE, &show_pending_list_cmd);
 	install_element(CONFIG_NODE, &zebra_track_route_cmd);
 	install_element(CONFIG_NODE, &no_zebra_track_route_cmd);
+	install_element(VIEW_NODE, &show_route_nexthop_type_summary_cmd);
 }
