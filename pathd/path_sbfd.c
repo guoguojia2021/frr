@@ -68,9 +68,11 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 			}
 			if (candidate->segment_list == sbfd_event->segl)
 			{
-				zlog_info("SR-TE(%s, %u), sbfd update cpath:%s, status:%s->%s, pref:%u, has_bfd:%u",
-						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), cpath_status_str(status),
-						candidate->preference, policy->bfd_config != NULL);
+				if(IS_PATHD_DEBUG_SBFD) {
+					zlog_info("SR-TE(%s, %u), sbfd update cpath:%s, status:%s->%s, pref:%u, has_bfd:%u",
+							endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), cpath_status_str(status),
+							candidate->preference, policy->bfd_config != NULL);
+				}
 				cpath_status_refresh(candidate, status);
 				candidate->my_discriminator = sbfd_event->my_discriminator;
 				SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);
@@ -179,8 +181,8 @@ static int segment_list_down_handle(struct srte_sbfd_event *sbfd_event)
         srv6_choose_best_cpath_group(sbfd_event->policy);
 		return 0;
 	}
-	
-	zlog_info("segment_list_down_handle seglist:%s status update, policy status:%d->%d ignored", sbfd_event->segl->name, old_status, new_status);
+	if (IS_PATHD_DEBUG_SBFD)
+		zlog_info("segment_list_down_handle seglist:%s status update, policy status:%d->%d ignored", sbfd_event->segl->name, old_status, new_status);
 
 	return 0;	
 }

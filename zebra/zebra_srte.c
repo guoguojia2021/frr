@@ -758,6 +758,10 @@ int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy
 		srte_color_flag = 2;
 	stream_putc(s, srte_color_flag);
 
+	if (IS_ZEBRA_DEBUG_SEND) {
+		zlog_debug("%s: sending notification for %pRN, color %u, color_flag %u", __func__,
+			rn, rnh->srte_color, srte_color_flag);
+	}
 	num = 0;
 	if (policy && policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
 	{

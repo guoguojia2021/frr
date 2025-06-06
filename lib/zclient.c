@@ -3735,18 +3735,12 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 	STREAM_GET(&zp->binding_v6sid.ipaddr_v6, s, sizeof(struct in6_addr));
 
 	STREAM_GETC(s, zp->srv6_tunnel.path_num);
-	char endpoint[60];
-	prefix2str(&zp->endpoint, endpoint, sizeof(endpoint));
 	for (uint32_t i = 0; i < zt->path_num; i++)
 	{
 	    STREAM_GET(&zt->sidlists[i].sidlist_name, s, SRTE_SEGMENTLIST_NAME_MAX_LENGTH);
 		STREAM_GETL(s, zt->sidlists[i].flags);
 		STREAM_GETL(s, zt->sidlists[i].my_discriminator);
 		STREAM_GETC(s, zt->sidlists[i].weight);
-		zlog_debug("%s: endpoint %s, color %u, path_num %u, sidlist_name %s, flags 0x%x, my_discriminator %u, weight %u",
-			__func__, endpoint, zp->color, zt->path_num,
-			zt->sidlists[i].sidlist_name, zt->sidlists[i].flags,
-			zt->sidlists[i].my_discriminator, zt->sidlists[i].weight);
 	}
 
 	return 0;

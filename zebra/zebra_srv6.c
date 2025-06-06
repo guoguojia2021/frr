@@ -519,10 +519,11 @@ int zebra_route_add(struct in6_addr *result_sid, struct vrf *vrf, enum seg6local
 			nexthop_group_delete(&ng);
 		return ret;
 	}
-
-	zlog_debug("%s: adding seg6local action %s",
-		   __func__,
-		   seg6local_action2str(act));
+	if (IS_ZEBRA_DEBUG_RIB) {
+		zlog_debug("%s: adding seg6local action %s",
+			__func__,
+			seg6local_action2str(act));
+	}
 
 	nexthop_add_srv6_seg6local(nexthop, act, ctx);
 

@@ -2801,11 +2801,12 @@ void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 	struct zebra_sr_policy *policy = NULL;
     struct zebra_sr_policy *old_policy = NULL;
 	bool new_flag = false;
+	char endpoint[PREFIX2STR_BUFFER];
 
 	/* Get input stream.  */
 	s = msg;
 	if (zapi_srv6_policy_decode(s, &zp) < 0) {
-		if (IS_ZEBRA_DEBUG_RECV)
+		if (IS_ZEBRA_DEBUG_RECV_PATHD)
 			zlog_debug("%s: Unable to decode zapi_srv6_policy sent",
 				   __func__);
 		return;
@@ -2813,7 +2814,7 @@ void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 
 	zt = &zp.srv6_tunnel;
 	if (zt->path_num < 1 || zt->path_num > ZEBRA_SID_LIST_MAX_NUM) {
-		if (IS_ZEBRA_DEBUG_RECV)
+		if (IS_ZEBRA_DEBUG_RECV_PATHD)
 			zlog_debug(
 				"%s: SR-TE tunnel must contain at least one path and at most %d paths",
 				__func__, ZEBRA_SID_LIST_MAX_NUM);
@@ -2835,6 +2836,11 @@ void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 	}
     
     policy->zvrf = zvrf;
+	if (IS_ZEBRA_DEBUG_RECV_PATHD) {
+		prefix2str(&zp.endpoint, endpoint, sizeof(endpoint));
+		zlog_debug("%s: endpoint %s, color %u %s",__func__,
+			endpoint, policy->color, new_flag ? "create" : "update");
+	}
 
     zebra_srv6_policy_validate(policy, &zp.srv6_tunnel, new_flag);
 }
@@ -2844,7 +2850,7 @@ void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 	struct stream *s;
 	struct zapi_sr_policy zp;
     struct zebra_sr_policy *policy = NULL;
-	// struct zebra_sr_policy *policy;
+	char endpoint[PREFIX2STR_BUFFER];
 
 	/* Get input stream.  */
 	s = msg;
@@ -2857,6 +2863,11 @@ void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
     policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
 	if (!policy)
 		return;
+
+	if (IS_ZEBRA_DEBUG_RECV_PATHD) {
+		prefix2str(&zp.endpoint, endpoint, sizeof(endpoint));
+		zlog_debug("%s: endpoint %s, color %u",__func__, endpoint, policy->color);
+	}
     zebra_sr_policy_delete_by_prefix(policy);
 }
 

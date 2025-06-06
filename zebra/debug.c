@@ -74,7 +74,10 @@ DEFUN_NOSH (show_debugging_zebra,
 					IS_ZEBRA_DEBUG_DETAIL ? " detail" : "");
 		}
 	}
-
+	if (IS_ZEBRA_DEBUG_SEND_PATHD)
+		vty_out(vty, "  Zebra packet send path debugging is on\n");
+	if (IS_ZEBRA_DEBUG_RECV_PATHD)
+		vty_out(vty, "  Zebra packet receive path debugging is on\n");
 	if (IS_ZEBRA_DEBUG_KERNEL)
 		vty_out(vty, "  Zebra kernel debugging is on\n");
 	if (IS_ZEBRA_DEBUG_KERNEL_MSGDUMP_SEND)
@@ -226,7 +229,7 @@ DEFUN (debug_zebra_packet,
        "Debug option set for detailed info\n")
 {
 	int idx = 0;
-	zebra_debug_packet = ZEBRA_DEBUG_PACKET;
+	SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_PACKET);
 
 	if (argv_find(argv, argc, "send", &idx))
 		SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_SEND);
@@ -239,6 +242,30 @@ DEFUN (debug_zebra_packet,
 
 	if (argv_find(argv, argc, "detail", &idx))
 		SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_DETAIL);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (debug_zebra_pathd,
+       debug_zebra_pathd_cmd,
+       "debug zebra packet [<recv|send>] pathd",
+       DEBUG_STR
+       "Zebra configuration\n"
+       "Debug option set for zebra packet\n"
+       "Debug option set for receive packet\n"
+       "Debug option set for send packet\n"
+       "Debug option set for pathd info\n")
+{
+	int idx = 0;
+
+	if (argv_find(argv, argc, "send", &idx))
+		SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_SEND_PATHD);
+	else if (argv_find(argv, argc, "recv", &idx))
+		SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_RECV_PATHD);
+	else {
+		SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_SEND_PATHD);
+		SET_FLAG(zebra_debug_packet, ZEBRA_DEBUG_RECV_PATHD);
+	}
 
 	return CMD_SUCCESS;
 }
@@ -817,6 +844,7 @@ void zebra_debug_init(void)
 	install_element(ENABLE_NODE, &debug_zebra_vxlan_cmd);
 	install_element(ENABLE_NODE, &debug_zebra_pw_cmd);
 	install_element(ENABLE_NODE, &debug_zebra_packet_cmd);
+	install_element(ENABLE_NODE, &debug_zebra_pathd_cmd);
 	install_element(ENABLE_NODE, &debug_zebra_kernel_cmd);
 #if defined(HAVE_NETLINK)
 	install_element(ENABLE_NODE, &debug_zebra_kernel_msgdump_cmd);
@@ -853,6 +881,7 @@ void zebra_debug_init(void)
 	install_element(CONFIG_NODE, &debug_zebra_vxlan_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_pw_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_packet_cmd);
+	install_element(CONFIG_NODE, &debug_zebra_pathd_cmd);
 	install_element(CONFIG_NODE, &debug_zebra_kernel_cmd);
 #if defined(HAVE_NETLINK)
 	install_element(CONFIG_NODE, &debug_zebra_kernel_msgdump_cmd);

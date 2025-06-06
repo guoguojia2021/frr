@@ -849,13 +849,15 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 	if (policy->best_candidate_group != old_best_cpath_group
 		|| policy->backup_candidate_group != old_backup_cpath_group) {
-		zlog_info(
-				"SR-TE(%s, %u): best cpath group changed: best:%u -> %u, backup:%u -> %u",
-				endpoint, policy->color,
-				old_best_cpath_group ? old_best_cpath_group->preference : 0,
-				policy->best_candidate_group ? policy->best_candidate_group->preference : 0,
-				old_backup_cpath_group ? old_backup_cpath_group->preference : 0,
-				policy->backup_candidate_group ? policy->backup_candidate_group->preference : 0);
+		if (IS_PATHD_DEBUG_SRV6) {
+			zlog_info(
+					"SR-TE(%s, %u): best cpath group changed: best:%u -> %u, backup:%u -> %u",
+					endpoint, policy->color,
+					old_best_cpath_group ? old_best_cpath_group->preference : 0,
+					policy->best_candidate_group ? policy->best_candidate_group->preference : 0,
+					old_backup_cpath_group ? old_backup_cpath_group->preference : 0,
+					policy->backup_candidate_group ? policy->backup_candidate_group->preference : 0);
+		}
 
 		if (policy->best_candidate_group == NULL) {
 			path_zebra_delete_srv6_policy(policy);
@@ -916,10 +918,12 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 
 			if (candidate->status != SRTE_DETECT_DOWN)
 				cpath_up_count++;
+			if (IS_PATHD_DEBUG_SBFD) {
+				zlog_info("SR-TE(%s, %u), refresh cpath:%s, status:%s, pref:%u, bfd_active:%u, policy-flags:0x%x, cpath-flags:0x%x",
+							endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), candidate->preference,
+							is_bfd_active, policy->flags, candidate->flags);
+			}
 
-			zlog_info("SR-TE(%s, %u), refresh cpath:%s, status:%s, pref:%u, bfd_active:%u, policy-flags:0x%x, cpath-flags:0x%x",
-						endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), candidate->preference,
-						is_bfd_active, policy->flags, candidate->flags);
 		}
 
 		if (cpath_up_count > 0)
@@ -963,13 +967,15 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 
 		//update sbfd first
 		if (candidate->policy_bfd_ops == CANDIDATE_SBFD_NEW) {
-			zlog_info("SR-TE(%s, %u), on SBFD_NEW cpath:%s, sidlist:%s, status:%s",
-						endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
+			if (IS_PATHD_DEBUG_SBFD)
+				zlog_info("SR-TE(%s, %u), on SBFD_NEW cpath:%s, sidlist:%s, status:%s",
+							endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
 			sr_config_sbfd_apply(candidate->segment_list, candidate->policy);
 
 		} else if (candidate->policy_bfd_ops == CANDIDATE_SBFD_MODIFIED) {
-			zlog_info("SR-TE(%s, %u), on SBFD_MODIFIED cpath:%s, sidlist:%s, status:%s",
-						endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
+			if (IS_PATHD_DEBUG_SBFD)
+				zlog_info("SR-TE(%s, %u), on SBFD_MODIFIED cpath:%s, sidlist:%s, status:%s",
+							endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
 			sr_config_sbfd_apply(candidate->segment_list, candidate->policy);
 
 		} else if (candidate->policy_bfd_ops == CANDIDATE_SBFD_DELADD) {
@@ -977,17 +983,17 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 			candidate->my_discriminator = 0;
 
 			sr_config_sbfd_apply(candidate->segment_list, candidate->policy);
-
-			zlog_info("SR-TE(%s, %u), on SBFD_DELADD cpath:%s, sidlist:%s, status:%s",
-						endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
+			if (IS_PATHD_DEBUG_SBFD)
+				zlog_info("SR-TE(%s, %u), on SBFD_DELADD cpath:%s, sidlist:%s, status:%s",
+							endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
 
 		} else if (candidate->policy_bfd_ops == CANDIDATE_SBFD_DELETED) {
 			sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
 			candidate->status = SRTE_DETECT_NONE;
 			candidate->my_discriminator = 0;
-
-			zlog_info("SR-TE(%s, %u), on SBFD_DELETED cpath:%s, sidlist:%s, status:%s",
-						endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
+			if (IS_PATHD_DEBUG_SBFD)
+				zlog_info("SR-TE(%s, %u), on SBFD_DELETED cpath:%s, sidlist:%s, status:%s",
+							endpoint, policy->color, candidate->name, candidate->segment_list->name, cpath_status_str(candidate->status));
 		}
 		candidate->policy_bfd_ops = 0;
 

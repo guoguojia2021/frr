@@ -32,9 +32,11 @@ extern "C" {
 #define ZEBRA_DEBUG_EVENT   0x01
 
 #define ZEBRA_DEBUG_PACKET  0x01
-#define ZEBRA_DEBUG_SEND    0x20
-#define ZEBRA_DEBUG_RECV    0x40
-#define ZEBRA_DEBUG_DETAIL  0x80
+#define ZEBRA_DEBUG_SEND    0x02
+#define ZEBRA_DEBUG_RECV    0x04
+#define ZEBRA_DEBUG_DETAIL  0x08
+#define ZEBRA_DEBUG_SEND_PATHD 0x10
+#define ZEBRA_DEBUG_RECV_PATHD 0x20
 
 #define ZEBRA_DEBUG_KERNEL  0x01
 #define ZEBRA_DEBUG_KERNEL_MSGDUMP_SEND 0x20
@@ -80,6 +82,8 @@ extern "C" {
 #define IS_ZEBRA_DEBUG_SEND   (zebra_debug_packet & ZEBRA_DEBUG_SEND)
 #define IS_ZEBRA_DEBUG_RECV   (zebra_debug_packet & ZEBRA_DEBUG_RECV)
 #define IS_ZEBRA_DEBUG_DETAIL (zebra_debug_packet & ZEBRA_DEBUG_DETAIL)
+#define IS_ZEBRA_DEBUG_SEND_PATHD (zebra_debug_packet & ZEBRA_DEBUG_SEND_PATHD)
+#define IS_ZEBRA_DEBUG_RECV_PATHD (zebra_debug_packet & ZEBRA_DEBUG_RECV_PATHD)
 
 #define IS_ZEBRA_DEBUG_KERNEL (zebra_debug_kernel & ZEBRA_DEBUG_KERNEL)
 #define IS_ZEBRA_DEBUG_KERNEL_MSGDUMP_SEND                                     \
