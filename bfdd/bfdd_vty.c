@@ -269,58 +269,40 @@ static void _display_peer(struct vty *vty, struct bfd_session *bs, bool is_detai
 	}
 
 	vty_out(vty, "\t\tLocal timers:\n");
-	vty_out(vty, "\t\t\tDetect-multiplier: %u\n", bs->detect_mult);
-
-	if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT)
-	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	vty_out(vty, "\t\t\tDetect-multiplier: %u\n",
+		bs->detect_mult);
+	vty_out(vty, "\t\t\tReceive interval: %ums\n",
+		bs->timers.required_min_rx / 1000);
+	vty_out(vty, "\t\t\tTransmission interval: %ums\n",
+		bs->timers.desired_min_tx / 1000);
+	if (bs->timers.required_min_echo_rx != 0)
+		vty_out(vty, "\t\t\tEcho receive interval: %ums\n",
+			bs->timers.required_min_echo_rx / 1000);
+	else
+		vty_out(vty, "\t\t\tEcho receive interval: disabled\n");
+    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO)
+            || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
-		//for sbfd
-		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT)) {
-			vty_out(vty, "\t\t\tReceive interval: %ums\n", bs->timers.required_min_rx / 1000);
-			vty_out(vty, "\t\t\tTransmission interval: %ums\n", bs->timers.desired_min_tx / 1000);
-			vty_out(vty, "\t\t\tEcho receive interval: -\n");
-			vty_out(vty, "\t\t\tEcho transmission interval: -\n");
-		}
-		else
+		vty_out(vty, "\t\t\tEcho transmission interval: %ums\n",
+				bs->timers.desired_min_echo_tx / 1000);
+		if (is_detail)
 		{
-			vty_out(vty, "\t\t\tReceive interval: -\n");
-			vty_out(vty, "\t\t\tTransmission interval: -\n");
-			vty_out(vty, "\t\t\tEcho receive interval: %ums\n", bs->timers.required_min_echo_rx / 1000);
-			vty_out(vty, "\t\t\tEcho transmission interval: %ums\n", bs->timers.desired_min_echo_tx / 1000);
-			if (is_detail)
-			{
-				vty_out(vty, "\t\t\tCurrent soft-echo transmission interval: %llums\n",
+			vty_out(vty, "\t\t\tCurrent soft-echo transmission interval: %llums\n",
 					bs->echo_xmt_TO / 1000);
-				vty_out(vty, "\t\t\tCurrent soft-detect echo receive interval: %llums\n",
+			vty_out(vty, "\t\t\tCurrent soft-detect echo receive interval: %llums\n",
 					bs->echo_detect_TO / 1000);
-				vty_out(vty, "\t\t\tCurrent hw-echo transmission interval: %llums\n",
+			vty_out(vty, "\t\t\tCurrent hw-echo transmission interval: %llums\n",
 					bs->echo_hw_xmt_TO / 1000);
-				vty_out(vty, "\t\t\tCurrent hw-detect echo receive interval: %llums\n",
+			vty_out(vty, "\t\t\tCurrent hw-detect echo receive interval: %llums\n",
 					bs->echo_hw_detect_TO / 1000);
-			}
 		}
-
 	}
 	else
 	{
-		//for normal bfd
-		vty_out(vty, "\t\t\tReceive interval: %ums\n",
-			bs->timers.required_min_rx / 1000);
-		vty_out(vty, "\t\t\tTransmission interval: %ums\n",
-			bs->timers.desired_min_tx / 1000);
-		if (bs->timers.required_min_echo_rx != 0)
-			vty_out(vty, "\t\t\tEcho receive interval: %ums\n",
-				bs->timers.required_min_echo_rx / 1000);
-		else
-			vty_out(vty, "\t\t\tEcho receive interval: disabled\n");
-
-		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO))
-			vty_out(vty, "\t\t\tEcho transmission interval: %ums\n", bs->timers.desired_min_echo_tx / 1000);
-		else
-			vty_out(vty, "\t\t\tEcho transmission interval: disabled\n");
+		vty_out(vty, "\t\t\tEcho transmission interval: disabled\n");
 	}
 
-    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT)
+    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
 	    || CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 	{
 		vty_out(vty, "\t\tRemote timers:\n");
