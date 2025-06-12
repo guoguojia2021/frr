@@ -29,6 +29,7 @@
 #include "lib/bfd.h"
 
 #include "bfd.h"
+#include "bfd_db.h"
 
 /*
  * Data structures

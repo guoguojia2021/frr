@@ -37,6 +37,7 @@
 #include "lib/version.h"
 #include "lib/command.h"
 #include "bfd_fpm.h"
+#include "bfd_db.h"
 
 /*
  * FRR related code.
@@ -98,6 +99,8 @@ static void sigterm_handler(void)
 
 	/* Terminate and free() FRR related memory. */
 	frr_fini();
+
+	bfd_db_deinit();
 
 	exit(0);
 }
@@ -397,6 +400,7 @@ int main(int argc, char *argv[])
 	bfd_vrf_init();
 
 	access_list_init();
+	bfd_db_init();
 
 	/* Initialize zebra connection. */
 	bfdd_zclient_init(&bglobal.bfdd_privs);

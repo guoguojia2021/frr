@@ -28,6 +28,7 @@
 #include <sys/un.h>
 
 #include "bfd.h"
+#include "bfd_db.h"
 
 /*
  * Prototypes
@@ -759,6 +760,8 @@ int control_notify(struct bfd_session *bs, uint8_t notify_state)
 {
 	struct bfd_control_socket *bcs;
 	struct bfd_notify_peer *bnp;
+
+	bfd_Db_SetSessStatus(bs);
 
 	/* Notify zebra listeners as well. */
 	ptm_bfd_notify(bs, notify_state);

@@ -32,6 +32,7 @@
 
 #include "bfd.h"
 #include "bfd_fpm.h"
+#include "bfd_db.h"
 
 DEFINE_MTYPE_STATIC(BFDD, BFDD_CONFIG, "long-lived configuration memory");
 DEFINE_MTYPE_STATIC(BFDD, BFDD_PROFILE, "long-lived profile memory");
@@ -1320,6 +1321,8 @@ void bfd_session_free(struct bfd_session *bs)
 {
 	struct bfd_session_observer *bso;
 
+	bfd_Db_ClearSessStatus(bs);
+
 	bfd_session_disable(bs);
 
 	/* Remove session from data plane if any. */
@@ -1490,6 +1493,8 @@ struct bfd_session *bs_registrate(struct bfd_session *bfd)
 	bfd_key_insert(bfd);
 	bfd->discrs.my_discr = ptm_bfd_gen_ID();
 	bfd_id_insert(bfd);
+
+	bfd_Db_SetSessStatus(bfd);
 
 	/* Try to enable session and schedule for packet receive/send. */
 	if (bfd_session_enable(bfd) == -1) {
