@@ -422,6 +422,7 @@ void srte_policy_del(struct srte_policy *policy)
 	}
 	// del sbfd config
 	path_delete_sbfd_config(policy);
+	redis_Db_Policy_DelEntry(policy);
 
 	RB_REMOVE(srte_policy_head, &srte_policies, policy);
 	XFREE(MTYPE_PATH_SR_POLICY, policy);
@@ -660,6 +661,7 @@ void srte_apply_changes(void)
 
 		if (policy->flags) {
 			srv6_policy_apply_changes(policy);
+			redis_Db_Policy_SetEntry(policy);
 			policy->flags = 0;
 		}
 	}
@@ -670,7 +672,7 @@ void srte_apply_changes(void)
 
 			/*delete sidlist only when it is installed*/
 			if (segment_list->installed)
-				sidlist_Db_DelEntry(segment_list);
+				redis_Db_Sid_List_DelEntry(segment_list);
 
 			srte_segment_list_del(segment_list);
 			continue;
@@ -680,9 +682,9 @@ void srte_apply_changes(void)
 
 			/*only install sidlist when it is refed by policy*/
 			if (is_refcounter_retain(segment_list) && !segment_list->installed)
-				sidlist_Db_SetEntry(segment_list);
+				redis_Db_Sid_List_SetEntry(segment_list);
 			else if(!is_refcounter_retain(segment_list))
-				sidlist_Db_DelEntry(segment_list);
+				redis_Db_Sid_List_DelEntry(segment_list);
 		}
 
 		if (CHECK_FLAG(segment_list->flags, F_SEGMENT_LIST_NEW)
@@ -692,7 +694,7 @@ void srte_apply_changes(void)
 			{
 				/*update sidlist only when it is installed*/
 				if (segment_list->installed)
-				    sidlist_Db_SetEntry(segment_list);
+				    redis_Db_Sid_List_SetEntry(segment_list);
 			}
 		}
 
@@ -833,6 +835,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 	struct srte_candidate_group *old_backup_cpath_group;
 	char endpoint[46];
 	bool state_changed = false;
+	enum srte_policy_status status = policy->status;
 
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
@@ -894,6 +897,10 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 			}
 		}
 	}
+	if (status != policy->status) {
+		policy->updatetime = monotime(NULL);
+		redis_Db_Policy_SetEntry(policy);
+	}
 }
 
 void srv6_refresh_policy_state(struct srte_policy *policy)
@@ -949,8 +956,10 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		policy->status = SRTE_POLICY_STATUS_DOWN;
 		policy->up_cpath_group_num = 0;
 	}
-	if (status != policy->status)
+	if (status != policy->status) {
 		policy->updatetime = monotime(NULL);
+		redis_Db_Policy_SetEntry(policy);
+	}
 }
 
 void srv6_policy_apply_changes(struct srte_policy *policy)
@@ -990,6 +999,7 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 		} else if (candidate->policy_bfd_ops == CANDIDATE_SBFD_DELETED) {
 			sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
 			candidate->status = SRTE_DETECT_NONE;
+			candidate->status_change_time = time(NULL);
 			candidate->my_discriminator = 0;
 			if (IS_PATHD_DEBUG_SBFD)
 				zlog_info("SR-TE(%s, %u), on SBFD_DELETED cpath:%s, sidlist:%s, status:%s",
@@ -1003,8 +1013,10 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 			continue;
 		} else if (CHECK_FLAG(candidate->flags, F_CANDIDATE_NEW)) {
 			trigger_pathd_candidate_created(candidate);
+			redis_Db_Cpath_SetEntry(candidate);
 		} else if (CHECK_FLAG(candidate->flags, F_CANDIDATE_MODIFIED)) {
 			trigger_pathd_candidate_updated(candidate);
+			redis_Db_Cpath_SetEntry(candidate);
 		} else if (candidate->lsp->segment_list
 			   && CHECK_FLAG(candidate->lsp->segment_list->flags,
 					 F_SEGMENT_LIST_MODIFIED)) {
@@ -1063,7 +1075,6 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 	candidate->status_change_time = monotime(NULL);
 
 	RB_INSERT(srte_candidate_head, &policy->candidate_paths, candidate);
-
 	srte_candidate_add_group(policy, candidate);
 
 	return candidate;
@@ -1165,7 +1176,7 @@ void srte_candidate_del(struct srte_candidate *candidate)
 		srte_candidate_bfd_group_del(candidate->bfd_name, candidate);
 		candidate->bfd_name[0] = 0;
 	}
-
+	redis_Db_Cpath_DelEntry(candidate);
 	// XFREE(MTYPE_PATH_SR_CANDIDATE, candidate->lsp);
 	XFREE(MTYPE_PATH_SR_CANDIDATE, candidate);
 }
@@ -2060,8 +2071,7 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta)
 {
-	if (candidate->status != sta)
-		candidate->status_change_time = monotime(NULL);
+	enum detection_status status = candidate->status;
 
 	switch (sta)
 	{
@@ -2076,6 +2086,11 @@ void cpath_status_refresh(struct srte_candidate *candidate, enum detection_statu
 		break;
 	default:
 		break;
+	}
+
+	if (status != sta) {
+		candidate->status_change_time = monotime(NULL);
+		redis_Db_Cpath_SetEntry(candidate);
 	}
 }
 

@@ -871,6 +871,7 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 		if (candidate->policy->bfd_config) {
 			sr_config_sbfd_remove(candidate->segment_list, candidate->policy);
 			candidate->status = SRTE_DETECT_NONE;
+			candidate->status_change_time = time(NULL);
 		}
 
 		refcounter_decrease(candidate->segment_list);
@@ -968,6 +969,7 @@ static int candidate_path_bfd_name_destroy(struct nb_cb_destroy_args *args)
 	    srte_candidate_bfd_group_del(candidate->bfd_name, candidate);
 	    candidate->bfd_name[0] = 0;
 		candidate->status = SRTE_DETECT_NONE;
+		candidate->status_change_time = time(NULL);
 	}
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
