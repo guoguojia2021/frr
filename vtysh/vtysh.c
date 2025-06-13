@@ -4732,7 +4732,7 @@ void vtysh_init_vty(void)
 	install_element(GBMPINS_NODE, &vtysh_end_all_cmd);
 
 	install_node(&bgp_srv6_node);
-	install_element(BGP_NODE, &bgp_srv6_cmd);
+	//install_element(BGP_NODE, &bgp_srv6_cmd);
 	install_element(BGP_SRV6_NODE, &exit_bgp_srv6_cmd);
 	install_element(BGP_SRV6_NODE, &quit_bgp_srv6_cmd);
 	install_element(BGP_SRV6_NODE, &vtysh_end_all_cmd);
