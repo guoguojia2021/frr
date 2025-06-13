@@ -70,7 +70,7 @@ static inline int srte_segment_entry_compare(const struct srte_segment_entry *a,
 		return 1;
 	if (a->index < b->index)
 		return -1;
-	return 0
+	return 0;
 }
 RB_GENERATE(srte_segment_entry_head, srte_segment_entry, entry,
 	    srte_segment_entry_compare)
