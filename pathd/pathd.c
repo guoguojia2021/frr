@@ -66,7 +66,11 @@ static void srte_unset_metric(struct srte_metric *metric);
 static inline int srte_segment_entry_compare(const struct srte_segment_entry *a,
 					     const struct srte_segment_entry *b)
 {
-	return a->index - b->index;
+	if (a->index > b->index)
+		return 1;
+	if (a->index < b->index)
+		return -1;
+	return 0
 }
 RB_GENERATE(srte_segment_entry_head, srte_segment_entry, entry,
 	    srte_segment_entry_compare)
@@ -87,10 +91,10 @@ struct srte_segment_list_head srte_segment_lists =
 static inline int srte_candidate_compare(const struct srte_candidate *a,
 					 const struct srte_candidate *b)
 {
-	if (a->preference != b->preference)
-	{
-        return a->preference - b->preference;
-	}
+	if (a->preference > b->preference)
+		return 1;
+	if (a->preference < b->preference)
+		return -1;
 	return strcmp(a->name, b->name);
 
 }
@@ -99,18 +103,18 @@ static inline int srte_policy_candidate_compare(const struct srte_candidate *a,
 					 const struct srte_candidate *b)
 {
 	int ret = 0;
-	if (a->preference != b->preference)
-	{
-        return a->preference - b->preference;
-	}
+	if (a->preference > b->preference)
+		return 1;
+	if (a->preference < b->preference)
+		return -1;
 
 	ret = strcmp(a->name, b->name);
 	if(ret) return ret;
 
-	if(a->policy->color != b->policy->color)
-	{
-		return a->policy->color - b->policy->color;
-	}
+	if (a->policy->color > b->policy->color)
+		return 1;
+	if (a->policy->color < b->policy->color)
+		return -1;
 
 	ret = memcmp(&a->policy->endpoint, &b->policy->endpoint, sizeof(struct ipaddr));
 	return ret;
@@ -126,7 +130,11 @@ RB_GENERATE(srte_candidate_bfd_head, srte_candidate, bfd_entry, srte_policy_cand
 static inline int srte_candidate_group_compare(const struct srte_candidate_group *a,
 					 const struct srte_candidate_group *b)
 {
-	return a->preference - b->preference;
+	if (a->preference > b->preference)
+		return 1;
+	if (a->preference < b->preference)
+		return -1;
+	return 0;
 }
 RB_GENERATE(srte_candidate_group_head, srte_candidate_group, entry, srte_candidate_group_compare)
 
