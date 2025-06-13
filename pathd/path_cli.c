@@ -391,7 +391,7 @@ DEFPY_YANG_NOSH(
 		 "/frr-pathd:pathd/srte/segment-list[name='%s']/originator", name);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_MODIFY, "config");
 
-	ret = nb_cli_apply_changes(vty, NULL);
+	ret = nb_cli_apply_changes_skip_check_validate(vty, NULL);
 	if (ret == CMD_SUCCESS) {
 		snprintf(xpath, sizeof(xpath),
 			 "/frr-pathd:pathd/srte/segment-list[name='%s']", name);
@@ -414,7 +414,7 @@ DEFPY_YANG(srte_no_segment_list,
 		 "/frr-pathd:pathd/srte/segment-list[name='%s']", name);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes(vty, NULL);
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
 }
 
 void cli_show_srte_segment_list(struct vty *vty, const struct lyd_node *dnode,
@@ -784,7 +784,7 @@ DEFPY_YANG_NOSH(
 		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
 
-	ret = nb_cli_apply_changes(vty, NULL);
+	ret = nb_cli_apply_changes_skip_check_validate(vty, NULL);
 	if (ret == CMD_SUCCESS)
 		VTY_PUSH_XPATH(SR_POLICY_NODE, xpath);
 
@@ -810,7 +810,7 @@ DEFPY_YANG(srte_no_policy,
 		 num_str, endpoint);
 	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes(vty, NULL);
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
 }
 
 void cli_show_srte_policy(struct vty *vty, const struct lyd_node *dnode,
@@ -837,7 +837,7 @@ DEFPY_YANG(srte_policy_name,
 {
 	nb_cli_enqueue_change(vty, "./name", NB_OP_CREATE, name);
 
-	return nb_cli_apply_changes(vty, NULL);
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
 }
 
 DEFPY_YANG(srte_policy_no_name,
@@ -849,7 +849,7 @@ DEFPY_YANG(srte_policy_no_name,
 {
 	nb_cli_enqueue_change(vty, "./name", NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes(vty, NULL);
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
 }
 
 
@@ -971,7 +971,7 @@ DEFPY_YANG(srte_policy_candidate_exp,
 	{
 		nb_cli_enqueue_change(vty, "./bfd-name", NB_OP_DESTROY, NULL);
 	}
-	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s'][name='%s']",
+	return nb_cli_apply_changes_skip_check_validate(vty, "./candidate-path[preference='%s'][name='%s']",
 				    preference_str, name);
 }
 
@@ -1176,7 +1176,7 @@ DEFPY_YANG(srte_policy_no_candidate,
 {
 	nb_cli_enqueue_change(vty, ".", NB_OP_DESTROY, NULL);
 
-	return nb_cli_apply_changes(vty, "./candidate-path[preference='%s'][name='%s']",
+	return nb_cli_apply_changes_skip_check_validate(vty, "./candidate-path[preference='%s'][name='%s']",
 				    preference_str, name);
 }
 
