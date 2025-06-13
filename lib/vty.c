@@ -2601,6 +2601,26 @@ void vty_config_exit(struct vty *vty)
 		cmd_exit(vty);
 }
 
+void vty_config_exit_to_config(struct vty *vty)
+{
+	enum node_type node = vty->node;
+	struct cmd_node *cnode;
+
+	/* unlock and jump up to ENABLE_NODE if -and only if- we're
+	 * somewhere below CONFIG_NODE */
+	while (node && node != CONFIG_NODE) {
+		cnode = vector_lookup(cmdvec, node);
+		node = cnode->parent_node;
+	}
+	if (node != CONFIG_NODE)
+		/* called outside config, e.g. vty_close() in ENABLE_NODE */
+		return;
+
+	while (vty->node != CONFIG_NODE)
+		/* will call vty_config_node_exit() below */
+		cmd_exit(vty);
+}
+
 int vty_config_node_exit(struct vty *vty)
 {
 	vty->xpath_index = 0;

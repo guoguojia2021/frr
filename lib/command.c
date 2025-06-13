@@ -1346,6 +1346,19 @@ DEFUN (config_exit,
 	return CMD_SUCCESS;
 }
 
+/* exit to config node */
+DEFUN (config_exit_to_config,
+       config_exit_to_config_cmd,
+       "exit-to-config",
+       "Exit all modes and down to config mode\n")
+{
+	if (vty->config) {
+		vty_config_exit_to_config(vty);
+		vty->node = CONFIG_NODE;
+	}
+	return CMD_SUCCESS;
+}
+
 static int root_on_exit(struct vty *vty)
 {
 	if (vty_shell(vty))
@@ -2413,6 +2426,7 @@ void cmd_show_lib_debugs(struct vty *vty)
 void install_default(enum node_type node)
 {
 	_install_element(node, &config_exit_cmd);
+	_install_element(node, &config_exit_to_config_cmd);
 	_install_element(node, &config_quit_cmd);
 	_install_element(node, &config_end_cmd);
 	_install_element(node, &config_help_cmd);
@@ -2483,6 +2497,7 @@ void cmd_init(int terminal)
 
 		install_element(VIEW_NODE, &config_list_cmd);
 		install_element(VIEW_NODE, &config_exit_cmd);
+		install_element(VIEW_NODE, &config_exit_to_config_cmd);
 		install_element(VIEW_NODE, &config_quit_cmd);
 		install_element(VIEW_NODE, &config_help_cmd);
 		install_element(VIEW_NODE, &config_enable_cmd);

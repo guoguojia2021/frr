@@ -2404,6 +2404,23 @@ DEFUNSH(VTYSH_REALLYALL, vtysh_exit_all, vtysh_exit_all_cmd, "exit",
 	return vtysh_exit(vty);
 }
 
+DEFUNSH(VTYSH_REALLYALL, vtysh_exit_all_to_config, vtysh_exit_all_to_config_cmd, "exit-to-config",
+	"Exit current mode and down to config mode\n")
+{
+	switch (vty->node) {
+	case VIEW_NODE:
+	case ENABLE_NODE:
+	case CONFIG_NODE:
+		/* Nothing to do. */
+		break;
+	default:
+		vty->node = CONFIG_NODE;
+		break;
+	}
+	return CMD_SUCCESS;
+}
+
+
 DEFUNSH(VTYSH_REALLYALL, vtysh_quit_all, vtysh_quit_all_cmd, "quit",
 	"Exit current mode and down to previous mode\n")
 {
@@ -4305,6 +4322,9 @@ static void vtysh_install_default(enum node_type node)
 	_install_element(node, &show_cli_graph_vtysh_cmd);
 	_install_element(node, &vtysh_output_file_cmd);
 	_install_element(node, &no_vtysh_output_file_cmd);
+	if (node >= CONFIG_NODE) {
+		_install_element(node, &vtysh_exit_all_to_config_cmd);
+	}
 }
 
 /* Making connection to protocol daemon. */
