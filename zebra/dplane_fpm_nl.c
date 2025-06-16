@@ -142,6 +142,16 @@ struct fpm_nl_ctx {
 
 		/* Amount of buffer full events. */
 		_Atomic uint32_t buffer_full;
+
+		uint32_t route_adds;
+		uint32_t route_updates;
+		uint32_t route_dels;
+		uint32_t nexthop_adds;
+		uint32_t nexthop_updates;
+		uint32_t nexthop_dels;
+		uint32_t pic_nexthop_adds;
+		uint32_t pic_nexthop_updates;
+		uint32_t pic_nexthop_dels;
 	} counters;
 } *gfnc;
 
@@ -338,7 +348,15 @@ DEFUN(fpm_show_counters, fpm_show_counters_cmd,
 	SHOW_COUNTER("Buffer full hits", gfnc->counters.buffer_full);
 	SHOW_COUNTER("User FPM configurations", gfnc->counters.user_configures);
 	SHOW_COUNTER("User FPM disable requests", gfnc->counters.user_disables);
-
+	SHOW_COUNTER("Install route", gfnc->counters.route_adds);
+	SHOW_COUNTER("Update route", gfnc->counters.route_updates);
+	SHOW_COUNTER("Delete route", gfnc->counters.route_dels);
+	SHOW_COUNTER("Install nexthop", gfnc->counters.nexthop_adds);
+	SHOW_COUNTER("Update nexthop", gfnc->counters.nexthop_updates);
+	SHOW_COUNTER("Delete nexthop", gfnc->counters.nexthop_dels);
+	SHOW_COUNTER("Install pic nexthop", gfnc->counters.pic_nexthop_adds);
+	SHOW_COUNTER("Update pic nexthop", gfnc->counters.pic_nexthop_updates);
+	SHOW_COUNTER("Delete pic nexthop", gfnc->counters.pic_nexthop_dels);
 #undef SHOW_COUNTER
 
 	return CMD_SUCCESS;
@@ -377,6 +395,15 @@ DEFUN(fpm_show_counters_json, fpm_show_counters_json_cmd,
 	json_object_int_add(jo, "user-configures",
 			    gfnc->counters.user_configures);
 	json_object_int_add(jo, "user-disables", gfnc->counters.user_disables);
+	json_object_int_add(jo, "install-route", gfnc->counters.route_adds);
+	json_object_int_add(jo, "update-route", gfnc->counters.route_updates);
+	json_object_int_add(jo, "delete-route", gfnc->counters.route_dels);
+	json_object_int_add(jo, "install-nexthop", gfnc->counters.nexthop_adds);
+	json_object_int_add(jo, "update-nexthop", gfnc->counters.nexthop_updates);
+	json_object_int_add(jo, "delete-nexthop", gfnc->counters.nexthop_dels);
+	json_object_int_add(jo, "install-pic-nexthop", gfnc->counters.pic_nexthop_adds);
+	json_object_int_add(jo, "update-pic-nexthop", gfnc->counters.pic_nexthop_updates);
+	json_object_int_add(jo, "delete-pic-nexthop", gfnc->counters.pic_nexthop_dels);
 	vty_json(vty, jo);
 
 	return CMD_SUCCESS;
@@ -738,6 +765,7 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 			return 0;
 		}
 		nl_buf_len = (size_t)rv;
+		fnc->counters.route_dels++;
 		break;
 
 		/* FALL THROUGH */
@@ -766,6 +794,11 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 
 			nl_buf_len += (size_t)rv;
 		}
+		if(op == DPLANE_OP_ROUTE_UPDATE)
+			fnc->counters.route_updates++;
+		else
+			fnc->counters.route_adds++;
+
 		break;
 
 	case DPLANE_OP_MAC_INSTALL:
@@ -791,6 +824,7 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 			return 0;
 		}
 		nl_buf_len = (size_t)rv;
+		fnc->counters.nexthop_dels++;
 		break;
 	case DPLANE_OP_NH_INSTALL:
 	case DPLANE_OP_NH_UPDATE:
@@ -804,6 +838,11 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 			return 0;
 		}
 		nl_buf_len = (size_t)rv;
+		if (op == DPLANE_OP_NH_UPDATE)
+			fnc->counters.nexthop_updates++;
+		else
+			fnc->counters.nexthop_adds++;
+
 		break;
 	case DPLANE_PROTOBUF_OP_NH_DELETE:
 		rv = protobuf_msg_encode(RTM_DELNEXTHOP, ctx, nl_buf,
@@ -816,6 +855,7 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 
 		nl_buf_len = (size_t)rv;
 		use_protobuf = true;
+		fnc->counters.pic_nexthop_dels++;
 		break;
 	case DPLANE_PROTOBUF_OP_NH_INSTALL:
 	case DPLANE_PROTOBUF_OP_NH_UPDATE:
@@ -829,6 +869,11 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 
 		nl_buf_len = (size_t)rv;
 		use_protobuf = true;
+		if (op == DPLANE_PROTOBUF_OP_NH_UPDATE)
+			fnc->counters.pic_nexthop_updates++;
+		else
+			fnc->counters.pic_nexthop_adds++;
+
 		break;
 	case DPLANE_OP_LSP_INSTALL:
 	case DPLANE_OP_LSP_UPDATE:
