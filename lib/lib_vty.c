@@ -286,7 +286,7 @@ DEFUN_HIDDEN (end_config,
 			    sizeof(readin_time_str));
 
 	vty->pending_allowed = 0;
-	ret = nb_cli_pending_commit_check(vty, false);
+	ret = nb_cli_pending_commit_check(vty, true);
 
 	zlog_info("Configuration Read in Took: %s", readin_time_str);
 

@@ -2626,7 +2626,7 @@ int vty_config_node_exit(struct vty *vty)
 	vty->xpath_index = 0;
 
 	/* Perform any pending commits. */
-	(void)nb_cli_pending_commit_check(vty, false);
+	(void)nb_cli_pending_commit_check(vty, true);
 
 	/* Check if there's a pending confirmed commit. */
 	if (vty->t_confirmed_commit_timeout) {

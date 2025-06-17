@@ -966,7 +966,7 @@ static int cmd_execute_command_real(vector vline, enum cmd_filter_type filter,
 			 * non-YANG command.
 			 */
 			if (matched_element->attr != CMD_ATTR_YANG)
-				(void)nb_cli_pending_commit_check(vty, false);
+				(void)nb_cli_pending_commit_check(vty, true);
 		}
 
 		ret = matched_element->func(matched_element, vty, argc, argv);
