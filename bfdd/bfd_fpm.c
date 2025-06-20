@@ -1092,6 +1092,75 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
 
     return;
 }
+
+void bfd_fpm_soft_peer_event_notify(struct bfd_session *bfd, bool up)
+{
+    struct stream *msg = NULL;
+    int ret;
+    bfd_msg_hdr_t *hdr = NULL;
+    bfd_msg_data_t *data = NULL;
+    unsigned char *buf;
+    int msg_len = 0;
+
+    /* Check socket. */
+    if (!bfpm_g || bfpm_g->sock < 0) {
+        zlog_debug(
+            "%s: Can't send BFD peer register, BfdFpm client not "
+            "established",
+            __FUNCTION__);
+        return;
+    }
+    msg = bfpm_g->obuf;
+    stream_reset(msg);
+    buf = STREAM_DATA(msg);
+    hdr = (bfd_msg_hdr_t *)buf;
+    hdr->version = BFDSYNC_PROTO_VERSION;
+    if (up)
+    {
+        hdr->msg_type = BFD_SOFT_PEER_UP;
+    }
+    else
+    {
+        hdr->msg_type = BFD_SOFT_PEER_DOWN;
+    }
+
+    data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
+    data->bpc_mhop = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH)) ? 1:0;
+    if (bfd->key.family == AF_INET)
+        data->bpc_ipv4 = 1;
+    else
+        data->bpc_ipv4 = 0;
+
+    inet_ntop(bfd->key.family, &bfd->key.local, data->bpc_local,
+          sizeof(data->bpc_local));
+    inet_ntop(bfd->key.family, &bfd->key.peer, data->bpc_peer,
+          sizeof(data->bpc_peer));
+    strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
+    strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
+
+    msg_len = sizeof(bfd_msg_data_t) + sizeof(bfd_msg_hdr_t);
+    hdr->msg_len = htons(msg_len);
+    stream_forward_endp(msg, msg_len);
+    ret = bfdsync_send_message();
+
+	zlog_notice(
+		"%s: BFD PEER CHANGE: <ret %d> local %s peer %s vrf %s if %s up %d ", __FUNCTION__, ret, 
+		data->bpc_local,
+		data->bpc_peer,
+		data->bpc_vrfname,
+		data->bpc_localif,
+		up);
+
+
+    if (ret < 0) {
+        zlog_debug(
+            "bfd_peer_sendmsg: zclient_send_message() failed");
+        return;
+    }
+    
+    return;
+}
+
 /**
  * zfpm_init
  *

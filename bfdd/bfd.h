@@ -550,6 +550,8 @@ struct bfd_global {
 	 * - Network system call failures.
 	 */
 	bool debug_network;
+
+	bool bg_enable_frc;
 };
 
 extern struct bfd_global bglobal;

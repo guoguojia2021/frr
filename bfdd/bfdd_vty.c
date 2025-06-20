@@ -1386,6 +1386,17 @@ DEFPY(
 }
 
 DEFPY(
+       bfd_enable_frc, bfd_enable_frc_cmd,
+       "[no] bfd frc",
+       NO_STR
+       "bfd\n"
+       "fast route convergence\n")
+{
+       bglobal.bg_enable_frc = !no;
+       return CMD_SUCCESS;
+}
+
+DEFPY(
 	bfd_debug_zebra, bfd_debug_zebra_cmd,
 	"[no] debug bfd zebra",
 	NO_STR
@@ -1617,11 +1628,13 @@ void bfdd_vty_init(void)
 	install_element(ENABLE_NODE, &bfd_debug_peer_cmd);
 	install_element(ENABLE_NODE, &bfd_debug_zebra_cmd);
 	install_element(ENABLE_NODE, &bfd_debug_network_cmd);
+	install_element(ENABLE_NODE, &bfd_enable_frc_cmd);
 
 	install_element(CONFIG_NODE, &bfd_debug_distributed_cmd);
 	install_element(CONFIG_NODE, &bfd_debug_peer_cmd);
 	install_element(CONFIG_NODE, &bfd_debug_zebra_cmd);
 	install_element(CONFIG_NODE, &bfd_debug_network_cmd);
+	install_element(CONFIG_NODE, &bfd_enable_frc_cmd);
 
 	/* Install BFD node and commands. */
 	install_node(&bfd_node);

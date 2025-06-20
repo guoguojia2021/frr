@@ -34,6 +34,8 @@ typedef enum {
     BFD_DELETE_SESSION,
     BFD_NOTIFY_UP = 3,
     BFD_NOTIFY_DOWN = 4,
+    BFD_SOFT_PEER_UP = 6,
+    BFD_SOFT_PEER_DOWN = 7,
 } bfdsync_message_types_t;
 
 typedef struct bfd_msg_hdr_t_
@@ -103,6 +105,8 @@ static inline void *bfdsync_msg_data(bfd_msg_hdr_t *hdr)
 
 extern void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create);
 void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create);
+
+void bfd_fpm_soft_peer_event_notify(struct bfd_session *bfd, bool up);
 
 extern int bfpm_init(struct thread_master *master);
 

@@ -149,9 +149,11 @@ FRR_DAEMON_INFO(bfdd, BFD, .vty_port = 2617,
 
 #define OPTION_CTLSOCK 1001
 #define OPTION_DPLANEADDR 2000
+#define OPTION_ENABLE_FRC 4000
 static const struct option longopts[] = {
 	{"bfdctl", required_argument, NULL, OPTION_CTLSOCK},
 	{"dplaneaddr", required_argument, NULL, OPTION_DPLANEADDR},
+	{"frc", no_argument, NULL, OPTION_ENABLE_FRC},
 	{0}
 };
 
@@ -357,7 +359,8 @@ int main(int argc, char *argv[])
 	frr_opt_add("H", longopts,
 		    "      --bfdctl       Specify bfdd control socket\n"
 			"  -H, --hwbfd        Support hardware BFD.\n"
-		    "      --dplaneaddr   Specify BFD data plane address\n");
+		    "      --dplaneaddr   Specify BFD data plane address\n"
+			"      --frc          Enable frc support\n");
 
 	snprintf(ctl_path, sizeof(ctl_path), BFDD_CONTROL_SOCKET,
 		 "", "");
@@ -375,7 +378,9 @@ int main(int argc, char *argv[])
 			strlcpy(dplane_addr, optarg, sizeof(dplane_addr));
 			bglobal.bg_use_dplane = true;
 			break;
-
+		case OPTION_ENABLE_FRC:
+			bglobal.bg_enable_frc = true;
+			break;
         case 'H':
 			hardwareBFD = 1;
 			break;

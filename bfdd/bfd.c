@@ -26,7 +26,6 @@
  */
 
 #include <zebra.h>
-
 #include "lib/jhash.h"
 #include "lib/network.h"
 
@@ -706,6 +705,22 @@ void ptm_bfd_echo_start(struct bfd_session *bfd)
 	}
 }
 
+static bool ptm_bfd_validate_frc(struct bfd_session *bfd)
+{
+	if (bglobal.bg_enable_frc == true) {
+		if (!CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH)
+			&& !CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_ECHO)
+			&& !CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_INIT)
+			&& !CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_REFL)
+			&& !CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
 void ptm_bfd_sess_up(struct bfd_session *bfd)
 {
 	int old_state = bfd->ses_state;
@@ -720,6 +735,14 @@ void ptm_bfd_sess_up(struct bfd_session *bfd)
 
 	/* Start sending control packets with poll bit immediately. */
 	ptm_bfd_snd(bfd, 0);
+
+
+	if (old_state != bfd->ses_state) {
+		if (ptm_bfd_validate_frc(bfd))
+		{
+			bfd_fpm_soft_peer_event_notify(bfd, true);
+		}
+	}
 
 	control_notify(bfd, bfd->ses_state);
 
@@ -755,6 +778,13 @@ void ptm_bfd_sess_dn(struct bfd_session *bfd, uint8_t diag)
 
 	/* Slow down the control packets, the connection is down. */
 	bs_set_slow_timers(bfd);
+
+	if (old_state == PTM_BFD_UP) {
+		if (ptm_bfd_validate_frc(bfd))
+		{
+			bfd_fpm_soft_peer_event_notify(bfd, false);
+		}
+	}
 
     if (CHECK_FLAG(bfd->hwbfd_flags, BFD_HWFLAG_SENDCREATE)) {
         bfd_fpm_peer_sendmsg(bfd, false);
