@@ -142,6 +142,11 @@ struct static_nexthop {
 	bool nh_valid;
 
 	char ifname[INTERFACE_NAMSIZ + 1];
+	/*
+	 * when type is STATIC_IPV6_GATEWAY_IFNAME
+	 * used for neigh invalid state
+	 */
+	bool neigh_invalid;
 
 	/* Label information */
 	struct static_nh_label snh_label;

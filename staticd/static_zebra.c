@@ -190,20 +190,11 @@ static_nexthop_is_local(vrf_id_t vrfid, struct prefix *addr, int family)
 	}
 	return false;
 }
-static void static_gateway_update_nh(struct interface *ifp, 
-				     struct route_node *rn,
-				     struct static_path *pn,
-				     struct static_nexthop *nh,
-				     struct static_vrf *svrf, safi_t safi, bool add)
+static void static_gateway_update_nh(struct static_path *pn,
+				     struct static_nexthop *nh, bool add)
 {
-	ifindex_t tmp = 0;
-	if(add)
-	    tmp = ifp->ifindex;
-	else
-	    tmp = IFINDEX_INTERNAL;
-	
-	if (nh->ifindex != tmp){
-		nh->ifindex = tmp;
+	if (nh->neigh_invalid == add){
+		nh->neigh_invalid = !add;
 		static_install_path(pn);
 	}
 }
@@ -265,7 +256,7 @@ static int static_neighbor_operation(ZAPI_CALLBACK_ARGS)
 					  &pn->nexthop_list, nh) {
 						if(nh->type == STATIC_IPV6_GATEWAY_IFNAME)
 							if (memcmp(&addr.sin6.sin6_addr, &nh->addr.ipv6, 16) == 0)
-					        		static_gateway_update_nh(ifp, rn,pn, nh, svrf,safi,add);
+					        		static_gateway_update_nh(pn, nh, add);
 				}
 			}
 		}
@@ -716,7 +707,7 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_VNI);
 			break;
 		case STATIC_IPV6_GATEWAY_IFNAME:
-			if (nh->ifindex == IFINDEX_INTERNAL)
+			if (nh->ifindex == IFINDEX_INTERNAL || nh->neigh_invalid)
 				continue;
 			api_nh->type = NEXTHOP_TYPE_IPV6_IFINDEX;
 			api_nh->ifindex = nh->ifindex;
