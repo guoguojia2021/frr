@@ -14760,6 +14760,11 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			"  Minimum time between advertisement runs is %d seconds\n",
 			p->v_routeadv);
 
+		/* update delay timer */
+		if (bgp->t_update_delay)
+			vty_out(vty, "  Update delay timer is %u seconds (remaining: %lu)\n",
+				bgp->v_update_delay, thread_timer_remain_second(bgp->t_update_delay));
+
 		/* Update-source. */
 		if (p->update_if || p->update_source) {
 			vty_out(vty, "  Update source is ");
