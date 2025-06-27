@@ -17,10 +17,11 @@ RUN apt update && \
       libcap-dev python2 libelf-dev \
       sudo gdb curl iputils-ping time \
       lua5.3 liblua5.3-dev lcov vim \
-      net-tools iproute2 && \
-      curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output /tmp/get-pip.py && \
-      python2 /tmp/get-pip.py && \
-      rm -f  /tmp/get-pip.py && \
+      net-tools iproute2
+
+COPY docker/ubuntu20-ci/get-pip.py /home/
+
+RUN python2 /home/get-pip.py && \
       # Protobuf build requirements
       apt-get install -y \
         libprotobuf-c-dev \
@@ -54,20 +55,25 @@ RUN cd /home && \
 
 USER frr:frr
 
+COPY --chown=frr:frr . /home/frr/frr/
+
+RUN cd && ls -al && ls -al frr
+
+RUN cd ~/frr && \
+    if [ ! -d "./libyang" ]; then \
+      git clone https://github.com/CESNET/libyang.git && \
+      cd libyang && \
+      git checkout v2.0.0; \
+    fi
+
 # build and install libyang2
-RUN cd && pwd && ls -al && \
-    git clone https://github.com/CESNET/libyang.git && \
-    cd libyang && \
-    git checkout v2.0.0 && \
+RUN cd ~/frr && pwd && ls -al && \
+    cd ./libyang && \
     mkdir build; cd build && \
     cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr \
           -DCMAKE_BUILD_TYPE:String="Release" .. && \
     make -j $(nproc) && \
     sudo make install
-
-COPY --chown=frr:frr . /home/frr/frr/
-
-RUN cd && ls -al && ls -al frr
 
 RUN cd ~/frr && \
     ./bootstrap.sh && \
