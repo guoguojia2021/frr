@@ -85,7 +85,7 @@ RUN cd ~/frr && \
        --enable-vtysh \
        --enable-pimd \
        --enable-sharpd \
-       --enable-multipath=64 \
+       --enable-multipath=256 \
        --enable-user=frr \
        --enable-group=frr \
        --enable-vty-group=frrvty \
