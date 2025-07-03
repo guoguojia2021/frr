@@ -458,11 +458,6 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			if (!ADVERTISE_DELAY_MAP(filter) && peer->advertise_update_hold)
 				continue;
 			
-			if (!ADVERTISE_DELAY_MAP(filter) && peer->bgp->onstartup_advertise_delay_over == 0)
-			{
-				continue;
-			}
-
 			next_pkt = paf->next_pkt_to_send;
 
 			/*

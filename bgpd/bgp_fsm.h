@@ -143,7 +143,7 @@ extern bool bgp_advertise_delay_active(struct peer *peer);
 extern bool bgp_advertise_delay_configured(struct bgp *bgp);
 extern bool bgp_advertise_delay_applicable(struct peer *peer);
 extern void bgp_advertise_delay_end(struct peer *peer);
-extern bool bgp_advertise_delay_onstartup_configured(struct bgp *bgp);
+extern bool bgp_advertise_delay_onstartup_configured(void);
 extern bool bgp_advertise_delay_onstartup_applicable(struct bgp *bgp);
 extern bool bgp_advertise_delay_onstartup_active(struct bgp *bgp);
 

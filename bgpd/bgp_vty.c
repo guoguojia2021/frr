@@ -11192,11 +11192,11 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 			}
 
 
-			if (bgp_advertise_delay_onstartup_configured(bgp)) {
+			if (bgp_advertise_delay_onstartup_configured()) {
 				if (use_json) {
 					json_object_int_add(
 						json, "advertiseDelayOnstartupLimit",
-						bgp->v_onstartup_advertise_delay);
+						bm->v_onstartup_advertise_delay);
 					if (bgp_advertise_delay_onstartup_active(bgp)) {
 						json_object_string_add(
 							json,
@@ -11220,7 +11220,7 @@ static int bgp_show_summary(struct vty *vty, struct bgp *bgp, int afi, int safi,
 				} else {
 					vty_out(vty,
 						"Advertise-delay-onstartup limit: %d seconds\n",
-						bgp->v_onstartup_advertise_delay);
+						bm->v_onstartup_advertise_delay);
 					if (bgp_advertise_delay_onstartup_active(bgp)) {
 						vty_out(vty,
 							"  First neighbor established: %s\n",
@@ -14904,11 +14904,11 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 
 
 #if 1
-	if (bgp_advertise_delay_onstartup_configured(p->bgp)) {
+	if (bgp_advertise_delay_onstartup_configured()) {
 		if (use_json) {
 			json_object_int_add(
 				json_neigh, "advertiseDelayOnstartupLimit",
-				p->bgp->v_onstartup_advertise_delay);
+				bm->v_onstartup_advertise_delay);
 
 
 			if (p->bgp->onstartup_advertise_delay_over) {
@@ -14946,7 +14946,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		} else {
 			vty_out(vty,
 				"advertise-delay-onstartup limit: %d seconds\n",
-				p->bgp->v_onstartup_advertise_delay);
+				bm->v_onstartup_advertise_delay);
 			if (p->bgp->onstartup_advertise_delay_over) {
 				vty_out(vty,
 					"First Neighbor established: %s\n",
@@ -17199,47 +17199,59 @@ DEFUN (no_bgp_global_advertise_delay,
 	return bgp_global_advertise_delay_deconfig_vty(vty);
 }
 
-
 static int bgp_global_advertise_delay_onstartup_config_vty(struct vty *vty,
 					      uint16_t advertise_delay)
 {
-	struct listnode *node, *nnode;
-	struct bgp *bgp;
-
-
 	if (bm->v_advertise_delay != BGP_ADVERTISE_DELAY_DEF) {
 		vty_out(vty,
 			"%%Failed: global advertise-delay config conflict with global advertise-delay-onstartup\n");
 		return CMD_WARNING;
 	}
 
-
 	bm->v_onstartup_advertise_delay = advertise_delay;
-
-	zlog_debug("bm v_onstartup_advertise_delay %d.\n", bm->v_onstartup_advertise_delay);
-
-	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
-		bgp->v_onstartup_advertise_delay = bm->v_onstartup_advertise_delay;
-		zlog_debug("bgp:%s: v_onstartup_advertise_delay %d.\n ", bgp->name_pretty, bgp->v_onstartup_advertise_delay);
-	}
 
 	return CMD_SUCCESS;
 }
 
 static int bgp_global_advertise_delay_onstartup_deconfig_vty(struct vty *vty)
 {
-	struct listnode *node, *nnode;
-	struct bgp *bgp;
-
 	bm->v_onstartup_advertise_delay = BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED;
-
-	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp)) {
-		bgp->v_onstartup_advertise_delay = bm->v_onstartup_advertise_delay;
-	}
-
 	return CMD_SUCCESS;
 }
 
+static int bgp_global_advertise_delay_onstartup_plist_config_vty(afi_t afi, char *plist_name)
+{
+	if (plist_name) {
+		if (afi == AFI_IP) {
+			bm->ipv4_plist_name = XSTRDUP(MTYPE_BGP_FILTER_NAME, plist_name);
+			bm->ipv4_plist = prefix_list_lookup(afi, plist_name);
+		}
+		else {
+			bm->ipv6_plist_name = XSTRDUP(MTYPE_BGP_FILTER_NAME, plist_name);
+			bm->ipv6_plist = prefix_list_lookup(afi, plist_name);
+		}
+		return CMD_SUCCESS;
+	}
+	return CMD_SUCCESS;
+}
+
+
+static int bgp_global_advertise_delay_onstartup_plist_deconfig_vty(afi_t afi)
+{
+	if (afi == AFI_IP) {
+		if (bm->ipv4_plist_name)
+			XFREE(MTYPE_BGP_FILTER_NAME, bm->ipv4_plist_name);
+		bm->ipv4_plist_name = NULL;
+		bm->ipv4_plist = NULL;
+	}
+	else {
+		if (bm->ipv6_plist_name)
+			XFREE(MTYPE_BGP_FILTER_NAME, bm->ipv6_plist_name);
+		bm->ipv6_plist_name = NULL;
+		bm->ipv6_plist = NULL;
+	}
+	return CMD_SUCCESS;
+}
 
 /* Global advertise-delay configuration */
 DEFUN (bgp_global_advertise_delay_onstartup,
@@ -17266,6 +17278,44 @@ DEFUN (no_bgp_global_advertise_delay_onstartup,
        "Max delay in seconds\n")
 {
 	return bgp_global_advertise_delay_onstartup_deconfig_vty(vty);
+}
+
+/* Global advertise-delay configuration */
+DEFUN (bgp_global_advertise_delay_onstartup_filter,
+       bgp_global_advertise_delay_onstartup_filter_cmd,
+       "bgp advertise-delay-onstartup <prefix-list|ipv6-prefix-list> WORD",
+       BGP_STR
+       "Force initial delay for advertise routes for all bgp instances and only work on bgp startup\n"
+       "Ipv4 filter updates to/from this neighbor\n"
+       "Ipv6 filter updates to/from this neighbor\n"
+       "Name of a prefix list\n")
+{
+	int id_prefix_list = 3;
+	int idx_afi = 0;
+	afi_t afi = AFI_IP;
+	if (argv_find(argv, argc, "ipv6-prefix-list", &idx_afi))
+		afi = AFI_IP6;
+
+	return bgp_global_advertise_delay_onstartup_plist_config_vty(afi, argv[id_prefix_list]->arg);
+}
+
+/* Global advertise-delay configuration */
+DEFUN (no_bgp_global_advertise_delay_onstartup_filter,
+       no_bgp_global_advertise_delay_onstartup_filter_cmd,
+       "no bgp advertise-delay-onstartup <prefix-list|ipv6-prefix-list> [WORD]",
+       NO_STR
+       BGP_STR
+       "Force initial delay for advertise routes for all bgp instances and only work on bgp startup\n"
+       "Ipv4 filter updates to/from this neighbor\n"
+       "Ipv6 filter updates to/from this neighbor\n"
+       "Name of a prefix list\n")
+{
+	int idx_afi = 0;
+	afi_t afi = AFI_IP;
+	if (argv_find(argv, argc, "ipv6-prefix-list", &idx_afi))
+		afi = AFI_IP6;
+
+	return bgp_global_advertise_delay_onstartup_plist_deconfig_vty(afi);
 }
 
 /* Set advertise-delay-map to the peer. */
@@ -18466,9 +18516,12 @@ int bgp_config_write(struct vty *vty)
 	}
 
 	if (bm->v_onstartup_advertise_delay != BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED) {
-		vty_out(vty, "bgp advertise-delay-onstartup %d", bm->v_onstartup_advertise_delay);
-		vty_out(vty, "\n");
+		vty_out(vty, "bgp advertise-delay-onstartup %d\n", bm->v_onstartup_advertise_delay);
 	}
+	if (bm->ipv4_plist_name)
+		vty_out(vty, "bgp advertise-delay-onstartup prefix-list %s\n", bm->ipv4_plist_name);
+	if (bm->ipv6_plist_name)
+		vty_out(vty, "bgp advertise-delay-onstartup ipv6-prefix-list %s\n", bm->ipv6_plist_name);
 
 	if (bm->wait_for_fib)
 		vty_out(vty, "bgp suppress-fib-pending\n");
@@ -19146,6 +19199,8 @@ void bgp_vty_init(void)
 
 	install_element(CONFIG_NODE, &bgp_global_advertise_delay_onstartup_cmd);
 	install_element(CONFIG_NODE, &no_bgp_global_advertise_delay_onstartup_cmd);
+	install_element(CONFIG_NODE, &bgp_global_advertise_delay_onstartup_filter_cmd);
+	install_element(CONFIG_NODE, &no_bgp_global_advertise_delay_onstartup_filter_cmd);
 
 	/* Dummy commands (Currently not supported) */
 	install_element(BGP_NODE, &no_synchronization_cmd);

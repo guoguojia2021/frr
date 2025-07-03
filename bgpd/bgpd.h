@@ -187,6 +187,13 @@ struct bgp_master {
 	uint16_t v_establish_wait;
 
 	uint16_t v_onstartup_advertise_delay;
+	/* advertise delay ipv4-prefix-list.  */
+	char *ipv4_plist_name;
+	struct prefix_list *ipv4_plist;
+
+	/* advertise delay ipv4-prefix-list.  */
+	char *ipv6_plist_name;
+	struct prefix_list *ipv6_plist;
 
 	uint32_t flags;
 #define BM_FLAG_GRACEFUL_SHUTDOWN        (1 << 0)
@@ -564,7 +571,6 @@ struct bgp {
 	uint8_t maxmed_active; /* 1/0 if max-med is active or not */
 	uint32_t maxmed_value; /* Max-med value when its active */
 
-	uint32_t v_onstartup_advertise_delay; /* advertise delay time on start-up */
 #define BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED  0 /* 0 means off, its the default */
 	struct thread *t_onstartup_advertise_delay; /* non-null when advertise delay onstartup is on */
 	uint8_t onstartup_advertise_delay_over; /* Flag to make it effective only once */
@@ -2244,7 +2250,7 @@ extern int bgp_listen_limit_unset(struct bgp *);
 
 extern bool bgp_update_delay_active(struct bgp *);
 extern bool bgp_update_delay_configured(struct bgp *);
-extern bool bgp_advertise_delay_onstartup_configured(struct bgp *bgp);
+extern bool bgp_advertise_delay_onstartup_configured(void);
 extern int bgp_afi_safi_peer_exists(struct bgp *bgp, afi_t afi, safi_t safi);
 extern void peer_as_change(struct peer *, as_t, int);
 extern int peer_remote_as(struct bgp *, union sockunion *, const char *, as_t *,

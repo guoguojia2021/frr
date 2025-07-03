@@ -963,10 +963,9 @@ bool bgp_update_delay_configured(struct bgp *bgp)
 	return false;
 }
 
-bool bgp_advertise_delay_onstartup_configured(struct bgp *bgp)
+bool bgp_advertise_delay_onstartup_configured(void)
 {
-	zlog_debug("%s: %s: v_onstartup_advertise_delay = %d.\n", __func__,bgp->name_pretty, bgp->v_onstartup_advertise_delay);
-	if (bgp->v_onstartup_advertise_delay != BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED)
+	if (bm->v_onstartup_advertise_delay != BGP_ADVERTISE_DELAY_ONSTARTUP_UNCONFIGURED)
 		return true;
 	return false;
 }
@@ -975,7 +974,7 @@ bool bgp_advertise_delay_onstartup_applicable(struct bgp *bgp)
 {
 	zlog_debug("%s:%s:onstartup_advertise_delay_over = %d.\n", __func__, bgp->name_pretty, bgp->onstartup_advertise_delay_over);
 
-	if (!bgp_advertise_delay_onstartup_configured(bgp))
+	if (!bgp_advertise_delay_onstartup_configured())
 		return false;
 	if (!bgp->onstartup_advertise_delay_over)
 		return true;
@@ -1353,7 +1352,6 @@ static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
 	afi_t afi;
 	safi_t safi;
 	struct peer_af *paf = NULL;
-	struct bgp_filter *filter = NULL;
 
 	frr_timestamp(3, peer->advertise_delay_onstartup_start_time,
 			 sizeof(peer->advertise_delay_onstartup_start_time));
@@ -1364,10 +1362,6 @@ static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
 	FOREACH_AFI_SAFI (afi, safi) {
 
 		if (!peer->afc_nego[afi][safi])
-			continue;
-
-		filter = &peer->filter[afi][safi];
-		if (!ADVERTISE_DELAY_MAP_NAME(filter))
 			continue;
 
 		if (BGP_DEBUG(update, UPDATE_OUT))
@@ -1711,8 +1705,7 @@ void bgp_fsm_change_status(struct peer *peer, int status)
 
 	/* If advertise delay onstartup processing is applicable, do the necessary. */
 	if (status == Established) {
-		if (bgp_advertise_delay_onstartup_configured(peer->bgp)
-		    && bgp_advertise_delay_onstartup_applicable(peer->bgp))
+		if (bgp_advertise_delay_onstartup_applicable(peer->bgp))
 			bgp_advertise_delay_onstartup_process_status_change(peer);
 		else
 			peer->bgp->onstartup_advertise_delay_over = 1;

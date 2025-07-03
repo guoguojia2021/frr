@@ -1686,6 +1686,19 @@ static enum filter_type bgp_output_filter(struct peer *peer, const struct prefix
 	bgp_filter = &bgp->filter[afi][safi];
 	peer_filter = &peer->filter[afi][safi];
 
+    if (!peer->bgp->onstartup_advertise_delay_over) {
+		if (bm->ipv4_plist && p->family == AF_INET) {
+			if (prefix_list_apply(bm->ipv4_plist, p) == PREFIX_PERMIT)
+				return FILTER_PERMIT;
+		}
+		if (bm->ipv6_plist && p->family == AF_INET6) {
+			if (prefix_list_apply(bm->ipv6_plist, p) == PREFIX_PERMIT)
+				return FILTER_PERMIT;
+		}
+		if (!ADVERTISE_DELAY_MAP(peer_filter))
+			return FILTER_DENY;
+    }
+
 	if (bgp_out_filter_run(peer, p, attr, bgp_filter) == FILTER_PERMIT &&
 			bgp_out_filter_run(peer, p, attr, peer_filter) == FILTER_PERMIT)
 	{

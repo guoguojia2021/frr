@@ -3495,7 +3495,6 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 	bgp->v_update_delay = bm->v_update_delay;
 	bgp->v_advertise_delay = bm->v_advertise_delay;
 	bgp->v_establish_wait = bm->v_establish_wait;
-	bgp->v_onstartup_advertise_delay = bm->v_onstartup_advertise_delay;
 	bgp->default_local_pref = BGP_DEFAULT_LOCAL_PREF;
 	bgp->default_subgroup_pkt_queue_max =
 		BGP_DEFAULT_SUBGROUP_PKT_QUEUE_MAX;
@@ -7102,6 +7101,11 @@ static void peer_prefix_list_update(struct prefix_list *plist)
 			}
 		}
 	}
+
+	if (bm->ipv4_plist_name)
+		bm->ipv4_plist = prefix_list_lookup(AFI_IP, bm->ipv4_plist_name);
+	if (bm->ipv6_plist_name)
+		bm->ipv6_plist = prefix_list_lookup(AFI_IP6, bm->ipv6_plist_name);
 }
 
 int peer_aslist_set(struct peer *peer, afi_t afi, safi_t safi, int direct,
