@@ -57,7 +57,7 @@ static void zebra_rnhtable_node_cleanup(struct route_table *table,
 
 DEFINE_MTYPE_STATIC(ZEBRA, ZEBRA_VRF, "ZEBRA VRF");
 DEFINE_MTYPE_STATIC(ZEBRA, OTHER_TABLE, "Other Table");
-
+extern struct thread *t_rib_evaluate_nexthop_delay;
 /* VRF information update. */
 static void zebra_vrf_add_update(struct zebra_vrf *zvrf)
 {
@@ -284,6 +284,8 @@ static int zebra_vrf_disable(struct vrf *vrf)
 			zebra_vrf_disable_update_vrfid(zvrf, afi, safi);
 		}
 	}
+	if (vrf->vrf_id == VRF_DEFAULT)
+		THREAD_OFF(t_rib_evaluate_nexthop_delay);
 
 	return 0;
 }

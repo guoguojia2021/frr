@@ -304,6 +304,8 @@ DECLARE_LIST(re_list, struct route_entry, next);
 #define RIB_DEST_PENDING_FPM	(1 << (ZEBRA_MAX_QINDEX + 4))
 
 #define RIB_DEST_FIB_COUNT   	(1 << (ZEBRA_MAX_QINDEX + 5))
+
+#define RIB_DEST_INSTALL_REJECT 	(1 << (ZEBRA_MAX_QINDEX + 6))
 /*
  * Macro to iterate over each route for a destination (prefix).
  */

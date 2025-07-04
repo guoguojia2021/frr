@@ -78,9 +78,11 @@ unsigned long ip6_sent_fib_count = 0;
 unsigned long ip6_pending_fib_count = 0;
 bool fib_max_alarm_switch = true;
 bool fib_threshold_alarm_switch = true;
+struct thread *t_rib_evaluate_nexthop_delay;
 
 #define ZEBRA_TABLE_FIB_THRESHOLD           0.8
 #define ZEBRA_TABLE_FIB_MAX_ALARM_RESUME    0.6
+#define RIB_EVALUATE_NEXTHOP_DELAY_TIME     5
 
 struct pend_list pending_list = {0};
 
@@ -817,6 +819,11 @@ void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 	rib_dest_t *dest = rib_dest_from_rnode(rn);
 	struct rnh *rnh;
 
+	if (dest && CHECK_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT)) {
+		UNSET_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT);
+		zlog_warn("%pRN has been rejected by the kernel.", rn);
+	}
+
 	if(rt_delete)
 		zebra_update_pic_nhe(rn);
 
@@ -847,6 +854,10 @@ void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 			if (rn)
 				dest = rib_dest_from_rnode(rn);
 			continue;
+		}
+		if (CHECK_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT)) {
+			UNSET_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT);
+			zlog_warn("%pRN has been rejected by the kernel.", rn);
 		}
 		/*
 		 * If we have any rnh's stored in the nht list
@@ -2268,7 +2279,59 @@ done:
 	return rn;
 }
 
+static int zebra_rib_evaluate_nexthop_delay(struct thread *thread)
+{
+	struct route_table *ipv4_table = NULL;
+	struct route_table *ipv6_table = NULL;
+	struct route_node *rn;
+	rib_dest_t *dest;
 
+	/*onley support default vrf*/
+	ipv4_table = zebra_vrf_table(AFI_IP, SAFI_UNICAST, VRF_DEFAULT);
+	ipv6_table = zebra_vrf_table(AFI_IP6, SAFI_UNICAST, VRF_DEFAULT);
+
+	zlog_warn("%s: route reject by kernel, neet to evaluate nexthop.", __func__);
+
+	if (ipv4_table) {
+		for (rn = route_top(ipv4_table); rn; rn = srcdest_route_next(rn)) {
+			dest = rib_dest_from_rnode(rn);
+			if (!dest)
+				continue;
+
+			if (!CHECK_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT))
+				continue;
+			zlog_warn("%s: rib ipv4 node %pRN.", __func__, rn);
+			zebra_rib_evaluate_rn_nexthops(rn, zebra_router_get_next_sequence(), false);
+			zebra_rib_evaluate_mpls(rn);
+		}
+	}
+	if (ipv6_table) {
+		for (rn = route_top(ipv6_table); rn; rn = srcdest_route_next(rn)) {
+			dest = rib_dest_from_rnode(rn);
+			if (!dest)
+				continue;
+			if (!CHECK_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT))
+				continue;
+			zlog_warn("%s: rib ipv4 node %pRN.", __func__, rn);
+			zebra_rib_evaluate_rn_nexthops(rn, zebra_router_get_next_sequence(), false);
+			zebra_rib_evaluate_mpls(rn);
+		}
+	}
+	t_rib_evaluate_nexthop_delay = NULL;
+	return 0;
+}
+
+static void zebra_rib_evaluate_nexthop_timer(void)
+{
+	zlog_warn("%s: start timer to delay evaluate nexthop.", __func__);
+
+	THREAD_OFF(t_rib_evaluate_nexthop_delay);
+	thread_add_timer(zrouter.master, zebra_rib_evaluate_nexthop_delay,
+			NULL,
+			RIB_EVALUATE_NEXTHOP_DELAY_TIME,
+			&t_rib_evaluate_nexthop_delay);
+	return;
+}
 
 /*
  * Route-update results processing after async dataplane update.
@@ -2287,6 +2350,7 @@ static void rib_process_result(struct zebra_dplane_ctx *ctx)
 	bool fib_changed = false;
 	struct rib_table_info *info;
 	bool rt_delete = false;
+	bool reject = false;
 
 	zvrf = vrf_info_lookup(dplane_ctx_get_vrf(ctx));
 	vrf = vrf_lookup_by_id(dplane_ctx_get_vrf(ctx));
@@ -2467,7 +2531,7 @@ static void rib_process_result(struct zebra_dplane_ctx *ctx)
 				zsend_route_notify_owner(
 					rn, re, ZAPI_ROUTE_FAIL_INSTALL,
 					info->afi, info->safi);
-
+			reject = true;
 			zlog_warn("%s(%u:%u):%pRN: Route install failed",
 				  VRF_LOGNAME(vrf), dplane_ctx_get_vrf(ctx),
 				  dplane_ctx_get_table(ctx), rn);
@@ -2496,7 +2560,7 @@ static void rib_process_result(struct zebra_dplane_ctx *ctx)
 				SET_FLAG(re->status, ROUTE_ENTRY_FAILED);
 			zsend_route_notify_owner_ctx(ctx,
 						     ZAPI_ROUTE_REMOVE_FAIL);
-
+			reject = true;
 			zlog_warn("%s(%u:%u):%pRN: Route Deletion failure",
 				  VRF_LOGNAME(vrf), dplane_ctx_get_vrf(ctx),
 				  dplane_ctx_get_table(ctx), rn);
@@ -2517,8 +2581,16 @@ static void rib_process_result(struct zebra_dplane_ctx *ctx)
 		break;
 	}
 
-	zebra_rib_evaluate_rn_nexthops(rn, seq, rt_delete);
-	zebra_rib_evaluate_mpls(rn);
+	if (reject) {
+		if (dest)
+			SET_FLAG(dest->flags, RIB_DEST_INSTALL_REJECT);
+		zebra_rib_evaluate_nexthop_timer();
+	}
+	else {
+		zebra_rib_evaluate_rn_nexthops(rn, seq, rt_delete);
+		zebra_rib_evaluate_mpls(rn);
+	}
+
 done:
 
 	if (rn)
