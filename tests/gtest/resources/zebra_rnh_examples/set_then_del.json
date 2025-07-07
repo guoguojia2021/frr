@@ -1,0 +1,106 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": []
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "a",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "InputActions": [
+      {
+        "Action": "POLICY_DEL",
+        "Policy": {
+          "Srv6Tunnel": [],
+          "Endpoint": "2000::179",
+          "Color": 2
+        }
+      }
+    ],
+    "FinalState": {
+      "PolicyRouteTable": [],
+      "Nhgs": []
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": []
+              },
+              {
+                "Color": 2,
+                "PolicyTableKey": "2000::179",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "a",
+                    "Weight": 1
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "InputActions": [
+      {
+        "Action": "RNH_REGISTER",
+        "InputRnh": {
+          "ResolvedRoute": "1000::179",
+          "Color": 2
+        }
+      },
+      {
+        "Action": "POLICY_DEL",
+        "Policy": {
+          "Srv6Tunnel": [],
+          "Endpoint": "2000::179",
+          "Color": 2
+        }
+      },
+      {
+        "Action": "RNH_UNREGISTER",
+        "InputRnh": {
+          "ResolvedRoute": "1000::179",
+          "Color": 2
+        }
+      }
+    ],
+    "FinalState": {
+      "PolicyRouteTable": [],
+      "Nhgs": []
+    }
+  }
+]

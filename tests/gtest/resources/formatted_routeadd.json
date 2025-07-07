@@ -1,0 +1,5684 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2430478745,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "8d71:b3fa::99be:b336",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "8d71:b3fa::99be:b336",
+                    "Color": 2430478745
+                  }
+                ]
+              },
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "4383:af4f::c224",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid268435456",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "1bc5:d0e3::8d14:924f",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2430478745
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3481188506,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3481188506
+                  }
+                ]
+              },
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "1bc5:d0e3::8d14:924f",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "1bc5:d0e3::8d14:924f",
+                    "ResolvedRoute": "1bc5:d0e3::8d14:924f",
+                    "Color": 3481188506
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2867785157,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2867785157,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2867785157,
+                "PolicyTableKey": "6e90:b5d2::fd0a:28d1",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid65536",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 41574673,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 41574673,
+                "PolicyTableKey": "17eb:7003::c5e7:b069",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 41574673,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 41574673
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [],
+      "RouteNhgMaps": [],
+      "Rnhs": [
+        {
+          "Prefix": "8d71:b3fa::99be:b336",
+          "RnhList": [
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 41574673
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "8d71:b3fa::99be:b336",
+              "Color": 2430478745
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 3481188506
+            }
+          ]
+        },
+        {
+          "Prefix": "1bc5:d0e3::8d14:924f",
+          "RnhList": [
+            {
+              "Prefix": "1bc5:d0e3::8d14:924f",
+              "ResolvedRoute": "1bc5:d0e3::8d14:924f",
+              "Color": 3481188506
+            },
+            {
+              "Prefix": "1bc5:d0e3::8d14:924f",
+              "ResolvedRoute": "0::/0",
+              "Color": 2430478745
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "2385:b277::6ff0:311",
+      "NexthopTops": [
+        {
+          "SrteColor": 0,
+          "GateIpv6": "b407:11a8::27ea:be2c"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2430478745,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "8d71:b3fa::99be:b336",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "8d71:b3fa::99be:b336",
+                    "Color": 2430478745
+                  }
+                ]
+              },
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "4383:af4f::c224",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid268435456",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "1bc5:d0e3::8d14:924f",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2430478745
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3481188506,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3481188506
+                  }
+                ]
+              },
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "1bc5:d0e3::8d14:924f",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "1bc5:d0e3::8d14:924f",
+                    "ResolvedRoute": "1bc5:d0e3::8d14:924f",
+                    "Color": 3481188506
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2867785157,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2867785157,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2867785157,
+                "PolicyTableKey": "6e90:b5d2::fd0a:28d1",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid65536",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 41574673,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 41574673,
+                "PolicyTableKey": "17eb:7003::c5e7:b069",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 41574673,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 41574673
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "b407:11a8::27ea:be2c",
+            "SrteColor": 0,
+            "Resolved": []
+          },
+          "SegDepends": []
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 0,
+              "GateIpv6": "b407:11a8::27ea:be2c"
+            }
+          ],
+          "RoutePrefix": "2385:b277::6ff0:311"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "8d71:b3fa::99be:b336",
+          "RnhList": [
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 41574673
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "8d71:b3fa::99be:b336",
+              "Color": 2430478745
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 3481188506
+            }
+          ]
+        },
+        {
+          "Prefix": "1bc5:d0e3::8d14:924f",
+          "RnhList": [
+            {
+              "Prefix": "1bc5:d0e3::8d14:924f",
+              "ResolvedRoute": "1bc5:d0e3::8d14:924f",
+              "Color": 3481188506
+            },
+            {
+              "Prefix": "1bc5:d0e3::8d14:924f",
+              "ResolvedRoute": "0::/0",
+              "Color": 2430478745
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 3481188506,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "c314:25b4::8201:41e1",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid512",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32768",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "433e:bf5b::7a2:1281",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3481188506
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3848081402,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3848081402,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3924197207,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3924197207,
+                "PolicyTableKey": "1bc5:d0e3::8d14:924f",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 3924197207,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "50c8:ba3a::e8a6:357",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3924197207
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "4134:32a2::e74d:cb2a",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid65536",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid128",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid1073741824",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "433e:bf5b::7a2:1281",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "50c8:ba3a::e8a6:357",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "50c8:ba3a::e8a6:357",
+                    "ResolvedRoute": "50c8:ba3a::e8a6:357",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "4134:32a2::e74d:cb2a",
+            "SrteColor": 2115638229,
+            "Resolved": [
+              {
+                "GateIpv6": "4134:32a2::e74d:cb2a",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid65536",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "4134:32a2::e74d:cb2a",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "4134:32a2::e74d:cb2a",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid65536",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "4134:32a2::e74d:cb2a",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "4134:32a2::e74d:cb2a"
+            }
+          ],
+          "RoutePrefix": "5085:cb99::b581:82d2"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "433e:bf5b::7a2:1281",
+          "RnhList": [
+            {
+              "Prefix": "433e:bf5b::7a2:1281",
+              "ResolvedRoute": "0::/0",
+              "Color": 3481188506
+            },
+            {
+              "Prefix": "433e:bf5b::7a2:1281",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            }
+          ]
+        },
+        {
+          "Prefix": "50c8:ba3a::e8a6:357",
+          "RnhList": [
+            {
+              "Prefix": "50c8:ba3a::e8a6:357",
+              "ResolvedRoute": "50c8:ba3a::e8a6:357",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "50c8:ba3a::e8a6:357",
+              "ResolvedRoute": "0::/0",
+              "Color": 3924197207
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "5085:cb99::b581:82d2",
+      "NexthopTops": [
+        {
+          "SrteColor": 0,
+          "GateIpv6": "0::/0"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 3481188506,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "c314:25b4::8201:41e1",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 3481188506,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid512",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32768",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "433e:bf5b::7a2:1281",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3481188506
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3848081402,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3848081402,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3924197207,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3924197207,
+                "PolicyTableKey": "1bc5:d0e3::8d14:924f",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 3924197207,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "50c8:ba3a::e8a6:357",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3924197207
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "4134:32a2::e74d:cb2a",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid65536",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid128",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid1073741824",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "433e:bf5b::7a2:1281",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "50c8:ba3a::e8a6:357",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "50c8:ba3a::e8a6:357",
+                    "ResolvedRoute": "50c8:ba3a::e8a6:357",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 0,
+            "Resolved": []
+          },
+          "SegDepends": []
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 0,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "5085:cb99::b581:82d2"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "433e:bf5b::7a2:1281",
+          "RnhList": [
+            {
+              "Prefix": "433e:bf5b::7a2:1281",
+              "ResolvedRoute": "0::/0",
+              "Color": 3481188506
+            },
+            {
+              "Prefix": "433e:bf5b::7a2:1281",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            }
+          ]
+        },
+        {
+          "Prefix": "50c8:ba3a::e8a6:357",
+          "RnhList": [
+            {
+              "Prefix": "50c8:ba3a::e8a6:357",
+              "ResolvedRoute": "50c8:ba3a::e8a6:357",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "50c8:ba3a::e8a6:357",
+              "ResolvedRoute": "0::/0",
+              "Color": 3924197207
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 2,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 1608569906,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1608569906,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid256",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  },
+                  {
+                    "Prefix": "17eb:7003::c5e7:b069",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  },
+                  {
+                    "Prefix": "6e1a:e50c::a297:61a7",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "9475:1be0::656e:16fe",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  },
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3082263166,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3082263166,
+                "PolicyTableKey": "4134:32a2::e74d:cb2a",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "4134:32a2::e74d:cb2a",
+                    "Color": 3082263166
+                  }
+                ]
+              },
+              {
+                "Color": 3082263166,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2683383133,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid512",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8192",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "8d71:b3fa::99be:b336",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [],
+      "RouteNhgMaps": [],
+      "Rnhs": [
+        {
+          "Prefix": "6e1a:e50c::a297:61a7",
+          "RnhList": [
+            {
+              "Prefix": "6e1a:e50c::a297:61a7",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            }
+          ]
+        },
+        {
+          "Prefix": "9475:1be0::656e:16fe",
+          "RnhList": [
+            {
+              "Prefix": "9475:1be0::656e:16fe",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            }
+          ]
+        },
+        {
+          "Prefix": "17eb:7003::c5e7:b069",
+          "RnhList": [
+            {
+              "Prefix": "17eb:7003::c5e7:b069",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            }
+          ]
+        },
+        {
+          "Prefix": "4134:32a2::e74d:cb2a",
+          "RnhList": [
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "4134:32a2::e74d:cb2a",
+              "Color": 3082263166
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "cbfd:2187::fad9:2a8f",
+      "NexthopTops": [
+        {
+          "SrteColor": 0,
+          "GateIpv6": "0::/0"
+        },
+        {
+          "SrteColor": 0,
+          "GateIpv6": "5e4a:f92d::1f11:c68b"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 1608569906,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1608569906,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid256",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  },
+                  {
+                    "Prefix": "17eb:7003::c5e7:b069",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  },
+                  {
+                    "Prefix": "6e1a:e50c::a297:61a7",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "9475:1be0::656e:16fe",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  },
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3082263166,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3082263166,
+                "PolicyTableKey": "4134:32a2::e74d:cb2a",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "4134:32a2::e74d:cb2a",
+                    "Color": 3082263166
+                  }
+                ]
+              },
+              {
+                "Color": 3082263166,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2683383133,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid512",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8192",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "8d71:b3fa::99be:b336",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": [
+            {
+              "GateIpv6": "0::/0",
+              "SrteColor": 0
+            },
+            {
+              "GateIpv6": "5e4a:f92d::1f11:c68b",
+              "SrteColor": 0
+            }
+          ],
+          "SegDependsID": []
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 0,
+              "GateIpv6": "0::/0"
+            },
+            {
+              "SrteColor": 0,
+              "GateIpv6": "5e4a:f92d::1f11:c68b"
+            }
+          ],
+          "RoutePrefix": "cbfd:2187::fad9:2a8f"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "6e1a:e50c::a297:61a7",
+          "RnhList": [
+            {
+              "Prefix": "6e1a:e50c::a297:61a7",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            }
+          ]
+        },
+        {
+          "Prefix": "9475:1be0::656e:16fe",
+          "RnhList": [
+            {
+              "Prefix": "9475:1be0::656e:16fe",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            }
+          ]
+        },
+        {
+          "Prefix": "17eb:7003::c5e7:b069",
+          "RnhList": [
+            {
+              "Prefix": "17eb:7003::c5e7:b069",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            }
+          ]
+        },
+        {
+          "Prefix": "4134:32a2::e74d:cb2a",
+          "RnhList": [
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "4134:32a2::e74d:cb2a",
+              "Color": 3082263166
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 3,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 1758642795,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1758642795,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1758642795,
+                "PolicyTableKey": "bc38:17c1::5fa9:37d2",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid64",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "bc38:17c1::5fa9:37d2",
+                    "ResolvedRoute": "bc38:17c1::5fa9:37d2",
+                    "Color": 1758642795
+                  }
+                ]
+              },
+              {
+                "Color": 1758642795,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16777216",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid08",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "7203:4de8::ba7a:de26",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1758642795
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "7203:4de8::ba7a:de26",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "7203:4de8::ba7a:de26",
+                    "ResolvedRoute": "7203:4de8::ba7a:de26",
+                    "Color": 2115638229
+                  }
+                ]
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "bc38:17c1::5fa9:37d2",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3082263166,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3082263166,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8192",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "7203:4de8::ba7a:de26",
+            "SrteColor": 2115638229,
+            "Resolved": [
+              {
+                "GateIpv6": "7203:4de8::ba7a:de26",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "7203:4de8::ba7a:de26",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 1758642795,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 1
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid16777216",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 1
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid16777216",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1758642795,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "d88c:86f1::a81d:4536"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "7203:4de8::ba7a:de26"
+            }
+          ],
+          "RoutePrefix": "6b1e:73a0::cffb:4f82"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "bc38:17c1::5fa9:37d2",
+          "RnhList": [
+            {
+              "Prefix": "bc38:17c1::5fa9:37d2",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "bc38:17c1::5fa9:37d2",
+              "ResolvedRoute": "bc38:17c1::5fa9:37d2",
+              "Color": 1758642795
+            }
+          ]
+        },
+        {
+          "Prefix": "7203:4de8::ba7a:de26",
+          "RnhList": [
+            {
+              "Prefix": "7203:4de8::ba7a:de26",
+              "ResolvedRoute": "0::/0",
+              "Color": 1758642795
+            },
+            {
+              "Prefix": "7203:4de8::ba7a:de26",
+              "ResolvedRoute": "7203:4de8::ba7a:de26",
+              "Color": 2115638229
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "3135:88ae::8f9a:3614",
+      "NexthopTops": [
+        {
+          "SrteColor": 2115638229,
+          "GateIpv6": "7203:4de8::ba7a:de26"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 1758642795,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1758642795,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid02",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1758642795,
+                "PolicyTableKey": "bc38:17c1::5fa9:37d2",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid64",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "bc38:17c1::5fa9:37d2",
+                    "ResolvedRoute": "bc38:17c1::5fa9:37d2",
+                    "Color": 1758642795
+                  }
+                ]
+              },
+              {
+                "Color": 1758642795,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16777216",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid08",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "7203:4de8::ba7a:de26",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1758642795
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "7203:4de8::ba7a:de26",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "7203:4de8::ba7a:de26",
+                    "ResolvedRoute": "7203:4de8::ba7a:de26",
+                    "Color": 2115638229
+                  }
+                ]
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "bc38:17c1::5fa9:37d2",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3082263166,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3082263166,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8192",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "7203:4de8::ba7a:de26",
+            "SrteColor": 2115638229,
+            "Resolved": [
+              {
+                "GateIpv6": "7203:4de8::ba7a:de26",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "7203:4de8::ba7a:de26",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 1758642795,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 1
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid16777216",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 1
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1758642795,
+                "SidlistName": "sid16777216",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "7203:4de8::ba7a:de26"
+            }
+          ],
+          "RoutePrefix": "3135:88ae::8f9a:3614"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1758642795,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "d88c:86f1::a81d:4536"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "7203:4de8::ba7a:de26"
+            }
+          ],
+          "RoutePrefix": "6b1e:73a0::cffb:4f82"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "bc38:17c1::5fa9:37d2",
+          "RnhList": [
+            {
+              "Prefix": "bc38:17c1::5fa9:37d2",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "bc38:17c1::5fa9:37d2",
+              "ResolvedRoute": "bc38:17c1::5fa9:37d2",
+              "Color": 1758642795
+            }
+          ]
+        },
+        {
+          "Prefix": "7203:4de8::ba7a:de26",
+          "RnhList": [
+            {
+              "Prefix": "7203:4de8::ba7a:de26",
+              "ResolvedRoute": "0::/0",
+              "Color": 1758642795
+            },
+            {
+              "Prefix": "7203:4de8::ba7a:de26",
+              "ResolvedRoute": "7203:4de8::ba7a:de26",
+              "Color": 2115638229
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 4,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2867785157,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2867785157,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid268435456",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8192",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3613288381,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3613288381,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1975737265,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1975737265,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid256",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1975737265,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 419465618,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 419465618,
+                "PolicyTableKey": "3135:88ae::8f9a:3614",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "3135:88ae::8f9a:3614",
+                    "ResolvedRoute": "3135:88ae::8f9a:3614",
+                    "Color": 419465618
+                  }
+                ]
+              },
+              {
+                "Color": 419465618,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid1024",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "2de4:4621::2ccb:52c5",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 419465618
+                  },
+                  {
+                    "Prefix": "17eb:7003::c5e7:b069",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 419465618
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 1975737265,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1975737265,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "1bc5:d0e3::8d14:924f"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "3135:88ae::8f9a:3614",
+          "RnhList": [
+            {
+              "Prefix": "3135:88ae::8f9a:3614",
+              "ResolvedRoute": "3135:88ae::8f9a:3614",
+              "Color": 419465618
+            }
+          ]
+        },
+        {
+          "Prefix": "17eb:7003::c5e7:b069",
+          "RnhList": [
+            {
+              "Prefix": "17eb:7003::c5e7:b069",
+              "ResolvedRoute": "0::/0",
+              "Color": 419465618
+            }
+          ]
+        },
+        {
+          "Prefix": "2de4:4621::2ccb:52c5",
+          "RnhList": [
+            {
+              "Prefix": "2de4:4621::2ccb:52c5",
+              "ResolvedRoute": "0::/0",
+              "Color": 419465618
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "b407:11a8::27ea:be2c",
+      "NexthopTops": [
+        {
+          "SrteColor": 3613288381,
+          "GateIpv6": "433e:bf5b::7a2:1281"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2867785157,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2867785157,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid268435456",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8192",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3613288381,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3613288381,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1975737265,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1975737265,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid256",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1975737265,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid536870912",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 419465618,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 419465618,
+                "PolicyTableKey": "3135:88ae::8f9a:3614",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "3135:88ae::8f9a:3614",
+                    "ResolvedRoute": "3135:88ae::8f9a:3614",
+                    "Color": 419465618
+                  }
+                ]
+              },
+              {
+                "Color": 419465618,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid1024",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "2de4:4621::2ccb:52c5",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 419465618
+                  },
+                  {
+                    "Prefix": "17eb:7003::c5e7:b069",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 419465618
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 3613288381,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3613288381,
+                "SidlistName": "sid134217728",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3613288381,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3613288381,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3613288381,
+                "SidlistName": "sid134217728",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3613288381,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3613288381,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 1975737265,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid536870912",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1975737265,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 3613288381,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "b407:11a8::27ea:be2c"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1975737265,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "1bc5:d0e3::8d14:924f"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "3135:88ae::8f9a:3614",
+          "RnhList": [
+            {
+              "Prefix": "3135:88ae::8f9a:3614",
+              "ResolvedRoute": "3135:88ae::8f9a:3614",
+              "Color": 419465618
+            }
+          ]
+        },
+        {
+          "Prefix": "17eb:7003::c5e7:b069",
+          "RnhList": [
+            {
+              "Prefix": "17eb:7003::c5e7:b069",
+              "ResolvedRoute": "0::/0",
+              "Color": 419465618
+            }
+          ]
+        },
+        {
+          "Prefix": "2de4:4621::2ccb:52c5",
+          "RnhList": [
+            {
+              "Prefix": "2de4:4621::2ccb:52c5",
+              "ResolvedRoute": "0::/0",
+              "Color": 419465618
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 5,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 3503574734,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3503574734,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "6b1e:73a0::cffb:4f82",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3503574734
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1433910268,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "6b1e:73a0::cffb:4f82",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1433910268
+                  }
+                ]
+              },
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "bf5e:8ffa::d3d7:f1a2",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8388608",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "bf5e:8ffa::d3d7:f1a2",
+                    "ResolvedRoute": "bf5e:8ffa::d3d7:f1a2",
+                    "Color": 1433910268
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 3503574734,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3503574734,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3503574734,
+                "SidlistName": "sid32",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3503574734,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 3503574734,
+                "SidlistName": "sid32",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 3503574734,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "2de4:4621::2ccb:52c5"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "bf5e:8ffa::d3d7:f1a2",
+          "RnhList": [
+            {
+              "Prefix": "bf5e:8ffa::d3d7:f1a2",
+              "ResolvedRoute": "bf5e:8ffa::d3d7:f1a2",
+              "Color": 1433910268
+            }
+          ]
+        },
+        {
+          "Prefix": "6b1e:73a0::cffb:4f82",
+          "RnhList": [
+            {
+              "Prefix": "6b1e:73a0::cffb:4f82",
+              "ResolvedRoute": "0::/0",
+              "Color": 1433910268
+            },
+            {
+              "Prefix": "6b1e:73a0::cffb:4f82",
+              "ResolvedRoute": "0::/0",
+              "Color": 3503574734
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "2de4:4621::2ccb:52c5",
+      "NexthopTops": [
+        {
+          "SrteColor": 1825455147,
+          "GateIpv6": "b407:11a8::27ea:be2c"
+        },
+        {
+          "SrteColor": 0,
+          "GateIpv6": "0::/0"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 3503574734,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3503574734,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "6b1e:73a0::cffb:4f82",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3503574734
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1433910268,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "6b1e:73a0::cffb:4f82",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1433910268
+                  }
+                ]
+              },
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "bf5e:8ffa::d3d7:f1a2",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid8388608",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "bf5e:8ffa::d3d7:f1a2",
+                    "ResolvedRoute": "bf5e:8ffa::d3d7:f1a2",
+                    "Color": 1433910268
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": [
+            {
+              "GateIpv6": "b407:11a8::27ea:be2c",
+              "SrteColor": 1825455147
+            },
+            {
+              "GateIpv6": "0::/0",
+              "SrteColor": 0
+            }
+          ],
+          "SegDependsID": []
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1825455147,
+              "GateIpv6": "b407:11a8::27ea:be2c"
+            },
+            {
+              "SrteColor": 0,
+              "GateIpv6": "0::/0"
+            }
+          ],
+          "RoutePrefix": "2de4:4621::2ccb:52c5"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "bf5e:8ffa::d3d7:f1a2",
+          "RnhList": [
+            {
+              "Prefix": "bf5e:8ffa::d3d7:f1a2",
+              "ResolvedRoute": "bf5e:8ffa::d3d7:f1a2",
+              "Color": 1433910268
+            }
+          ]
+        },
+        {
+          "Prefix": "6b1e:73a0::cffb:4f82",
+          "RnhList": [
+            {
+              "Prefix": "6b1e:73a0::cffb:4f82",
+              "ResolvedRoute": "0::/0",
+              "Color": 1433910268
+            },
+            {
+              "Prefix": "6b1e:73a0::cffb:4f82",
+              "ResolvedRoute": "0::/0",
+              "Color": 3503574734
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 6,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2705423073,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2705423073,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid512",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "17eb:7003::c5e7:b069",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2705423073
+                  }
+                ]
+              },
+              {
+                "Color": 2705423073,
+                "PolicyTableKey": "c1ac:cc20::7fd0:b8e3",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "c1ac:cc20::7fd0:b8e3",
+                    "ResolvedRoute": "c1ac:cc20::7fd0:b8e3",
+                    "Color": 2705423073
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 858876391,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid4096",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid4194304",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "4383:af4f::c224",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2132672708,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2132672708,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2132672708,
+                "PolicyTableKey": "2385:b277::6ff0:311",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "2385:b277::6ff0:311",
+                    "ResolvedRoute": "2385:b277::6ff0:311",
+                    "Color": 2132672708
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+            "SrteColor": 2705423073,
+            "Resolved": [
+              {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2705423073,
+              "GateIpv6": "c1ac:cc20::7fd0:b8e3"
+            }
+          ],
+          "RoutePrefix": "6e90:b5d2::fd0a:28d1"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "2385:b277::6ff0:311",
+          "RnhList": [
+            {
+              "Prefix": "2385:b277::6ff0:311",
+              "ResolvedRoute": "2385:b277::6ff0:311",
+              "Color": 2132672708
+            }
+          ]
+        },
+        {
+          "Prefix": "17eb:7003::c5e7:b069",
+          "RnhList": [
+            {
+              "Prefix": "17eb:7003::c5e7:b069",
+              "ResolvedRoute": "0::/0",
+              "Color": 2705423073
+            }
+          ]
+        },
+        {
+          "Prefix": "c1ac:cc20::7fd0:b8e3",
+          "RnhList": [
+            {
+              "Prefix": "c1ac:cc20::7fd0:b8e3",
+              "ResolvedRoute": "c1ac:cc20::7fd0:b8e3",
+              "Color": 2705423073
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "6e90:b5d2::fd0a:28d1",
+      "NexthopTops": [
+        {
+          "SrteColor": 2705423073,
+          "GateIpv6": "c1ac:cc20::7fd0:b8e3"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2705423073,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2705423073,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid512",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "17eb:7003::c5e7:b069",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2705423073
+                  }
+                ]
+              },
+              {
+                "Color": 2705423073,
+                "PolicyTableKey": "c1ac:cc20::7fd0:b8e3",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "c1ac:cc20::7fd0:b8e3",
+                    "ResolvedRoute": "c1ac:cc20::7fd0:b8e3",
+                    "Color": 2705423073
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 858876391,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid4096",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid4194304",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "4383:af4f::c224",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2132672708,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2132672708,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2132672708,
+                "PolicyTableKey": "2385:b277::6ff0:311",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "2385:b277::6ff0:311",
+                    "ResolvedRoute": "2385:b277::6ff0:311",
+                    "Color": 2132672708
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+            "SrteColor": 2705423073,
+            "Resolved": [
+              {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "c1ac:cc20::7fd0:b8e3",
+                "SrteColor": 2705423073,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2705423073,
+              "GateIpv6": "c1ac:cc20::7fd0:b8e3"
+            }
+          ],
+          "RoutePrefix": "6e90:b5d2::fd0a:28d1"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "2385:b277::6ff0:311",
+          "RnhList": [
+            {
+              "Prefix": "2385:b277::6ff0:311",
+              "ResolvedRoute": "2385:b277::6ff0:311",
+              "Color": 2132672708
+            }
+          ]
+        },
+        {
+          "Prefix": "17eb:7003::c5e7:b069",
+          "RnhList": [
+            {
+              "Prefix": "17eb:7003::c5e7:b069",
+              "ResolvedRoute": "0::/0",
+              "Color": 2705423073
+            }
+          ]
+        },
+        {
+          "Prefix": "c1ac:cc20::7fd0:b8e3",
+          "RnhList": [
+            {
+              "Prefix": "c1ac:cc20::7fd0:b8e3",
+              "ResolvedRoute": "c1ac:cc20::7fd0:b8e3",
+              "Color": 2705423073
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 7,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2849191200,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2849191200,
+                "PolicyTableKey": "5e4a:f92d::1f11:c68b",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid67108864",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2849191200,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid64",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2849191200
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1433910268,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "aa9e:bd1d::f37a:e415",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "5085:cb99::b581:82d2",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid268435456",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1608569906,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1608569906,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2430478745,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "4134:32a2::e74d:cb2a",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid268566528",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "4134:32a2::e74d:cb2a",
+                    "Color": 2430478745
+                  }
+                ]
+              },
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid1024",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "5085:cb99::b581:82d2",
+            "SrteColor": 1433910268,
+            "Resolved": [
+              {
+                "GateIpv6": "5085:cb99::b581:82d2",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 1
+              },
+              {
+                "GateIpv6": "5085:cb99::b581:82d2",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid01",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "5085:cb99::b581:82d2",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid268435456",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "5085:cb99::b581:82d2",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 1
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "5085:cb99::b581:82d2",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid01",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "5085:cb99::b581:82d2",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid268435456",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "0::/0",
+            "SrteColor": 1433910268,
+            "Resolved": [
+              {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid524288",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "0::/0",
+                "SrteColor": 1433910268,
+                "SidlistName": "sid524288",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 2,
+          "Nexthops": [
+            {
+              "GateIpv6": "5085:cb99::b581:82d2",
+              "SrteColor": 1433910268,
+              "Resolved": [
+                {
+                  "GateIpv6": "5085:cb99::b581:82d2",
+                  "SrteColor": 1433910268,
+                  "SidlistName": "sid00",
+                  "NexthopFlagIsBackup": 1
+                },
+                {
+                  "GateIpv6": "5085:cb99::b581:82d2",
+                  "SrteColor": 1433910268,
+                  "SidlistName": "sid01",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "5085:cb99::b581:82d2",
+                  "SrteColor": 1433910268,
+                  "SidlistName": "sid268435456",
+                  "NexthopFlagIsBackup": 1
+                }
+              ]
+            },
+            {
+              "GateIpv6": "0::/0",
+              "SrteColor": 1433910268,
+              "Resolved": [
+                {
+                  "GateIpv6": "0::/0",
+                  "SrteColor": 1433910268,
+                  "SidlistName": "sid524288",
+                  "NexthopFlagIsBackup": 0
+                }
+              ]
+            }
+          ],
+          "SegDependsID": [
+            0,
+            1
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1433910268,
+              "GateIpv6": "0::/0"
+            },
+            {
+              "SrteColor": 1433910268,
+              "GateIpv6": "5085:cb99::b581:82d2"
+            }
+          ],
+          "RoutePrefix": "7203:4de8::ba7a:de26"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "4134:32a2::e74d:cb2a",
+          "RnhList": [
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "4134:32a2::e74d:cb2a",
+              "Color": 2430478745
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 2849191200
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "7203:4de8::ba7a:de26",
+      "NexthopTops": [
+        {
+          "SrteColor": 2849191200,
+          "GateIpv6": "5e4a:f92d::1f11:c68b"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2849191200,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2849191200,
+                "PolicyTableKey": "5e4a:f92d::1f11:c68b",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid67108864",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2849191200,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid64",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2849191200
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1433910268,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid524288",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "aa9e:bd1d::f37a:e415",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 1433910268,
+                "PolicyTableKey": "5085:cb99::b581:82d2",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid01",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid268435456",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 1608569906,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1608569906,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 1608569906
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2430478745,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "4134:32a2::e74d:cb2a",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid268566528",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "4134:32a2::e74d:cb2a",
+                    "ResolvedRoute": "4134:32a2::e74d:cb2a",
+                    "Color": 2430478745
+                  }
+                ]
+              },
+              {
+                "Color": 2430478745,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid1024",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "5e4a:f92d::1f11:c68b",
+            "SrteColor": 2849191200,
+            "Resolved": [
+              {
+                "GateIpv6": "5e4a:f92d::1f11:c68b",
+                "SrteColor": 2849191200,
+                "SidlistName": "sid67108864",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "5e4a:f92d::1f11:c68b",
+                "SrteColor": 2849191200,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "5e4a:f92d::1f11:c68b",
+                "SrteColor": 2849191200,
+                "SidlistName": "sid67108864",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "5e4a:f92d::1f11:c68b",
+                "SrteColor": 2849191200,
+                "SidlistName": "sid00",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2849191200,
+              "GateIpv6": "5e4a:f92d::1f11:c68b"
+            }
+          ],
+          "RoutePrefix": "7203:4de8::ba7a:de26"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "4134:32a2::e74d:cb2a",
+          "RnhList": [
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "4134:32a2::e74d:cb2a",
+              "Color": 2430478745
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 1608569906
+            },
+            {
+              "Prefix": "4134:32a2::e74d:cb2a",
+              "ResolvedRoute": "0::/0",
+              "Color": 2849191200
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 8,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 1825455147,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1825455147,
+                "PolicyTableKey": "8d71:b3fa::99be:b336",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid8388608",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid256",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "8d71:b3fa::99be:b336",
+                    "Color": 1825455147
+                  }
+                ]
+              },
+              {
+                "Color": 1825455147,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 4241654038,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 4241654038,
+                "PolicyTableKey": "2bca:acd4::445f:9fed",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid2097152",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 4241654038,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 4241654038
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3615063097,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3615063097,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid2097152",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3615063097
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 858876391,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "f44a:d9df::bafc:57a5",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "3f4f:8d05::a6f2:8d2e",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "3f4f:8d05::a6f2:8d2e",
+                    "ResolvedRoute": "3f4f:8d05::a6f2:8d2e",
+                    "Color": 858876391
+                  }
+                ]
+              },
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid131072",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 858876391
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "f44a:d9df::bafc:57a5",
+            "SrteColor": 858876391,
+            "Resolved": [
+              {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 1
+              },
+              {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 1
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "8d71:b3fa::99be:b336",
+            "SrteColor": 1825455147,
+            "Resolved": [
+              {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid8388608",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid256",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid8388608",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid256",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        },
+        {
+          "ID": 2,
+          "Nexthops": [
+            {
+              "GateIpv6": "8d71:b3fa::99be:b336",
+              "SrteColor": 1825455147,
+              "Resolved": [
+                {
+                  "GateIpv6": "8d71:b3fa::99be:b336",
+                  "SrteColor": 1825455147,
+                  "SidlistName": "sid8388608",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "8d71:b3fa::99be:b336",
+                  "SrteColor": 1825455147,
+                  "SidlistName": "sid256",
+                  "NexthopFlagIsBackup": 1
+                }
+              ]
+            },
+            {
+              "GateIpv6": "f44a:d9df::bafc:57a5",
+              "SrteColor": 858876391,
+              "Resolved": [
+                {
+                  "GateIpv6": "f44a:d9df::bafc:57a5",
+                  "SrteColor": 858876391,
+                  "SidlistName": "sid16384",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "f44a:d9df::bafc:57a5",
+                  "SrteColor": 858876391,
+                  "SidlistName": "sid2147483648",
+                  "NexthopFlagIsBackup": 1
+                },
+                {
+                  "GateIpv6": "f44a:d9df::bafc:57a5",
+                  "SrteColor": 858876391,
+                  "SidlistName": "sid16",
+                  "NexthopFlagIsBackup": 0
+                }
+              ]
+            }
+          ],
+          "SegDependsID": [
+            1,
+            0
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1825455147,
+              "GateIpv6": "8d71:b3fa::99be:b336"
+            },
+            {
+              "SrteColor": 858876391,
+              "GateIpv6": "f44a:d9df::bafc:57a5"
+            }
+          ],
+          "RoutePrefix": "3f4f:8d05::a6f2:8d2e"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "3f4f:8d05::a6f2:8d2e",
+          "RnhList": [
+            {
+              "Prefix": "3f4f:8d05::a6f2:8d2e",
+              "ResolvedRoute": "3f4f:8d05::a6f2:8d2e",
+              "Color": 858876391
+            }
+          ]
+        },
+        {
+          "Prefix": "8d71:b3fa::99be:b336",
+          "RnhList": [
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 858876391
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 3615063097
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "8d71:b3fa::99be:b336",
+              "Color": 1825455147
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 4241654038
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "bcf5:8f7b::39a2:d93d",
+      "NexthopTops": [
+        {
+          "SrteColor": 1825455147,
+          "GateIpv6": "8d71:b3fa::99be:b336"
+        },
+        {
+          "SrteColor": 858876391,
+          "GateIpv6": "f44a:d9df::bafc:57a5"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 1825455147,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 1825455147,
+                "PolicyTableKey": "8d71:b3fa::99be:b336",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid8388608",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid256",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "8d71:b3fa::99be:b336",
+                    "Color": 1825455147
+                  }
+                ]
+              },
+              {
+                "Color": 1825455147,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 4241654038,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 4241654038,
+                "PolicyTableKey": "2bca:acd4::445f:9fed",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid2097152",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid04",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 4241654038,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 4241654038
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 3615063097,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 3615063097,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid2097152",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 3615063097
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "Color": 858876391,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "f44a:d9df::bafc:57a5",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid16",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid16384",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2147483648",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "3f4f:8d05::a6f2:8d2e",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "3f4f:8d05::a6f2:8d2e",
+                    "ResolvedRoute": "3f4f:8d05::a6f2:8d2e",
+                    "Color": 858876391
+                  }
+                ]
+              },
+              {
+                "Color": 858876391,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid131072",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "8d71:b3fa::99be:b336",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 858876391
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "f44a:d9df::bafc:57a5",
+            "SrteColor": 858876391,
+            "Resolved": [
+              {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 1
+              },
+              {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16384",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid2147483648",
+                "NexthopFlagIsBackup": 1
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "f44a:d9df::bafc:57a5",
+                "SrteColor": 858876391,
+                "SidlistName": "sid16",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "8d71:b3fa::99be:b336",
+            "SrteColor": 1825455147,
+            "Resolved": [
+              {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid8388608",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid256",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid8388608",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "8d71:b3fa::99be:b336",
+                "SrteColor": 1825455147,
+                "SidlistName": "sid256",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        },
+        {
+          "ID": 2,
+          "Nexthops": [
+            {
+              "GateIpv6": "8d71:b3fa::99be:b336",
+              "SrteColor": 1825455147,
+              "Resolved": [
+                {
+                  "GateIpv6": "8d71:b3fa::99be:b336",
+                  "SrteColor": 1825455147,
+                  "SidlistName": "sid8388608",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "8d71:b3fa::99be:b336",
+                  "SrteColor": 1825455147,
+                  "SidlistName": "sid256",
+                  "NexthopFlagIsBackup": 1
+                }
+              ]
+            },
+            {
+              "GateIpv6": "f44a:d9df::bafc:57a5",
+              "SrteColor": 858876391,
+              "Resolved": [
+                {
+                  "GateIpv6": "f44a:d9df::bafc:57a5",
+                  "SrteColor": 858876391,
+                  "SidlistName": "sid16384",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "f44a:d9df::bafc:57a5",
+                  "SrteColor": 858876391,
+                  "SidlistName": "sid2147483648",
+                  "NexthopFlagIsBackup": 1
+                },
+                {
+                  "GateIpv6": "f44a:d9df::bafc:57a5",
+                  "SrteColor": 858876391,
+                  "SidlistName": "sid16",
+                  "NexthopFlagIsBackup": 0
+                }
+              ]
+            }
+          ],
+          "SegDependsID": [
+            1,
+            0
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1825455147,
+              "GateIpv6": "8d71:b3fa::99be:b336"
+            },
+            {
+              "SrteColor": 858876391,
+              "GateIpv6": "f44a:d9df::bafc:57a5"
+            }
+          ],
+          "RoutePrefix": "bcf5:8f7b::39a2:d93d"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 1825455147,
+              "GateIpv6": "8d71:b3fa::99be:b336"
+            },
+            {
+              "SrteColor": 858876391,
+              "GateIpv6": "f44a:d9df::bafc:57a5"
+            }
+          ],
+          "RoutePrefix": "3f4f:8d05::a6f2:8d2e"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "3f4f:8d05::a6f2:8d2e",
+          "RnhList": [
+            {
+              "Prefix": "3f4f:8d05::a6f2:8d2e",
+              "ResolvedRoute": "3f4f:8d05::a6f2:8d2e",
+              "Color": 858876391
+            }
+          ]
+        },
+        {
+          "Prefix": "8d71:b3fa::99be:b336",
+          "RnhList": [
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 858876391
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 3615063097
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "8d71:b3fa::99be:b336",
+              "Color": 1825455147
+            },
+            {
+              "Prefix": "8d71:b3fa::99be:b336",
+              "ResolvedRoute": "0::/0",
+              "Color": 4241654038
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 9,
+    "InitialState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2683383133,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "c9a4:1c78::da55:e87f",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid2048",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid131076",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid262144",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "26b2:5d45::f666:dd10",
+                    "ResolvedRoute": "26b2:5d45::f666:dd10",
+                    "Color": 2683383133
+                  }
+                ]
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "4819:4233::ea36:6411",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2097280",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32768",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid08",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "26b2:5d45::f666:dd10",
+                    "ResolvedRoute": "26b2:5d45::f666:dd10",
+                    "Color": 2115638229
+                  }
+                ]
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "433e:bf5b::7a2:1281",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "26b2:5d45::f666:dd10",
+            "SrteColor": 2115638229,
+            "Resolved": [
+              {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid32768",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid134217728",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid32768",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid134217728",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "4819:4233::ea36:6411",
+            "SrteColor": 2683383133,
+            "Resolved": [
+              {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid2097280",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid32",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid2097280",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid32",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 2,
+          "Nexthops": [
+            {
+              "GateIpv6": "4819:4233::ea36:6411",
+              "SrteColor": 2683383133,
+              "Resolved": [
+                {
+                  "GateIpv6": "4819:4233::ea36:6411",
+                  "SrteColor": 2683383133,
+                  "SidlistName": "sid2097280",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "4819:4233::ea36:6411",
+                  "SrteColor": 2683383133,
+                  "SidlistName": "sid32",
+                  "NexthopFlagIsBackup": 0
+                }
+              ]
+            },
+            {
+              "GateIpv6": "26b2:5d45::f666:dd10",
+              "SrteColor": 2115638229,
+              "Resolved": [
+                {
+                  "GateIpv6": "26b2:5d45::f666:dd10",
+                  "SrteColor": 2115638229,
+                  "SidlistName": "sid32768",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "26b2:5d45::f666:dd10",
+                  "SrteColor": 2115638229,
+                  "SidlistName": "sid08",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "26b2:5d45::f666:dd10",
+                  "SrteColor": 2115638229,
+                  "SidlistName": "sid134217728",
+                  "NexthopFlagIsBackup": 1
+                }
+              ]
+            }
+          ],
+          "SegDependsID": [
+            1,
+            0
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "26b2:5d45::f666:dd10"
+            },
+            {
+              "SrteColor": 2683383133,
+              "GateIpv6": "4819:4233::ea36:6411"
+            }
+          ],
+          "RoutePrefix": "2385:b277::6ff0:311"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "26b2:5d45::f666:dd10"
+            }
+          ],
+          "RoutePrefix": "d88c:86f1::a81d:4536"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "433e:bf5b::7a2:1281",
+          "RnhList": [
+            {
+              "Prefix": "433e:bf5b::7a2:1281",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            }
+          ]
+        },
+        {
+          "Prefix": "26b2:5d45::f666:dd10",
+          "RnhList": [
+            {
+              "Prefix": "26b2:5d45::f666:dd10",
+              "ResolvedRoute": "26b2:5d45::f666:dd10",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "26b2:5d45::f666:dd10",
+              "ResolvedRoute": "26b2:5d45::f666:dd10",
+              "Color": 2683383133
+            }
+          ]
+        }
+      ]
+    },
+    "RouteAdd": {
+      "RoutePrefix": "d88c:86f1::a81d:4536",
+      "NexthopTops": [
+        {
+          "SrteColor": 2683383133,
+          "GateIpv6": "4819:4233::ea36:6411"
+        },
+        {
+          "SrteColor": 2115638229,
+          "GateIpv6": "26b2:5d45::f666:dd10"
+        }
+      ]
+    },
+    "FinalState": {
+      "PolicyRouteTable": [
+        {
+          "Color": 2683383133,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "c9a4:1c78::da55:e87f",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid2048",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "0::/0",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid131076",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid262144",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid00",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid33554432",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "26b2:5d45::f666:dd10",
+                    "ResolvedRoute": "26b2:5d45::f666:dd10",
+                    "Color": 2683383133
+                  }
+                ]
+              },
+              {
+                "Color": 2683383133,
+                "PolicyTableKey": "4819:4233::ea36:6411",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid32",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid2097280",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": []
+              }
+            ]
+          }
+        },
+        {
+          "Color": 2115638229,
+          "Table": {
+            "Policies": [
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "26b2:5d45::f666:dd10",
+                "Status": "UP",
+                "Srv6SegmentList": [
+                  {
+                    "Name": "sid134217728",
+                    "Srv6SidListBackup": 1,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid32768",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  },
+                  {
+                    "Name": "sid08",
+                    "Srv6SidListBackup": 0,
+                    "Weight": 0
+                  }
+                ],
+                "Nht": [
+                  {
+                    "Prefix": "26b2:5d45::f666:dd10",
+                    "ResolvedRoute": "26b2:5d45::f666:dd10",
+                    "Color": 2115638229
+                  }
+                ]
+              },
+              {
+                "Color": 2115638229,
+                "PolicyTableKey": "0::/0",
+                "Status": "INIT",
+                "Srv6SegmentList": [],
+                "Nht": [
+                  {
+                    "Prefix": "433e:bf5b::7a2:1281",
+                    "ResolvedRoute": "0::/0",
+                    "Color": 2115638229
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Nhgs": [
+        {
+          "ID": 0,
+          "Nexthops": {
+            "GateIpv6": "26b2:5d45::f666:dd10",
+            "SrteColor": 2115638229,
+            "Resolved": [
+              {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid32768",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid134217728",
+                "NexthopFlagIsBackup": 1
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid32768",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid08",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "26b2:5d45::f666:dd10",
+                "SrteColor": 2115638229,
+                "SidlistName": "sid134217728",
+                "NexthopFlagIsBackup": 1
+              }
+            }
+          ]
+        },
+        {
+          "ID": 1,
+          "Nexthops": {
+            "GateIpv6": "4819:4233::ea36:6411",
+            "SrteColor": 2683383133,
+            "Resolved": [
+              {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid2097280",
+                "NexthopFlagIsBackup": 0
+              },
+              {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid32",
+                "NexthopFlagIsBackup": 0
+              }
+            ]
+          },
+          "SegDepends": [
+            {
+              "Nexthop": {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid2097280",
+                "NexthopFlagIsBackup": 0
+              }
+            },
+            {
+              "Nexthop": {
+                "GateIpv6": "4819:4233::ea36:6411",
+                "SrteColor": 2683383133,
+                "SidlistName": "sid32",
+                "NexthopFlagIsBackup": 0
+              }
+            }
+          ]
+        },
+        {
+          "ID": 2,
+          "Nexthops": [
+            {
+              "GateIpv6": "4819:4233::ea36:6411",
+              "SrteColor": 2683383133,
+              "Resolved": [
+                {
+                  "GateIpv6": "4819:4233::ea36:6411",
+                  "SrteColor": 2683383133,
+                  "SidlistName": "sid2097280",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "4819:4233::ea36:6411",
+                  "SrteColor": 2683383133,
+                  "SidlistName": "sid32",
+                  "NexthopFlagIsBackup": 0
+                }
+              ]
+            },
+            {
+              "GateIpv6": "26b2:5d45::f666:dd10",
+              "SrteColor": 2115638229,
+              "Resolved": [
+                {
+                  "GateIpv6": "26b2:5d45::f666:dd10",
+                  "SrteColor": 2115638229,
+                  "SidlistName": "sid32768",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "26b2:5d45::f666:dd10",
+                  "SrteColor": 2115638229,
+                  "SidlistName": "sid08",
+                  "NexthopFlagIsBackup": 0
+                },
+                {
+                  "GateIpv6": "26b2:5d45::f666:dd10",
+                  "SrteColor": 2115638229,
+                  "SidlistName": "sid134217728",
+                  "NexthopFlagIsBackup": 1
+                }
+              ]
+            }
+          ],
+          "SegDependsID": [
+            1,
+            0
+          ]
+        }
+      ],
+      "RouteNhgMaps": [
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2683383133,
+              "GateIpv6": "4819:4233::ea36:6411"
+            },
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "26b2:5d45::f666:dd10"
+            }
+          ],
+          "RoutePrefix": "d88c:86f1::a81d:4536"
+        },
+        {
+          "NexthopTops": [
+            {
+              "SrteColor": 2115638229,
+              "GateIpv6": "26b2:5d45::f666:dd10"
+            },
+            {
+              "SrteColor": 2683383133,
+              "GateIpv6": "4819:4233::ea36:6411"
+            }
+          ],
+          "RoutePrefix": "2385:b277::6ff0:311"
+        }
+      ],
+      "Rnhs": [
+        {
+          "Prefix": "433e:bf5b::7a2:1281",
+          "RnhList": [
+            {
+              "Prefix": "433e:bf5b::7a2:1281",
+              "ResolvedRoute": "0::/0",
+              "Color": 2115638229
+            }
+          ]
+        },
+        {
+          "Prefix": "26b2:5d45::f666:dd10",
+          "RnhList": [
+            {
+              "Prefix": "26b2:5d45::f666:dd10",
+              "ResolvedRoute": "26b2:5d45::f666:dd10",
+              "Color": 2115638229
+            },
+            {
+              "Prefix": "26b2:5d45::f666:dd10",
+              "ResolvedRoute": "26b2:5d45::f666:dd10",
+              "Color": 2683383133
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
