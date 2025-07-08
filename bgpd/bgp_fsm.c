@@ -972,8 +972,6 @@ bool bgp_advertise_delay_onstartup_configured(void)
 
 bool bgp_advertise_delay_onstartup_applicable(struct bgp *bgp)
 {
-	zlog_debug("%s:%s:onstartup_advertise_delay_over = %d.\n", __func__, bgp->name_pretty, bgp->onstartup_advertise_delay_over);
-
 	if (!bgp_advertise_delay_onstartup_configured())
 		return false;
 	if (!bgp->onstartup_advertise_delay_over)
@@ -986,10 +984,8 @@ bool bgp_advertise_delay_onstartup_active(struct bgp *bgp)
 {
 	if (bgp->t_onstartup_advertise_delay)
 	{
-		zlog_debug("%s: %s: t_onstartup_advertise_delay active.\n", __func__, bgp->name_pretty);
 		return true;
 	}
-	zlog_debug("%s: %s:t_onstartup_advertise_delay not active.\n", __func__, bgp->name_pretty);	
 	return false;
 }
 
@@ -1356,9 +1352,6 @@ static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
 	frr_timestamp(3, peer->advertise_delay_onstartup_start_time,
 			 sizeof(peer->advertise_delay_onstartup_start_time));
 
-	zlog_debug( "%s: %s: end advertise delay onstartup start time(%s).\n",
-			__func__, peer->host, peer->advertise_delay_onstartup_start_time);
-
 	FOREACH_AFI_SAFI (afi, safi) {
 
 		if (!peer->afc_nego[afi][safi])
@@ -1382,8 +1375,6 @@ static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
 	frr_timestamp(3, peer->advertise_delay_onstartup_end_time,
 			 sizeof(peer->advertise_delay_onstartup_end_time));
 
-	zlog_debug( "%s: %s: end advertise delay onstartup end time(%s).\n",
-			__func__, peer->host, peer->advertise_delay_onstartup_end_time);
 }
 
 static void bgp_advertise_delay_onstartup_end(struct bgp *bgp)
@@ -1428,8 +1419,6 @@ static int bgp_advertise_delay_onstartup_timer(struct thread *thread)
 
 static void bgp_advertise_delay_onstartup_begin(struct bgp *bgp)
 {
-	zlog_debug("%s: bgp(%s): onstartup_advertise_delay_over=%d.\n",__func__, bgp->name_pretty, bgp->onstartup_advertise_delay_over);
-	
 	if (bgp_advertise_delay_onstartup_active(bgp))
 	{
 		return;
@@ -1451,8 +1440,6 @@ static void bgp_advertise_delay_onstartup_begin(struct bgp *bgp)
 
 static void bgp_advertise_delay_onstartup_process_status_change(struct peer *peer)
 {
-	zlog_debug("%s: peer status %d  peer->bgp->established_peers %d (%s)",
-			__func__,peer->status, peer->bgp->established_peers, peer->bgp->name_pretty);
 	if (peer->status == Established && peer->bgp->established_peers == 1) {
 		// timer enable when first peer established
 		bgp_advertise_delay_onstartup_begin(peer->bgp);
