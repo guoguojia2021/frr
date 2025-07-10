@@ -623,7 +623,10 @@ class Config(object):
                     "policy ": {"candidate-path ": {}},
                     "pcep": {"pcc": {}, "pce ": {}, "pce-config ": {}},
                 },
-                "srv6": {"locators": {"locator ": {}}},
+                "srv6": {
+                    "locators": {"locator ": {}},
+                    "encapsulation": {},
+                },
             },
             "nexthop-group ": {},
             "route-map ": {},
@@ -1860,13 +1863,54 @@ def compare_context_objects(newconf, running):
                         and line.startswith("candidate-path ")
                     ):
                         candidates_to_add.append((newconf_ctx_keys, line))
-
+                    # after configuring echo-interval, echo transmit-interval and echo receive-interval will be modified,
+                    # and show running config will only show transmit-interval and receive-interval.
+                    # so check echo receive-interval and echo transmit-interval here.
+                    elif (
+                        len(newconf_ctx_keys) == 2
+                        and newconf_ctx_keys[0].startswith("bfd")
+                        and newconf_ctx_keys[1].startswith("peer")
+                        and line.startswith("echo-interval")
+                     ):
+                        transmit_interval_str=line.replace("echo-interval", "echo transmit-interval")
+                        receive_interval_str=line.replace("echo-interval", "echo receive-interval")
+                        if transmit_interval_str not in running_ctx.dlines or receive_interval_str not in running_ctx.dlines:
+                            lines_to_add.append((newconf_ctx_keys, line))
                     else:
                         lines_to_add.append((newconf_ctx_keys, line))
 
             for line in running_ctx.lines:
                 if line not in newconf_ctx.dlines:
-                    lines_to_del.append((newconf_ctx_keys, line))
+
+                    # after configuring echo-interval, echo transmit-interval and echo receive-interval will be modified,
+                    # and show running config will only show transmit-interval and receive-interval.
+                    # so check echo-interval here.
+                    if (
+                            len(newconf_ctx_keys) == 2
+                            and newconf_ctx_keys[0].startswith("bfd")
+                            and newconf_ctx_keys[1].startswith("peer")
+                            and line.startswith("echo transmit-interval")
+                    ):
+
+                        echo_interval_str=line.replace( "echo transmit-interval","echo-interval")
+                        if echo_interval_str not in newconf_ctx.dlines :
+                            lines_to_del.append((newconf_ctx_keys, line))
+
+                    # after configuring echo-interval, echo transmit-interval and echo receive-interval will be modified,
+                    # and show running config will only show transmit-interval and receive-interval.
+                    # so check echo-interval here.
+                    elif (
+                            len(newconf_ctx_keys) == 2
+                            and newconf_ctx_keys[0].startswith("bfd")
+                            and newconf_ctx_keys[1].startswith("peer")
+                            and line.startswith("echo receive-interval")
+                    ):
+                        echo_interval_str=line.replace( "echo receive-interval","echo-interval")
+                        if echo_interval_str not in newconf_ctx.dlines :
+                            lines_to_del.append((newconf_ctx_keys, line))
+
+                    else:
+                        lines_to_del.append((newconf_ctx_keys, line))
 
     for (newconf_ctx_keys, newconf_ctx) in iteritems(newconf.contexts):
 
