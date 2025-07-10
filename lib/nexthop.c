@@ -1034,15 +1034,21 @@ ssize_t printfrr_nhs(struct fbuf *buf, const struct nexthop *nexthop)
 		break;
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
-	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		ret += bprintfrr(buf, "%pI4 if %u", &nexthop->gate.ipv4,
 				 nexthop->ifindex);
 		break;
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		ret += bprintfrr(buf, "%pI4 color %u", &nexthop->gate.ipv4,
+				 nexthop->srte_color);
+		break;
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
-	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		ret += bprintfrr(buf, "%pI6 if %u", &nexthop->gate.ipv6,
 				 nexthop->ifindex);
+		break;
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+		ret += bprintfrr(buf, "%pI6 color %u", &nexthop->gate.ipv6,
+				 nexthop->srte_color);
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
 		ret += bputs(buf, "blackhole");
