@@ -82,7 +82,7 @@ struct thread *t_rib_evaluate_nexthop_delay;
 
 #define ZEBRA_TABLE_FIB_THRESHOLD           0.8
 #define ZEBRA_TABLE_FIB_MAX_ALARM_RESUME    0.6
-#define RIB_EVALUATE_NEXTHOP_DELAY_TIME     5
+#define RIB_EVALUATE_NEXTHOP_DELAY_TIME     10
 
 struct pend_list pending_list = {0};
 
