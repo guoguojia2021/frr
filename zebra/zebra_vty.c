@@ -1786,9 +1786,10 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe,
 		if (!json)
 			vty_out(vty, "\n");
 	}
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT)) {
-		vty_out(vty, "     This is a pic nhe.\n");
-	}
+	if (!json)
+		if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT)) {
+			vty_out(vty, "     This is a pic nhe.\n");
+		}
 	if (nhe->ifp) {
 		if (json)
 			json_object_int_add(json, "interfaceIndex",
