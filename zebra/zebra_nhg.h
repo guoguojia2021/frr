@@ -147,8 +147,9 @@ struct nhg_hash_entry {
 #define NEXTHOP_GROUP_UPDATE            (1 << 11)
 #define NEXTHOP_GROUP_DELETE            (1 << 12)
 #define NEXTHOP_GROUP_FIB_BYPASS        (1 << 13)
-#define NEXTHOP_GROUP_LINKLOCAL         (1 << 14)
-#define NEXTHOP_GROUP_NOTIFY_FPM        (1 << 15)
+#define NEXTHOP_GROUP_NOTIFY_FPM        (1 << 14)
+//#define NEXTHOP_GROUP_LINKLOCAL       (1 << 15)
+
 };
 
 /* Upper 4 bits of the NHG are reserved for indicating the NHG type */
@@ -365,7 +366,7 @@ extern uint8_t zebra_nhg_seg_nhe2grp(struct nh_grp *grp, struct nhg_hash_entry *
 				 int size);
 /* Dataplane install/uninstall */
 extern void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe);
-extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free);
+extern void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe);
 extern void zebra_nhg_set_invalid(struct nhg_hash_entry *nhe);

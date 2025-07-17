@@ -2483,9 +2483,7 @@ void zebra_nhg_decrement_ref(struct nhg_hash_entry *nhe)
 		nhg_connected_tree_decrement_ref(&nhe->nhg_depends);
 
 	if (ZEBRA_NHG_CREATED(nhe) && nhe->refcnt <= 0)
-		zebra_nhg_uninstall_kernel(nhe, true);
-	else if (ZEBRA_NHG_CREATED(nhe) && nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
-		zebra_nhg_uninstall_kernel(nhe, false);
+		zebra_nhg_uninstall_kernel(nhe);
 }
 
 void zebra_nhg_increment_ref(struct nhg_hash_entry *nhe)
@@ -3904,9 +3902,6 @@ backups_done:
 				   __func__, re, re->nhe,
 				   re->nhe, new_nhe, new_nhe);
 		route_entry_update_nhe(re, new_nhe);
-		
-		if (rt_afi == AFI_IP6 && IN6_IS_ADDR_LINKLOCAL(&rn->p.u.prefix6))
-			SET_FLAG(new_nhe->flags, NEXTHOP_GROUP_LINKLOCAL);
 	}
 	/* If there's no change in the curr_nhe, it would not create new_nhe,
 	 * then keep the original nhe and free the curr and nothing updated though the inactive reason may
@@ -4165,10 +4160,6 @@ void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe)
 		zebra_nhg_install_kernel(rb_node_dep->nhe);
 	}
 
-	/* Skip nhe dependent by ipv6 link-local route */
-	if (nhe_resolve->refcnt == 2 && CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_LINKLOCAL))
-		return;
-
 	if (nhe_resolve->pic_nhe)
 		zebra_nhg_install_kernel(nhe_resolve->pic_nhe);
 
@@ -4290,14 +4281,13 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 	}
 }
 
-void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free)
+void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe)
 {
 	int ret = 0;
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED) || CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)
 		|| CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM)) {
-		if ((nhe->refcnt == 2 && CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINKLOCAL))
-			|| CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM))
+		if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM))
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 
 		if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_PIC_NHT) || !nhe->pic_nhe)
@@ -4320,8 +4310,7 @@ void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe, bool free)
 			break;
 		}
 	}
-	if (free)
-		zebra_nhg_handle_uninstall(nhe);
+	zebra_nhg_handle_uninstall(nhe);
 }
 
 void zebra_nhg_seg_uninstall_kernel(struct nhg_hash_entry *nhe)
@@ -4514,7 +4503,7 @@ static int zebra_nhg_sweep_entry(struct hash_bucket *bucket, void *arg)
 	 * removal.
 	 */
 	if (ZEBRA_NHG_CREATED(nhe) && nhe->refcnt <= 0) {
-		zebra_nhg_uninstall_kernel(nhe, true);
+		zebra_nhg_uninstall_kernel(nhe);
 		return HASHWALK_ABORT;
 	}
 
