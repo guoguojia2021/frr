@@ -1985,8 +1985,8 @@ static void bp_sbfd_encap_srh_ip6h_red(struct ip6_hdr* srh_ip6h,
 	}
 
     /* SRH IPv6 Header */
-	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
-	srh_ip6h->ip6_vfc = 6 << 4;
+	uint32_t flow = ((6 << 28) + (BFD_TOS_VAL<< 20));
+	srh_ip6h->ip6_flow = htonl(flow);
 
 	if (seg_num == 1)
 	{
@@ -2066,8 +2066,8 @@ static void bp_sbfd_encap_srh_rth_red(struct ipv6_sr_hdr *srv6h,
 static void bp_sbfd_encap_inner_ip6h(struct ip6_hdr* ip6h, struct in6_addr* sip , struct in6_addr* dip, size_t datalen)
 {
     /* IPv6 Header */
-    ip6h->ip6_flow = (BFD_TOS_VAL << 20);
-    ip6h->ip6_vfc = 6 << 4;
+	uint32_t flow = ((6 << 28) + (BFD_TOS_VAL<< 20));
+    ip6h->ip6_flow = htonl(flow);
     ip6h->ip6_plen = htons(sizeof(struct udphdr) + datalen);
     ip6h->ip6_nxt = IPPROTO_UDP;
     ip6h->ip6_hlim = BFD_TTL_VAL;
@@ -2109,8 +2109,8 @@ static void bp_sbfd_encap_outer_iph(struct ip* iph, struct in_addr* dip , uint16
 static void bp_sbfd_encap_outer_ip6h(struct ip6_hdr* srh_ip6h, struct in6_addr* dip, uint16_t family, size_t datalen)
 {
     /* IPv6 Header */
-	srh_ip6h->ip6_flow = (BFD_TOS_VAL << 20);
-	srh_ip6h->ip6_vfc = 6 << 4;
+	uint32_t flow = ((6 << 28) + (BFD_TOS_VAL<< 20));
+	srh_ip6h->ip6_flow = htonl(flow);
 
 	srh_ip6h->ip6_plen = htons((family == AF_INET?sizeof(struct ip): sizeof(struct ip6_hdr))
 							+ sizeof(struct udphdr)
