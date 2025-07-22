@@ -311,7 +311,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 
 			zlog_debug(
 				"%s: %s Found existing bnc %s(%s) flags 0x%x ifindex %d #paths %d peer %p",
-				__func__, nht_debug_buf, 
+				__func__, nht_debug_buf,
 				bnc_str(bnc, buf, PREFIX2STR_BUFFER),
 				bnc->bgp->name_pretty, bnc->flags, bnc->ifindex,
 				bnc->path_count, bnc->nht_info);
@@ -425,7 +425,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 	if (bgp_route->inst_type == BGP_INSTANCE_TYPE_VIEW) {
 		SET_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED);
 		SET_FLAG(bnc->flags, BGP_NEXTHOP_VALID);
-	} 
+	}
     else if (!CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED)
 		   && !is_default_host_route(&bnc->prefix))
     {
@@ -501,7 +501,7 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 			return ((bgp_isvalid_nexthop(bnc)) || (bgp_isvalid_nexthop(te_bnc)));
 		}
 	}
-		
+
 }
 
 void bgp_delete_connected_nexthop(afi_t afi, struct peer *peer)
@@ -722,7 +722,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		bnc_nexthop_free(bnc);
 		bnc->nexthop = NULL;
-        
+
 	}
 
 	evaluate_paths(bnc);
@@ -1359,9 +1359,9 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 	/* If te bnc(invalid), no matter what configuration is, if the corresponding ip bnc is invalid,
 	 * the path should become invalid.
 	 */
-	if (CHECK_FLAG(bnc->bgp->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL)) 
+	if (CHECK_FLAG(bnc->bgp->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
 		valid_nexthop = ip_bnc_is_valid_nexthop || bgp_isvalid_nexthop(te_bnc);
-	else 
+	else
 		valid_nexthop = ip_bnc_is_valid_nexthop;
 
 	path_valid = CHECK_FLAG(path->flags, BGP_PATH_VALID);
@@ -1446,7 +1446,7 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 			bgp_nexthop_dump_bnc_change_flags(bnc, chg_buf,
 							  sizeof(bnc_buf)));
 	}
-	
+
 	if (bnc->srte_color == 0) {
 		LIST_FOREACH (path, &(bnc->paths), nh_thread) {
 			if (!(path->type == ZEBRA_ROUTE_BGP
@@ -1590,7 +1590,7 @@ void path_tebk_nh_map(struct bgp_path_info *path, struct bgp_nexthop_cache *te_b
 	}
 }
 
-void peer_nh_map(struct peer *peer, struct bgp_nexthop_cache *bnc, afi_t afi, safi_t safi, 
+void peer_nh_map(struct peer *peer, struct bgp_nexthop_cache *bnc, afi_t afi, safi_t safi,
 		 bool make)
 {
     struct bgp_filter *filter;

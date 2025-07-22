@@ -207,10 +207,11 @@ int bgp_path_info_nexthop_cmp(struct bgp_path_info *bpi1,
 	 * if they belong to same VRF
 	 */
 	if (!compare && bpi1->attr->nh_type != NEXTHOP_TYPE_BLACKHOLE) {
-		if (bpi1->extra && bpi1->extra->bgp_orig && bpi2->extra
-		    && bpi2->extra->bgp_orig) {
-			if (bpi1->extra->bgp_orig->vrf_id
-			    != bpi2->extra->bgp_orig->vrf_id) {
+		if (bpi1->extra && bpi1->extra->vrfleak &&
+		    bpi1->extra->vrfleak->bgp_orig && bpi2->extra &&
+		    bpi2->extra->vrfleak && bpi2->extra->vrfleak->bgp_orig) {
+			if (bpi1->extra->vrfleak->bgp_orig->vrf_id !=
+			    bpi2->extra->vrfleak->bgp_orig->vrf_id) {
 				compare = 1;
 			}
 		}
@@ -577,8 +578,9 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 			bgp_path_info_mpath_dequeue(new_best);
 		/* For the imported route, should get sub_type from it's parent,
 		 * because the sub_type will be always BGP_PEER_IBGP if we don't do this. */
-		if ((BGP_ROUTE_IMPORTED == new_best->sub_type) && new_best->extra && new_best->extra->parent) {
-			new_best_sort = ((struct bgp_path_info *)new_best->extra->parent)->peer->sort;
+		if ((BGP_ROUTE_IMPORTED == new_best->sub_type) && new_best->extra && new_best->extra->vrfleak
+		    && new_best->extra->vrfleak->parent) {
+			new_best_sort = ((struct bgp_path_info *)new_best->extra->vrfleak->parent)->peer->sort;
 		} else {
 			new_best_sort = new_best->peer->sort;
 		}

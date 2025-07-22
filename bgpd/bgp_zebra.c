@@ -1298,7 +1298,8 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	/*
 	 * vrf leaking support (will have only one nexthop)
 	 */
-	if (info->extra && info->extra->bgp_orig)
+	if (info->extra && info->extra->vrfleak &&
+	    info->extra->vrfleak->bgp_orig)
 		nh_othervrf = 1;
 
 	/* Make Zebra API structure. */
@@ -1314,8 +1315,10 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	    && info->sub_type == BGP_ROUTE_IMPORTED) {
 
 		/* Obtain peer from parent */
-		if (info->extra && info->extra->parent)
-			peer = ((struct bgp_path_info *)(info->extra->parent))
+		if (info->extra && info->extra->vrfleak &&
+		    info->extra->vrfleak->parent)
+			peer = ((struct bgp_path_info *)(info->extra->vrfleak
+								 ->parent))
 				       ->peer;
 	}
 
@@ -2445,8 +2448,14 @@ static int rule_notify_owner(ZAPI_CALLBACK_ARGS)
 			/* link bgp_info to bgp_pbr */
 			path = (struct bgp_path_info *)bgp_pbr->path;
 			extra = bgp_path_info_extra_get(path);
-			listnode_add_force(&extra->bgp_fs_iprule,
-					   bgp_pbr);
+			if (!extra->flowspec) {
+				extra->flowspec =
+					XCALLOC(MTYPE_BGP_ROUTE_EXTRA_FS,
+						sizeof(struct bgp_path_info_extra_fs));
+				extra->flowspec->bgp_fs_iprule = NULL;
+				extra->flowspec->bgp_fs_pbr = NULL;
+			}
+			listnode_add_force(&extra->flowspec->bgp_fs_iprule, bgp_pbr);
 		}
 		if (BGP_DEBUG(zebra, ZEBRA))
 			zlog_debug("%s: Received RULE_INSTALLED", __func__);
@@ -2548,7 +2557,14 @@ static int ipset_entry_notify_owner(ZAPI_CALLBACK_ARGS)
 		/* link bgp_path_info to bpme */
 		path = (struct bgp_path_info *)bgp_pbime->path;
 		extra = bgp_path_info_extra_get(path);
-		listnode_add_force(&extra->bgp_fs_pbr, bgp_pbime);
+		if (!extra->flowspec) {
+			extra->flowspec =
+				XCALLOC(MTYPE_BGP_ROUTE_EXTRA_FS,
+					sizeof(struct bgp_path_info_extra_fs));
+			extra->flowspec->bgp_fs_iprule = NULL;
+			extra->flowspec->bgp_fs_pbr = NULL;
+		}
+		listnode_add_force(&extra->flowspec->bgp_fs_pbr, bgp_pbime);
 		}
 		break;
 	case ZAPI_IPSET_ENTRY_FAIL_REMOVE:

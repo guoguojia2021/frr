@@ -819,7 +819,8 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	 * match parent
 	 */
 	for (bpi = bgp_dest_get_bgp_path_info(bn); bpi; bpi = bpi->next) {
-		if (bpi->extra && bpi->extra->parent == parent)
+		if (bpi->extra && bpi->extra->vrfleak &&
+		    bpi->extra->vrfleak->parent == parent)
 			break;
 	}
 
@@ -926,14 +927,16 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 		struct bgp *bgp_nexthop;
 		int nh_valid;
 
-		if (bpi->extra && bpi->extra->bgp_orig)
-			bgp_nexthop = bpi->extra->bgp_orig;
+		if (bpi->extra && bpi->extra->vrfleak
+			&& bpi->extra->vrfleak->bgp_orig)
+			bgp_nexthop = bpi->extra->vrfleak->bgp_orig;
 		else
 			bgp_nexthop = bgp_orig;
 
         struct bgp_path_info *oripath = NULL;
-        if (((struct bgp_path_info *)parent)->extra)
-            oripath = ((struct bgp_path_info *)parent)->extra->parent;
+        if (((struct bgp_path_info *)parent)->extra
+			&& ((struct bgp_path_info *)parent)->extra->vrfleak)
+            oripath = ((struct bgp_path_info *)parent)->extra->vrfleak->parent;
     
         if (oripath && oripath->peer && oripath->peer->bgp)
         {
@@ -1008,10 +1011,15 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	new = info_make(ZEBRA_ROUTE_BGP, BGP_ROUTE_IMPORTED, 0,
 		bgp->peer_self, new_attr, bn);
 
+	bgp_path_info_extra_get(new);
+	if (!new->extra->vrfleak)
+		new->extra->vrfleak =
+			XCALLOC(MTYPE_BGP_ROUTE_EXTRA_VRFLEAK,
+				sizeof(struct bgp_path_info_extra_vrfleak));
+
 	if (nexthop_self_flag)
 		bgp_path_info_set_flag(bn, new, BGP_PATH_ANNC_NH_SELF);
 
-	bgp_path_info_extra_get(new);
 #if 0
 	/*
 	 * rewrite sid
@@ -1044,13 +1052,13 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	if (num_labels)
 		setlabels(new, label, num_labels);
 
-	new->extra->parent = bgp_path_info_lock(parent);
+	new->extra->vrfleak->parent = bgp_path_info_lock(parent);
 	bgp_dest_lock_node(
 		(struct bgp_dest *)((struct bgp_path_info *)parent)->net);
 	if (bgp_orig)
-		new->extra->bgp_orig = bgp_lock(bgp_orig);
+		new->extra->vrfleak->bgp_orig = bgp_lock(bgp_orig);
 	if (nexthop_orig)
-		new->extra->nexthop_orig = *nexthop_orig;
+		new->extra->vrfleak->nexthop_orig = *nexthop_orig;
 
 	/*
 	 * nexthop tracking for unicast routes
@@ -1058,12 +1066,13 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	struct bgp *bgp_nexthop = bgp;
 	int nh_valid;
 
-	if (new->extra->bgp_orig)
-		bgp_nexthop = new->extra->bgp_orig;
+	if (new->extra->vrfleak && new->extra->vrfleak->bgp_orig)
+		bgp_nexthop = new->extra->vrfleak->bgp_orig;
 
     struct bgp_path_info *oripath = NULL;
-    if (((struct bgp_path_info *)parent)->extra)
-        oripath = ((struct bgp_path_info *)parent)->extra->parent;
+    if (((struct bgp_path_info *)parent)->extra
+		&& ((struct bgp_path_info *)parent)->extra->vrfleak)
+        oripath = ((struct bgp_path_info *)parent)->extra->vrfleak->parent;
 
     if (oripath && oripath->peer && oripath->peer->bgp)
     {
@@ -1460,7 +1469,8 @@ void vpn_leak_from_vrf_withdraw(struct bgp *bgp_vpn,		/* to */
 	 * match original bpi imported from
 	 */
 	for (bpi = bgp_dest_get_bgp_path_info(bn); bpi; bpi = bpi->next) {
-		if (bpi->extra && bpi->extra->parent == path_vrf) {
+		if (bpi->extra && bpi->extra->vrfleak &&
+		    bpi->extra->vrfleak->parent == path_vrf) {
 			break;
 		}
 	}
@@ -1514,8 +1524,8 @@ void vrf_leak_from_vrf_update(struct bgp *to_vrf,       /* to */
     }
     /* Is this route import from VPN table? */
     if (path_vrf->sub_type == BGP_ROUTE_IMPORTED &&
-        path_vrf->extra &&
-        path_vrf->extra->parent)
+        path_vrf->extra && path_vrf->extra->vrfleak &&
+        path_vrf->extra->vrfleak->parent)
         return ;
 
     /* shallow copy */
@@ -1673,7 +1683,8 @@ void vrf_leak_from_vrf_withdraw(struct bgp *to_vrf,		/* to */
 		return;
 
 	for (bpi = bgp_dest_get_bgp_path_info(bn); bpi; bpi = bpi->next) {
-		if (bpi->extra && bpi->extra->parent == path_vrf) {
+		if (bpi->extra && bpi->extra->vrfleak
+			&& bpi->extra->vrfleak->parent == path_vrf) {
 			break;
 		}
 	}
@@ -1727,9 +1738,9 @@ void vpn_leak_from_vrf_withdraw_all(struct bgp *bgp_vpn, /* to */
 						   bpi->sub_type);
 				if (bpi->sub_type != BGP_ROUTE_IMPORTED)
 					continue;
-				if (!bpi->extra)
+				if (!bpi->extra || !bpi->extra->vrfleak)
 					continue;
-				if ((struct bgp *)bpi->extra->bgp_orig
+				if ((struct bgp *)bpi->extra->vrfleak->bgp_orig
 				    == bgp_vrf) {
 					/* delete route */
 					if (debug)
@@ -1832,8 +1843,8 @@ void vrf_leak_from_vrf_withdraw_all(struct bgp *to_vrf, /* to */
 				continue;
 			if (!bpi->extra)
 				continue;
-			if ((struct bgp *)bpi->extra->bgp_orig
-			    == from_vrf) {
+			if (bpi->extra->vrfleak
+				&& (struct bgp *)bpi->extra->vrfleak->bgp_orig == from_vrf) {
 				/* delete route */
 				if (debug)
 					zlog_debug("%s: deleting it",
@@ -1893,9 +1904,8 @@ static void vpn_try_leak_to_withdraw_onevrf(struct bgp *bgp_vrf,       /* to */
 
 	bn = bgp_afi_node_get(bgp_vrf->rib[afi][safi], afi, safi, p, NULL);
 	for (bpi = bgp_dest_get_bgp_path_info(bn); bpi; bpi = bpi->next) {
-		if (bpi->extra
-			&& (struct bgp_path_info *)bpi->extra->parent
-				   == info_vpn) {
+		if (bpi->extra && bpi->extra->vrfleak
+			&& (struct bgp_path_info *)bpi->extra->vrfleak->parent == info_vpn) {
 			break;
 		}
 	}
@@ -2112,8 +2122,8 @@ vpn_leak_to_vrf_update_onevrf(struct bgp *bgp_vrf,	    /* to */
 	 * For VRF-2-VRF route-leaking,
 	 * the source will be the originating VRF.
 	 */
-	if (path_vpn->extra && path_vpn->extra->bgp_orig)
-		src_vrf = path_vpn->extra->bgp_orig;
+	if (path_vpn->extra && path_vpn->extra->vrfleak && path_vpn->extra->vrfleak->bgp_orig)
+		src_vrf = path_vpn->extra->vrfleak->bgp_orig;
 	else
 		src_vrf = bgp_vpn;
 
@@ -2140,7 +2150,8 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 	struct bgp_irt_node *irt;
 	char buf_prefix[PREFIX_STRLEN];
 
-	if (info_vpn->extra && info_vpn->extra->parent && !bm->local_vrf_leak_enable) {
+	if (info_vpn->extra && info_vpn->extra->vrfleak
+		&& info_vpn->extra->vrfleak->parent && !bm->local_vrf_leak_enable) {
 		prefix2str(&info_vpn->net->p, buf_prefix, sizeof(buf_prefix));
 		zlog_debug("local vrf import is disable: prefix: %s", buf_prefix);
 		return;
@@ -2160,7 +2171,8 @@ void vpn_leak_to_vrf_update_ex(struct bgp *bgp_vpn, 	  /* from */
 		if (irt && irt->vrfs) {
 			for (ALL_LIST_ELEMENTS(irt->vrfs, mnode, mnnode, bgp)) {
 				if (bgp->vrf_id <= BGP_VRF_RANGE && !bitmap_is_set(bitmap, bgp->vrf_id) &&
-					(!info_vpn->extra || info_vpn->extra->bgp_orig != bgp)) {
+					(!info_vpn->extra || !info_vpn->extra->vrfleak
+					 || info_vpn->extra->vrfleak->bgp_orig != bgp)) {
 					vpn_leak_to_vrf_update_onevrf(bgp, bgp_vpn, info_vpn);
 					bitmap_set1(bitmap, bgp->vrf_id);
 				}
@@ -2199,8 +2211,8 @@ void vpn_leak_to_vrf_update(struct bgp *bgp_vpn,	    /* from */
 	/* Loop over VRFs */
 	for (ALL_LIST_ELEMENTS(bm->bgp, mnode, mnnode, bgp)) {
 
-		if (!path_vpn->extra
-		    || path_vpn->extra->bgp_orig != bgp) { /* no loop */
+		if (!path_vpn->extra || !path_vpn->extra->vrfleak
+		    || path_vpn->extra->vrfleak->bgp_orig != bgp) { /* no loop */
 			vpn_leak_to_vrf_update_onevrf(bgp, bgp_vpn, path_vpn);
 		}
 	}
@@ -2283,11 +2295,10 @@ void vpn_leak_to_vrf_withdraw_all(struct bgp *bgp_vrf, /* to */
 
 		for (bpi = bgp_dest_get_bgp_path_info(bn); bpi;
 		     bpi = bpi->next) {
-			if (bpi->extra
-			    && bpi->extra->bgp_orig != bgp_vrf
-			    && bpi->extra->parent
-			    && is_pi_family_vpn(bpi->extra->parent)) {
-
+			if (bpi->extra && bpi->extra->vrfleak
+			    && bpi->extra->vrfleak->bgp_orig != bgp_vrf
+			    && bpi->extra->vrfleak->parent
+			    && is_pi_family_vpn(bpi->extra->vrfleak->parent)) {
 				/* delete route */
 				bgp_aggregate_decrement(bgp_vrf,
 							bgp_dest_get_prefix(bn),
@@ -2328,8 +2339,8 @@ void vpn_leak_to_vrf_update_all(struct bgp *bgp_vrf, /* to */
 			for (bpi = bgp_dest_get_bgp_path_info(bn); bpi;
 			     bpi = bpi->next) {
 
-				if (bpi->extra
-				    && bpi->extra->bgp_orig == bgp_vrf)
+				if (bpi->extra && bpi->extra->vrfleak
+				    && bpi->extra->vrfleak->bgp_orig == bgp_vrf)
 					continue;
 				if (!ecom_intersect(
 					bgp_vrf->vpn_policy[afi].rtlist[BGP_VPN_POLICY_DIR_FROMVPN],
