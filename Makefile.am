@@ -198,6 +198,9 @@ include pathd/subdir.am
 include vtysh/subdir.am
 include tests/subdir.am
 include tests/topotests/subdir.am
+if ZEBRA_UNIT_TESTING
+include tests/gtest/subdir.am
+endif
 
 if PKGSRC
 rcdir=@pkgsrcrcdir@

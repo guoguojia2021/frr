@@ -1,5 +1,10 @@
 FROM ubuntu:20.04
 
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+
 ARG DEBIAN_FRONTEND=noninteractive
 ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 # Update Ubuntu Software repository
@@ -11,28 +16,16 @@ RUN apt update && \
       install-info build-essential libsnmp-dev perl \
       libcap-dev python2 libelf-dev \
       sudo gdb curl iputils-ping time \
-      lua5.3 liblua5.3-dev vim wget \
-      libcapture-tiny-perl libdatetime-perl libdatetime-format-dateparse-perl\
-      net-tools iproute2 && \
-      curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output /tmp/get-pip.py && \
-      python2 /tmp/get-pip.py && \
-      rm -f  /tmp/get-pip.py && \
-      # Protobuf build requirements
-      apt-get install -y \
-        libprotobuf-c-dev \
-        protobuf-c-compiler \
-      && \
-      python3 -m pip install wheel && \
-      python3 -m pip install pytest && \
-      python3 -m pip install pytest-xdist && \
-	  python3 -m pip install pytest-html && \
-      python3 -m pip install "scapy>=2.4.2" && \
-      python3 -m pip install xmltodict && \
-      python2 -m pip install 'exabgp<4.0.0' && \
-	  python3 -m pip install jinja2==3.0.3
+      lua5.3 liblua5.3-dev lcov vim \
+      net-tools iproute2
 
-    RUN cd && pwd && ls -al && \
-        wget https://github.com/linux-test-project/lcov/releases/download/v2.3/lcov-2.3.tar.gz && \
+RUN apt-get install -y \
+        libprotobuf-c-dev \
+        protobuf-c-compiler
+
+COPY docker/ubuntu20-gtest/lcov-2.3.tar.gz /home/
+
+    RUN cd /home && pwd && ls -al && \
         tar -zxvf lcov-2.3.tar.gz && \
         cd lcov-2.3 && \
         make install
@@ -55,28 +48,40 @@ RUN cd /home && \
 
 USER frr:frr
 
+COPY --chown=frr:frr . /home/frr/frr/
+
+RUN cd && ls -al && ls -al frr
+
+RUN cd ~/frr && \
+    if [ ! -d "./libyang" ]; then \
+      git clone https://github.com/CESNET/libyang.git && \
+      cd libyang && \
+      git checkout v2.0.0; \
+    fi
+
 # build and install libyang2
-RUN cd && pwd && ls -al && \
-    git clone https://github.com/CESNET/libyang.git && \
-    cd libyang && \
-    git checkout v2.0.0 && \
+RUN cd ~/frr && pwd && ls -al && \
+    cd ./libyang && \
     mkdir build; cd build && \
     cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr \
           -DCMAKE_BUILD_TYPE:String="Release" .. && \
     make -j $(nproc) && \
     sudo make install
 
+RUN cd ~/frr && \
+    if [ ! -d "./googletest" ]; then \
+      git clone https://github.com/google/googletest.git && \
+      cd googletest && \
+      git checkout v1.16.x; \
+    fi
+
 # build and install gtest
-RUN cd && pwd && ls -al && \
-    git clone https://github.com/google/googletest.git && \
-    # newer branches require at least C++17.
-    cd googletest && git checkout v1.16.x && mkdir build; cd build && \
+RUN cd ~/frr && pwd && ls -al && \
+    cd ./googletest && \
+    mkdir build; cd build && \
     cmake ..  &&  make && \
     sudo make install
 
-COPY --chown=frr:frr . /home/frr/frr/
-
-RUN cd && ls -al && ls -al frr
 
 RUN cd ~/frr && \
     ./bootstrap.sh && \

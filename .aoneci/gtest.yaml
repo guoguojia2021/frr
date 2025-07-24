@@ -17,25 +17,31 @@ jobs:
           path: 'libyang'
       - uses: checkout # 1
         inputs:
-          path: 'alibgp'
-      - run: cp -r $AONE_CI_SOURCE/libyang $AONE_CI_SOURCE/alibgp/
+          repository-url: 'https://github.com/google/googletest.git'
+          ref: 'v1.16.x'
+          path: 'googletest'
+      - uses: checkout # 2
+        inputs:
+          path: 'alibgp-gtest'
+      - run: cp -r $AONE_CI_SOURCE/libyang $AONE_CI_SOURCE/googletest $AONE_CI_SOURCE/alibgp-gtest/
       - run: |
          ls -al $AONE_CI_SOURCE/libyang
-         ls -al $AONE_CI_SOURCE/alibgp
-      - uses: setup-env # 2
+         ls -al $AONE_CI_SOURCE/googletest
+         ls -al $AONE_CI_SOURCE/alibgp-gtest
+      - uses: setup-env # 3
       - uses: build-image
         inputs:
           image-name: hub.docker.alibaba-inc.com/aone-base-global/gtest
           image-tag: latest
-          context-dir: alibgp
-          dockerfile-path: alibgp/docker/ubuntu20-gtest/Dockerfile
+          context-dir: alibgp-gtest
+          dockerfile-path: alibgp-gtest/docker/ubuntu20-gtest/Dockerfile
 
   run-gtest:
     name: gtest
     needs: build-image-job
     runs-on:
       - self-hosted
-      - ECS-gtest
+      - ECS-topotest
     steps:
       - run: |
           cd ~/frr/tests/gtest ; ./gtest_zebra_srte

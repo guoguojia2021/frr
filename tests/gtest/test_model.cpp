@@ -32,6 +32,8 @@ static void parse_json_sidlist(json_object *obj, srv6_sidlist_t *res)
 		} else if (strcmp(key, "Srv6SidListBackup") == 0) {
 			if (json_object_get_int(val) == 1)
 				res->flags |= SRV6_SID_LIST_BACKUP;
+			else
+				res->flags |= SRV6_SID_LIST_BEST;
 		} else if (strcmp(key, "Segment") == 0) {
 			// skip for now
 		} else {
