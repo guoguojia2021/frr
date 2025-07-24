@@ -1269,7 +1269,8 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 
 	bool ip_bnc_is_valid_nexthop = false;
 	bool path_valid = false;
-	if (path && (path->attr->srv6_l3vpn || path->attr->srv6_vpn))
+	if (path && ((path->attr->srv6_l3vpn || path->attr->srv6_vpn)
+		 || (path->te_nexthop && CHECK_FLAG(path->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))))
 		isServiceRoute = true;
 	else
 		isServiceRoute = false;
