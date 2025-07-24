@@ -1,0 +1,43 @@
+name: gtest
+triggers:
+  push:
+    branches:
+      - 'dev-sonic8.2.2'
+  merge_request:
+    target-branches:
+      - 'dev-sonic8.2.2'
+
+jobs:
+  build-image-job:
+    steps:
+      - uses: checkout
+        inputs:
+          repository-url: 'https://github.com/CESNET/libyang.git'
+          ref: 'v2.0.0'
+          path: 'libyang'
+      - uses: checkout # 1
+        inputs:
+          path: 'alibgp'
+      - run: cp -r $AONE_CI_SOURCE/libyang $AONE_CI_SOURCE/alibgp/
+      - run: |
+         ls -al $AONE_CI_SOURCE/libyang
+         ls -al $AONE_CI_SOURCE/alibgp
+      - uses: setup-env # 2
+      - uses: build-image
+        inputs:
+          image-name: hub.docker.alibaba-inc.com/aone-base-global/gtest
+          image-tag: latest
+          context-dir: alibgp
+          dockerfile-path: alibgp/docker/ubuntu20-gtest/Dockerfile
+
+  run-gtest:
+    name: gtest
+    needs: build-image-job
+    runs-on:
+      - self-hosted
+      - ECS-gtest
+    steps:
+      - run: |
+          cd ~/frr/tests/gtest ; ./gtest_zebra_srte
+        image: hub.docker.alibaba-inc.com/aone-base-global/gtest:latest
+    timeout: 1h
