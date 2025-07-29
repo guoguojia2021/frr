@@ -1,8 +1,5 @@
 name: topotest
 triggers:
-  push:
-    branches:
-      - '**'
   merge_request:
     target-branches:
       - '**'
