@@ -59,6 +59,12 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 	/*sidlist down -> up*/
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
 	{
+		if (CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_HIDDEN))
+		{
+			cpath_group->up_cpath_num = 1;
+			cpath_group->status = SRTE_DETECT_UP;
+			continue;
+		}
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{

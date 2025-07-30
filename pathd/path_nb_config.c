@@ -28,6 +28,8 @@
 #include "pathd/pathd.h"
 #include "pathd/path_debug.h"
 
+extern bool srv6_tepolicy_hot_standby;
+extern void pathd_create_one_hidden_candidate(struct srte_policy *policy);
 struct ipaddr encap_source_address = {
 	.ipa_type = IPADDR_NONE,
 	.ipaddr_v6 = IN6ADDR_ANY_INIT,
@@ -348,6 +350,18 @@ void pathd_srte_segment_list_segment_nai_apply_finish(
 			 F_SEGMENT_LIST_SID_CONFLICT);
 }
 
+void pathd_create_one_hidden_candidate(struct srte_policy *policy)
+{
+	struct srte_candidate *candidate;
+	struct srte_segment_list *segment_list;
+
+	segment_list = srte_segment_list_new();
+	strlcpy(segment_list->name, "hidden-segment", sizeof(segment_list->name));
+	candidate = srte_candidate_add(policy, 0, SRTE_ORIGIN_LOCAL, NULL, "hidden");
+	candidate->weight = 1;
+	candidate->segment_list = segment_list;
+	SET_FLAG(candidate->flags, F_CANDIDATE_HIDDEN);
+}
 /*
  * XPath: /frr-pathd:pathd/srte/policy
  */
@@ -373,7 +387,8 @@ int pathd_srte_policy_create(struct nb_cb_create_args *args)
 		endpoint.prefixlen = 0;
 
 	policy = srte_policy_add(color, &endpoint, SRTE_ORIGIN_LOCAL, NULL);
-
+	if (srv6_tepolicy_hot_standby)
+		pathd_create_one_hidden_candidate(policy);
 	nb_running_set_entry(args->dnode, policy);
 	SET_FLAG(policy->flags, F_POLICY_NEW);
 

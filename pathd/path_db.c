@@ -496,6 +496,9 @@ void redis_Db_Cpath_SetEntry(struct srte_candidate *candidate)
     if (!g_bPathStateRedisInUse)
         return;
 
+    if (CHECK_FLAG(candidate->flags, F_CANDIDATE_HIDDEN)) {
+        return;
+    }
     policy = candidate->policy;
 
     inet_ntop(policy->endpoint.family, &policy->endpoint.u.prefix,
@@ -578,6 +581,8 @@ void redis_Db_Cpath_DelEntry(struct srte_candidate *candidate)
     DB_Key_List item = {0};
 
     if (!g_bPathStateRedisInUse)
+        return;
+    if (CHECK_FLAG(candidate->flags, F_CANDIDATE_HIDDEN))
         return;
 
     policy = candidate->policy;

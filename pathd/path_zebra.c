@@ -273,6 +273,8 @@ void path_zebra_encode_srv6_policy(struct srte_policy *policy,
 
 			if (CHECK_FLAG(candidate_group->flags, F_CPATH_GROUP_BACKUP))
 				zp->srv6_tunnel.sidlists[cpath_count].flags |= SRV6_SID_LIST_BACKUP;
+			if (CHECK_FLAG(candidate_group->flags, F_CPATH_GROUP_HIDDEN))
+				zp->srv6_tunnel.sidlists[cpath_count].flags |= SRV6_SID_LIST_HIDDEN;
 			cpath_count++;
 			if(IS_PATHD_DEBUG_ZEBRA) {
 				zlog_info("collect UP cpath, color:%u, endpoint:%s, cpath group:%u, flags:0x%x, cpath_count:%d, cpath:%s, sidlist:%s, bfd_name:%s(my_disc:%u)",

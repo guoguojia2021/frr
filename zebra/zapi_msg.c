@@ -1828,7 +1828,6 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 		nexthop->srte_color = api_nh->srte_color;
 		nexthop->srte_color_flag = api_nh->srte_color_flag;
-		zebra_nhe_change_gateway_address(nexthop);
 	}
 	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SEG6))
 	{

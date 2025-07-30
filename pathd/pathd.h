@@ -370,6 +370,7 @@ struct srte_candidate {
 #define F_CANDIDATE_HAS_EXCLUDE_ANY 0x1000
 #define F_CANDIDATE_HAS_INCLUDE_ANY 0x2000
 #define F_CANDIDATE_HAS_INCLUDE_ALL 0x4000
+#define F_CANDIDATE_HIDDEN          0x8000
 
 	/* Metrics Configured Values */
 	struct srte_metric metrics[MAX_METRIC_TYPE];
@@ -429,6 +430,7 @@ struct srte_candidate_group {
 #define F_CPATH_GROUP_BACKUP           0x00000002
 #define F_CPATH_GROUP_MODIFIED         0x00000004
 #define F_CPATH_GROUP_STATE_CHANGE     0x00000008
+#define F_CPATH_GROUP_HIDDEN           0x00000010
 };
 
 RB_HEAD(srte_candidate_group_head, srte_candidate_group);
@@ -695,4 +697,6 @@ extern void path_zebra_encode_srv6_policy(struct srte_policy *policy,
 	struct srte_candidate_group *candidate_group, struct zapi_sr_policy *zp);
 
 const char* cpath_status_str(enum detection_status status);
+struct srte_segment_list *srte_segment_list_new(void);
+void srte_segment_list_free(struct srte_segment_list *segment_list);
 #endif /* _FRR_PATHD_H_ */

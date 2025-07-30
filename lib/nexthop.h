@@ -100,6 +100,7 @@ struct nexthop {
 #define NEXTHOP_FLAG_SRTE         (1 << 7) /* SR-TE color used for BGP traffic */
 #define NEXTHOP_FLAG_SRV6_TUNNEL  (1 << 8) /* Relay by SRV6 tunnel */
 #define NEXTHOP_FLAG_IS_BACKUP    (1 << 9)
+#define NEXTHOP_FLAG_IS_HIDDEN    (1 << 10)
 
 #define NEXTHOP_IS_ACTIVE(flags)                                               \
 	(CHECK_FLAG(flags, NEXTHOP_FLAG_ACTIVE)                                \

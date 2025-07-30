@@ -174,6 +174,14 @@ static inline int srte_sbfd_session_compare(const struct srte_sbfd_session *a,
 RB_GENERATE(srte_sbfd_session_head, srte_sbfd_session, entry,
 	    srte_sbfd_session_compare)
 
+struct srte_segment_list *srte_segment_list_new(void)
+{
+	return XCALLOC(MTYPE_PATH_SEGMENT_LIST, sizeof(struct srte_segment_list));
+}
+void srte_segment_list_free(struct srte_segment_list *segment_list)
+{
+	XFREE(MTYPE_PATH_SEGMENT_LIST, segment_list);
+}
 /**
  * Adds a segment list to pathd.
  *
@@ -184,7 +192,7 @@ struct srte_segment_list *srte_segment_list_add(const char *name)
 {
 	struct srte_segment_list *segment_list;
 
-	segment_list = XCALLOC(MTYPE_PATH_SEGMENT_LIST, sizeof(*segment_list));
+	segment_list = srte_segment_list_new();
 	strlcpy(segment_list->name, name, sizeof(segment_list->name));
 	RB_INIT(srte_segment_entry_head, &segment_list->segments);
 	RB_INIT(srte_sbfd_session_head, &segment_list->sbfd_sessions);
@@ -219,7 +227,7 @@ void srte_segment_list_del(struct srte_segment_list *segment_list)
 	}
 
 	RB_REMOVE(srte_segment_list_head, &srte_segment_lists, segment_list);
-	XFREE(MTYPE_PATH_SEGMENT_LIST, segment_list);
+	srte_segment_list_free(segment_list);
 }
 
 /**
@@ -599,6 +607,8 @@ srte_policy_best_candidate(const struct srte_policy *policy)
 	RB_FOREACH_REVERSE (candidate, srte_candidate_head,
 			    &policy->candidate_paths) {
 		/* search for highest preference with existing segment list */
+		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_HIDDEN))
+			continue;
 		if (!CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED)
 		    && candidate->lsp->segment_list
 		    && (!CHECK_FLAG(candidate->lsp->segment_list->flags,
@@ -856,6 +866,10 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 	srte_policy_select_candidate_group(policy);
 
+	if (policy->best_candidate_group &&
+		CHECK_FLAG(policy->best_candidate_group->flags, F_CPATH_GROUP_HIDDEN))
+		policy->best_candidate_group = NULL;
+
     policy->status = policy->best_candidate_group?SRTE_POLICY_STATUS_UP:SRTE_POLICY_STATUS_DOWN;
 
 	if (policy->best_candidate_group != old_best_cpath_group
@@ -925,12 +939,17 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
 	{
+		if (CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_HIDDEN))
+		{
+			cpath_group->up_cpath_num = 1;
+			cpath_group->status = SRTE_DETECT_UP;
+			continue;
+		}
 		cpath_up_count = 0;
 		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cpath)
 		{
             if (!candidate->segment_list)
 				continue;
-
 			if (candidate->status != SRTE_DETECT_DOWN)
 				cpath_up_count++;
 			if (IS_PATHD_DEBUG_SBFD) {
@@ -940,7 +959,6 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 			}
 
 		}
-
 		if (cpath_up_count > 0)
 		{
 			cpath_group->status = SRTE_DETECT_UP;
@@ -977,6 +995,8 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	RB_FOREACH_SAFE (candidate, srte_candidate_head, &policy->candidate_paths, safe) {
+		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_HIDDEN))
+			continue;
 
 		if (candidate->policy_bfd_ops || candidate->flags) {
 			SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);
@@ -1136,6 +1156,8 @@ void srte_candidate_add_group(struct srte_policy *policy,
 	{
 		cpath_group = srte_candidate_group_add(policy, candidate->preference);
 	}
+	if (candidate->preference == 0)
+		SET_FLAG(cpath_group->flags, F_CPATH_GROUP_HIDDEN);
 
     candidate->group = cpath_group;
 	RB_INSERT(srte_candidate_pref_head, &cpath_group->candidate_paths, candidate);
@@ -1173,7 +1195,13 @@ void srte_candidate_del(struct srte_candidate *candidate)
 			XFREE(MTYPE_PATH_SR_CANDIDATE_GROUP, cpath_group);
 		}
 	}
-
+	if (CHECK_FLAG(candidate->flags, F_CANDIDATE_HIDDEN))
+	{
+		srte_segment_list_free(candidate->segment_list);
+		candidate->segment_list = NULL;
+		XFREE(MTYPE_PATH_SR_CANDIDATE, candidate);
+		return;
+	}
 	if(candidate && candidate->segment_list){
 		refcounter_decrease(candidate->segment_list);
 		SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);

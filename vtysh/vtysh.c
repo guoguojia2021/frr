@@ -2176,7 +2176,7 @@ DEFUNSH(VTYSH_PATHD, srte_policy, srte_policy_cmd,
 
 DEFUNSH(VTYSH_PATHD, srte_policy_candidate_dyn_path,
 	srte_policy_candidate_dyn_path_cmd,
-	"candidate-path preference (0-4294967295) name WORD dynamic",
+	"candidate-path preference (1-4294967295) name WORD dynamic",
 	"Segment Routing Policy Candidate Path\n"
 	"Segment Routing Policy Candidate Path Preference\n"
 	"Administrative Preference\n"

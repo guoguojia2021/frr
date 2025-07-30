@@ -2823,10 +2823,15 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 
 					if (!nest)
 						return 0;
-
-					tun_len = fill_seg6ipt_encap_private(tun_buf,
-							sizeof(tun_buf), &segs,
-							&nh->seg6_src, nh->sidlist_name, nh->my_discriminator);
+					if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_IS_HIDDEN)
+						&& strcmp(nh->sidlist_name, "hidden-segment") == 0)
+						tun_len = fill_seg6ipt_encap_private(tun_buf,
+								sizeof(tun_buf), &segs,
+								&nh->seg6_src, NULL, 0);
+					else
+						tun_len = fill_seg6ipt_encap_private(tun_buf,
+								sizeof(tun_buf), &segs,
+								&nh->seg6_src, nh->sidlist_name, nh->my_discriminator);
 
 					if (tun_len < 0)
 						return 0;

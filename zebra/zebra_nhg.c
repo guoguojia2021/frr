@@ -1038,57 +1038,6 @@ static struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *
 		return NULL;
 }
 
-void zebra_nhe_change_gateway_address(struct nexthop *nexthop)
-{
-	struct zebra_sr_policy *policy;
-	uint8_t family;
-	struct route_node *prn = NULL;
-	char buf[INET6_ADDRSTRLEN];
-
-	if (nexthop == NULL)
-		return;
-
-	if (nexthop->srte_color == 0)
-		return;
-
-	policy = zebra_sr_policy_match_by_nexthop(nexthop);
-
-	if (policy == NULL)
-		return;
-	prn = policy->node;
-	if (prn)
-		family = prn->p.family;
-	else
-		return;
-
-	if (IS_ZEBRA_DEBUG_NHG_DETAIL) {
-		if (family == AF_INET)
-			zlog_debug("%s: %pRN color %u gate %s prefixlen %u",
-				__func__, prn, nexthop->srte_color,
-				inet_ntop(AF_INET, &nexthop->gate.ipv4, buf, sizeof(buf)),
-				prn->p.prefixlen);
-		else if (family == AF_INET6)
-			zlog_debug("%s: %pRN color %u gate %s prefixlen %u",
-				__func__, prn, nexthop->srte_color,
-				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf, sizeof(buf)),
-				prn->p.prefixlen);
-	}
-
-	if (family == AF_INET && prn->p.prefixlen == IPV4_MAX_BITLEN)
-		return;
-	if (family == AF_INET6 && prn->p.prefixlen == IPV6_MAX_BITLEN)
-		return;
-
-	if (family == AF_INET) {
-		memcpy(&nexthop->gate.ipv4, &prn->p.u.prefix4, sizeof(struct in_addr));
-	}
-	else if (family == AF_INET6) {
-		memcpy(&nexthop->gate.ipv6, &prn->p.u.prefix6, sizeof(struct in6_addr));
-	}
-
-	return;
-}
-
 /*
  * Lookup an nhe in the global hash, using data from another nhe. If 'lookup'
  * has an id value, that's used. Create a new global/shared nhe if not found.
@@ -2796,7 +2745,8 @@ static struct nexthop *nexthop_seg_set_resolved(afi_t afi,
 
 			if (CHECK_FLAG(policy->srv6_segment_list.sidlists[policy_num].flags, SRV6_SID_LIST_BACKUP))
 				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_BACKUP);
-
+			if (CHECK_FLAG(policy->srv6_segment_list.sidlists[policy_num].flags, SRV6_SID_LIST_HIDDEN))
+				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_HIDDEN);
 			SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_SRV6_TUNNEL);
 		}
 	}

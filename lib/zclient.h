@@ -689,6 +689,7 @@ struct zapi_srv6_active_sidlist{
 #define SRV6_SID_LIST_DEL        0x04
 #define SRV6_SID_LIST_BEST       0x08
 #define SRV6_SID_LIST_BACKUP     0x10
+#define SRV6_SID_LIST_HIDDEN     0x20
 	uint8_t weight;
 	uint32_t my_discriminator;
 };

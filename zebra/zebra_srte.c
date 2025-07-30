@@ -255,55 +255,9 @@ void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy)
 	zebra_free_sr_table(table);
 }
 
-static struct nhg_hash_entry *zebra_srv6_find_pic_nhe_by_policy(struct zebra_sr_policy *policy)
-{
-	vrf_id_t vrf_id = 0;
-	bool ret = false;
-	struct nexthop *nh = NULL;
-	struct nhg_hash_entry lookup = {0};
-	struct nhg_hash_entry *pic_nhe = NULL;
-
-	vrf_id = policy->zvrf->vrf->vrf_id;
-
-	/* Use a temporary nhe to find pic nh */
-	lookup.type = ZEBRA_ROUTE_NHG;
-	lookup.vrf_id = vrf_id;
-
-	SET_FLAG(lookup.flags, NEXTHOP_GROUP_PIC_NHT);
-	SET_FLAG(lookup.flags, NEXTHOP_GROUP_SEGMENTLIST);
-
-    /* the nhg.nexthop is sorted */
-	switch (policy->node->p.family) {
-	case AF_INET:
-		nh = nexthop_from_ipv4_segment_list(&policy->node->p.u.prefix4, vrf_id);
-		lookup.afi = AFI_IP;
-		break;
-	case AF_INET6:
-		nh = nexthop_from_ipv6_segment_list(&policy->node->p.u.prefix6, vrf_id);
-		lookup.afi = AFI_IP6;
-		break;
-	default:
-		return NULL;
-	}
-
-	nh->srte_color = policy->color;
-	SET_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE);
-
-	ret = nexthop_group_add_sorted_nodup(&lookup.nhg, nh);
-	if (!ret) {
-		nexthop_free(nh);
-		return NULL;
-	}
-	pic_nhe = hash_lookup(zrouter.nhgs, &lookup);
-	if (lookup.nhg.nexthop)
-		nexthops_free(lookup.nhg.nexthop);
-
-	return pic_nhe;
-}
-
 static struct nexthop *zebra_nhg_seg_add_del_nexthop(struct nexthop *nexthop,
 	char *sidlist_name, uint32_t discriminator, bool add,
-	bool *skip_depend, bool is_backup)
+	bool *skip_depend, bool is_backup, bool is_hidden)
 {
 	struct nexthop *resolved_hop = NULL;
 	struct nexthop *exist_hop = NULL;
@@ -337,6 +291,9 @@ static struct nexthop *zebra_nhg_seg_add_del_nexthop(struct nexthop *nexthop,
 				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_DUPLICATE);
 			if (is_backup)
 				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_BACKUP);
+			if (is_hidden)
+				SET_FLAG(resolved_hop->flags, NEXTHOP_FLAG_IS_HIDDEN);
+
 			_nexthop_add_sorted(&nexthop->resolved, resolved_hop);
 		}
 	}
@@ -354,6 +311,7 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 {
 	uint32_t discriminator = 0;
 	bool is_backup = false;
+	bool is_hidden = false;
 	struct nexthop *add_hop = NULL;
 	char *policy_sid_name = NULL;
 
@@ -361,8 +319,11 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 	discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
 	if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_BACKUP))
 		is_backup = true;
+	if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_HIDDEN))
+		is_hidden = true;
 
-	add_hop = zebra_nhg_seg_add_del_nexthop(nexthop, policy_sid_name, discriminator, true, &skip_update_depend, is_backup);
+	add_hop = zebra_nhg_seg_add_del_nexthop(nexthop, policy_sid_name, discriminator,
+		true, &skip_update_depend, is_backup, is_hidden);
 
 	if (skip_update_depend) {
 		if (IS_ZEBRA_DEBUG_SRV6)
@@ -382,7 +343,7 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 }
 
 static void zebra_nhg_seg_update_nexthop_content(struct nexthop *nexthop,
-	uint32_t discriminator, bool is_backup)
+	uint32_t discriminator, bool is_backup, bool is_hidden)
 {
 	if (nexthop == NULL)
 		return;
@@ -403,21 +364,25 @@ static void zebra_nhg_seg_update_nexthop_content(struct nexthop *nexthop,
 	else
 		UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP);
 
+	if (is_hidden)
+		SET_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_HIDDEN);
+	else
+		UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_HIDDEN);
 	return;
 }
 static void zebra_nhg_seg_update_nexthop_resolved(struct nexthop *nexthop,
-	char *sidlist_name, uint32_t discriminator, bool is_backup)
+	char *sidlist_name, uint32_t discriminator, bool is_backup, bool is_hidden)
 {
 	struct nexthop *nh = NULL;
 	for (nh = nexthop; nh; nh = nexthop_next(nh)) {
 		if (strncmp(nh->sidlist_name, sidlist_name, sizeof(nh->sidlist_name)) == 0) {
-			zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup);
+			zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup, is_hidden);
 		}
 	}
 }
 
 static void zebra_nhg_seg_update_depend(struct nhg_hash_entry *nhe, struct nexthop *nexthop,
-	char *policy_sid_name, uint32_t discriminator, bool is_backup)
+	char *policy_sid_name, uint32_t discriminator, bool is_backup, bool is_hidden)
 {
 	int ret = 0;
 	struct nexthop * nh = NULL;
@@ -443,7 +408,7 @@ static void zebra_nhg_seg_update_depend(struct nhg_hash_entry *nhe, struct nexth
 						is_backup ? "true":"false");
 			}
 			if (strncmp(nh->sidlist_name, policy_sid_name, sizeof(nh->sidlist_name)) == 0) {
-				zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup);
+				zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup, is_hidden);
 				return;
 			}
 		}
@@ -452,7 +417,7 @@ static void zebra_nhg_seg_update_depend(struct nhg_hash_entry *nhe, struct nexth
 }
 
 static void zebra_nhg_seg_update_dependent(struct nhg_hash_entry *nhe, struct nexthop *nexthop,
-	char *policy_sid_name, uint32_t discriminator, bool is_backup)
+	char *policy_sid_name, uint32_t discriminator, bool is_backup, bool is_hidden)
 {
 	int ret = 0;
 	struct nexthop *nh = NULL;
@@ -485,7 +450,7 @@ static void zebra_nhg_seg_update_dependent(struct nhg_hash_entry *nhe, struct ne
 
 			for (nh_res = nh->resolved; nh_res; nh_res = nexthop_next(nh_res)) {
 				if (strncmp(nh_res->sidlist_name, policy_sid_name, sizeof(nh_res->sidlist_name)) == 0) {
-					zebra_nhg_seg_update_nexthop_content(nh_res, discriminator, is_backup);
+					zebra_nhg_seg_update_nexthop_content(nh_res, discriminator, is_backup, is_hidden);
 					continue;
 				}
 			}
@@ -498,19 +463,22 @@ static void zebra_nhg_seg_update_sidlist(struct nhg_hash_entry *nhe, struct zebr
 {
 	uint32_t discriminator = 0;
 	bool is_backup = false;
+	bool is_hidden = false;
 	char *policy_sid_name = NULL;
 
 	policy_sid_name = policy->srv6_segment_list.sidlists[path_num].sidlist_name;
 	discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
 	if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_BACKUP))
 		is_backup = true;
-	zebra_nhg_seg_update_nexthop_resolved(nexthop, policy_sid_name, discriminator, is_backup);
+	if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_HIDDEN))
+		is_hidden = true;
+	zebra_nhg_seg_update_nexthop_resolved(nexthop, policy_sid_name, discriminator, is_backup, is_hidden);
 
 	if (skip_depend)
 		return;
 	/* update depends nhe*/
-	zebra_nhg_seg_update_depend(nhe, nexthop, policy_sid_name, discriminator, is_backup);
-	zebra_nhg_seg_update_dependent(nhe, nexthop, policy_sid_name, discriminator, is_backup);
+	zebra_nhg_seg_update_depend(nhe, nexthop, policy_sid_name, discriminator, is_backup, is_hidden);
+	zebra_nhg_seg_update_dependent(nhe, nexthop, policy_sid_name, discriminator, is_backup, is_hidden);
 	nhe->uptime = monotime(NULL);
 }
 static void zebra_nhg_seg_add_and_update_sidlist(struct nhg_hash_entry *nhe, struct zebra_sr_policy *policy,
@@ -541,7 +509,6 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 {
 	uint8_t path_num = 0;
 	uint32_t discriminator = 0;
-	bool is_backup = false;
 	char *node_sid_name = NULL;
 	char *policy_sid_name = NULL;
 	struct nexthop *del_hop = NULL;
@@ -556,11 +523,7 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 
 		policy_sid_name = policy->srv6_segment_list.sidlists_old[path_num].sidlist_name;
 		discriminator = policy->srv6_segment_list.sidlists_old[path_num].my_discriminator;
-		if (CHECK_FLAG(policy->srv6_segment_list.sidlists_old[path_num].flags, SRV6_SID_LIST_BACKUP))
-			is_backup = true;
-
-		del_hop = zebra_nhg_seg_add_del_nexthop(nexthop, policy_sid_name, discriminator, false, &skip_depend, is_backup);
-
+		del_hop = zebra_nhg_seg_add_del_nexthop(nexthop, policy_sid_name, discriminator, false, &skip_depend, false, false);
 		if (del_hop == NULL)
 			continue;
 
@@ -593,32 +556,33 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 }
 
 static void zebra_nhg_seg_update_nhe(struct nhg_hash_entry *nhe,
-	struct zebra_sr_policy *policy, bool skip_depend)
+	struct rnh *rnh, struct zebra_sr_policy *policy, bool skip_depend)
 {
-
 	struct nexthop *nexthop = NULL;
-	int ret = 0;
+	struct prefix *p = &rnh->node->p;
 
 	for (nexthop = nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
-
-		switch (policy->node->p.family) {
+		/* Check if nexthop matches the prefix */
+		bool matches = false;
+		switch (p->family) {
 		case AF_INET:
-			ret = memcmp(&nexthop->gate.ipv4, &policy->node->p.u.prefix, sizeof(struct in_addr));
+			matches = (memcmp(&nexthop->gate.ipv4, &p->u.prefix4, sizeof(struct in_addr)) == 0);
 			break;
 		case AF_INET6:
-			ret = memcmp(&nexthop->gate.ipv6, &policy->node->p.u.prefix, sizeof(struct in6_addr));
+			matches = (memcmp(&nexthop->gate.ipv6, &p->u.prefix6, sizeof(struct in6_addr)) == 0);
 			break;
 		default:
 			continue;
 		}
-		if (ret != 0)
+
+		if (!matches)
 			continue;
 
-		if (nexthop->next != NULL || nexthop->prev != NULL) {
-			skip_depend = true;
-		}
+		/* Set skip_depend if there are multiple nexthops */
+		bool local_skip_depend = skip_depend || (nexthop->next != NULL || nexthop->prev != NULL);
+
 		if (IS_ZEBRA_DEBUG_SRV6) {
-			if (policy->node->p.family == AF_INET)
+			if (p->family == AF_INET)
 				zlog_debug("%s: update nhe id:%d gate:%pI4 color:%d", __func__, nhe->id,
 					&nexthop->gate.ipv4, nexthop->srte_color);
 			else
@@ -626,9 +590,8 @@ static void zebra_nhg_seg_update_nhe(struct nhg_hash_entry *nhe,
 					&nexthop->gate.ipv6, nexthop->srte_color);
 		}
 
-		zebra_nhg_seg_add_and_update_sidlist(nhe, policy, nexthop, skip_depend);
-		zebra_nhg_seg_del_sidlist(nhe, policy, nexthop, skip_depend);
-
+		zebra_nhg_seg_add_and_update_sidlist(nhe, policy, nexthop, local_skip_depend);
+		zebra_nhg_seg_del_sidlist(nhe, policy, nexthop, local_skip_depend);
 	}
 }
 
@@ -638,59 +601,113 @@ static void zebra_nhg_install_nhe(struct nhg_hash_entry *nhe)
 	zebra_nhg_seg_install_kernel(nhe);
 }
 
+static struct nhg_hash_entry *zebra_find_pic_nhe(struct zebra_sr_policy *policy, struct rnh *rnh)
+{
+    struct prefix *p = &rnh->node->p;
+    struct nexthop *nh = NULL;
+    struct nhg_hash_entry lookup = {0};
+    struct nhg_hash_entry *pic_nhe = NULL;
+    vrf_id_t vrf_id = policy->zvrf->vrf->vrf_id;
+    int ret;
+
+    /* Use a temporary nhe to find pic nh */
+    lookup.type = ZEBRA_ROUTE_NHG;
+    lookup.vrf_id = vrf_id;
+    SET_FLAG(lookup.flags, NEXTHOP_GROUP_PIC_NHT);
+    SET_FLAG(lookup.flags, NEXTHOP_GROUP_SEGMENTLIST);
+
+    switch (p->family) {
+    case AF_INET:
+        nh = nexthop_from_ipv4_segment_list(&p->u.prefix4, vrf_id);
+        lookup.afi = AFI_IP;
+        break;
+    case AF_INET6:
+        nh = nexthop_from_ipv6_segment_list(&p->u.prefix6, vrf_id);
+        lookup.afi = AFI_IP6;
+        break;
+    default:
+        return NULL;
+    }
+
+    nh->srte_color = policy->color;
+    SET_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE);
+
+    ret = nexthop_group_add_sorted_nodup(&lookup.nhg, nh);
+    if (!ret) {
+        nexthop_free(nh);
+        return NULL;
+    }
+
+    pic_nhe = hash_lookup(zrouter.nhgs, &lookup);
+    if (lookup.nhg.nexthop)
+        nexthops_free(lookup.nhg.nexthop);
+
+    return pic_nhe;
+}
+
 static void zebra_nhe_seg_update(struct zebra_sr_policy *policy)
 {
-	struct nhg_hash_entry *picnhe = NULL;
-	struct nhg_segment *rb_node_dep = NULL;
+    struct nhg_hash_entry *picnhe = NULL;
+    struct nhg_segment *rb_node_dep = NULL;
+    struct rnh *rnh;
 
-	if (policy == NULL)
-		return;
+    if (!policy)
+        return;
 
-	picnhe = zebra_srv6_find_pic_nhe_by_policy(policy);
-	if (!picnhe) {
-		return;
-	}
+    frr_each_safe(rnh_list, &policy->nht, rnh) {
+        picnhe = zebra_find_pic_nhe(policy, rnh);
+        if (!picnhe)
+            continue;
 
-	zebra_nhg_seg_update_nhe(picnhe, policy, false);
-	frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
-		UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
-	}
-	zebra_nhg_install_nhe(picnhe);
+        /* Update the main NHE */
+        zebra_nhg_seg_update_nhe(picnhe, rnh, policy, false);
 
-	if (IS_ZEBRA_DEBUG_SRV6) {
-		zlog_debug("%s: nhe id %d update flags 0x%x", __func__,
-			picnhe->id, picnhe->flags);
-	}
-	frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
-		zebra_nhg_seg_update_nhe(rb_node_dep->nhe, policy, true);
-		zebra_nhg_install_nhe(rb_node_dep->nhe);
-	}
+        /* Mark all dependent NHEs as not installed */
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
+            UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
+        }
 
+        /* Install the main NHE */
+        zebra_nhg_install_nhe(picnhe);
+
+        if (IS_ZEBRA_DEBUG_SRV6) {
+            zlog_debug("%s: nhe id %d update flags 0x%x", __func__,
+                picnhe->id, picnhe->flags);
+        }
+
+        /* pdate and install all dependent NHEs */
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
+            zebra_nhg_seg_update_nhe(rb_node_dep->nhe, rnh, policy, true);
+            zebra_nhg_install_nhe(rb_node_dep->nhe);
+        }
+    }
 }
 
 static void zebra_srv6_policy_down_update_pic_nhe(struct zebra_sr_policy *policy)
 {
-	struct nhg_hash_entry *picnhe = NULL;
-	struct nhg_segment *rb_node_dep = NULL;
+    struct nhg_hash_entry *picnhe = NULL;
+    struct nhg_segment *rb_node_dep = NULL;
+    struct rnh *rnh;
 
-	picnhe = zebra_srv6_find_pic_nhe_by_policy(policy);
-	if (!picnhe) {
-		return;
-	}
+    frr_each_safe(rnh_list, &policy->nht, rnh) {
+        picnhe = zebra_find_pic_nhe(policy, rnh);
+        if (!picnhe)
+            continue;
 
-	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
-		zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
-			picnhe->id, picnhe->flags);
+        if (IS_ZEBRA_DEBUG_NHG_DETAIL)
+            zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
+                picnhe->id, picnhe->flags);
 
-	UNSET_FLAG(picnhe->flags, NEXTHOP_GROUP_VALID);
+        UNSET_FLAG(picnhe->flags, NEXTHOP_GROUP_VALID);
 
-	frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
-		UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_VALID);
-	}
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
+            UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_VALID);
+        }
 
-	frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
-		zebra_nhg_install_nhe(rb_node_dep->nhe);
-	}
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
+            zebra_nhg_install_nhe(rb_node_dep->nhe);
+        }
+    }
 }
 
 int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy *policy,
@@ -1055,7 +1072,7 @@ static void zebra_srv6_policy_copy_sidlist(struct zebra_sr_policy *policy, struc
 			sizeof(policy->srv6_segment_list.sidlists[path_num].sidlist_name));
 		new_tunnel->sidlists_old[path_num].weight = policy->srv6_segment_list.sidlists[path_num].weight;
 		new_tunnel->sidlists_old[path_num].my_discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
-		new_tunnel->sidlists_old[path_num].flags = 0;
+		new_tunnel->sidlists_old[path_num].flags = policy->srv6_segment_list.sidlists[path_num].flags;
 		SET_FLAG(new_tunnel->sidlists_old[path_num].flags, SRV6_SID_LIST_DEL);
 	}
 	new_tunnel->path_num_old = policy->srv6_segment_list.path_num;

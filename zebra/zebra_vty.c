@@ -821,6 +821,8 @@ static void vty_show_ip_route_detail(struct vty *vty, struct route_node *rn,
 		}
 
 		for (ALL_NEXTHOPS(re->nhe->nhg, nexthop)) {
+			if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_HIDDEN))
+				continue;
 			/* Use helper to format each nexthop */
 			show_nexthop_detail_helper(vty, re, nexthop,
 						   false /*not backup*/);
@@ -1395,6 +1397,8 @@ static void vty_show_ip_route(struct vty *vty, struct route_node *rn,
 
 	/* Nexthop information. */
 	for (ALL_NEXTHOPS_PTR(nhg, nexthop)) {
+		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_HIDDEN))
+			continue;
 		if (first_p) {
 			first_p = false;
 		} else if (nhg_from_backup) {

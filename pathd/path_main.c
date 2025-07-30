@@ -40,6 +40,8 @@
 
 char backup_config_file[256];
 
+bool srv6_tepolicy_hot_standby = false;
+
 zebra_capabilities_t _caps_p[] = {};
 
 struct zebra_privs_t pathd_privs = {
@@ -53,8 +55,6 @@ struct zebra_privs_t pathd_privs = {
 	.caps_p = _caps_p,
 	.cap_num_p = array_size(_caps_p),
 	.cap_num_i = 0};
-
-struct option longopts[] = {{0}};
 
 /* Master of threads. */
 struct thread_master *master;
@@ -126,7 +126,6 @@ FRR_DAEMON_INFO(pathd, PATH, .vty_port = PATH_VTY_PORT,
 int main(int argc, char **argv, char **envp)
 {
 	frr_preinit(&pathd_di, argc, argv);
-	frr_opt_add("", longopts, "");
 
 	while (1) {
 		int opt;

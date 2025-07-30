@@ -44,6 +44,8 @@
 #define XPATH_CANDIDATE_MAXLEN (XPATH_CANDIDATE_BASELEN + XPATH_MAXATTRSIZE)
 
 
+extern bool srv6_tepolicy_hot_standby;
+
 static int config_write_segment_routing(struct vty *vty);
 
 static int segment_list_has_src_dst(
@@ -927,7 +929,7 @@ void cli_show_srte_policy_binding_v6_sid(struct vty *vty,
  */
 DEFPY_YANG(srte_policy_candidate_exp,
       srte_policy_candidate_exp_cmd,
-      "candidate-path preference (0-4294967295)$preference name WORD$name \
+      "candidate-path preference (1-4294967295)$preference name WORD$name \
 	 explicit segment-list WORD$list_name [weight$has_weight (1-4294967295)$weight_val] [bfd-name BFD$bfd_name]",
       "Segment Routing Policy Candidate Path\n"
       "Segment Routing Policy Candidate Path Preference\n"
@@ -978,7 +980,7 @@ DEFPY_YANG(srte_policy_candidate_exp,
 DEFPY_YANG_NOSH(
 	srte_policy_candidate_dyn,
 	srte_policy_candidate_dyn_cmd,
-	"candidate-path preference (0-4294967295)$preference name WORD$name dynamic",
+	"candidate-path preference (1-4294967295)$preference name WORD$name dynamic",
 	"Segment Routing Policy Candidate Path\n"
 	"Segment Routing Policy Candidate Path Preference\n"
 	"Administrative Preference\n"
@@ -1157,7 +1159,7 @@ DEFPY_YANG(srte_candidate_no_metric,
 DEFPY_YANG(srte_policy_no_candidate,
       srte_policy_no_candidate_cmd,
       "no candidate-path\
-	preference (0-4294967295)$preference\
+	preference (1-4294967295)$preference\
 	name WORD$name\
 	[<\
 	  explicit segment-list WORD\
@@ -1403,6 +1405,28 @@ DEFPY(show_segment_list_by_name_detail,
 	return CMD_SUCCESS;
 }
 
+DEFPY(srv6_te_policy_hot_standby,
+      srv6_te_policy_hot_standby_cmd,
+      "backup hot-standby enable",
+      "secondary cpath\n"
+      "hot standby\n"
+      "enable hot standby\n")
+{
+	srv6_tepolicy_hot_standby = true;
+	return CMD_SUCCESS;
+}
+
+DEFPY(no_srv6_te_policy_hot_standby,
+      no_srv6_te_policy_hot_standby_cmd,
+      "no backup hot-standby enable",
+      "disalbe hot standby\n"
+      "secondary cpath\n"
+      "hot standby\n"
+      "enable hot standby\n")
+{
+	srv6_tepolicy_hot_standby = false;
+	return CMD_SUCCESS;
+}
 static void config_write_float(struct vty *vty, float value)
 {
 	if (fabs(truncf(value) - value) < FLT_EPSILON) {
@@ -1542,6 +1566,8 @@ int config_write_segment_routing(struct vty *vty)
 	vty_out(vty, "segment-routing\n");
 	vty_out(vty, " traffic-eng\n");
 
+	if (srv6_tepolicy_hot_standby)
+		vty_out(vty, "  backup hot-standby enable\n");
 
 	path_ted_config_write(vty);
 
@@ -1582,6 +1608,8 @@ void path_cli_init(void)
 	install_element(CONFIG_NODE, &segment_routing_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &segment_routing_srv6_cmd);
 	install_element(SEGMENT_ROUTING_NODE, &sr_traffic_eng_cmd);
+	install_element(SR_TRAFFIC_ENG_NODE, &srv6_te_policy_hot_standby_cmd);
+	install_element(SR_TRAFFIC_ENG_NODE, &no_srv6_te_policy_hot_standby_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_segment_list_cmd);
 	install_element(SR_TRAFFIC_ENG_NODE, &srte_no_segment_list_cmd);
 	install_element(SR_SEGMENT_LIST_NODE,
