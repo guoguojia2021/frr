@@ -126,6 +126,7 @@ static void bgp_conditional_adv_routes(struct peer *peer, afi_t afi,
 				bgp_attr_flush(&advmap_attr);
 				continue;
 			}
+			bgp_attr_flush(&advmap_attr);
 
 			/* Skip route-map checks in
 			 * subgroup_announce_check while executing from
@@ -140,13 +141,13 @@ static void bgp_conditional_adv_routes(struct peer *peer, afi_t afi,
 				{
 					subgroup_announce_action(subgrp, dest, pi, 0,
 								 bgp_addpath_id_for_peer(peer, afi, safi,
-											 &pi->tx_addpath), &advmap_attr, IDALLOC_INVALID);
+											 &pi->tx_addpath), NULL, IDALLOC_INVALID);
 				}
 				else if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED))
 				{
 					subgroup_announce_action(subgrp, dest, pi, 1,
 								 bgp_addpath_id_for_peer(peer, afi, safi,
-											 &pi->tx_addpath), &advmap_attr, IDALLOC_INVALID);
+											 &pi->tx_addpath), NULL, IDALLOC_INVALID);
 				}
 			}
 			else
@@ -162,8 +163,6 @@ static void bgp_conditional_adv_routes(struct peer *peer, afi_t afi,
 						bgp_addpath_id_for_peer(
 							peer, afi, safi,
 							&pi->tx_addpath), IDALLOC_INVALID);
-
-				bgp_attr_flush(&advmap_attr);
 			}
 		}
 	}
