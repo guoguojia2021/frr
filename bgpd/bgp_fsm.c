@@ -1341,9 +1341,6 @@ static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
 		bgp_announce_route(peer, afi, safi, true);
 	}
 
-	BGP_TIMER_OFF(peer->t_routeadv);
-	BGP_TIMER_ON(peer->t_routeadv, bgp_routeadv_timer, 0);
-
 	frr_timestamp(3, peer->advertise_delay_onstartup_end_time,
 			 sizeof(peer->advertise_delay_onstartup_end_time));
 
@@ -1358,7 +1355,7 @@ static void bgp_advertise_delay_onstartup_end(struct bgp *bgp)
 			__func__, bgp->name_pretty);
 
 	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
-		if (!peer_established(peer))
+		if (!peer_established(peer->connection))
 			continue;
 		bgp_advertise_delay_onstartup_peer_end(peer);
 	}
@@ -1412,7 +1409,7 @@ static void bgp_advertise_delay_onstartup_begin(struct bgp *bgp)
 
 static void bgp_advertise_delay_onstartup_process_status_change(struct peer *peer)
 {
-	if (peer->status == Established && peer->bgp->established_peers == 1) {
+	if (peer->connection->status == Established && peer->bgp->established_peers == 1) {
 		// timer enable when first peer established
 		bgp_advertise_delay_onstartup_begin(peer->bgp);
 	}
