@@ -470,7 +470,6 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 	debug = bgp_debug_bestpath(dest);
 
 	if (new_best) {
-		mpath_count++;
 		/* For the imported route, should get sub_type from it's parent,
 		 * because the sub_type will be always BGP_PEER_IBGP if we don't do this. */
 		if ((BGP_ROUTE_IMPORTED == new_best->sub_type) && new_best->extra && new_best->extra->vrfleak
@@ -482,6 +481,7 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 		maxpaths = (new_best_sort == BGP_PEER_IBGP)
 				   ? mpath_cfg->maxpaths_ibgp
 				   : mpath_cfg->maxpaths_ebgp;
+		cur_iterator = new_best;
 	}
 
 	if (old_best) {
@@ -493,12 +493,6 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 		bgp_path_info_mpath_lb_update(old_best, false, false, 0);
 		bgp_path_info_mpath_free(&old_best->mpath);
 		old_best->mpath = NULL;
-	}
-
-	if (new_best) {
-		maxpaths = (new_best->peer->sort == BGP_PEER_IBGP) ? mpath_cfg->maxpaths_ibgp
-								   : mpath_cfg->maxpaths_ebgp;
-		cur_iterator = new_best;
 	}
 
 	if (debug)

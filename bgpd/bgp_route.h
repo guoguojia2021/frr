@@ -758,7 +758,7 @@ extern struct bgp_path_info *
 bgp_get_imported_bpi_ultimate(struct bgp_path_info *info);
 extern void bgp_path_info_add(struct bgp_dest *dest, struct bgp_path_info *pi);
 extern void bgp_path_info_extra_free(struct bgp_path_info_extra **extra);
-extern void bgp_path_info_reap(struct bgp_dest *dest, struct bgp_path_info *pi);
+extern struct bgp_dest *bgp_path_info_reap(struct bgp_dest *dest, struct bgp_path_info *pi);
 extern void bgp_path_info_delete(struct bgp_dest *dest,
 				 struct bgp_path_info *pi);
 extern struct bgp_path_info_extra *
@@ -825,7 +825,7 @@ extern void bgp_process(struct bgp *bgp, struct bgp_dest *dest,
 			struct bgp_path_info *pi, afi_t afi, safi_t safi);
 
 extern void bgp_process_early(struct bgp *bgp, struct bgp_dest *dest,
-			      afi_t afi, safi_t safi);
+			      struct bgp_path_info *pi, afi_t afi, safi_t safi);
 
 /*
  * Add an end-of-initial-update marker to the process queue. This is just a

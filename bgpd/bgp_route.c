@@ -133,8 +133,9 @@ static const struct message bgp_pmsi_tnltype_str[] = {
 #define VRFID_NONE_STR "-"
 #define SOFT_RECONFIG_TASK_MAX_PREFIX 25000
 
-static inline char *bgp_route_dump_path_info_flags(struct bgp_path_info *pi,
 static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo);
+
+static inline char *bgp_route_dump_path_info_flags(struct bgp_path_info *pi,
 						   char *buf, size_t len)
 {
 	uint32_t flags = pi->flags;
@@ -144,7 +145,7 @@ static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo);
 		return buf;
 	}
 
-	snprintfrr(buf, len, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	snprintfrr(buf, len, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 		   CHECK_FLAG(flags, BGP_PATH_IGP_CHANGED) ? "IGP Changed " : "",
 		   CHECK_FLAG(flags, BGP_PATH_DAMPED) ? "Damped" : "",
 		   CHECK_FLAG(flags, BGP_PATH_HISTORY) ? "History " : "",
@@ -160,15 +161,8 @@ static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo);
 		   CHECK_FLAG(flags, BGP_PATH_COUNTED) ? "Counted " : "",
 		   CHECK_FLAG(flags, BGP_PATH_MULTIPATH) ? "Mpath " : "",
 		   CHECK_FLAG(flags, BGP_PATH_MULTIPATH_CHG) ? "Mpath Chg " : "",
-		   CHECK_FLAG(flags, BGP_PATH_RIB_ATTR_CHG) ? "Rib Chg " : "",
 		   CHECK_FLAG(flags, BGP_PATH_ANNC_NH_SELF) ? "NH Self " : "",
 		   CHECK_FLAG(flags, BGP_PATH_LINK_BW_CHG) ? "LinkBW Chg " : "",
-		   CHECK_FLAG(flags, BGP_PATH_ACCEPT_OWN) ? "Accept Own " : "",
-		   CHECK_FLAG(flags, BGP_PATH_MPLSVPN_LABEL_NH) ? "MPLS Label "
-								: "",
-		   CHECK_FLAG(flags, BGP_PATH_MPLSVPN_NH_LABEL_BIND)
-			   ? "MPLS Label Bind "
-			   : "",
 		   CHECK_FLAG(flags, BGP_PATH_UNSORTED) ? "Unsorted " : "");
 
 	return buf;
@@ -473,7 +467,7 @@ void bgp_path_info_add(struct bgp_dest *dest, struct bgp_path_info *pi)
 
 /* Do the actual removal of info from RIB, for use by bgp_process
    completion callback *only* */
-void bgp_path_info_reap(struct bgp_dest *dest, struct bgp_path_info *pi)
+struct bgp_dest *bgp_path_info_reap(struct bgp_dest *dest, struct bgp_path_info *pi)
 {
 	if (pi->next)
 		pi->next->prev = pi->prev;
@@ -496,8 +490,6 @@ void bgp_path_info_reap(struct bgp_dest *dest, struct bgp_path_info *pi)
 static struct bgp_dest *bgp_path_info_reap_unsorted(struct bgp_dest *dest,
 						    struct bgp_path_info *pi)
 {
-	bgp_path_info_mpath_dequeue(pi);
-
 	pi->next = NULL;
 	pi->prev = NULL;
 
@@ -2959,7 +2951,7 @@ bgp_process_update (struct bgp *bgp, struct prefix *p, afi_t afi, safi_t safi, i
 		      network_p->prefixlen, add ? "add" : "delete");
 	}
 	bgp_path_info_set_flag (bd, pi, BGP_PATH_ATTR_CHANGED);
-        bgp_process (bgp, bd, afi, safi);
+	bgp_process (bgp, bd, pi, afi, safi);
 	break;
       }
     }
@@ -3031,11 +3023,11 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 	struct bgp_path_info *pi2;
 	int paths_eq, do_mpath;
 	bool debug, any_comparisons;
-	struct list mp_list;
 	char pfx_buf[PREFIX2STR_BUFFER] = {};
 	char path_buf[PATH_ADDPATH_STR_BUFFER];
 	enum bgp_path_selection_reason reason = bgp_path_selection_none;
 	bool unsorted_items = true;
+	uint32_t num_candidates = 0;
 
 	do_mpath =
 		(mpath_cfg->maxpaths_ebgp > 1 || mpath_cfg->maxpaths_ibgp > 1);
@@ -3132,18 +3124,14 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 	while (pi && CHECK_FLAG(pi->flags, BGP_PATH_UNSORTED)) {
 		struct bgp_path_info *next = pi->next;
 
-		if (CHECK_FLAG(pi->flags, BGP_PATH_SELECTED))
-			old_select = pi;
 #ifdef ARP2HOST_BACKUP
 		if(select_backup) {
 			if (CHECK_FLAG (pi->flags, BGP_PATH_BACKUP_SELECTED))
 				old_select = pi;
-		} else {
+		} else
 #endif
-			if (CHECK_FLAG (pi->flags, BGP_PATH_SELECTED))
-				old_select = pi;
-#ifdef ARP2HOST_BACKUP
-		}
+		if (CHECK_FLAG (pi->flags, BGP_PATH_SELECTED))
+			old_select = pi;
 		/*
 		 * Pull off pi off the list
 		 */
@@ -3303,7 +3291,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 
 			reason = dest->reason;
 			any_comparisons = true;
-			if (bgp_path_info_cmp(bgp, first, look_thru, &paths_eq,
+			if (bgp_path_info_cmp(bgp, first, look_thru, &dest->rn->p, &paths_eq,
 					      mpath_cfg, debug, pfx_buf, afi,
 					      safi, &reason)) {
 				first->reason = reason;
@@ -3415,8 +3403,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 	}
 
 	if (do_mpath && new_select) {
-		for (pi = bgp_dest_get_bgp_path_info(dest);
-		     (pi != NULL) && (nextpi = pi->next, 1); pi = nextpi) {
+		for (pi = bgp_dest_get_bgp_path_info(dest); pi; pi = pi->next) {
 
 			if (debug)
 				bgp_path_info_path_with_addpath_rx_str(
@@ -4674,15 +4661,15 @@ static void bgp_process_internal(struct bgp *bgp, struct bgp_dest *dest,
 }
 
 void bgp_process(struct bgp *bgp, struct bgp_dest *dest,
-		 afi_t afi, safi_t safi)
+		 struct bgp_path_info *pi, afi_t afi, safi_t safi)
 {
-	bgp_process_internal(bgp, dest, afi, safi, false);
+	bgp_process_internal(bgp, dest, pi, afi, safi, false);
 }
 
 void bgp_process_early(struct bgp *bgp, struct bgp_dest *dest,
-		       afi_t afi, safi_t safi)
+		       struct bgp_path_info *pi, afi_t afi, safi_t safi)
 {
-	bgp_process_internal(bgp, dest, afi, safi, true);
+	bgp_process_internal(bgp, dest, pi, afi, safi, true);
 }
 
 void bgp_add_eoiu_mark(struct bgp *bgp)
@@ -8050,7 +8037,7 @@ void bgp_static_withdraw(struct bgp *bgp, const struct prefix *p, afi_t afi,
 		bgp_aggregate_decrement(bgp, p, pi, afi, safi);
 		bgp_unlink_nexthop(pi);
 		bgp_path_info_delete(dest, pi);
-		bgp_process(bgp, dest, afi, safi);
+		bgp_process(bgp, dest, pi, afi, safi);
 	}
 
 	/* Unlock bgp_node_lookup. */
@@ -8220,7 +8207,7 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
 
 			/* Process change. */
 			bgp_aggregate_increment(bgp, p, pi, afi, safi);
-			bgp_process(bgp, dest, afi, safi);
+			bgp_process(bgp, dest, pi, afi, safi);
 
 			if (SAFI_MPLS_VPN == safi
 			    && bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
@@ -8262,7 +8249,7 @@ static void bgp_static_update_safi(struct bgp *bgp, const struct prefix *p,
 	bgp_dest_unlock_node(dest);
 
 	/* Process change. */
-	bgp_process(bgp, dest, afi, safi);
+	bgp_process(bgp, dest, new, afi, safi);
 
 	if (SAFI_MPLS_VPN == safi
 	    && bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {

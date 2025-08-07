@@ -1425,7 +1425,7 @@ void bgp_process_nexthop_change(struct bgp_nexthop_cache *bnc, struct bgp_path_i
 		}
 	}
 
-	bgp_process(bgp_path, dest, afi, safi);
+	bgp_process(bgp_path, dest, path, afi, safi);
 }
 /**
  * evaluate_paths - Evaluate the paths/nets associated with a nexthop.
@@ -1463,7 +1463,6 @@ void evaluate_paths(struct bgp_nexthop_cache *bnc)
 				continue;
 			bgp_process_nexthop_change(bnc, path);
 		}
-		bgp_process(bgp_path, dest, path, afi, safi);
 	} else {
 		LIST_FOREACH (path, &(bnc->paths), te_nh_thread) {
 			if (!(path->type == ZEBRA_ROUTE_BGP
