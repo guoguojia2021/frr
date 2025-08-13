@@ -1069,7 +1069,6 @@ leak_update(struct bgp *bgp, /* destination bgp instance */
 	if (new->extra->vrfleak && new->extra->vrfleak->bgp_orig)
 		bgp_nexthop = new->extra->vrfleak->bgp_orig;
 
-	bgp_process(bgp, bn, new, afi, safi);
     struct bgp_path_info *oripath = NULL;
     if (((struct bgp_path_info *)parent)->extra
 		&& ((struct bgp_path_info *)parent)->extra->vrfleak)
