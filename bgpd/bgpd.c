@@ -8215,6 +8215,37 @@ static bool peer_maximum_prefix_clear_overflow(struct peer *peer)
 	return true;
 }
 
+
+int peer_group_maximum_prefix_set(struct peer *peer, afi_t afi, safi_t safi,
+			    uint32_t max, uint8_t threshold, int warning)
+{
+    struct peer_group *group = peer->group;
+
+	/* Check if handling a peer group. */
+	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
+		/* maximum_prefix_group can only configure on peer group. */
+		return -1;
+	}
+
+	/* Set flags and configuration on peer group. */
+    SET_FLAG(group->af_flags[afi][safi], PEER_GROUP_FLAG_MAX_PREFIX);
+
+
+	if (warning) 
+        SET_FLAG(group->af_flags[afi][safi], PEER_GROUP_FLAG_MAX_PREFIX_WARNING);
+	else
+		UNSET_FLAG(group->af_flags[afi][safi], PEER_GROUP_FLAG_MAX_PREFIX_WARNING);
+
+	group->pmax[afi][safi] = max;
+	group->pmax_threshold[afi][safi] = threshold;
+
+    bgp_group_maximum_prefix_overflow(peer, afi, safi, 1);
+
+	return 0;
+}
+
+
+
 int peer_maximum_prefix_set(struct peer *peer, afi_t afi, safi_t safi,
 			    uint32_t max, uint8_t threshold, int warning,
 			    uint16_t restart, bool force)
@@ -8437,6 +8468,25 @@ int peer_maximum_prefix_out_unset(struct peer *peer, afi_t afi, safi_t safi)
 	}
 	return 0;
 }
+
+int peer_group_maximum_prefix_unset(struct peer *peer, afi_t afi, safi_t safi)
+{
+	/* Check if handling a peer group. */
+	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
+		/* maximum_prefix_group can only configure on peer group. */
+		return -1;
+	}
+    
+    struct peer_group *group = peer->group;
+	/* Remove flags and configuration from peer group. */
+	UNSET_FLAG(group->af_flags[afi][safi], PEER_GROUP_FLAG_MAX_PREFIX);
+	UNSET_FLAG(group->af_flags[afi][safi],  PEER_GROUP_FLAG_MAX_PREFIX_WARNING);
+	group->pmax[afi][safi] = 0;
+	group->pmax_threshold[afi][safi] = 0;
+
+	return 0;
+}
+
 
 int is_ebgp_multihop_configured(struct peer *peer)
 {

@@ -1108,6 +1108,23 @@ struct peer_group {
 
 	/* Peer-group config */
 	struct peer *conf;
+
+	/* Accepted prefix count */
+	uint32_t pcount[AFI_MAX][SAFI_MAX];
+
+	/* Max prefix count. */
+	uint32_t pmax[AFI_MAX][SAFI_MAX];
+	uint8_t pmax_threshold[AFI_MAX][SAFI_MAX];
+
+	uint32_t af_flags[AFI_MAX][SAFI_MAX];
+#define PEER_GROUP_FLAG_MAX_PREFIX                (1U << 14) /* maximum prefix */
+#define PEER_GROUP_FLAG_MAX_PREFIX_WARNING        (1U << 15) /* maximum prefix warning-only */
+
+	/* Peer group status af flags (reset in bgp_stop) */
+	uint16_t af_sflags[AFI_MAX][SAFI_MAX];
+#define PEER_GROUP_STATUS_PREFIX_THRESHOLD  (1U << 2) /* exceed prefix-threshold */
+#define PEER_GROUP_STATUS_PREFIX_LIMIT      (1U << 3) /* exceed prefix-limit */
+
 };
 
 /* BGP Notify message format. */
@@ -2573,6 +2590,9 @@ extern int peer_maximum_prefix_out_set(struct peer *peer, afi_t afi,
 				       safi_t safi, uint32_t max);
 extern int peer_maximum_prefix_out_unset(struct peer *peer, afi_t afi,
 					 safi_t safi);
+extern int peer_group_maximum_prefix_set(struct peer *, afi_t, safi_t, uint32_t,
+				   uint8_t, int);
+extern int peer_group_maximum_prefix_unset(struct peer *, afi_t, safi_t);
 
 extern int peer_clear(struct peer *, struct listnode **);
 extern int peer_clear_soft(struct peer *, afi_t, safi_t, enum bgp_clear_type);

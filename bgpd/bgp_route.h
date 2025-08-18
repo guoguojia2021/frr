@@ -773,6 +773,7 @@ extern void bgp_path_info_path_with_addpath_rx_str(struct bgp_path_info *pi,
 extern int bgp_nlri_parse_ip(struct peer *, struct attr *, struct bgp_nlri *);
 
 extern bool bgp_maximum_prefix_overflow(struct peer *, afi_t, safi_t, int);
+extern bool bgp_group_maximum_prefix_overflow(struct peer *, afi_t, safi_t, int);
 
 extern void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 				 const union g_addr *nexthop, ifindex_t ifindex,

@@ -536,15 +536,19 @@ static void bgp_pcount_adjust(struct bgp_dest *dest, struct bgp_path_info *pi)
 		UNSET_FLAG(pi->flags, BGP_PATH_COUNTED);
 
 		/* slight hack, but more robust against errors. */
-		if (pi->peer->pcount[table->afi][table->safi])
+		if (pi->peer->pcount[table->afi][table->safi]) {
 			pi->peer->pcount[table->afi][table->safi]--;
-		else
+            if (pi->peer->group && CHECK_FLAG(pi->peer->group->conf->sflags, PEER_STATUS_GROUP))
+                pi->peer->group->pcount[table->afi][table->safi]--;
+        } else
 			flog_err(EC_LIB_DEVELOPMENT,
 				 "Asked to decrement 0 prefix count for peer");
 	} else if (BGP_PATH_COUNTABLE(pi)
 		   && !CHECK_FLAG(pi->flags, BGP_PATH_COUNTED)) {
 		SET_FLAG(pi->flags, BGP_PATH_COUNTED);
 		pi->peer->pcount[table->afi][table->safi]++;
+        if (pi->peer->group && CHECK_FLAG(pi->peer->group->conf->sflags, PEER_STATUS_GROUP))
+            pi->peer->group->pcount[table->afi][table->safi]++;
 	}
 }
 
@@ -4758,12 +4762,18 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 				  : peer->pcount[afi][safi];
 	struct peer_connection *connection = peer->connection;
 
+	/* If peer group maximum prefix count is configured and current prefix
+	 * count exeed it.
+	 */
+    if(peer->group && CHECK_FLAG(peer->group->conf->sflags, PEER_STATUS_GROUP))
+	    bgp_group_maximum_prefix_overflow(peer, afi, safi, always);
+
 	if (!CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX))
 		return false;
 	
 	struct vrf *vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
 
-	if (pcount > peer->pmax[afi][safi]) {
+	if (pcount >= peer->pmax[afi][safi]) {
 		if (CHECK_FLAG(peer->af_sflags[afi][safi],
 			       PEER_STATUS_PREFIX_LIMIT)
 		    && !always)
@@ -4830,7 +4840,7 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 			   PEER_STATUS_PREFIX_LIMIT);
 
 	if (pcount
-	    > (peer->pmax[afi][safi] * peer->pmax_threshold[afi][safi] / 100)) {
+	    >= (peer->pmax[afi][safi] * peer->pmax_threshold[afi][safi] / 100)) {
 		if (CHECK_FLAG(peer->af_sflags[afi][safi],
 			       PEER_STATUS_PREFIX_THRESHOLD)
 		    && !always)
@@ -4853,6 +4863,75 @@ bool bgp_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
 			   PEER_STATUS_PREFIX_THRESHOLD);
 	return false;
 }
+
+
+bool bgp_group_maximum_prefix_overflow(struct peer *peer, afi_t afi, safi_t safi,
+				 int always)
+{
+    if(!peer->group) {
+        return false;
+    }
+    struct peer_group *group = peer->group;
+	uint32_t pcount = group->pcount[afi][safi];
+
+	if (!CHECK_FLAG(group->af_flags[afi][safi], PEER_GROUP_FLAG_MAX_PREFIX))
+		return false;
+	
+	struct vrf *vrf = vrf_lookup_by_id(peer->bgp->vrf_id);
+
+	if (pcount >= group->pmax[afi][safi]) {
+		if (CHECK_FLAG(group->af_sflags[afi][safi],
+			       PEER_GROUP_STATUS_PREFIX_LIMIT)
+		    && !always)
+			return false;
+
+		zlog_info(
+			"%%MAXPFXEXCEED: No. of %s prefix received from %s in vrf %s %u exceed, limit %u",
+			get_afi_safi_str(afi, safi, false),
+			group->name,
+			vrf ? ((vrf->vrf_id != VRF_DEFAULT)
+					? vrf->name
+					: VRF_DEFAULT_NAME)
+				: "",
+			pcount,
+			group->pmax[afi][safi]);
+		SET_FLAG(group->af_sflags[afi][safi], PEER_GROUP_STATUS_PREFIX_LIMIT);
+
+		if (CHECK_FLAG(group->af_flags[afi][safi],
+			       PEER_GROUP_FLAG_MAX_PREFIX_WARNING))
+			return false;
+
+		return true;
+
+	} else
+		UNSET_FLAG(group->af_sflags[afi][safi],
+			   PEER_GROUP_STATUS_PREFIX_LIMIT);
+
+	if (pcount
+	    >= (group->pmax[afi][safi] * group->pmax_threshold[afi][safi] / 100)) {
+		if (CHECK_FLAG(group->af_sflags[afi][safi],
+			       PEER_GROUP_STATUS_PREFIX_THRESHOLD)
+		    && !always)
+			return false;
+
+		zlog_info(
+			"%%MAXPFX: No. of %s prefix received from %s in vrf %s reaches %u, max %u",
+			get_afi_safi_str(afi, safi, false),
+			group->name,
+			vrf ? ((vrf->vrf_id != VRF_DEFAULT)
+					? vrf->name
+					: VRF_DEFAULT_NAME)
+				: "",
+			pcount,
+			group->pmax[afi][safi]);
+		SET_FLAG(group->af_sflags[afi][safi],
+			 PEER_GROUP_STATUS_PREFIX_THRESHOLD);
+	} else
+		UNSET_FLAG(group->af_sflags[afi][safi],
+			   PEER_GROUP_STATUS_PREFIX_THRESHOLD);
+	return false;
+}
+
 
 /* Unconditionally remove the route from the RIB, without taking
  * damping into consideration (eg, because the session went down)
