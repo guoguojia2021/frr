@@ -1407,10 +1407,9 @@ DEFPY(show_segment_list_by_name_detail,
 
 DEFPY(srv6_te_policy_hot_standby,
       srv6_te_policy_hot_standby_cmd,
-      "backup hot-standby enable",
+      "backup hot-standby",
       "secondary cpath\n"
-      "hot standby\n"
-      "enable hot standby\n")
+      "hot standby\n")
 {
 	srv6_tepolicy_hot_standby = true;
 	return CMD_SUCCESS;
@@ -1418,11 +1417,10 @@ DEFPY(srv6_te_policy_hot_standby,
 
 DEFPY(no_srv6_te_policy_hot_standby,
       no_srv6_te_policy_hot_standby_cmd,
-      "no backup hot-standby enable",
+      "no backup hot-standby",
       "disalbe hot standby\n"
       "secondary cpath\n"
-      "hot standby\n"
-      "enable hot standby\n")
+      "hot standby\n")
 {
 	srv6_tepolicy_hot_standby = false;
 	return CMD_SUCCESS;
@@ -1567,7 +1565,7 @@ int config_write_segment_routing(struct vty *vty)
 	vty_out(vty, " traffic-eng\n");
 
 	if (srv6_tepolicy_hot_standby)
-		vty_out(vty, "  backup hot-standby enable\n");
+		vty_out(vty, "  backup hot-standby\n");
 
 	path_ted_config_write(vty);
 
