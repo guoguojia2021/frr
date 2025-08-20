@@ -870,7 +870,7 @@ static void bgp_show_nexthops_detail(struct vty *vty, struct bgp *bgp,
 
 static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 			     struct bgp_nexthop_cache *bnc,
-			     bool specific)
+			     bool detail)
 {
 	char buf[PREFIX2STR_BUFFER];
 	time_t tbuf;
@@ -920,12 +920,12 @@ static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 	vty_out(vty, "  Last update: %s", ctime(&tbuf));
 
 	/* show paths dependent on nexthop, if needed. */
-	if (specific)
+	if (detail)
 		bgp_show_nexthop_paths(vty, bgp, bnc);
 }
 
 static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
-			      uint8_t import_table)
+			      uint8_t import_table, bool detail)
 {
 	struct bgp_nexthop_cache *bnc;
 	afi_t afi;
@@ -951,13 +951,13 @@ static void bgp_show_nexthops(struct vty *vty, struct bgp *bgp,
 
 	for (afi = AFI_IP; afi < AFI_MAX; afi++) {
 		frr_each (bgp_nexthop_cache, &(*tree)[afi], bnc)
-			bgp_show_nexthop(vty, bgp, bnc, true);
+			bgp_show_nexthop(vty, bgp, bnc, detail);
 	}
 }
 
 static int show_ip_bgp_nexthop_table(struct vty *vty, const char *name,
 				     const char *nhopip_str,
-				     uint8_t import_table)
+				     uint8_t import_table, bool detail)
 {
 	struct bgp *bgp;
 
@@ -998,14 +998,14 @@ static int show_ip_bgp_nexthop_table(struct vty *vty, const char *name,
 			  bnc) {
 			if (prefix_cmp(&bnc->prefix, &nhop))
 				continue;
-			bgp_show_nexthop(vty, bgp, bnc, true);
+			bgp_show_nexthop(vty, bgp, bnc, detail);
 			found = true;
 		}
 		if (!found)
 			vty_out(vty, "nexthop %s does not have entry\n",
 				nhopip_str);
 	} else
-		bgp_show_nexthops(vty, bgp, import_table);
+		bgp_show_nexthops(vty, bgp, import_table, detail);
 
 	return CMD_SUCCESS;
 }
@@ -1020,7 +1020,7 @@ static void bgp_show_all_instances_nexthops_vty(struct vty *vty)
 			(bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT)
 				? VRF_DEFAULT_NAME
 				: bgp->name);
-		bgp_show_nexthops(vty, bgp, false);
+		bgp_show_nexthops(vty, bgp, false, false);
 	}
 }
 
@@ -1040,6 +1040,8 @@ DEFUN (show_ip_bgp_nexthop,
 	int nh_idx = 0;
 	char *vrf = NULL;
 	char *nhop_ip = NULL;
+	bool is_detail = false;
+	int idx_detail = 0;
 
 	if (argv_find(argv, argc, "view", &idx)
 	    || argv_find(argv, argc, "vrf", &idx))
@@ -1049,7 +1051,10 @@ DEFUN (show_ip_bgp_nexthop,
 	    || argv_find(argv, argc, "X:X::X:X", &nh_idx))
 		nhop_ip = argv[nh_idx]->arg;
 
-	return show_ip_bgp_nexthop_table(vty, vrf, nhop_ip, BGP_NEXTHOP_TYPE_NEXTHOP);
+	if (argv_find(argv, argc, "detail", &idx_detail))
+		is_detail = true;
+
+	return show_ip_bgp_nexthop_table(vty, vrf, nhop_ip, BGP_NEXTHOP_TYPE_NEXTHOP, is_detail);
 }
 
 DEFUN (show_ip_bgp_import_check,
@@ -1064,12 +1069,16 @@ DEFUN (show_ip_bgp_import_check,
 {
 	int idx = 0;
 	char *vrf = NULL;
+	bool is_detail = false;
+	int idx_detail = 0;
 
 	if (argv_find(argv, argc, "view", &idx)
 	    || argv_find(argv, argc, "vrf", &idx))
 		vrf = argv[++idx]->arg;
 
-	return show_ip_bgp_nexthop_table(vty, vrf, NULL, BGP_NEXTHOP_TYPE_IMPORT);
+	if (argv_find(argv, argc, "detail", &idx_detail))
+		is_detail = true;
+	return show_ip_bgp_nexthop_table(vty, vrf, NULL, BGP_NEXTHOP_TYPE_IMPORT, is_detail);
 }
 
 DEFUN (show_ip_bgp_track_table,
@@ -1084,12 +1093,16 @@ DEFUN (show_ip_bgp_track_table,
 {
 	int idx = 0;
 	char *vrf = NULL;
+	bool is_detail = false;
+	int idx_detail = 0;
 
 	if (argv_find(argv, argc, "view", &idx)
 	    || argv_find(argv, argc, "vrf", &idx))
 		vrf = argv[++idx]->arg;
 
-	return show_ip_bgp_nexthop_table(vty, vrf, NULL, BGP_NEXTHOP_TYPE_TRACK);
+	if (argv_find(argv, argc, "detail", &idx_detail))
+		is_detail = true;
+	return show_ip_bgp_nexthop_table(vty, vrf, NULL, BGP_NEXTHOP_TYPE_TRACK, is_detail);
 }
 
 DEFUN (show_ip_bgp_instance_all_nexthop,
