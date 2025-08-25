@@ -1338,42 +1338,42 @@ void vpn_leak_from_vrf_update(struct bgp *bgp_vpn,	    /* to */
 
 	/* Set SID for SRv6 VPN */
 	if (bgp_vrf->vpn_policy[afi].tovpn_sid) {
-        if (CHECK_FLAG(bgp_vpn->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4))
-        {
-            struct srv6_locator * locator = NULL;
-            locator = locator_lookup_by_name(bgp_vpn->srv6_locators_hash, bgp_vrf->srv6_locator_name);
-            if (!locator)
-                assert(0);
-    		static_attr.srv6_vpn = XCALLOC(MTYPE_BGP_SRV6_VPN,
-    				sizeof(struct bgp_attr_srv6_vpn));
-    		static_attr.srv6_vpn->sid_flags = 0x00;
-    		memcpy(&static_attr.srv6_vpn->sid,
-    		       bgp_vrf->vpn_policy[afi].tovpn_sid,
-    		       sizeof(struct in6_addr));
-        }
-        else{
-            struct srv6_locator * locator = NULL;
-            locator = locator_lookup_by_name(bgp_vpn->srv6_locators_hash, bgp_vrf->srv6_locator_name);
-            if (!locator)
-                assert(0);
-    		encode_label(bgp_vrf->vpn_policy[afi].tovpn_sid_transpose_label,
-    			     &label);
-    		static_attr.srv6_l3vpn = XCALLOC(MTYPE_BGP_SRV6_L3VPN,
-    				sizeof(struct bgp_attr_srv6_l3vpn));
-    		static_attr.srv6_l3vpn->sid_flags = 0x00;
-    		static_attr.srv6_l3vpn->endpoint_behavior = 0xffff;
-    		static_attr.srv6_l3vpn->loc_block_len = locator->block_bits_length;
-    		static_attr.srv6_l3vpn->loc_node_len = locator->node_bits_length;
-    		static_attr.srv6_l3vpn->func_len = locator->function_bits_length;
-    		static_attr.srv6_l3vpn->arg_len = locator->argument_bits_length;
-    		static_attr.srv6_l3vpn->transposition_len =
-    			0;
-    		static_attr.srv6_l3vpn->transposition_offset =
-    			0;
-    		memcpy(&static_attr.srv6_l3vpn->sid,
-    		       bgp_vrf->vpn_policy[afi].tovpn_sid,
-    		       sizeof(struct in6_addr));
-        }
+		if (CHECK_FLAG(bgp_vpn->alibgp_flags, BGP_FLAG_SRV6_SERVICE_SID_TYPE4))
+		{
+			struct srv6_locator * locator = NULL;
+			locator = locator_lookup_by_name(bgp_vpn->srv6_locators_hash, bgp_vrf->srv6_locator_name);
+			if (!locator)
+				assert(0);
+			static_attr.srv6_vpn = XCALLOC(MTYPE_BGP_SRV6_VPN,
+					sizeof(struct bgp_attr_srv6_vpn));
+			static_attr.srv6_vpn->sid_flags = 0x00;
+			memcpy(&static_attr.srv6_vpn->sid,
+				   bgp_vrf->vpn_policy[afi].tovpn_sid,
+				   sizeof(struct in6_addr));
+		}
+		else{
+			struct srv6_locator * locator = NULL;
+			locator = locator_lookup_by_name(bgp_vpn->srv6_locators_hash, bgp_vrf->srv6_locator_name);
+			if (!locator)
+				assert(0);
+			encode_label(bgp_vrf->vpn_policy[afi].tovpn_sid_transpose_label,
+					 &label);
+			static_attr.srv6_l3vpn = XCALLOC(MTYPE_BGP_SRV6_L3VPN,
+					sizeof(struct bgp_attr_srv6_l3vpn));
+			static_attr.srv6_l3vpn->sid_flags = 0x00;
+			static_attr.srv6_l3vpn->endpoint_behavior = 0xffff;
+			static_attr.srv6_l3vpn->loc_block_len = locator->block_bits_length;
+			static_attr.srv6_l3vpn->loc_node_len = locator->node_bits_length;
+			static_attr.srv6_l3vpn->func_len = locator->function_bits_length;
+			static_attr.srv6_l3vpn->arg_len = locator->argument_bits_length;
+			static_attr.srv6_l3vpn->transposition_len =
+				0;
+			static_attr.srv6_l3vpn->transposition_offset =
+				0;
+			memcpy(&static_attr.srv6_l3vpn->sid,
+				   bgp_vrf->vpn_policy[afi].tovpn_sid,
+				   sizeof(struct in6_addr));
+		}
 	}
 
 

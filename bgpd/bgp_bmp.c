@@ -2413,8 +2413,8 @@ static void bmp_active_put(struct bmp_active *ba)
 		close(ba->socket);
 
 	XFREE(MTYPE_TMP, ba->hostname);
-    if (ba->vrfname)
-        XFREE(MTYPE_TMP, ba->vrfname);
+	if (ba->vrfname)
+		XFREE(MTYPE_TMP, ba->vrfname);
 	XFREE(MTYPE_BMP_ACTIVE, ba);
 }
 

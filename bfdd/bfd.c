@@ -972,20 +972,20 @@ int bfd_echo_recvtimer_cb(struct thread *t)
 {
 	struct bfd_session *bs = THREAD_ARG(t);
 
-    if (bglobal.debug_peer_event)
-        zlog_debug("%s:  time-out bfd: [%s]  bfd'state is %s",
-		    __func__,  bs_to_string(bs), state_list[bs->ses_state].str);
+	if (bglobal.debug_peer_event)
+		zlog_debug("%s:  time-out bfd: [%s]  bfd'state is %s",
+			__func__,  bs_to_string(bs), state_list[bs->ses_state].str);
 
 	switch (bs->ses_state) {
 	case PTM_BFD_INIT:
 	case PTM_BFD_UP:
-	    if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		if (CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 		{
-            ptm_sbfd_sess_dn(bs, BD_ECHO_DETECT_FAILED);
+			ptm_sbfd_sess_dn(bs, BD_ECHO_DETECT_FAILED);
 		}
 		else
 		{
-		    ptm_bfd_sess_dn(bs, BD_ECHO_DETECT_FAILED);
+			ptm_bfd_sess_dn(bs, BD_ECHO_DETECT_FAILED);
 		}
 		break;
 	case PTM_BFD_DOWN:
@@ -994,7 +994,7 @@ int bfd_echo_recvtimer_cb(struct thread *t)
 			if (CHECK_FLAG(bs->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE))
 			{
 				zlog_info("%s:  Wait for the offloaded bfd to be down.  bfd: [%s]  bfd'state is %s",
-		    		__func__,  bs_to_string(bs), state_list[bs->ses_state].str);
+					__func__,  bs_to_string(bs), state_list[bs->ses_state].str);
 				sbfd_echo_hwoffloadtimer_delete(bs);
 				UNSET_FLAG(bs->hwbfd_flags, BFD_HWFLAG_DELAYSENDCREATE);
 				bfd_echo_recvtimer_update(bs);

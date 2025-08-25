@@ -3292,43 +3292,43 @@ static int bgp_zebra_process_srv6_locator_chunk(ZAPI_CALLBACK_ARGS)
 
 static int bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
 {
-    struct stream *s = NULL;
-    struct bgp *bgp = bgp_get_default();
-    uint16_t len = 0;
-    char loc_name[SRV6_LOCNAME_SIZE] = {0};
-    struct srv6_locator *loc = NULL;
+	struct stream *s = NULL;
+	struct bgp *bgp = bgp_get_default();
+	uint16_t len = 0;
+	char loc_name[SRV6_LOCNAME_SIZE] = {0};
+	struct srv6_locator *loc = NULL;
 
-    s = zclient->ibuf;
-    STREAM_GETW(s, len);
-    if (len > SRV6_LOCNAME_SIZE)
-    {
-        zlog_err("error locator name len:%d", len);
-        return 0;
-    }
-    if (!bgp)
-        return 0;
+	s = zclient->ibuf;
+	STREAM_GETW(s, len);
+	if (len > SRV6_LOCNAME_SIZE)
+	{
+		zlog_err("error locator name len:%d", len);
+		return 0;
+	}
+	if (!bgp)
+		return 0;
 
-    STREAM_GET(loc_name, s, len);
+	STREAM_GET(loc_name, s, len);
 
-    loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
-    if (!loc)
-    {
-        loc = srv6_locator_new();
-        loc->chunks = list_new();
-        loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
-        loc->sids = list_new();
+	loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
+	if (!loc)
+	{
+		loc = srv6_locator_new();
+		loc->chunks = list_new();
+		loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
+		loc->sids = list_new();
 
-        strncpy(loc->name, loc_name, len);
-        listnode_add(bgp->srv6_locators, loc);
-        hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
-    }
-    STREAM_GETW(s, loc->prefix.prefixlen);
-    STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
-    loc->prefix.family = AF_INET6;
-    STREAM_GETC(s, loc->block_bits_length);
-    STREAM_GETC(s, loc->node_bits_length);
-    STREAM_GETC(s, loc->function_bits_length);
-    STREAM_GETC(s, loc->argument_bits_length);
+		strncpy(loc->name, loc_name, len);
+		listnode_add(bgp->srv6_locators, loc);
+		hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
+	}
+	STREAM_GETW(s, loc->prefix.prefixlen);
+	STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
+	loc->prefix.family = AF_INET6;
+	STREAM_GETC(s, loc->block_bits_length);
+	STREAM_GETC(s, loc->node_bits_length);
+	STREAM_GETC(s, loc->function_bits_length);
+	STREAM_GETC(s, loc->argument_bits_length);
 	STREAM_GETL(s, loc->format);
 
 	if (zapi_srv6_locator_sid_decode(s, loc->sids) < 0) {
@@ -3336,11 +3336,11 @@ static int bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
 		return 0;
 	}
 
-    /* post-change: re-export vpn routes */
-    vpn_leak_postchange_checksid();
+	/* post-change: re-export vpn routes */
+	vpn_leak_postchange_checksid();
 
 stream_failure:
-    return 0;
+	return 0;
 
 }
 
@@ -3348,36 +3348,36 @@ static int bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 {
 	struct stream *s = NULL;
 	struct bgp *bgp = bgp_get_default();
-    uint16_t len = 0;
-    char loc_name[SRV6_LOCNAME_SIZE] = {0};
-    struct srv6_locator *loc = NULL;
+	uint16_t len = 0;
+	char loc_name[SRV6_LOCNAME_SIZE] = {0};
+	struct srv6_locator *loc = NULL;
 
 	s = zclient->ibuf;
-    STREAM_GETW(s, len);
+	STREAM_GETW(s, len);
 	if (len > SRV6_LOCNAME_SIZE)
 	{
-        zlog_err("error locator name len:%d", len);
+		zlog_err("error locator name len:%d", len);
 		return 0;
 	}
 
-    if (!bgp)
-        return 0;
+	if (!bgp)
+		return 0;
 
 	STREAM_GET(loc_name, s, len);
-    loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
-    if (!loc)
+	loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
+	if (!loc)
 	{
-        zlog_err("can not find the locator by name :%s", loc_name);
+		zlog_err("can not find the locator by name :%s", loc_name);
 		return 0;
 	}
-    if (zapi_srv6_del_sid_decode(s, loc->sids) < 0)
-    {
-        zlog_err("can not find the locator by name :%s", loc_name);
+	if (zapi_srv6_del_sid_decode(s, loc->sids) < 0)
+	{
+		zlog_err("can not find the locator by name :%s", loc_name);
 		return 0;
-    }
+	}
 
 #if 0
-    // refresh tovpn_sid
+	// refresh tovpn_sid
 	for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, bgp_vrf)) {
 		if (bgp_vrf->inst_type != BGP_INSTANCE_TYPE_VRF)
 			continue;
@@ -3391,7 +3391,7 @@ static int bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 			if (prefix_match((struct prefix *)&loc.prefix,
 					 (struct prefix *)&tmp_prefi))
 				XFREE(MTYPE_BGP_SRV6_SID,
-				      bgp_vrf->vpn_policy[AFI_IP].tovpn_sid);
+					  bgp_vrf->vpn_policy[AFI_IP].tovpn_sid);
 		}
 
 		// refresh vpnv6 tovpn_sid
@@ -3403,7 +3403,7 @@ static int bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 			if (prefix_match((struct prefix *)&loc.prefix,
 					 (struct prefix *)&tmp_prefi))
 				XFREE(MTYPE_BGP_SRV6_SID,
-				      bgp_vrf->vpn_policy[AFI_IP6].tovpn_sid);
+					  bgp_vrf->vpn_policy[AFI_IP6].tovpn_sid);
 		}
 	}
 
@@ -3420,42 +3420,42 @@ static int bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
 {
 	struct stream *s = NULL;
 	struct bgp *bgp = bgp_get_default();
-    uint16_t len = 0;
-    char loc_name[SRV6_LOCNAME_SIZE] = {0};
-    struct srv6_locator *loc = NULL;
+	uint16_t len = 0;
+	char loc_name[SRV6_LOCNAME_SIZE] = {0};
+	struct srv6_locator *loc = NULL;
 	int ret = 0;
 
 	s = zclient->ibuf;
-    STREAM_GETW(s, len);
+	STREAM_GETW(s, len);
 	if (len > SRV6_LOCNAME_SIZE)
 	{
-        zlog_err("error locator name len:%d", len);
+		zlog_err("error locator name len:%d", len);
 		return 0;
 	}
 
-    if (!bgp)
-        return 0;
+	if (!bgp)
+		return 0;
 
 	STREAM_GET(loc_name, s, len);
-    loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
-    if (!loc)
-    {
-        loc = srv6_locator_new();
-        loc->chunks = list_new();
-        loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
-        loc->sids = list_new();
+	loc = locator_lookup_by_name(bgp->srv6_locators_hash, loc_name);
+	if (!loc)
+	{
+		loc = srv6_locator_new();
+		loc->chunks = list_new();
+		loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
+		loc->sids = list_new();
 
-        strncpy(loc->name, loc_name, len);
-        listnode_add(bgp->srv6_locators, loc);
-        hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
-    }
-    STREAM_GETW(s, loc->prefix.prefixlen);
-    STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
-    loc->prefix.family = AF_INET6;
-    STREAM_GETC(s, loc->block_bits_length);
-    STREAM_GETC(s, loc->node_bits_length);
-    STREAM_GETC(s, loc->function_bits_length);
-    STREAM_GETC(s, loc->argument_bits_length);
+		strncpy(loc->name, loc_name, len);
+		listnode_add(bgp->srv6_locators, loc);
+		hash_get(bgp->srv6_locators_hash, loc, hash_alloc_intern);
+	}
+	STREAM_GETW(s, loc->prefix.prefixlen);
+	STREAM_GET(&loc->prefix.prefix, s, sizeof(loc->prefix.prefix));
+	loc->prefix.family = AF_INET6;
+	STREAM_GETC(s, loc->block_bits_length);
+	STREAM_GETC(s, loc->node_bits_length);
+	STREAM_GETC(s, loc->function_bits_length);
+	STREAM_GETC(s, loc->argument_bits_length);
 	STREAM_GETL(s, loc->format);
 
 	ret = zapi_srv6_locator_one_sid_decode(s, loc->sids);
