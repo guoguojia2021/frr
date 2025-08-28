@@ -1,5 +1,6 @@
 #include "test_model.h"
 
+#include <algorithm>
 #include <iostream>
 #include <cstring>
 #include <map>
@@ -939,6 +940,830 @@ read_multi_test_cases_vec(const std::string &json_file_path)
 	}
 
 	std::cout << "Loaded " << res.size() << " test cases from "
+		  << json_file_path << std::endl;
+
+	return res;
+}
+
+static void parse_json_segment(json_object *obj, segment_t &res)
+{
+	json_object_object_foreach(obj, key, val)
+	{
+		if (strcmp(key, "Index") == 0) {
+			res.index = json_object_get_int64(val);
+		} else if (strcmp(key, "V6Address") == 0) {
+			res.v6Address = json_object_get_string(val);
+		} else {
+			std::cerr << "Unhandled key in Segment JSON: " << key
+				  << std::endl;
+		}
+	}
+}
+
+static void parse_json_segment_list(json_object *obj, segment_list_t &res)
+{
+	json_object_object_foreach(obj, key, val)
+	{
+		if (strcmp(key, "Name") == 0) {
+			res.name = json_object_get_string(val);
+		} else if (strcmp(key, "RefCount") == 0) {
+			res.refCount = json_object_get_int(val);
+		} else if (strcmp(key, "Flags") == 0) {
+			res.flags = json_object_get_int64(val);
+		} else if (strcmp(key, "Status") == 0) {
+			res.status = json_object_get_int64(val);
+		} else if (strcmp(key, "Installed") == 0) {
+			res.installed = json_object_get_boolean(val);
+		} else if (strcmp(key, "Segments") == 0 &&
+			   json_object_is_type(val, json_type_array)) {
+			size_t num_segments = json_object_array_length(val);
+			for (size_t j = 0; j < num_segments; ++j) {
+				json_object *seg_obj =
+					json_object_array_get_idx(val, j);
+				struct segment_t seg = {};
+				parse_json_segment(
+					seg_obj, seg); // Note: also refactored
+				res.segments.push_back(seg);
+			}
+
+			// sort segments by index value
+			std::sort(res.segments.begin(), res.segments.end(),
+				  [](const segment_t &a, const segment_t &b) {
+					  return a.index < b.index;
+				  });
+		} else {
+			std::cerr
+				<< "Unhandled key in SegmentList JSON: " << key
+				<< std::endl;
+		}
+	}
+}
+
+static void parse_json_candidate(json_object *obj, candidate_t &res)
+{
+	json_object_object_foreach(obj, key, val)
+	{
+		if (strcmp(key, "CandidateName") == 0) {
+			res.candidate_name = json_object_get_string(val);
+		} else if (strcmp(key, "SegmentListName") == 0) {
+			res.segment_list_name = json_object_get_string(val);
+		} else if (strcmp(key, "Preference") == 0) {
+			res.preference = json_object_get_int64(val);
+		} else if (strcmp(key, "Status") == 0) {
+			res.status = json_object_get_int64(val);
+		} else {
+			std::cerr << "Unhandled key in Candidate JSON: " << key
+				  << std::endl;
+		}
+	}
+}
+
+static void parse_json_policy(json_object *obj, path_policy_t &res)
+{
+	json_object_object_foreach(obj, key, val)
+	{
+		if (strcmp(key, "Endpoint") == 0) {
+			res.endpoint = json_object_get_string(val);
+		} else if (strcmp(key, "Color") == 0) {
+			res.color = json_object_get_int64(val);
+		} else if (strcmp(key, "Status") == 0) {
+			res.status = json_object_get_int64(val);
+		} else if (strcmp(key, "Candidates") == 0) {
+			int num_candidates = json_object_array_length(val);
+			for (int j = 0; j < num_candidates; ++j) {
+				json_object *candidate_obj =
+					json_object_array_get_idx(val, j);
+				struct candidate_t candidate = {};
+				parse_json_candidate(candidate_obj, candidate);
+				res.candidate_paths.push_back(candidate);
+			}
+
+			// Optional: sort by Preference
+			std::sort(
+				res.candidate_paths.begin(),
+				res.candidate_paths.end(),
+				[](const candidate_t &a, const candidate_t &b) {
+					if (a.preference != b.preference) {
+						return a.preference <
+						       b.preference;
+					}
+					return a.candidate_name <
+					       b.candidate_name;
+				});
+		} else {
+			std::cerr << "Unhandled key in Policy JSON: " << key
+				  << std::endl;
+		}
+	}
+}
+
+static void parse_json_pathd_state(json_object *obj, pathd_state_t &res)
+{
+	json_object_object_foreach(obj, key, val)
+	{
+		if (strcmp(key, "Segments") == 0 &&
+		    json_object_is_type(val, json_type_array)) {
+			size_t num_segment_lists =
+				json_object_array_length(val);
+			for (size_t i = 0; i < num_segment_lists; ++i) {
+				json_object *seg_list_obj =
+					json_object_array_get_idx(val, i);
+				struct segment_list_t seg_list = {};
+				parse_json_segment_list(seg_list_obj, seg_list);
+				res.segment_lists.push_back(seg_list);
+			}
+
+			// sort segment_list by name
+			std::sort(res.segment_lists.begin(),
+				  res.segment_lists.end(),
+				  [](const segment_list_t &a,
+				     const segment_list_t &b) {
+					  return strcmp(a.name.c_str(),
+							b.name.c_str()) < 0;
+				  });
+		} else if (strcmp(key, "Policies") == 0) {
+			int num_policies = json_object_array_length(val);
+			for (int i = 0; i < num_policies; ++i) {
+				json_object *policy_obj =
+					json_object_array_get_idx(val, i);
+				struct path_policy_t policy = {};
+				parse_json_policy(policy_obj, policy);
+				res.policies.push_back(policy);
+			}
+
+			// Optional: sort policies by Endpoint
+			std::sort(res.policies.begin(), res.policies.end(),
+				  [](const path_policy_t &a, const path_policy_t &b) {
+					  if (a.color != b.color) {
+						  return a.color < b.color;
+					  }
+					  return a.endpoint < b.endpoint;
+				  });
+		} else {
+			std::cerr
+				<< "Unhandled key in pathd_state JSON: " << key
+				<< std::endl;
+		}
+	}
+}
+
+std::map<int, test_case_segment_list_t>
+read_segment_list_test_cases_map(const std::string &json_file_path)
+{
+	std::map<int, test_case_segment_list_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_segment_list_t test_case = {0};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "SegmentListName") == 0) {
+				test_case.input_segment_list.name =
+					json_object_get_string(val);
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+std::vector<test_case_segment_list_t>
+read_all_tests_segment_list(const std::string &json_file_path)
+{
+	std::vector<test_case_segment_list_t> res;
+
+	std::map<int, test_case_segment_list_t> test_case_map =
+		read_segment_list_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size() << " segment_list test cases from "
+		  << json_file_path << std::endl;
+
+	return res;
+}
+
+
+std::map<int, struct test_case_segment_list_segment_t>
+read_segment_list_segment_test_cases_map(const std::string &json_file_path)
+{
+	std::map<int, struct test_case_segment_list_segment_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_segment_list_segment_t test_case = {};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "ApiParam") == 0 &&
+				   json_object_is_type(val, json_type_object)) {
+				// Parse ApiParam fields
+				json_object_object_foreach(val, api_key,
+							   api_val)
+				{
+					if (strcmp(api_key,
+						   "SegmentListName") == 0) {
+						test_case.input_segment.name =
+							json_object_get_string(
+								api_val);
+					} else if (strcmp(api_key, "Index") ==
+						   0) {
+						test_case.input_segment.index =
+							json_object_get_int64(
+								api_val);
+					} else if (strcmp(api_key,
+							  "V6Address") == 0) {
+						test_case.input_segment
+							.v6Address =
+							json_object_get_string(
+								api_val);
+					} else {
+						std::cerr
+							<< "Unhandled key in ApiParam JSON: "
+							<< api_key << std::endl;
+					}
+				}
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+
+std::vector<struct test_case_segment_list_segment_t>
+read_all_tests_segment(const std::string &json_file_path)
+{
+	std::vector<test_case_segment_list_segment_t> res;
+
+	std::map<int, test_case_segment_list_segment_t> test_case_map =
+		read_segment_list_segment_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size()
+		  << " segment_list_segment test cases from " << json_file_path
+		  << std::endl;
+
+	return res;
+}
+
+std::map<int, test_case_no_segment_list_t>
+read_no_segment_list_test_cases_map(const std::string &json_file_path)
+{
+	std::map<int, test_case_no_segment_list_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_no_segment_list_t test_case = {0};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "SegmentListName") == 0) {
+				test_case.input_segment_list.name =
+					json_object_get_string(val);
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+std::vector<test_case_no_segment_list_t>
+read_all_tests_no_segment_list(const std::string &json_file_path)
+{
+	std::vector<test_case_no_segment_list_t> res;
+
+	std::map<int, test_case_no_segment_list_t> test_case_map =
+		read_no_segment_list_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size()
+		  << " no_segment_list test cases from " << json_file_path
+		  << std::endl;
+
+	return res;
+}
+
+
+std::map<int, struct test_case_segment_list_no_segment_t>
+read_segment_list_no_segment_test_cases_map(const std::string &json_file_path)
+{
+	std::map<int, struct test_case_segment_list_no_segment_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_segment_list_no_segment_t test_case = {};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "ApiParam") == 0 &&
+				   json_object_is_type(val, json_type_object)) {
+				// Parse ApiParam fields
+				json_object_object_foreach(val, api_key,
+							   api_val)
+				{
+					if (strcmp(api_key,
+						   "SegmentListName") == 0) {
+						test_case.input_segment.name =
+							json_object_get_string(
+								api_val);
+					} else if (strcmp(api_key, "Index") ==
+						   0) {
+						test_case.input_segment.index =
+							json_object_get_int64(
+								api_val);
+					} else {
+						std::cerr
+							<< "Unhandled key in ApiParam JSON: "
+							<< api_key << std::endl;
+					}
+				}
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+
+std::vector<struct test_case_segment_list_no_segment_t>
+read_all_tests_no_segment(const std::string &json_file_path)
+{
+	std::vector<test_case_segment_list_no_segment_t> res;
+
+	std::map<int, test_case_segment_list_no_segment_t> test_case_map =
+		read_segment_list_no_segment_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size()
+		  << " segment_list_no_segment test cases from "
+		  << json_file_path << std::endl;
+
+	return res;
+}
+
+
+std::map<int, struct test_case_srte_policy_t>
+read_srte_policy_test_cases_map(const std::string &json_file_path)
+{
+	std::map<int, struct test_case_srte_policy_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_srte_policy_t test_case = {};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "ApiParam") == 0 &&
+				   json_object_is_type(val, json_type_object)) {
+				// Parse ApiParam fields
+				json_object_object_foreach(val, api_key,
+							   api_val)
+				{
+					if (strcmp(api_key, "Color") == 0) {
+						test_case.input_policy.color =
+							json_object_get_int64(
+								api_val);
+					} else if (strcmp(api_key,
+							  "Endpoint") == 0) {
+						test_case.input_policy
+							.endpoint =
+							json_object_get_string(
+								api_val);
+					} else {
+						std::cerr
+							<< "Unhandled key in ApiParam JSON: "
+							<< api_key << std::endl;
+					}
+				}
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+
+std::vector<struct test_case_srte_policy_t>
+read_all_tests_srte_policy(const std::string &json_file_path)
+{
+	std::vector<test_case_srte_policy_t> res;
+
+	std::map<int, test_case_srte_policy_t> test_case_map =
+		read_srte_policy_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size() << " srte_policy test cases from "
+		  << json_file_path << std::endl;
+
+	return res;
+}
+
+std::map<int, struct test_case_srte_policy_candidate_path_t>
+read_srte_policy_candidate_path_test_cases_map(
+	const std::string &json_file_path)
+{
+	std::map<int, struct test_case_srte_policy_candidate_path_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_srte_policy_candidate_path_t test_case = {};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "ApiParam") == 0 &&
+				   json_object_is_type(val, json_type_object)) {
+				// Parse ApiParam fields
+				json_object_object_foreach(val, api_key,
+							   api_val)
+				{
+					if (strcmp(api_key, "Color") == 0) {
+						test_case.input_candidate_path
+							.color =
+							json_object_get_int64(
+								api_val);
+					} else if (strcmp(api_key,
+							  "Endpoint") == 0) {
+						test_case.input_candidate_path
+							.endpoint =
+							json_object_get_string(
+								api_val);
+					} else if (strcmp(api_key,
+							  "CandidateName") ==
+						   0) {
+						test_case.input_candidate_path
+							.candidate_name =
+							json_object_get_string(
+								api_val);
+					} else if (strcmp(api_key,
+							  "Preference") == 0) {
+						test_case.input_candidate_path
+							.preference =
+							json_object_get_int64(
+								api_val);
+					} else if (strcmp(api_key,
+							  "SegmentListName") ==
+						   0) {
+						test_case.input_candidate_path
+							.segment_list_name =
+							json_object_get_string(
+								api_val);
+					} else {
+						std::cerr
+							<< "Unhandled key in ApiParam JSON: "
+							<< api_key << std::endl;
+					}
+				}
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+
+std::vector<struct test_case_srte_policy_candidate_path_t>
+read_all_tests_srte_policy_candidate_path(const std::string &json_file_path)
+{
+	std::vector<test_case_srte_policy_candidate_path_t> res;
+
+	std::map<int, test_case_srte_policy_candidate_path_t> test_case_map =
+		read_srte_policy_candidate_path_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size()
+		  << " srte_policy_candidate_path test cases from "
+		  << json_file_path << std::endl;
+
+	return res;
+}
+
+
+std::map<int, struct test_case_srte_no_policy_t>
+read_srte_no_policy_test_cases_map(const std::string &json_file_path)
+{
+	std::map<int, struct test_case_srte_no_policy_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_srte_no_policy_t test_case = {};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "ApiParam") == 0 &&
+				   json_object_is_type(val, json_type_object)) {
+				// Parse ApiParam fields
+				json_object_object_foreach(val, api_key,
+							   api_val)
+				{
+					if (strcmp(api_key, "Color") == 0) {
+						test_case.input_policy.color =
+							json_object_get_int64(
+								api_val);
+					} else if (strcmp(api_key,
+							  "Endpoint") == 0) {
+						test_case.input_policy
+							.endpoint =
+							json_object_get_string(
+								api_val);
+					} else {
+						std::cerr
+							<< "Unhandled key in ApiParam JSON: "
+							<< api_key << std::endl;
+					}
+				}
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+
+std::vector<struct test_case_srte_no_policy_t>
+read_all_tests_srte_no_policy(const std::string &json_file_path)
+{
+	std::vector<test_case_srte_no_policy_t> res;
+
+	std::map<int, test_case_srte_no_policy_t> test_case_map =
+		read_srte_no_policy_test_cases_map(json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size()
+		  << " srte_no_policy test cases from " << json_file_path
+		  << std::endl;
+
+	return res;
+}
+
+std::map<int, struct test_case_srte_policy_no_candidate_path_t>
+read_srte_policy_no_candidate_path_test_cases_map(
+	const std::string &json_file_path)
+{
+	std::map<int, struct test_case_srte_policy_no_candidate_path_t> res;
+
+	json_object *jobj = load_json_object(json_file_path);
+	if (!jobj) {
+		std::cerr << "Failed to load JSON object from file: "
+			  << json_file_path << std::endl;
+		return res;
+	}
+
+	size_t test_num = json_object_array_length(jobj);
+	for (size_t i = 0; i < test_num; ++i) {
+		json_object *json_test_case =
+			json_object_array_get_idx(jobj, i);
+		struct test_case_srte_policy_no_candidate_path_t test_case = {};
+
+		json_object_object_foreach(json_test_case, key, val)
+		{
+			if (strcmp(key, "TestId") == 0) {
+				test_case.test_id = json_object_get_int(val);
+			} else if (strcmp(key, "InitialState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.initial_state);
+			} else if (strcmp(key, "ApiParam") == 0 &&
+				   json_object_is_type(val, json_type_object)) {
+				// Parse ApiParam fields
+				json_object_object_foreach(val, api_key,
+							   api_val)
+				{
+					if (strcmp(api_key, "Color") == 0) {
+						test_case.input_candidate_path
+							.color =
+							json_object_get_int64(
+								api_val);
+					} else if (strcmp(api_key,
+							  "Endpoint") == 0) {
+						test_case.input_candidate_path
+							.endpoint =
+							json_object_get_string(
+								api_val);
+					} else if (strcmp(api_key,
+							  "CandidateName") ==
+						   0) {
+						test_case.input_candidate_path
+							.candidate_name =
+							json_object_get_string(
+								api_val);
+					} else if (strcmp(api_key,
+							  "Preference") == 0) {
+						test_case.input_candidate_path
+							.preference =
+							json_object_get_int64(
+								api_val);
+					} else {
+						std::cerr
+							<< "Unhandled key in ApiParam JSON: "
+							<< api_key << std::endl;
+					}
+				}
+			} else if (strcmp(key, "FinalState") == 0) {
+				parse_json_pathd_state(val,
+						       test_case.final_state);
+			} else {
+				std::cerr << "Unhandled key in TestCase JSON: "
+					  << key << std::endl;
+			}
+		}
+
+		res[test_case.test_id] = test_case;
+	}
+
+	return res;
+}
+
+
+std::vector<struct test_case_srte_policy_no_candidate_path_t>
+read_all_tests_srte_policy_no_candidate_path(const std::string &json_file_path)
+{
+	std::vector<test_case_srte_policy_no_candidate_path_t> res;
+
+	std::map<int, test_case_srte_policy_no_candidate_path_t> test_case_map =
+		read_srte_policy_no_candidate_path_test_cases_map(
+			json_file_path);
+
+	for (const auto &pair : test_case_map) {
+		res.push_back(pair.second);
+	}
+
+	std::cout << "Loaded " << res.size()
+		  << " srte_policy_no_candidate_path test cases from "
 		  << json_file_path << std::endl;
 
 	return res;

@@ -1369,6 +1369,117 @@ DEFPY(show_segment_list_detail,
 	return CMD_SUCCESS;
 }
 
+#ifdef ZEBRA_UNIT_TESTING
+static void srte_policy_detail_display_stdout(struct srte_policy *policy)
+{
+	struct srte_candidate *candidate, *safe_cp;
+	struct srte_candidate_group *cpath_group, *safe_cpg;
+	char endpoint[46];
+	char binding_sid[46] = "-";
+	time_t updatetime;
+	char up_str[MONOTIME_STRLEN];
+	time_t status_change_time;
+	char status_change_str[MONOTIME_STRLEN];
+
+	updatetime = monotime(NULL);
+	updatetime -= policy->updatetime;
+	frrtime_to_interval(updatetime, up_str, sizeof(up_str));
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	if (policy->binding_sid != MPLS_LABEL_NONE)
+		snprintf(binding_sid, sizeof(binding_sid), "%u",
+			 policy->binding_sid);
+
+	if (!IS_IPADDR_NONE(&policy->binding_v6_sid))
+		ipaddr2str(&policy->binding_v6_sid, binding_sid, sizeof(binding_sid));
+
+	printf("Endpoint: %s  Color: %u  Name: %s  BSID: %s  Status: %s  UpdateTime: %s\n",
+	       endpoint, policy->color, policy->name, binding_sid,
+	       policy->status == SRTE_POLICY_STATUS_UP ? "Active" : "Inactive",
+	       up_str);
+
+	/* show cpath group first*/
+	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cpg) {
+		printf("  %s Preference: %d  ActiveMembers: %d  Status: %s\n",
+		       CHECK_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST) ? "*" : " ",
+		       cpath_group->preference,
+		       cpath_group->up_cpath_num,
+		       cpath_group->status == SRTE_DETECT_UP ? "UP" : "DOWN");
+
+		/* show each cpath*/
+
+		RB_FOREACH_SAFE (candidate, srte_candidate_pref_head, &cpath_group->candidate_paths, safe_cp) {
+			char binding_bfd[BFD_NAME_SIZE + 1] = {0};
+			bool has_bfd = false;
+
+			binding_bfd[0] = '-';
+			if (policy->bfd_config)
+			{
+				has_bfd = true;
+				if (policy->bfd_config->is_echo)
+				{
+					snprintf(binding_bfd, sizeof(binding_bfd), "sbfd echo");
+				}
+				else
+				{
+					snprintf(binding_bfd, sizeof(binding_bfd), "sbfd");
+				}
+			}
+
+			if(candidate->bfd_name[0]){
+				has_bfd = true;
+				snprintf(binding_bfd, sizeof(binding_bfd), "%s", candidate->bfd_name);
+			}
+			memset(status_change_str, 0, sizeof(status_change_str));
+			status_change_time = monotime(NULL);
+			status_change_time -= candidate->status_change_time;
+			frrtime_to_interval(status_change_time, status_change_str, sizeof(status_change_str));
+			printf("       CandidateName: %s  SegmentList: %s  BindingBFD: %s  Status: %s  %s\n",
+			       candidate->name,
+			       candidate->segment_list ? candidate->segment_list->name : "-",
+			       binding_bfd,
+			       has_bfd ? (candidate->status == SRTE_DETECT_UP ? "UP" : (candidate->status == SRTE_DETECT_NONE ?"NONE": "DOWN")) : "UP",
+			       status_change_str);
+		}
+	}
+	printf("\n");
+}
+
+void show_nonstatic()
+{
+	// adapted from show_segment_list_detail_cmd
+	struct srte_segment_list *s_list;
+	struct srte_segment_entry *s_entry;
+	struct srte_policy *policy;
+
+	char buf[128];
+
+	RB_FOREACH (s_list, srte_segment_list_head, &srte_segment_lists) {
+		printf("Segment-list Name: %s Ref-count: %-10u Flags: %-5u Status: %-5u Installed: %s\n",
+		       s_list->name, s_list->refcount, s_list->flags, s_list->status,
+		       s_list->installed ? "YES": "NO");
+
+		RB_FOREACH (s_entry, srte_segment_entry_head,
+			    &s_list->segments) {
+			ipaddr2str(&s_entry->srv6_sid_value, buf, sizeof(buf));
+
+			if(IS_IPADDR_V4(&s_entry->srv6_sid_value))
+				printf("    Index: %-10u  IPv4-address: %pI4\n",
+				       s_entry->index, &s_entry->srv6_sid_value.ipaddr_v4);
+			if(IS_IPADDR_V6(&s_entry->srv6_sid_value))
+				printf("    Index: %-10u  IPv6-address: %s\n",
+				       s_entry->index, buf);
+		}
+	}
+	printf("\n");
+
+	// adapted from show_srte_policy_detail_cmd
+
+	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
+		srte_policy_detail_display_stdout(policy);
+	}
+}
+#endif
+
 DEFPY(show_segment_list_by_name_detail,
       show_segment_list_by_name_detail_cmd,
       "show sr-te segment-list WORD$name",

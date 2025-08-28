@@ -1,0 +1,220 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "2NtfVN",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 1073741824,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 3754143737,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "evm",
+              "SegmentListName": "2NtfVN",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    },
+    "ApiParam": {
+      "SegmentListName": "2NtfVN",
+      "Index": 0
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "2NtfVN",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1073741824,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 3754143737,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "evm",
+              "SegmentListName": "2NtfVN",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "H0Sdrn-YqoH",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 72,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "4g5cSgYNFfu3aADi",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 4194304,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    },
+    "ApiParam": {
+      "SegmentListName": "H0Sdrn-YqoH",
+      "Index": 2147748864
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "H0Sdrn-YqoH",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 72,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "4g5cSgYNFfu3aADi",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 4194304,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    }
+  },
+  {
+    "TestId": 2,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "50Vi",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 33554442,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "CAVEQ4bi_BLWM8L",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    },
+    "ApiParam": {
+      "SegmentListName": "50Vi",
+      "Index": 33554442
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "50Vi",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": []
+        },
+        {
+          "Name": "CAVEQ4bi_BLWM8L",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    }
+  }
+]

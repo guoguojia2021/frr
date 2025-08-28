@@ -27,11 +27,15 @@
 #include "lib/prefix.h"
 #include "lib/bfd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PATH_SID_ERROR 1
 #define PATH_SID_NO_ERROR 0
-#define CHECK_SID(or, ts, es)                                                  \
-	((or == SRTE_ORIGIN_PCEP && (ts == MPLS_LABEL_NONE || es != ts))       \
-	 || (or == SRTE_ORIGIN_LOCAL && ts == MPLS_LABEL_NONE))
+#define CHECK_SID(_or, ts, es)                                                  \
+	((_or == SRTE_ORIGIN_PCEP && (ts == MPLS_LABEL_NONE || es != ts))       \
+	 || (_or == SRTE_ORIGIN_LOCAL && ts == MPLS_LABEL_NONE))
 
 DECLARE_MGROUP(PATHD);
 
@@ -642,6 +646,10 @@ void srte_candidate_unset_segment_list(const char *originator, bool force);
 const char *srte_origin2str(enum srte_protocol_origin origin);
 void pathd_shutdown(void);
 
+#ifdef ZEBRA_UNIT_TESTING
+void show_nonstatic(void);
+#endif
+
 /* path_cli.c */
 void path_cli_init(void);
 
@@ -699,4 +707,7 @@ extern void path_zebra_encode_srv6_policy(struct srte_policy *policy,
 const char* cpath_status_str(enum detection_status status);
 struct srte_segment_list *srte_segment_list_new(void);
 void srte_segment_list_free(struct srte_segment_list *segment_list);
+#ifdef __cplusplus
+}
+#endif
 #endif /* _FRR_PATHD_H_ */

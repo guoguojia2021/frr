@@ -1,0 +1,171 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "7Go",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1048577,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "FKAJD",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 1410041865,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 563089568,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    },
+    "ApiParam": {
+      "Color": 3587927171,
+      "Endpoint": "df3f:6198::c43d:d748"
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "7Go",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1048577,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "FKAJD",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 563089568,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1410041865,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 3587927171,
+          "Status": 1,
+          "Candidates": []
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "_pDuw",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 262208,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 863550572,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "0D8zZc2",
+              "SegmentListName": "_pDuw",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    },
+    "ApiParam": {
+      "Color": 863550572,
+      "Endpoint": "df3f:6198::c43d:d748"
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "_pDuw",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 1,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 262208,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 863550572,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "0D8zZc2",
+              "SegmentListName": "_pDuw",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

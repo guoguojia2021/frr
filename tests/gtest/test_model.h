@@ -236,4 +236,191 @@ std::vector<multi_test_case_t>
 read_multi_test_cases_vec(const std::string &json_file_path);
 
 
+
+struct segment_t {
+	uint32_t index;
+	std::string v6Address;
+};
+
+struct segment_list_t {
+	std::string name;
+	uint16_t refCount;
+	uint32_t flags;
+	uint32_t status;
+	bool installed;
+
+	// sorted by index
+	std::vector<segment_t> segments;
+};
+
+struct candidate_t {
+	std::string candidate_name;
+	std::string segment_list_name;
+	uint32_t preference;
+	uint32_t status;
+};
+
+struct path_policy_t {
+	uint32_t color;
+	std::string endpoint;
+	uint32_t status;
+	std::vector<struct candidate_t> candidate_paths;
+};
+
+struct pathd_state_t {
+	// sorted by name
+	std::vector<struct segment_list_t> segment_lists;
+	std::vector<struct path_policy_t> policies;
+};
+
+struct api_segment_list_t {
+	std::string name;
+};
+
+struct api_segment_list_segment_t {
+	std::string name;
+	uint32_t index;
+	std::string v6Address;
+};
+
+struct api_no_segment_list_t {
+	std::string name;
+};
+
+struct api_segment_list_no_segment_t {
+	std::string name;
+	uint32_t index;
+};
+
+struct api_srte_policy_t {
+	uint32_t color;
+	std::string endpoint;
+};
+
+struct api_srte_policy_candidate_path_t {
+	uint32_t color;
+	std::string endpoint;
+	std::string candidate_name;
+	uint32_t preference;
+	std::string segment_list_name;
+};
+
+struct api_srte_no_policy_t {
+	uint32_t color;
+	std::string endpoint;
+};
+
+struct api_srte_policy_no_candidate_path_t {
+	uint32_t color;
+	std::string endpoint;
+	uint32_t preference;
+	std::string candidate_name;
+};
+
+struct test_case_segment_list_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_segment_list_t input_segment_list;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_segment_list_segment_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_segment_list_segment_t input_segment;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_no_segment_list_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_no_segment_list_t input_segment_list;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_segment_list_no_segment_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_segment_list_no_segment_t input_segment;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_srte_policy_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_srte_policy_t input_policy;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_srte_policy_candidate_path_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_srte_policy_candidate_path_t input_candidate_path;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_srte_no_policy_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_srte_no_policy_t input_policy;
+	struct pathd_state_t final_state;
+};
+
+struct test_case_srte_policy_no_candidate_path_t {
+	int test_id;
+	struct pathd_state_t initial_state;
+	struct api_srte_policy_no_candidate_path_t input_candidate_path;
+	struct pathd_state_t final_state;
+};
+
+std::map<int, struct test_case_segment_list_t>
+read_segment_list_test_cases_map(const std::string &json_file_path);
+
+std::vector<test_case_segment_list_t>
+read_all_tests_segment_list(const std::string &json_file_path);
+
+std::map<int, struct test_case_segment_list_segment_t>
+read_segment_list_segment_test_cases_map(const std::string &json_file_path);
+
+std::vector<struct test_case_segment_list_segment_t>
+read_all_tests_segment(const std::string &json_file_path);
+
+std::map<int, struct test_case_no_segment_list_t>
+read_no_segment_list_test_cases_map(const std::string &json_file_path);
+
+std::vector<test_case_no_segment_list_t>
+read_all_tests_no_segment_list(const std::string &json_file_path);
+
+std::map<int, struct test_case_segment_list_no_segment_t>
+read_segment_list_no_segment_test_cases_map(const std::string &json_file_path);
+
+std::vector<struct test_case_segment_list_no_segment_t>
+read_all_tests_no_segment(const std::string &json_file_path);
+
+std::map<int, struct test_case_srte_policy_t>
+read_srte_policy_test_cases_map(const std::string &json_file_path);
+
+std::vector<struct test_case_srte_policy_t>
+read_all_tests_srte_policy(const std::string &json_file_path);
+
+std::map<int, struct test_case_srte_policy_candidate_path_t>
+read_srte_policy_candidate_path_test_cases_map(
+	const std::string &json_file_path);
+
+std::vector<struct test_case_srte_policy_candidate_path_t>
+read_all_tests_srte_policy_candidate_path(const std::string &json_file_path);
+
+std::map<int, struct test_case_srte_no_policy_t>
+read_srte_no_policy_test_cases_map(const std::string &json_file_path);
+
+std::vector<struct test_case_srte_no_policy_t>
+read_all_tests_srte_no_policy(const std::string &json_file_path);
+
+std::map<int, struct test_case_srte_policy_no_candidate_path_t>
+read_srte_policy_no_candidate_path_test_cases_map(
+	const std::string &json_file_path);
+
+std::vector<struct test_case_srte_policy_no_candidate_path_t>
+read_all_tests_srte_policy_no_candidate_path(const std::string &json_file_path);
+
 #endif // TEST_MODEL_H

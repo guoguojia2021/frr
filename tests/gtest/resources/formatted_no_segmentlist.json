@@ -1,0 +1,192 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "zID1",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 2483175552,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    },
+    "SegmentListName": "I95",
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "zID1",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 2483175552,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "2_d9ESW",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    },
+    "SegmentListName": "2_d9ESW",
+    "FinalState": {
+      "Segments": [],
+      "Policies": []
+    }
+  },
+  {
+    "TestId": 2,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "yQIRM78F",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 8388656,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 287574016,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "zQPW",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 1006633472,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1074794545,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1140883456,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 3458069376,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "8I",
+              "SegmentListName": "zQPW",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    },
+    "SegmentListName": "zQPW",
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "yQIRM78F",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 8388656,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 287574016,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "zQPW",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 1006633472,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1074794545,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 1140883456,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 3458069376,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "8I",
+              "SegmentListName": "zQPW",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

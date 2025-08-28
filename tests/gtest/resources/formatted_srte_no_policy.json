@@ -1,0 +1,187 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "vqc5smVdOyPU",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 4456460,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 128,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "omrt_Mad2-ud",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "24a0:fe2b::7ce:9ce1",
+          "Color": 1907776530,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "jGyuFYveBNwKhQe",
+              "SegmentListName": "vqc5smVdOyPU",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    },
+    "ApiParam": {
+      "Color": 2154976310,
+      "Endpoint": "df3f:6198::c43d:d748"
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "vqc5smVdOyPU",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 128,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 4456460,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "omrt_Mad2-ud",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "24a0:fe2b::7ce:9ce1",
+          "Color": 1907776530,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "jGyuFYveBNwKhQe",
+              "SegmentListName": "vqc5smVdOyPU",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "C1zJnEB0cdy4Sn",
+          "RefCount": 1,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "NJmYfOv3eYpK",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 4096,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": [
+        {
+          "Endpoint": "df3f:6198::c43d:d748",
+          "Color": 792202614,
+          "Status": 2,
+          "Candidates": [
+            {
+              "CandidateName": "jGyuFYveBNwKhQe",
+              "SegmentListName": "C1zJnEB0cdy4Sn",
+              "Preference": 1
+            }
+          ]
+        }
+      ]
+    },
+    "ApiParam": {
+      "Color": 792202614,
+      "Endpoint": "df3f:6198::c43d:d748"
+    },
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "C1zJnEB0cdy4Sn",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": true,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "NJmYfOv3eYpK",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 4096,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    }
+  }
+]

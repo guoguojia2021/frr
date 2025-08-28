@@ -1036,19 +1036,27 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 		candidate->policy_bfd_ops = 0;
 
 		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_DELETED)) {
+#ifndef ZEBRA_UNIT_TESTING
 			trigger_pathd_candidate_removed(candidate);
+#endif
 			srte_candidate_del(candidate);
 			continue;
 		} else if (CHECK_FLAG(candidate->flags, F_CANDIDATE_NEW)) {
+#ifndef ZEBRA_UNIT_TESTING
 			trigger_pathd_candidate_created(candidate);
 			redis_Db_Cpath_SetEntry(candidate);
+#endif
 		} else if (CHECK_FLAG(candidate->flags, F_CANDIDATE_MODIFIED)) {
+#ifndef ZEBRA_UNIT_TESTING
 			trigger_pathd_candidate_updated(candidate);
 			redis_Db_Cpath_SetEntry(candidate);
+#endif
 		} else if (candidate->lsp->segment_list
 			   && CHECK_FLAG(candidate->lsp->segment_list->flags,
 					 F_SEGMENT_LIST_MODIFIED)) {
+#ifndef ZEBRA_UNIT_TESTING
 			trigger_pathd_candidate_updated(candidate);
+#endif
 		}
 
 		UNSET_FLAG(candidate->flags, F_CANDIDATE_NEW);

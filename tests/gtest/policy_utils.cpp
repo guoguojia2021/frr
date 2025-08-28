@@ -8,9 +8,13 @@
 #include <string>
 #include <map>
 #include <cstring> // for strcpy
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 
 #include "lib/hash.h"
+#include "lib/ipaddr.h"
+#include "lib/prefix.h"
 #include "zebra/zapi_msg.h"
 #include "zebra/zebra_srte.h"
 
@@ -18,13 +22,18 @@
 #include "common_utils.h"
 #include "rnh_utils.h"
 #include "rib_utils.h"
+#include "pathd/pathd.h"
+
+
 #define VPN_VRF_ID 0
 
 PolicyUtils policy_utils;
+extern struct srte_policy_head srte_policies;
 
 int PolicyUtils::init()
 {
 	memset(&client, 0, sizeof(zserv));
+	return 0;
 }
 
 zebra_vrf *PolicyUtils::get_mock_zvrf()
@@ -211,6 +220,22 @@ void PolicyUtils::add_init_route(const struct zebra_state_t *initial_state,
 	}
 }
 
+void dump_rnh_t(struct rnh *rnh, struct rnh_t &r)
+{
+	r.srte_color = rnh->srte_color;
+	r.resolved_route.prefixlen = rnh->resolved_route.prefixlen;
+	memcpy(r.resolved_route.endpoint, rnh->resolved_route.u.val, 16);
+	r.prefix.prefixlen = rnh->node->p.prefixlen;
+	memcpy(r.prefix.endpoint, rnh->node->p.u.val, 16);
+
+	std::string status_str[] = {"INIT", "DOWN", "UP"};
+	std::cout << " ------ rnh " << rnh << " color " << r.srte_color
+		  << " flag " << int(rnh->type_flags) << " resolved "
+		  << common_utils::addr2str(r.resolved_route.endpoint) << "/"
+		  << r.resolved_route.prefixlen << " srp_status "
+		  << status_str[rnh->srp_status] << std::endl;
+}
+
 static void dump_zebra_srv6_policy(struct zebra_sr_policy *policy,
 				   struct policy_t &p, uint32_t table_color,
 				   route_node *rn)
@@ -262,7 +287,7 @@ static void dump_zebra_srv6_policy(struct zebra_sr_policy *policy,
 			std::cout << " rnh.resolved_route " << buff
 				  << std::endl;
 			p.nht.push_back({});
-			RnhUtils::dump_rnh_t(rnh, p.nht.back());
+			dump_rnh_t(rnh, p.nht.back());
 		}
 	}
 }
@@ -406,6 +431,64 @@ static void print_policy_t(const struct policy_t &p)
 	}
 }
 
+static void print_rnh_t(const struct rnh_t &rnh)
+{
+	std::cout << " ------ rnh color " << rnh.srte_color << " prefix "
+		  << common_utils::addr2str(rnh.prefix.endpoint) << "/"
+		  << rnh.prefix.prefixlen << " resolved_route "
+		  << common_utils::addr2str(rnh.resolved_route.endpoint) << "/"
+		  << rnh.resolved_route.prefixlen << std::endl;
+}
+
+bool check_rnh_vec(const std::vector<struct rnh_t> &dump_nht,
+			     const std::vector<struct rnh_t> &expect_nht)
+{
+	if (dump_nht.size() != expect_nht.size()) {
+		std::cout << "dump_policy.nht.size = " << dump_nht.size()
+			  << ", expect_policy.nht.size = " << expect_nht.size()
+			  << std::endl;
+		return false;
+	}
+
+	// TODO: double check whether to ignore orderings
+	std::set<int> unvisited_index;
+	for (int i = 0; i < dump_nht.size(); i++)
+		unvisited_index.insert(i);
+
+	for (int i = 0; i < dump_nht.size(); i++) {
+		// Iterating over indexes in unvisited_index
+		bool found = false;
+		for (auto it = unvisited_index.begin();
+		     it != unvisited_index.end();) {
+			int j = *it;
+			if (dump_nht[i].srte_color ==
+				    expect_nht[j].srte_color &&
+			    common_utils::is_prefix_t_euqal(
+				    &dump_nht[i].resolved_route,
+				    &expect_nht[j].resolved_route) &&
+			    common_utils::is_prefix_t_euqal(
+				    &dump_nht[i].prefix,
+				    &expect_nht[j].prefix)) {
+				found = true;
+				unvisited_index.erase(it);
+				break;
+			} else {
+				it++;
+			}
+		}
+
+		if (!found) {
+			std::cout
+				<< "check_rnh_vec rnh mismatch: unexpected nht "
+				<< std::endl;
+			print_rnh_t(dump_nht[i]);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool PolicyUtils::check_polices(const struct srte_table_t &dump_table,
 				const struct srte_table_t &expected_table)
 {
@@ -425,7 +508,7 @@ bool PolicyUtils::check_polices(const struct srte_table_t &dump_table,
 					 actual_policy.status) &&
 					check_srv6_tunnel(actual_policy,
 							  expected_policy) &&
-					RnhUtils::check_rnh_vec(
+					check_rnh_vec(
 						actual_policy.nht,
 						expected_policy.nht);
 				if (!policy_match) {
@@ -477,4 +560,109 @@ void dump_srte_hash_bucket(struct hash_bucket *bucket, void *arg)
 			  dump_state->end());
 		dump_state->emplace(srte_table->color, st);
 	}
+}
+
+std::vector<struct candidate_t>
+dump_candidate_paths(struct srte_candidate_head *paths)
+{
+	std::vector<struct candidate_t> res;
+
+	struct srte_candidate *candidate;
+	RB_FOREACH (candidate, srte_candidate_head, paths) {
+		struct candidate_t c = {};
+		c.candidate_name = candidate->name;
+		c.segment_list_name = candidate->segment_list->name;
+		c.preference = candidate->preference;
+		c.status = candidate->status;
+		res.push_back(c);
+	}
+	// Optional: sort by Preference
+	std::sort(res.begin(), res.end(),
+		  [](const candidate_t &a, const candidate_t &b) {
+			  if (a.preference != b.preference) {
+				  return a.preference < b.preference;
+			  }
+			  return a.candidate_name < b.candidate_name;
+		  });
+	return res;
+}
+
+std::vector<struct path_policy_t> dump_policies()
+{
+	std::vector<struct path_policy_t> res;
+	struct ipaddr ip;
+	char buf[128];
+
+	struct srte_policy *policy;
+	RB_FOREACH (policy, srte_policy_head, &srte_policies) {
+		struct path_policy_t p = {};
+		p.color = policy->color;
+		prefix2ipaddr(&policy->endpoint, &ip);
+		ipaddr2str(&ip, buf, sizeof(buf));
+		p.endpoint = buf;
+		p.status = policy->status;
+		p.candidate_paths =
+			dump_candidate_paths(&policy->candidate_paths);
+		res.push_back(p);
+	}
+	// Optional: sort policies by Endpoint
+	std::sort(res.begin(), res.end(),
+		  [](const path_policy_t &a, const path_policy_t &b) {
+			  if (a.color != b.color) {
+				  return a.color < b.color;
+			  }
+			  return a.endpoint < b.endpoint;
+		  });
+	return res;
+}
+
+bool compare_policy(const struct path_policy_t &a, const struct path_policy_t &b)
+{
+	// Compare top-level policy fields
+	if (a.color != b.color || a.endpoint != b.endpoint ||
+	    a.status != b.status) {
+		std::cerr << "Mismatch in policy_t fields:\n"
+			  << "  color:    " << a.color << " vs " << b.color
+			  << "\n"
+			  << "  endpoint: '" << a.endpoint << "' vs '"
+			  << b.endpoint << "'\n"
+			  << "  status:   0x" << std::hex << a.status
+			  << " vs 0x" << b.status << std::dec << "\n";
+		return false;
+	}
+
+	// Compare number of candidate paths
+	if (a.candidate_paths.size() != b.candidate_paths.size()) {
+		std::cerr << "Mismatch: candidate path count ("
+			  << a.candidate_paths.size() << " vs "
+			  << b.candidate_paths.size() << ")\n";
+		return false;
+	}
+
+	// Compare each candidate path
+	for (size_t i = 0; i < a.candidate_paths.size(); ++i) {
+		const auto &candA = a.candidate_paths[i];
+		const auto &candB = b.candidate_paths[i];
+
+		// TODO: enable the comparison of status when BFD is supported
+		if (candA.preference != candB.preference ||
+		    candA.candidate_name != candB.candidate_name ||
+		    candA.segment_list_name != candB.segment_list_name) {
+			std::cerr << "Mismatch in candidate[" << i << "]:\n"
+				  << "  preference:        " << candA.preference
+				  << " vs " << candB.preference << "\n"
+				  << "  candidate_name:         '"
+				  << candA.candidate_name << "' vs '"
+				  << candB.candidate_name << "'\n"
+				  << "  segment_list_name: '"
+				  << candA.segment_list_name << "' vs '"
+				  << candB.segment_list_name << "'\n"
+				  << "  status:            0x" << std::hex
+				  << candA.status << " vs 0x" << candB.status
+				  << std::dec << "\n";
+			return false;
+		}
+	}
+
+	return true;
 }

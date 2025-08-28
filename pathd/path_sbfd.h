@@ -24,6 +24,10 @@
 #include "lib/srte.h"
 #include "lib/bfd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum srte_sbfd_type {
     SRTE_SBFD_ECHO = 1,
 	SRTE_SBFD_INITIATOR = 2,
@@ -51,5 +55,9 @@ void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_policy *p
 
 extern struct zclient *zclient;
 extern struct thread_master *master;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _FRR_PATHD_SBFD_H_ */

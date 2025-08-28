@@ -1,0 +1,97 @@
+[
+  {
+    "TestId": 0,
+    "InitialState": {
+      "Segments": [],
+      "Policies": []
+    },
+    "SegmentListName": "fZlcf7BIoFzU",
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "fZlcf7BIoFzU",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": []
+        }
+      ],
+      "Policies": []
+    }
+  },
+  {
+    "TestId": 1,
+    "InitialState": {
+      "Segments": [
+        {
+          "Name": "rCDI66xAjoh",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 301991936,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 64,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "4V9JVjsKgUv5",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    },
+    "SegmentListName": "4V9JVjsKgUv5",
+    "FinalState": {
+      "Segments": [
+        {
+          "Name": "rCDI66xAjoh",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 64,
+              "V6Address": "df3f:6198::c43d:d748"
+            },
+            {
+              "Index": 301991936,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        },
+        {
+          "Name": "4V9JVjsKgUv5",
+          "RefCount": 0,
+          "Flags": 0,
+          "Status": 0,
+          "Installed": false,
+          "Segments": [
+            {
+              "Index": 0,
+              "V6Address": "df3f:6198::c43d:d748"
+            }
+          ]
+        }
+      ],
+      "Policies": []
+    }
+  }
+]

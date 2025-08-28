@@ -44,6 +44,6 @@ jobs:
       - ECS-topotest
     steps:
       - run: |
-          cd ~/frr/tests/gtest ; ./gtest_zebra_srte
+          cd ~/frr/tests/gtest ; ./gtest_srte
         image: hub.docker.alibaba-inc.com/aone-base-global/gtest:latest
     timeout: 1h

@@ -42,7 +42,7 @@ char backup_config_file[256];
 
 bool srv6_tepolicy_hot_standby = false;
 
-zebra_capabilities_t _caps_p[] = {};
+zebra_capabilities_t _pathd_caps_p[] = {};
 
 struct zebra_privs_t pathd_privs = {
 #if defined(FRR_USER) && defined(FRR_GROUP)
@@ -52,9 +52,11 @@ struct zebra_privs_t pathd_privs = {
 #if defined(VTY_GROUP)
 	.vty_group = VTY_GROUP,
 #endif
-	.caps_p = _caps_p,
-	.cap_num_p = array_size(_caps_p),
+	.caps_p = _pathd_caps_p,
+	.cap_num_p = array_size(_pathd_caps_p),
 	.cap_num_i = 0};
+
+struct option longopts[] = {{0}};
 
 /* Master of threads. */
 struct thread_master *master;
@@ -123,9 +125,15 @@ FRR_DAEMON_INFO(pathd, PATH, .vty_port = PATH_VTY_PORT,
 		.n_yang_modules = array_size(pathd_yang_modules),
 );
 
+
+#ifdef ZEBRA_UNIT_TESTING
+int __attribute__((weak)) main(int argc, char **argv, char **envp)
+#else
 int main(int argc, char **argv, char **envp)
+#endif
 {
 	frr_preinit(&pathd_di, argc, argv);
+	frr_opt_add("", longopts, "");
 
 	while (1) {
 		int opt;
@@ -150,7 +158,9 @@ int main(int argc, char **argv, char **envp)
 	path_error_init();
 	path_zebra_init(master);
 	path_cli_init();
+#ifndef ZEBRA_UNIT_TESTING
 	path_db_init();
+#endif
 	pathd_debug_init();
 	sr_sbfd_init();
 	path_ted_init(master);

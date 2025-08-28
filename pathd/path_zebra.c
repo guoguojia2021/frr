@@ -319,8 +319,9 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy)
 			zp.tunnel_type, zp.srv6_tunnel.path_num,
 			policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
 	}
-
+#ifndef ZEBRA_UNIT_TESTING
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
+#endif
 }
 
 /**
@@ -349,8 +350,9 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 			zp.tunnel_type, zp.srv6_tunnel.path_num, 
 			policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid);
 	}
+#ifndef ZEBRA_UNIT_TESTING
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_DELETE, &zp);
-
+#endif
 }
 
 /**

@@ -1,36 +1,47 @@
-if !ZEBRA
-PYTEST_IGNORE += --ignore=zebra/
-endif
-GTEST_TEST_LDADD = zebra/libzebra.a -lgtest -lpthread -ldl -ljson-c $(ALL_TESTS_LDADD)
 
-if ZEBRA
-sbin_PROGRAMS += tests/gtest/gtest_zebra_srte
+GTEST_TEST_LDADD = zebra/libzebra.a pathd/libpath.a -lgtest -lpthread -ldl -ljson-c $(ALL_TESTS_LDADD)
+
+sbin_PROGRAMS += tests/gtest/gtest_srte
 sbin_PROGRAMS += tests/gtest/gtest_zebra_sample
 sbin_PROGRAMS += tests/gtest/gtest_zebra_nhgs_example
 sbin_PROGRAMS += tests/gtest/gtest_zebra_rnh_register_example
 sbin_PROGRAMS += tests/gtest/gtest_zebra_multi_step
 sbin_PROGRAMS += tests/gtest/gtest_zebra_route_add
 sbin_PROGRAMS += tests/gtest/gtest_zebra_route_del
-endif
-tests_gtest_gtest_zebra_srte_CFLAGS = -g -o0 $(TESTS_CFLAGS)
-tests_gtest_gtest_zebra_srte_CPPFLAGS = -g $(TESTS_CPPFLAGS)
-tests_gtest_gtest_zebra_srte_LDADD = $(GTEST_TEST_LDADD)
-tests_gtest_gtest_zebra_srte_SOURCES = tests/gtest/gtest_zebra_srte.cpp \
-                                       tests/gtest/test_zread_srv6_policy_set.cpp \
-                                       tests/gtest/test_zread_srv6_policy_delete.cpp \
-                                       tests/gtest/test_zread_rnh_register.cpp \
-                                       tests/gtest/test_zread_rnh_unregister.cpp \
-                                       tests/gtest/test_zread_route_add.cpp \
-                                       tests/gtest/test_zread_route_del.cpp \
-                                       tests/gtest/common_utils.cpp \
-                                       tests/gtest/nexthop_utils.cpp \
-                                       tests/gtest/nhg_utils.cpp \
-                                       tests/gtest/rnh_utils.cpp \
-                                       tests/gtest/policy_utils.cpp \
-                                       tests/gtest/rib_utils.cpp \
-                                       tests/gtest/msg_utils.cpp \
-                                       tests/gtest/zebra_utils.cpp \
-                                       tests/gtest/test_model.cpp
+sbin_PROGRAMS += tests/gtest/gtest_pathd_config
+
+tests_gtest_gtest_srte_CFLAGS = -g -o0 $(TESTS_CFLAGS)
+tests_gtest_gtest_srte_CPPFLAGS = -g $(TESTS_CPPFLAGS)
+tests_gtest_gtest_srte_LDADD = $(GTEST_TEST_LDADD)
+tests_gtest_gtest_srte_SOURCES = tests/gtest/gtest_zebra_srte.cpp \
+                                tests/gtest/test_zread_srv6_policy_set.cpp \
+                                tests/gtest/test_zread_srv6_policy_delete.cpp \
+                                tests/gtest/test_zread_rnh_register.cpp \
+                                tests/gtest/test_zread_rnh_unregister.cpp \
+                                tests/gtest/test_zread_route_add.cpp \
+                                tests/gtest/test_zread_route_del.cpp \
+                                tests/gtest/common_utils.cpp \
+                                tests/gtest/nexthop_utils.cpp \
+                                tests/gtest/nhg_utils.cpp \
+                                tests/gtest/rnh_utils.cpp \
+                                tests/gtest/policy_utils.cpp \
+                                tests/gtest/rib_utils.cpp \
+                                tests/gtest/msg_utils.cpp \
+                                tests/gtest/zebra_utils.cpp \
+                                tests/gtest/test_model.cpp \
+                                tests/gtest/gtest_pathd_config.cpp \
+                                tests/gtest/pathd_utils.cpp \
+                                tests/gtest/segment_utils.cpp \
+                                tests/gtest/mock_candidate_config.cpp \
+                                tests/gtest/pathd_segment_list_test.cpp \
+                                tests/gtest/pathd_segment_test.cpp \
+                                tests/gtest/pathd_no_segment_list_test.cpp \
+                                tests/gtest/pathd_no_segment_test.cpp \
+                                tests/gtest/pathd_srte_policy_test.cpp \
+                                tests/gtest/pathd_srte_policy_candidatepath_test.cpp \
+                                tests/gtest/pathd_srte_no_policy_test.cpp \
+                                tests/gtest/pathd_srte_policy_no_candidatepath_test.cpp
+
 
 tests_gtest_gtest_zebra_nhgs_example_CFLAGS = -g -o0 $(TESTS_CFLAGS)
 tests_gtest_gtest_zebra_nhgs_example_CPPFLAGS = -g $(TESTS_CPPFLAGS)
@@ -117,6 +128,26 @@ tests_gtest_gtest_zebra_route_del_SOURCES = tests/gtest/test_model.cpp \
                                             tests/gtest/msg_utils.cpp \
                                             tests/gtest/zebra_utils.cpp \
                                             tests/gtest/gtest_zebra_route_del.cpp
+
+
+tests_gtest_gtest_pathd_config_CFLAGS = -g -o0 $(TESTS_CFLAGS)
+tests_gtest_gtest_pathd_config_CPPFLAGS = -g $(TESTS_CPPFLAGS)
+tests_gtest_gtest_pathd_config_LDADD = $(GTEST_TEST_LDADD)
+tests_gtest_gtest_pathd_config_SOURCES = tests/gtest/gtest_pathd_config.cpp \
+                                            tests/gtest/pathd_utils.cpp \
+                                            tests/gtest/segment_utils.cpp \
+                                            tests/gtest/policy_utils.cpp \
+                                            tests/gtest/mock_candidate_config.cpp \
+                                            tests/gtest/test_model.cpp \
+                                            tests/gtest/pathd_segment_list_test.cpp \
+                                            tests/gtest/pathd_segment_test.cpp \
+                                            tests/gtest/pathd_no_segment_list_test.cpp \
+                                            tests/gtest/pathd_no_segment_test.cpp \
+                                            tests/gtest/pathd_srte_policy_test.cpp \
+                                            tests/gtest/pathd_srte_policy_candidatepath_test.cpp \
+                                            tests/gtest/pathd_srte_no_policy_test.cpp \
+                                            tests/gtest/pathd_srte_policy_no_candidatepath_test.cpp
+
 EXTRA_DIST += \
 	tests/gtest/resources/policyset_nhgs.json \
 	tests/gtest/resources/formatted_policydel.json \

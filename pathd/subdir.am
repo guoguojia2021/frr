@@ -34,6 +34,7 @@ pathd_libpath_a_SOURCES = \
 	pathd/pathd.c \
 	pathd/path_sbfd.c \
 	pathd/path_db.c \
+	pathd/path_main.c \
 	# end
 
 clippy_scan += \
