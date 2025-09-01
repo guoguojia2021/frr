@@ -27,9 +27,6 @@ if platform.uname()[0] == "SunOS" or inet_ntop_broken():
 else:
 
     class TestFuzzIsisTLV(frrtest.TestMultiOut):
-        # program = "./test_fuzz_isis_tlv"
-        @pytest.mark.skipif(True, reason="Temporarily disabled")
-        def test_exit_cleanly(self):
-            pass
+        program = "./test_fuzz_isis_tlv"
 
-    # TestFuzzIsisTLV.exit_cleanly()
+    TestFuzzIsisTLV.exit_cleanly()
