@@ -442,6 +442,34 @@ int bfd_session_enable(struct bfd_session *bs)
 		}
 	}
 
+	if (bglobal.debug_peer_event)
+	{
+		char addr_buf[INET6_ADDRSTRLEN] = {0};
+		zlog_debug("ifname:%s<len %lu> source ip:%s. flags:0x%0x\n", 
+				bs->key.ifname, strlen(bs->key.ifname),
+				inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf)),
+				bs->flags);
+	}
+
+	if (!(CHECK_FLAG(bs->flags, BFD_SESS_FLAG_ECHO)
+			|| CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT)
+			|| CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_REFL)
+			|| CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+		)
+	{
+		if (!memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
+		{
+			if (bglobal.debug_peer_event)
+			{
+				char addr_buf[INET6_ADDRSTRLEN] = {0};
+				zlog_debug("filter: ifname:%s<len %lu> source ip:%s.\n", 
+						bs->key.ifname, strlen(bs->key.ifname),
+						inet_ntop(bs->key.family, &bs->key.local, addr_buf, sizeof(addr_buf)));
+			}
+			return 0;
+		}
+	}
+
 	/* Assign interface/VRF pointers. */
 	bs->vrf = vrf;
 

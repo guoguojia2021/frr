@@ -149,14 +149,14 @@ static void _ptm_bfd_session_del(struct bfd_session *bs, uint8_t diag)
 		zlog_info("session-delete: %s", bs_to_string(bs));
 
 	/* Change state and notify peer. */
-	bs->ses_state = PTM_BFD_DOWN;
-	bs->local_diag = diag;
+	//bs->ses_state = PTM_BFD_DOWN;
+	//bs->local_diag = diag;
 
-	if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
-	    && !CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
-	{
-	    ptm_bfd_snd(bs, 0);
-	}
+	//if (!CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_INIT) 
+	//    && !CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
+	//{
+	//    ptm_bfd_snd(bs, 0);
+	//}
 
 
 	/* Session reached refcount == 0, lets delete it. */
