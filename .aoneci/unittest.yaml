@@ -26,6 +26,7 @@ jobs:
           image-tag: latest
           context-dir: alibgp
           dockerfile-path: alibgp/docker/ubuntu20-ci/Dockerfile
+          check-image-exist-strategy: ignore
 
   run-topotest:
     name: topotest

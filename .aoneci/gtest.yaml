@@ -35,6 +35,7 @@ jobs:
           image-tag: latest
           context-dir: alibgp-gtest
           dockerfile-path: alibgp-gtest/docker/ubuntu20-gtest/Dockerfile
+          check-image-exist-strategy: ignore
 
   run-gtest:
     name: gtest
