@@ -260,10 +260,10 @@ static void bgp_debug_list_print(struct vty *vty, const char *desc,
 	vty_out(vty, "%s", desc);
 
 	if (list && !list_isempty(list)) {
-		vty_out(vty, " for");
+		vty_out(vty, " for:\n");
 		for (ALL_LIST_ELEMENTS(list, node, nnode, filter)) {
 			if (filter->host)
-				vty_out(vty, " %s", filter->host);
+				vty_out(vty, "   %s", filter->host);
 
 			if (filter->plist_name)
 				vty_out(vty, " with prefix-list %s",
@@ -272,11 +272,13 @@ static void bgp_debug_list_print(struct vty *vty, const char *desc,
 			if (filter->p && filter->p->family == AF_EVPN)
 				bgp_debug_print_evpn_prefix(vty, "", filter->p);
 			else if (filter->p)
-				vty_out(vty, " %pFX", filter->p);
-		}
-	}
+				vty_out(vty, "   %pFX", filter->p);
 
-	vty_out(vty, "\n");
+			vty_out(vty, "\n");
+		}
+	} else {
+		vty_out(vty, "\n");
+	}
 }
 
 /*
@@ -2355,9 +2357,11 @@ DEFPY(debug_bgp_bfd, debug_bgp_bfd_cmd,
 		if (no) {
 			TERM_DEBUG_OFF(bfd, BFD_LIB);
 			bfd_protocol_integration_set_debug(false);
+			vty_out(vty, "BGP BFD debugging is off\n");
 		} else {
 			TERM_DEBUG_ON(bfd, BFD_LIB);
 			bfd_protocol_integration_set_debug(true);
+			vty_out(vty, "BGP BFD debugging is on\n");
 		}
 	}
 
