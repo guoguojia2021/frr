@@ -949,7 +949,7 @@ AC_DEFINE_UNQUOTED([MULTIPATH_NUM], [$MPATH_NUM], [Maximum number of paths for a
 
 LOCAL_VRF_LEAK_ENABLE=1
 
-if test "$ASIC_MODEL" == "q200";then
+if test "$ASIC_CONTEXT" == "DCI";then
     LOCAL_VRF_LEAK_ENABLE=0
 fi
 
