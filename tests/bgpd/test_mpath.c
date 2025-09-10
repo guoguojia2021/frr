@@ -334,7 +334,7 @@ static int run_bgp_path_info_mpath_update(testcase_t *t)
 	bgp_path_info_mpath_update(NULL, dest, new_best, old_best, &mp_list,
 				   &mp_cfg);
 	bgp_mp_list_clear(&mp_list);
-	EXPECT_TRUE(bgp_path_info_mpath_count(new_best) == 2, test_result);
+	EXPECT_TRUE(bgp_dest_mpath_count(new_best->net) == 2, test_result);
 	mpath = bgp_path_info_mpath_first(new_best);
 	EXPECT_TRUE(mpath == &test_mp_list_info[0], test_result);
 	EXPECT_TRUE(CHECK_FLAG(mpath->flags, BGP_PATH_MULTIPATH), test_result);
@@ -349,7 +349,7 @@ static int run_bgp_path_info_mpath_update(testcase_t *t)
 	bgp_path_info_mpath_update(NULL, dest, new_best, old_best, &mp_list,
 				   &mp_cfg);
 	bgp_mp_list_clear(&mp_list);
-	EXPECT_TRUE(bgp_path_info_mpath_count(new_best) == 1, test_result);
+	EXPECT_TRUE(bgp_dest_mpath_count(new_best->net) == 1, test_result);
 	mpath = bgp_path_info_mpath_first(new_best);
 	EXPECT_TRUE(mpath == &test_mp_list_info[1], test_result);
 	EXPECT_TRUE(CHECK_FLAG(mpath->flags, BGP_PATH_MULTIPATH), test_result);

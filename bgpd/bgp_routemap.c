@@ -2927,7 +2927,7 @@ route_set_ecommunity_lb(void *rule, const struct prefix *prefix, void *object)
 		if (!CHECK_FLAG(path->flags, BGP_PATH_SELECTED))
 			return RMAP_OKAY;
 
-		bw_bytes = (uint32_t)bgp_path_info_mpath_cumbw(path);
+		bw_bytes = (uint32_t)bgp_dest_mpath_cumbw(path->net);
 		if (!bw_bytes)
 			return RMAP_OKAY;
 
@@ -2938,7 +2938,7 @@ route_set_ecommunity_lb(void *rule, const struct prefix *prefix, void *object)
 			return RMAP_OKAY;
 
 		bw_bytes = ((uint64_t)peer->bgp->lb_ref_bw * 1000 * 1000) / 8;
-		mpath_count = bgp_path_info_mpath_count(path);
+		mpath_count = bgp_dest_mpath_count(path->net);
 		bw_bytes *= mpath_count;
 	}
 

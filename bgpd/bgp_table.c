@@ -32,6 +32,7 @@
 #include "bgpd/bgp_table.h"
 #include "bgp_addpath.h"
 #include "bgp_trace.h"
+#include "bgp_mpath.h"
 
 void bgp_table_lock(struct bgp_table *rt)
 {
@@ -129,6 +130,10 @@ static void bgp_node_destroy(route_table_delegate_t *delegate,
 		}
 		XFREE(MTYPE_BGP_NODE, dest);
 		node->info = NULL;
+
+		/* Free mpath if exists */
+		if (dest->mpath)
+			bgp_path_info_mpath_free(&dest->mpath);
 	}
 
 	XFREE(MTYPE_ROUTE_NODE, node);

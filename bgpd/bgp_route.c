@@ -339,7 +339,6 @@ static void bgp_path_info_free(struct bgp_path_info *path)
 	bgp_unlink_te_nexthop(path);
 	bgp_unlink_tebk_nexthop(path);
 	bgp_path_info_extra_free(&path->extra);
-	bgp_path_info_mpath_free(&path->mpath);
 	if (path->net)
 		bgp_addpath_free_info_data(&path->tx_addpath,
 					   &path->net->tx_addpath);
@@ -2171,7 +2170,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	from = pi->peer;
 	filter = &peer->filter[afi][safi];
 	bgp = SUBGRP_INST(subgrp);
-	piattr = bgp_path_info_mpath_count(pi) > 1 ? bgp_path_info_mpath_attr(pi) : pi->attr;
+	piattr = bgp_dest_mpath_count(pi->net) > 1 ? bgp_dest_mpath_attr(pi->net) : pi->attr;
 
 	if (CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX_OUT) &&
 	    peer->pmax_out[afi][safi] != 0 &&
@@ -2870,8 +2869,8 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	 * been explicitly set by user policy.
 	 */
 	if (nh_reset &&
-	    bgp_path_info_mpath_chkwtd(bgp, pi) &&
-	    (cum_bw = bgp_path_info_mpath_cumbw(pi)) != 0 &&
+	    bgp_dest_mpath_chkwtd(bgp, pi->net) &&
+	    (cum_bw = bgp_dest_mpath_cumbw(pi->net)) != 0 &&
 	    !CHECK_FLAG(attr->rmap_change_flags, BATTR_RMAP_LINK_BW_SET))
 		attr->ecommunity = ecommunity_replace_linkbw(
 			bgp->as, attr->ecommunity, cum_bw,
@@ -3004,7 +3003,7 @@ static void print_bgp_info(struct prefix *p, struct bgp_path_info *b_info)
 	  inet_ntop(AF_INET, &b_info->attr->nexthop, nh_buf[0], sizeof (nh_buf[0])),
 	  (b_info->peer && b_info->peer->su_remote) ?
 	  sockunion2str (b_info->peer->su_remote, nh_buf[1], sizeof (nh_buf[1])) : "NULL",
-	  b_info->mpath ? (b_info->mpath->mp_count+1):0, b_info->flags);
+	  b_info->net->mpath ? (b_info->net->mpath->mp_count+1):0, b_info->flags);
   }
   else {
     zlog_debug ("Dst:%s, no route.", pfx_buf);
@@ -12739,7 +12738,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 	}
 
 	if (CHECK_FLAG(path->flags, BGP_PATH_MULTIPATH) ||
-	    (CHECK_FLAG(path->flags, BGP_PATH_SELECTED) && bgp_path_info_mpath_count(path) > 1)) {
+	    (CHECK_FLAG(path->flags, BGP_PATH_SELECTED) && bgp_dest_mpath_count(path->net) > 1)) {
 		if (json_paths)
 			json_object_boolean_true_add(json_path, "multipath");
 		else

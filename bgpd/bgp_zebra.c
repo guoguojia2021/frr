@@ -1367,9 +1367,9 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	}
 
 	/* Determine if we're doing weighted ECMP or not */
-	do_wt_ecmp = bgp_path_info_mpath_chkwtd(bgp, info);
+	do_wt_ecmp = bgp_dest_mpath_chkwtd(bgp, info->net);
 	if (do_wt_ecmp)
-		cum_bw = bgp_path_info_mpath_cumbw(info);
+		cum_bw = bgp_dest_mpath_cumbw(info->net);
 
 	/* EVPN MAC-IP routes are installed with a L3 NHG id */
 	if (bgp_evpn_path_es_use_nhg(bgp, info, &nhg_id)) {
@@ -3408,7 +3408,7 @@ static int bgp_zebra_process_srv6_del_sid(ZAPI_CALLBACK_ARGS)
 	}
 
 #endif
-/* todo: ????sid export?Å£ */
+/* todo: ????sid export?ÔøΩÔøΩ */
 	vpn_leak_postchange_checksid();
 
 stream_failure:
