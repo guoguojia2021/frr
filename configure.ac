@@ -825,7 +825,6 @@ AC_DEFINE_UNQUOTED([DFLT_NAME], ["$DFLT_NAME"], [Name of the configuration defau
 if test "$enable_shell_access" = "yes"; then
    AC_DEFINE([HAVE_SHELL_ACCESS], [1], [Allow user to use ssh/telnet/bash, be aware this is considered insecure])
 fi
-
 #
 # Python for clippy
 #

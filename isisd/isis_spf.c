@@ -1672,9 +1672,9 @@ static void spf_path_process(struct isis_spftree *spftree,
 
 #ifdef EXTREME_DEBUG
 			zlog_debug(
-				"ISIS-SPF: A:%hhu create route pfx %pFX dist %d, sr.algo %d, table %p, rv %p",
+				"ISIS-SPF: A:%hhu create route pfx %pFX dist %d, table %p, rv %p",
 				spftree->algorithm, &vertex->N.ip.p.dest,
-				vertex->d_N, vertex->N.ip.sr.algorithm,
+				vertex->d_N,
 				route_table, ri);
 #endif /* EXTREME_DEBUG */
 		} else if (IS_DEBUG_SPF_EVENTS)
