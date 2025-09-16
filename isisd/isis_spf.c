@@ -2523,7 +2523,8 @@ static void isis_print_route(struct ttable *tt, const struct prefix *prefix,
 }
 
 void isis_print_routes(struct vty *vty, struct isis_spftree *spftree,
-		       struct json_object **json, bool prefix_sid, bool backup)
+		struct prefix *prefix, struct json_object **json,
+		bool prefix_sid, bool backup)
 {
 	struct route_table *route_table;
 	struct ttable *tt;
@@ -2576,8 +2577,12 @@ void isis_print_routes(struct vty *vty, struct isis_spftree *spftree,
 		if (!rinfo)
 			continue;
 
+		if (prefix && !prefix_match(&rn->p, prefix))
+			continue;
+
 		isis_print_route(tt, &rn->p, rinfo, prefix_sid, no_adjacencies,
 				 json != NULL);
+
 	}
 
 	/* Dump the generated table. */
@@ -2594,7 +2599,7 @@ void isis_print_routes(struct vty *vty, struct isis_spftree *spftree,
 }
 
 static void show_isis_route_common(struct vty *vty, int levels,
-				   struct isis *isis, bool prefix_sid,
+				   struct isis *isis, int spf_tree_id, struct prefix *prefix, bool prefix_sid,
 				   bool backup, json_object **json)
 {
 	json_object *json_level = NULL, *jstr = NULL, *json_val;
@@ -2631,11 +2636,14 @@ static void show_isis_route_common(struct vty *vty, int levels,
 						       jstr);
 			}
 
-			if (area->ip_circuits > 0) {
+			if (area->ip_circuits > 0 && (spf_tree_id == -1
+						     || spf_tree_id
+								== SPFTREE_IPV4)) {
 				json_val = NULL;
 				isis_print_routes(
 					vty,
 					area->spftree[SPFTREE_IPV4][level - 1],
+					prefix,
 					json ? &json_val : NULL, prefix_sid,
 					backup);
 				if (json && json_val) {
@@ -2643,11 +2651,13 @@ static void show_isis_route_common(struct vty *vty, int levels,
 						json_level, "ipv4", json_val);
 				}
 			}
-			if (area->ipv6_circuits > 0) {
+			if (area->ipv6_circuits > 0 && (spf_tree_id == -1
+			    || spf_tree_id == SPFTREE_IPV6)) {
 				json_val = NULL;
 				isis_print_routes(
 					vty,
 					area->spftree[SPFTREE_IPV6][level - 1],
+					prefix,
 					json ? &json_val : NULL, prefix_sid,
 					backup);
 				if (json && json_val) {
@@ -2655,13 +2665,16 @@ static void show_isis_route_common(struct vty *vty, int levels,
 						json_level, "ipv6", json_val);
 				}
 			}
-			if (isis_area_ipv6_dstsrc_enabled(area)) {
+			if (isis_area_ipv6_dstsrc_enabled(area) && (spf_tree_id
+								    == -1
+			    || spf_tree_id == SPFTREE_DSTSRC)) {
 				json_val = NULL;
 				isis_print_routes(vty,
-						  area->spftree[SPFTREE_DSTSRC]
-							       [level - 1],
-						  json ? &json_val : NULL,
-						  prefix_sid, backup);
+					area->spftree[SPFTREE_DSTSRC]
+							[level - 1],
+					prefix,
+					json ? &json_val : NULL,
+					prefix_sid, backup);
 				if (json && json_val) {
 					json_object_object_add(json_level,
 							       "ipv6-dstsrc",
@@ -2678,14 +2691,22 @@ static void show_isis_route_common(struct vty *vty, int levels,
 
 DEFUN(show_isis_route, show_isis_route_cmd,
       "show " PROTO_NAME
+	  " [<ipv4|ipv6|dstsrc>]"
       " [vrf <NAME|all>] route"
+	  " [<A.B.C.D/M|X:X::X:X/M>]"
 #ifndef FABRICD
       " [<level-1|level-2>]"
 #endif
       " [<prefix-sid|backup>]"
       " [json$uj]",
-      SHOW_STR PROTO_HELP VRF_FULL_CMD_HELP_STR
+      SHOW_STR PROTO_HELP
+	  "ipv4 routes\n"
+	  "ipv6 routes\n"
+	  "ipv6 dst-src routes\n"
+	  VRF_FULL_CMD_HELP_STR
       "IS-IS routing table\n"
+       "Network in the IS-IS routing table to display\n"
+       "Network in the IS-IS routing table to display\n"
 #ifndef FABRICD
       "level-1 routes\n"
       "level-2 routes\n"
@@ -2703,8 +2724,21 @@ DEFUN(show_isis_route, show_isis_route_cmd,
 	bool uj = use_json(argc, argv);
 	int idx = 0;
 	json_object *json = NULL, *json_vrf = NULL;
+	char *prefix_str = NULL;
+	struct prefix prefix_tmp = {0};
+	struct prefix *prefix = NULL;
+	int spf_tree_id = -1;
 
 	ISIS_FIND_VRF_ARGS(argv, argc, idx, vrf_name, all_vrf);
+
+	if (argv_find(argv, argc, "ipv4", &idx))
+		spf_tree_id = SPFTREE_IPV4;
+
+	if (argv_find(argv, argc, "ipv6", &idx))
+		spf_tree_id = SPFTREE_IPV6;
+	if (argv_find(argv, argc, "dstsrc", &idx))
+		spf_tree_id = SPFTREE_DSTSRC;
+
 	if (argv_find(argv, argc, "level-1", &idx))
 		levels = ISIS_LEVEL1;
 	else if (argv_find(argv, argc, "level-2", &idx))
@@ -2716,6 +2750,16 @@ DEFUN(show_isis_route, show_isis_route_cmd,
 		vty_out(vty, "IS-IS Routing Process not enabled\n");
 		return CMD_SUCCESS;
 	}
+	/* <A.B.C.D/M|X:X::X:X/M> */
+	if (argv_find(argv, argc, "A.B.C.D/M", &idx)
+		 || argv_find(argv, argc, "X:X::X:X/M", &idx)) {
+			prefix_str = argv[idx]->arg;
+			if(str2prefix(prefix_str, &prefix_tmp) != 1) {
+				vty_out(vty, "Invalid prefix\n");
+				return CMD_WARNING;
+			}
+			prefix = &prefix_tmp;
+		 }
 
 	if (argv_find(argv, argc, "prefix-sid", &idx))
 		prefix_sid = true;
@@ -2729,7 +2773,7 @@ DEFUN(show_isis_route, show_isis_route_cmd,
 		if (all_vrf) {
 			for (ALL_LIST_ELEMENTS_RO(im->isis, node, isis)) {
 				show_isis_route_common(vty, levels,
-								isis, prefix_sid,
+								isis, spf_tree_id, prefix, prefix_sid,
 								backup,
 								uj ? &json_vrf
 								: NULL);
@@ -2745,8 +2789,8 @@ DEFUN(show_isis_route, show_isis_route_cmd,
 		}
 		isis = isis_lookup_by_vrfname(vrf_name);
 		if (isis != NULL) {
-			show_isis_route_common(vty, levels, isis,
-							prefix_sid, backup,
+			show_isis_route_common(vty, levels, isis, spf_tree_id,
+							prefix, prefix_sid, backup,
 							uj ? &json_vrf : NULL);
 			if (uj) {
 				json_object_object_add(

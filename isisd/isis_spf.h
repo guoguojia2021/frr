@@ -78,7 +78,7 @@ void _isis_spftree_del(struct isis_spftree *spftree);
 void isis_print_spftree(struct vty *vty, struct isis_spftree *spftree,
 			struct json_object **json);
 void isis_print_routes(struct vty *vty, struct isis_spftree *spftree,
-		       json_object **json, bool prefix_sid, bool backup);
+			struct prefix *prefix, json_object **json, bool prefix_sid, bool backup);
 void isis_spf_init(void);
 void isis_spf_print(struct isis_spftree *spftree, struct vty *vty);
 void isis_spf_print_json(struct isis_spftree *spftree,
