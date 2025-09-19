@@ -68,15 +68,6 @@ struct bgp_nexthop_cache {
 #define BGP_STATIC_ROUTE              (1 << 4)
 #define BGP_STATIC_ROUTE_EXACT_MATCH  (1 << 5)
 #define BGP_NEXTHOP_LABELED_VALID     (1 << 6)
-#define BGP_CONDITION_TRACK_ROUTE     (1 << 7)
-#define BGP_NEXTHOP_SRV6TE_VALID      (1 << 8)
-
-
-#define BGP_NEXTHOP_TYPE_NEXTHOP     1
-#define BGP_NEXTHOP_TYPE_IMPORT      2
-#define BGP_NEXTHOP_TYPE_TRACK       3
-
-
 /*
  * This flag is added for EVPN gateway IP nexthops.
  * If the nexthop is RIB reachable, but a MAC/IP is not yet
@@ -92,7 +83,14 @@ struct bgp_nexthop_cache {
  * L3 unreachable | VALID      = 0 | VALID      = 0
  *                | INCOMPLETE = 0 | INCOMPLETE = 0
  */
-#define BGP_NEXTHOP_EVPN_INCOMPLETE (1 << 7)
+#define BGP_NEXTHOP_EVPN_INCOMPLETE   (1 << 7)
+#define BGP_CONDITION_TRACK_ROUTE     (1 << 8)
+#define BGP_NEXTHOP_SRV6TE_VALID      (1 << 9)
+	
+	
+#define BGP_NEXTHOP_TYPE_NEXTHOP     1
+#define BGP_NEXTHOP_TYPE_IMPORT      2
+#define BGP_NEXTHOP_TYPE_TRACK       3
 
 	uint16_t change_flags;
 
