@@ -128,12 +128,13 @@ static void bgp_node_destroy(route_table_delegate_t *delegate,
 										&dest->tx_addpath,
 										rt->afi, rt->safi);
 		}
-		XFREE(MTYPE_BGP_NODE, dest);
-		node->info = NULL;
 
 		/* Free mpath if exists */
 		if (dest->mpath)
 			bgp_path_info_mpath_free(&dest->mpath);
+
+		XFREE(MTYPE_BGP_NODE, dest);
+		node->info = NULL;
 	}
 
 	XFREE(MTYPE_ROUTE_NODE, node);
