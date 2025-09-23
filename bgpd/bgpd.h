@@ -373,6 +373,8 @@ struct vpn_policy {
 #define BGP_VPN_POLICY_TOVPN_RD_SET            (1 << 1)
 #define BGP_VPN_POLICY_TOVPN_NEXTHOP_SET       (1 << 2)
 #define BGP_VPN_POLICY_TOVPN_SID_AUTO          (1 << 3)
+/* Is this value set by the cli? */
+#define BGP_VPN_POLICY_TOVPN_RD_CLI_SET       (1 << 7)
 
 	/*
 	 * If we are importing another vrf into us keep a list of
