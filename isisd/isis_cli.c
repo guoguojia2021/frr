@@ -911,7 +911,7 @@ void cli_show_isis_lsp_timers(struct vty *vty, const struct lyd_node *dnode,
 /*
  * XPath: /frr-isisd:isis/instance/lsp/mtu
  */
-DEFPY_YANG(area_lsp_mtu, area_lsp_mtu_cmd, "lsp-mtu (128-4352)$val",
+DEFPY_YANG(area_lsp_mtu, area_lsp_mtu_cmd, "lsp-mtu (128-9213)$val",
       "Configure the maximum size of generated LSPs\n"
       "Maximum size of generated LSPs\n")
 {
@@ -920,7 +920,7 @@ DEFPY_YANG(area_lsp_mtu, area_lsp_mtu_cmd, "lsp-mtu (128-4352)$val",
 	return nb_cli_apply_changes(vty, NULL);
 }
 
-DEFPY_YANG(no_area_lsp_mtu, no_area_lsp_mtu_cmd, "no lsp-mtu [(128-4352)]",
+DEFPY_YANG(no_area_lsp_mtu, no_area_lsp_mtu_cmd, "no lsp-mtu [(128-9213)]",
       NO_STR
       "Configure the maximum size of generated LSPs\n"
       "Maximum size of generated LSPs\n")

@@ -1143,7 +1143,7 @@ module frr-isisd {
           "Configuration of Link-State Packets (LSP) parameters";
         leaf mtu {
           type uint16 {
-            range "128..4352";
+            range "128..9213";
           }
           default "1497";
           description
