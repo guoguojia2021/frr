@@ -639,6 +639,8 @@ static bool rnh_check_re_nexthops(const struct route_entry *re,
 
 	/* Check route's nexthops */
 	for (ALL_NEXTHOPS(re->nhe->nhg, nexthop)) {
+		if(CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+			continue;
 		if (rnh_nexthop_valid(re, nexthop))
 			break;
 	}
@@ -647,6 +649,8 @@ static bool rnh_check_re_nexthops(const struct route_entry *re,
 	if (nexthop == NULL && re->nhe->backup_info &&
 	    re->nhe->backup_info->nhe) {
 		for (ALL_NEXTHOPS(re->nhe->backup_info->nhe->nhg, nexthop)) {
+			if(CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_TUNNEL))
+				continue;
 			if (rnh_nexthop_valid(re, nexthop))
 				break;
 		}

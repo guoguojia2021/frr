@@ -3267,7 +3267,9 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			for (ALL_NEXTHOPS_PTR(nhg, newhop)) {
 				if (!nexthop_valid_resolve(nexthop, newhop))
 					continue;
-
+				if (newhop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+					|| newhop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
+					continue;
 				if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 					zlog_debug(
 						"%s: RECURSIVE match %p (%pNG), newhop %pNHv",
@@ -3276,12 +3278,8 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 
 				SET_FLAG(nexthop->flags,
 					 NEXTHOP_FLAG_RECURSIVE);
-				if (newhop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
-					|| newhop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
-					nexthop_seg_set_resolved(afi,
-								newhop, nexthop, NULL, 0);
-				else
-					resolver = nexthop_set_resolved(afi, newhop,
+
+				resolver = nexthop_set_resolved(afi, newhop,
 								nexthop, NULL);
 				resolved = 1;
 
@@ -3309,7 +3307,9 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 			for (ALL_NEXTHOPS_PTR(nhg, newhop)) {
 				if (!nexthop_valid_resolve(nexthop, newhop))
 					continue;
-
+				if (newhop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
+					|| newhop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
+					continue;
 				if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 					zlog_debug(
 						"%s: RECURSIVE match backup %p (%pNG), newhop %pNHv",
@@ -3318,12 +3318,7 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 
 				SET_FLAG(nexthop->flags,
 					 NEXTHOP_FLAG_RECURSIVE);
-				if (newhop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST
-					|| newhop->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
-					nexthop_seg_set_resolved(afi,
-							newhop, nexthop, NULL, 0);
-				else
-					nexthop_set_resolved(afi, newhop, nexthop,
+				nexthop_set_resolved(afi, newhop, nexthop,
 						     NULL);
 				resolved = 1;
 			}
