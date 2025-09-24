@@ -2170,7 +2170,7 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	from = pi->peer;
 	filter = &peer->filter[afi][safi];
 	bgp = SUBGRP_INST(subgrp);
-	piattr = bgp_dest_mpath_count(pi->net) > 1 ? bgp_dest_mpath_attr(pi->net) : pi->attr;
+	piattr = (bgp_dest_mpath_count(pi->net) > 1 && check_best_path) ? bgp_dest_mpath_attr(pi->net) : pi->attr;
 
 	if (CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MAX_PREFIX_OUT) &&
 	    peer->pmax_out[afi][safi] != 0 &&
