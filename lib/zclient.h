@@ -1385,6 +1385,8 @@ extern int zclient_send_zebra_gre_request(struct zclient *client,
 extern struct connected *zebra_interface_address_read_when_up(
 	int, struct stream *, vrf_id_t);
 
+extern void zapi_route_init(struct zapi_route *api);
+
 #ifdef __cplusplus
 }
 #endif

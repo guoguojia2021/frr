@@ -1500,7 +1500,6 @@ int zapi_route_encode(uint8_t cmd, struct stream *s, struct zapi_route *api)
 
 		for (i = 0; i < api->nexthop_num; i++) {
 			api_nh = &api->nexthops[i];
-
 			/* MPLS labels for BGP-LU or Segment Routing */
 			if (api_nh->label_num > MPLS_MAX_LABELS) {
 				flog_err(
@@ -1700,8 +1699,7 @@ int zapi_route_decode(struct stream *s, struct zapi_route *api)
 	struct zapi_nexthop *api_nh;
 	int i;
 
-	memset(api, 0, sizeof(*api));
-
+	zapi_route_init(api);
 	/* Type, flags, message. */
 	STREAM_GETC(s, api->type);
 	if (api->type >= ZEBRA_ROUTE_MAX) {
@@ -1787,7 +1785,8 @@ int zapi_route_decode(struct stream *s, struct zapi_route *api)
 				 __func__, api->nexthop_num);
 			return -1;
 		}
-
+		memset(api->nexthops, 0, sizeof(struct zapi_nexthop) *
+				api->nexthop_num);
 		for (i = 0; i < api->nexthop_num; i++) {
 			api_nh = &api->nexthops[i];
 
@@ -1807,7 +1806,8 @@ int zapi_route_decode(struct stream *s, struct zapi_route *api)
 				 __func__, api->backup_nexthop_num);
 			return -1;
 		}
-
+		memset(api->backup_nexthops, 0, sizeof(struct zapi_nexthop) *
+				api->backup_nexthop_num);
 		for (i = 0; i < api->backup_nexthop_num; i++) {
 			api_nh = &api->backup_nexthops[i];
 
@@ -4900,3 +4900,48 @@ struct connected *zebra_interface_address_read_when_up(int type, struct stream *
 
 }
 
+/**
+ * Initialize a zapi_route structure with default values.
+ *
+ * This function initializes all fields of the zapi_route structure to their
+ * default values, ensuring a clean starting point for route operations.
+ *
+ * @param api Pointer to the zapi_route structure to initialize
+ */
+void zapi_route_init(struct zapi_route *api)
+{
+	/* Initialize basic fields */
+	api->type = 0;
+	api->instance = 0;
+	api->flags = 0;
+	api->message = 0;
+	api->safi = SAFI_UNICAST;
+
+	/* Initialize prefixes */
+	memset(&api->prefix, 0, sizeof(api->prefix));
+	memset(&api->src_prefix, 0, sizeof(api->src_prefix));
+
+	/* Initialize nexthop information */
+	api->nexthop_num = 0;
+    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始化 */
+
+	/* Initialize backup nexthop information */
+	api->backup_nexthop_num = 0;
+    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始化 */
+
+	/* Initialize other fields */
+	api->nhgid = 0;
+	api->distance = 0;
+	api->srte_color_flag = 0;
+	api->metric = 0;
+	api->tag = 0;
+	api->mtu = 0;
+	api->vrf_id = VRF_DEFAULT;
+	api->tableid = 0;
+	api->srte_color = 0;
+	api->vrf_group = 0;
+
+	/* Initialize opaque data */
+	api->opaque.length = 0;
+	memset(api->opaque.data, 0, ZAPI_MESSAGE_OPAQUE_LENGTH);
+}

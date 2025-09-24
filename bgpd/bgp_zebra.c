@@ -1260,7 +1260,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			struct bgp_path_info *info, struct bgp *bgp, afi_t afi,
 			safi_t safi)
 {
-	struct zapi_route api = { 0 };
+	struct zapi_route api;
 	struct zapi_nexthop *api_nh;
 	int nh_family;
 	unsigned int valid_nh_count = 0;
@@ -1299,6 +1299,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 		return;
 	}
 
+	zapi_route_init(&api);
 	/*
 	 * vrf leaking support (will have only one nexthop)
 	 */
@@ -1411,6 +1412,7 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				continue;
 		}
 		api_nh = &api.nexthops[valid_nh_count];
+		memset(api_nh, 0, sizeof(*api_nh));
 
 		if (bgp_debug_zebra(&api.prefix)) {
 			if (mpinfo->extra) {
@@ -1807,7 +1809,7 @@ void bgp_zebra_withdraw(const struct prefix *p, struct bgp_path_info *info,
 		return;
 	}
 
-	memset(&api, 0, sizeof(api));
+	zapi_route_init(&api);
 	api.vrf_id = bgp->vrf_id;
 	api.type = ZEBRA_ROUTE_BGP;
 	api.safi = safi;
@@ -3857,7 +3859,7 @@ void bgp_zebra_announce_default(struct bgp *bgp, struct nexthop *nh,
 	if (afi != AFI_IP && afi != AFI_IP6)
 		return;
 	p.family = afi2family(afi);
-	memset(&api, 0, sizeof(api));
+	zapi_route_init(&api);
 	api.vrf_id = bgp->vrf_id;
 	api.type = ZEBRA_ROUTE_BGP;
 	api.safi = SAFI_UNICAST;
@@ -3867,6 +3869,7 @@ void bgp_zebra_announce_default(struct bgp *bgp, struct nexthop *nh,
 	SET_FLAG(api.message, ZAPI_MESSAGE_TABLEID);
 	SET_FLAG(api.message, ZAPI_MESSAGE_NEXTHOP);
 	api_nh = &api.nexthops[0];
+	memset(api_nh, 0, sizeof(*api_nh));
 
 	api.distance = ZEBRA_EBGP_DISTANCE_DEFAULT;
 	SET_FLAG(api.message, ZAPI_MESSAGE_DISTANCE);

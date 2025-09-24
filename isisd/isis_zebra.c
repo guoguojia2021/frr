@@ -180,6 +180,8 @@ static int isis_zebra_add_nexthops(struct isis *isis, struct list *nexthops,
 		if (count >= MULTIPATH_NUM)
 			break;
 		api_nh = &zapi_nexthops[count];
+		memset(api_nh, 0, sizeof(*api_nh));
+
 		if (fabricd)
 			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_ONLINK);
 		api_nh->vrf_id = isis->vrf_id;
@@ -272,7 +274,7 @@ void isis_zebra_route_add_route(struct isis *isis, struct prefix *prefix,
 		return;
 	}
 
-	memset(&api, 0, sizeof(api));
+	zapi_route_init(&api);
 	api.vrf_id = isis->vrf_id;
 	api.type = PROTO_TYPE;
 	api.safi = SAFI_UNICAST;
@@ -317,7 +319,7 @@ void isis_zebra_route_del_route(struct isis *isis,
 	if (zclient->sock < 0)
 		return;
 
-	memset(&api, 0, sizeof(api));
+	zapi_route_init(&api);
 	api.vrf_id = isis->vrf_id;
 	api.type = PROTO_TYPE;
 	api.safi = SAFI_UNICAST;
