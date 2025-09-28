@@ -14625,7 +14625,7 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 		if (p->connection->t_gr_restart)
 			vty_out(vty,
 				"    The remaining time of restart timer is %ld\n",
-				thread_timer_remain_second(p->t_gr_restart));
+				thread_timer_remain_second(p->connection->t_gr_restart));
 
 		if (p->connection->t_gr_stale)
 			vty_out(vty,

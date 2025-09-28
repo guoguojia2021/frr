@@ -1483,7 +1483,7 @@ void bgp_advertise_delay_end(struct peer *peer)
 		bgp_announce_route(peer, afi, safi, true);
 	}
 
-	BGP_TIMER_OFF(peer->t_routeadv);
+	BGP_TIMER_OFF(peer->connection->t_routeadv);
 	BGP_TIMER_ON(peer->connection->t_routeadv, bgp_routeadv_timer, 0);
 }
 

@@ -1769,8 +1769,6 @@ struct peer {
 
 	/* Threads. */
 
-	struct thread *t_routeadv;
-	struct thread *t_gr_restart;
 	struct thread *t_llgr_stale[AFI_MAX][SAFI_MAX];
 	struct thread *t_refresh_stalepath;
 	struct thread *t_adv_lprio; /* non-null when max-med onpeerup is on */
