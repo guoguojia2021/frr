@@ -8575,6 +8575,9 @@ static void peer_reset_message_stats(struct peer *peer)
  */
 int peer_clear(struct peer *peer, struct listnode **nnode)
 {
+	if (bgp_debug_neighbor_events(peer))
+		zlog_debug("%s: peer %pBP", __func__, peer);
+
 	if (!CHECK_FLAG(peer->flags, PEER_FLAG_SHUTDOWN)
 	    || !CHECK_FLAG(peer->bgp->flags, BGP_FLAG_SHUTDOWN)) {
 		if (peer_maximum_prefix_clear_overflow(peer))
@@ -9220,6 +9223,10 @@ void bgp_clearing_batch_completed(struct bgp_clearing_info *cinfo)
 	struct bgp_dest *dest;
 	struct bgp_clearing_dest *destinfo;
 	struct bgp_table *table;
+
+	if (bgp_debug_neighbor_events(NULL))
+		zlog_debug("%s: cinfo id %#x, %p, total %u", __func__, cinfo->id, cinfo,
+			   cinfo->total_counter);
 
 	/* Ensure event is not scheduled */
 	thread_cancel_event(bm->master, &cinfo->t_sched);
