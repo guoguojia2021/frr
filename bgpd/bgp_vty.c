@@ -140,9 +140,6 @@ enum show_type {
 	show_ipv6_peer
 };
 
-static struct peer_group *listen_range_exists(struct bgp *bgp,
-					      struct prefix *range, int exact);
-
 static void bgp_show_global_graceful_restart_mode_vty(struct vty *vty,
 						      struct bgp *bgp);
 
