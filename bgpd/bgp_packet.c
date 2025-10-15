@@ -123,6 +123,10 @@ void bgp_packet_set_size(struct stream *s)
 static void bgp_packet_add(struct peer_connection *connection,
 			   struct peer *peer, struct stream *s)
 {
+	if (s == NULL){
+		return;
+	}
+
 	frr_with_mutex(&connection->io_mtx) {
 		stream_fifo_push(connection->obuf, s);
 	}
@@ -562,10 +566,14 @@ int bgp_generate_updgrp_packets(struct thread *thread)
 			 * packet with appropriate attributes from peer
 			 * and advance peer */
 			s = bpacket_reformat_for_peer(next_pkt, paf);
-			size = stream_getw_from(s, BGP_MARKER_SIZE);
-			hook_call(bgp_packet_dump, peer, BGP_MSG_UPDATE, BMP_ADJ_OUT_POSTPOLICY, size, s);
+			if (s != NULL)
+			{
+				size = stream_getw_from(s, BGP_MARKER_SIZE);
+				hook_call(bgp_packet_dump, peer, BGP_MSG_UPDATE, BMP_ADJ_OUT_POSTPOLICY, size, s);
+			}
 			bgp_packet_add(connection, peer, s);
 			bpacket_queue_advance_peer(paf);
+
 		}
 	} while (s && (++generated < wpq));
 

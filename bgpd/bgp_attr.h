@@ -341,6 +341,8 @@ struct attr {
 
 	/* higher 16bits for vrf group, lower 16bits for position in vrf group */
 	uint32_t vrf_group;
+
+	union sockunion from;  /* Sockunion address of the peer. */
 };
 
 /* rmap_change_flags definition */
