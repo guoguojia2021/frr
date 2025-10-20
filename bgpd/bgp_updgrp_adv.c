@@ -912,8 +912,6 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 	afi_t afi;
 	safi_t safi;
 	char *high_rmap_name = NULL;
-	struct route_map *high_rmap = NULL;
-	struct route_map *final_rmap = NULL;
 
 	if (!subgrp)
 		return;
@@ -951,17 +949,23 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 
 	if (bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
 		high_rmap_name = BGP_HRMAP_DEFAULT_NAME(afi, safi, RMAP_OUT);
-		high_rmap = BGP_HRMAP_DEFAULT(afi, safi, RMAP_OUT);
 	} else if (bgp->inst_type == BGP_INSTANCE_TYPE_VRF){
 		high_rmap_name = BGP_HRMAP_VRF_NAME(afi, safi, RMAP_OUT);
-		high_rmap = BGP_HRMAP_VRF(afi, safi, RMAP_OUT);
 	}
-	if (high_rmap_name)
-		final_rmap = high_rmap;
-	else if (peer->default_rmap[afi][safi].name)
-		final_rmap = peer->default_rmap[afi][safi].map;
+	/* Constructing a default route specifically for a neighbor through a single
+	   pass of a route-map can be quite complex.
+	   Here, we consider using a high-priority policy exclusively for isolation purposes,
+	   without employing scenarios that match a default route within the high-priority policy.
+	   Therefore, it is determined that when using the high-priority policy, the default route will be withdrawn.
 
-	if (peer->default_rmap[afi][safi].name || high_rmap_name) {
+	   Thus, attention may be needed in the following scenarios:
+	   1.If you wish to still advertise the default route externally during isolation.
+	   2.If you are using the high-priority policy alone and there is no isolation requirement,
+	   there will still be an additional withdrawal of the default route. */
+	if (high_rmap_name) {
+		withdraw = 1;
+	}
+	else if (peer->default_rmap[afi][safi].name) {
 		struct bgp_path_info tmp_pi = {0};
 
 		tmp_pi.peer = bgp->peer_self;
@@ -984,7 +988,7 @@ void subgroup_default_originate(struct update_subgroup *subgrp, int withdraw)
 				tmp_pi.attr = &tmp_attr;
 
 				ret = route_map_apply_ext(
-					final_rmap,
+					peer->default_rmap[afi][safi].map,
 					bgp_dest_get_prefix(dest), pi, &tmp_pi);
 
 				if (ret == RMAP_DENYMATCH) {
