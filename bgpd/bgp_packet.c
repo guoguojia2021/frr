@@ -1882,7 +1882,11 @@ static int bgp_update_receive(struct peer_connection *connection,
 /* This define morphs the update case into a withdraw when lower levels
  * have signalled an error condition where this is best.
  */
-#define NLRI_ATTR_ARG (attr_parse_ret != BGP_ATTR_PARSE_WITHDRAW ? &attr : NULL)
+#define NLRI_ATTR_ARG                                                                             \
+	((attr_parse_ret != BGP_ATTR_PARSE_WITHDRAW &&                                            \
+	  attr_parse_ret != BGP_ATTR_PARSE_WITHDRAW_IGNORE)                                       \
+		 ? &attr                                                                          \
+		 : NULL)
 
 	/* Parse attribute when it exists. */
 	if (attribute_len) {
@@ -1896,9 +1900,9 @@ static int bgp_update_receive(struct peer_connection *connection,
 	}
 
 	/* Logging the attribute. */
-	if (attr_parse_ret == BGP_ATTR_PARSE_WITHDRAW
-	    || BGP_DEBUG(update, UPDATE_IN)
-	    || BGP_DEBUG(update, UPDATE_PREFIX)) {
+	if (attr_parse_ret == BGP_ATTR_PARSE_WITHDRAW ||
+	    attr_parse_ret == BGP_ATTR_PARSE_WITHDRAW_IGNORE || BGP_DEBUG(update, UPDATE_IN) ||
+	    BGP_DEBUG(update, UPDATE_PREFIX)) {
 		ret = bgp_dump_attr(&attr, peer->rcvd_attr_str,
 				    sizeof(peer->rcvd_attr_str));
 
