@@ -7008,7 +7008,7 @@ static void set_clearing_resume_info(struct bgp_clearing_info *cinfo,
 				     const struct bgp_table *table,
 				     const struct prefix *p, bool inner_p)
 {
-	if (bgp_debug_neighbor_events(NULL))
+	if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
 		zlog_debug("%s: %sinfo for %s/%s %pFX", __func__,
 			   inner_p ? "inner " : "", afi2str(table->afi),
 			   safi2str(table->safi), p);
@@ -7062,6 +7062,10 @@ static struct bgp_dest *clearing_dest_helper(struct bgp_table *table,
 		}
 	}
 
+
+	if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
+		zlog_debug("%s: returns dest %pBD", __func__, dest);
+
 	return dest;
 }
 
@@ -7103,6 +7107,11 @@ static int walk_batch_table_helper(struct bgp_clearing_info *cinfo,
 
 	/* Locate starting dest, possibly using "resume" info */
 	dest = clearing_dest_helper(table, cinfo, inner_p);
+
+	if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
+		zlog_debug("%s: table %s/%s, dest %pBD", __func__, afi2str(table->afi),
+			   safi2str(table->safi), dest);
+
 	if (dest == NULL) {
 		/* Nothing more to do for this table? */
 		return 0;
@@ -7148,7 +7157,7 @@ static int walk_batch_table_helper(struct bgp_clearing_info *cinfo,
 
 		if (cinfo->curr_counter >= bm->peer_clearing_batch_max_dests) {
 			/* Capture info about last dest seen and break */
-			if (bgp_debug_neighbor_events(NULL))
+			if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
 				zlog_debug("%s: %s/%s: pfx %pFX reached limit %u",
 					   __func__, afi2str(table->afi),
 					   safi2str(table->safi), &pfx,
@@ -7163,7 +7172,7 @@ static int walk_batch_table_helper(struct bgp_clearing_info *cinfo,
 	}
 
 	if (examined > 0) {
-		if (bgp_debug_neighbor_events(NULL))
+		if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
 			zlog_debug("%s: %s/%s: examined %u dests, processed %u paths",
 				   __func__, afi2str(table->afi),
 				   safi2str(table->safi), examined, processed);
@@ -7185,6 +7194,7 @@ static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo)
 	struct bgp_dest *dest;
 	struct bgp_table *table, *outer_table;
 	struct prefix pfx;
+	char pbuf[PREFIX_STRLEN];
 
 	/* Maybe resume afi/safi iteration */
 	if (CHECK_FLAG(cinfo->flags, BGP_CLEARING_INFO_FLAG_RESUME)) {
@@ -7195,13 +7205,17 @@ static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo)
 		safi = SAFI_UNICAST;
 	}
 
+	if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
+		zlog_debug("%s: AFI/SAFI %s/%s", __func__, afi2str(afi),
+			   safi2str(safi));
+
 	/* Iterate through afi/safi combos */
 	for (; afi < AFI_MAX; afi++) {
 		for (; safi < SAFI_MAX; safi++) {
 			/* Identify table to be examined: special handling
 			 * for some SAFIs
 			 */
-			if (bgp_debug_neighbor_events(NULL))
+			if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
 				zlog_debug("%s: examining AFI/SAFI %s/%s", __func__, afi2str(afi),
 					   safi2str(safi));
 
@@ -7230,6 +7244,18 @@ static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo)
 				/* Begin or resume iteration in "outer" table */
 				dest = clearing_dest_helper(outer_table, cinfo, false);
 
+				if (dest)
+					prefix_rd2str((struct prefix_rd *)(&dest->rn->p), pbuf,
+						      sizeof(pbuf));
+				else
+					strlcpy(pbuf, "NULL", sizeof(pbuf));
+
+				if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
+					zlog_debug("%s: outer table %s/%s starting dest %s",
+						   __func__, afi2str(outer_table->afi),
+						   safi2str(outer_table->safi), pbuf);
+
+
 				for (; dest; dest = bgp_route_next(dest)) {
 					table = bgp_dest_get_bgp_table_info(dest);
 					if (!table) {
@@ -7240,6 +7266,14 @@ static int clear_batch_rib_helper(struct bgp_clearing_info *cinfo)
 							   BGP_CLEARING_INFO_FLAG_RESUME);
 						continue;
 					}
+
+					prefix_rd2str((struct prefix_rd *)(&dest->rn->p), pbuf,
+						      sizeof(pbuf));
+
+					if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
+						zlog_debug("%s: outer table %s/%s, dest %s",
+							   __func__, afi2str(outer_table->afi),
+							   safi2str(outer_table->safi), pbuf);
 
 					/* Capture last prefix */
 					memcpy(&pfx, &dest->rn->p, sizeof(struct prefix));
@@ -7291,7 +7325,7 @@ void bgp_clear_route_batch(struct bgp_clearing_info *cinfo)
 {
 	int ret;
 
-	if (bgp_debug_neighbor_events(NULL))
+	if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
 		zlog_debug("%s: BGP %s, batch %u", __func__,
 			   cinfo->bgp->name_pretty, cinfo->id);
 
@@ -7306,7 +7340,7 @@ void bgp_clear_route_batch(struct bgp_clearing_info *cinfo)
 		/* Handle pause/resume for the walk: we've captured key info
 		 * in cinfo so we can resume later.
 		 */
-		if (bgp_debug_neighbor_events(NULL))
+		if (BGP_DEBUG(neighbor_events, NEIGHBOR_EVENTS_DETAIL))
 			zlog_debug("%s: reschedule cinfo at %s/%s, %pFX", __func__,
 				   afi2str(cinfo->last_afi),
 				   safi2str(cinfo->last_safi), &(cinfo->last_pfx));
