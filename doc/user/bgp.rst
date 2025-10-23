@@ -3289,13 +3289,16 @@ Debugging
 
    Enable or disable debugging of BGP conditional advertisement.
 
-.. clicmd:: debug bgp neighbor-events
+.. clicmd:: debug bgp neighbor-events [detail]
 
    Enable or disable debugging for neighbor events. This provides general
    information on BGP events such as peer connection / disconnection, session
    establishment / teardown, and capability negotiation.
 
-.. clicmd:: debug bgp updates
+   If ``detail`` is specified, the output will include extra context about state
+   transitions and related activity useful for deep troubleshooting of peer sessions.
+
+.. clicmd:: debug bgp updates [detail]
 
    Enable or disable debugging for BGP updates. This provides information on
    BGP UPDATE messages transmitted and received between local and remote
