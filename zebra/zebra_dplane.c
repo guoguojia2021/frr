@@ -4889,7 +4889,7 @@ int dplane_provider_register(const char *name,
 			     struct zebra_dplane_provider **prov_p)
 {
 	int ret = 0;
-	struct zebra_dplane_provider *p = NULL, *last;
+	struct zebra_dplane_provider *p = NULL, *last, *prev = NULL;
 
 	/* Validate */
 	if (fp == NULL) {
@@ -4932,10 +4932,14 @@ int dplane_provider_register(const char *name,
 	frr_each (dplane_prov_list, &zdplane_info.dg_providers, last) {
 		if (last->dp_priority > p->dp_priority)
 			break;
+		else
+			prev = last;
 	}
 
-	if (last)
-		dplane_prov_list_add_after(&zdplane_info.dg_providers, last, p);
+	if (last && prev != NULL)
+		dplane_prov_list_add_after(&zdplane_info.dg_providers, prev, p);
+	else if (last && prev == NULL)
+		dplane_prov_list_add_head(&zdplane_info.dg_providers, p);
 	else
 		dplane_prov_list_add_tail(&zdplane_info.dg_providers, p);
 
