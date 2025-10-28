@@ -454,6 +454,21 @@ DEFPY_YANG(set_overload_bit, set_overload_bit_cmd, "[no] set-overload-bit",
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFPY_YANG(set_overload_bit_advertise_high_metrics, set_overload_bit_advertise_high_metrics_cmd,
+	   "[no] set-overload-bit advertise-high-metrics",
+	   "Reset overload bit to accept transit traffic\n"
+	   "Set overload bit to avoid any transit traffic\n"
+	   "Advertise high metric value on all interfaces\n")
+{
+	nb_cli_enqueue_change(vty, "./overload/enabled", NB_OP_MODIFY,
+			      no ? "false" : "true");
+
+	nb_cli_enqueue_change(vty, "./advertise-high-metrics", NB_OP_MODIFY,
+			      no ? "false" : "true");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 void cli_show_isis_overload(struct vty *vty, const struct lyd_node *dnode,
 			    bool show_defaults)
 {
@@ -3390,6 +3405,7 @@ void isis_cli_init(void)
 	install_element(ISIS_NODE, &dynamic_hostname_cmd);
 
 	install_element(ISIS_NODE, &set_overload_bit_cmd);
+	install_element(ISIS_NODE, &set_overload_bit_advertise_high_metrics_cmd);
 	install_element(ISIS_NODE, &set_overload_bit_on_startup_cmd);
 	install_element(ISIS_NODE, &no_set_overload_bit_on_startup_cmd);
 
