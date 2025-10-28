@@ -1224,27 +1224,38 @@ static void peer_free(struct peer *peer)
 {
 	afi_t afi;
 	safi_t safi;
+	struct peer_connection *connection = peer->connection;
 
-	assert(peer->connection->status == Deleted);
+	assert(connection->status == Deleted);
 
 	QOBJ_UNREG(peer);
 
 	/* this /ought/ to have been done already through bgp_stop earlier,
 	 * but just to be sure..
 	 */
-	bgp_timer_set(peer->connection);
-	bgp_reads_off(peer->connection);
-	bgp_writes_off(peer->connection);
-	assert(!peer->connection->t_write);
-	assert(!peer->connection->t_read);
-	BGP_EVENT_FLUSH(peer->connection);
+	bgp_timer_set(connection);
+	bgp_reads_off(connection);
+	bgp_writes_off(connection);
+	THREAD_OFF(connection->t_start);
+	THREAD_OFF(connection->t_connect);
+	THREAD_OFF(connection->t_holdtime);
+	THREAD_OFF(connection->t_routeadv);
+	THREAD_OFF(connection->t_delayopen);
+	THREAD_OFF(connection->t_connect_check_r);
+	THREAD_OFF(connection->t_connect_check_w);
+	THREAD_OFF(connection->t_gr_restart);
+	THREAD_OFF(connection->t_gr_stale);
+	THREAD_OFF(connection->t_pmax_restart);
+	THREAD_OFF(connection->t_generate_updgrp_packets);
+
+	BGP_EVENT_FLUSH(connection);
+	assert(!connection->t_write);
+	assert(!connection->t_read);
 
 	/* Free connected nexthop, if present */
 	if (CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE)
 	    && !peer_dynamic_neighbor(peer))
-		bgp_delete_connected_nexthop(family2afi(peer->connection->su.sa
-								.sa_family),
-					     peer);
+		bgp_delete_connected_nexthop(family2afi(connection->su.sa.sa_family), peer);
 
 	FOREACH_AFI_SAFI (afi, safi) {
 		if (peer->filter[afi][safi].advmap.aname)
