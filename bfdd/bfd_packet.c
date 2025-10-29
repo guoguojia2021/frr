@@ -1339,8 +1339,10 @@ int bp_udp_shop(const struct vrf *vrf)
 		sd = vrf_socket(AF_INET, SOCK_DGRAM, PF_UNSPEC, vrf->vrf_id,
 				vrf->name);
 	}
-	if (sd == -1)
-		zlog_fatal("udp-shop: socket: %s", strerror(errno));
+	if (sd < 0) {
+		zlog_err("udp-shop: socket: %s", strerror(errno));
+		return sd;
+	}
 
 	bp_set_ipopts(sd);
 	bp_set_addr_reuse(sd, "bp_udp_shop");
@@ -1358,8 +1360,10 @@ int bp_udp_mhop(const struct vrf *vrf)
 		sd = vrf_socket(AF_INET, SOCK_DGRAM, PF_UNSPEC, vrf->vrf_id,
 				vrf->name);
 	}
-	if (sd == -1)
-		zlog_fatal("udp-mhop: socket: %s", strerror(errno));
+	if (sd < 0) {
+		zlog_err("udp-mhop: socket: %s", strerror(errno));
+		return sd;
+	}
 
 	bp_set_ipopts(sd);
 	bp_set_addr_reuse(sd, "bp_udp_mhop");
