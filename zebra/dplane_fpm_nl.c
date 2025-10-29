@@ -1098,7 +1098,7 @@ static int fpm_nhg_send_cb(struct hash_bucket *bucket, void *arg)
     int ret = HASHWALK_CONTINUE;
 
 	/* This entry was already sent, skip it. */
-	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FPM))
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FPM) || !CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_VALID))
 		return HASHWALK_CONTINUE;
 
     //zebra_nhg_install_kernel(nhe);
