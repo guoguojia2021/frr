@@ -3547,8 +3547,11 @@ void subgroup_announce_action (struct update_subgroup *subgrp,
  
 		memset(&attr, 0, sizeof(struct attr));
 		if (subgroup_announce_check(dest, second, subgrp, dest_p, pattr, post_attr, 0)) {
-			if (!bgp_adj_out_set_subgroup(dest, subgrp, pattr, second))
+			SET_FLAG(subgrp->sflags, SUBGRP_STATUS_FORCE_UPDATES);
+			if (!bgp_adj_out_set_subgroup(dest, subgrp, pattr, second)) {
+				UNSET_FLAG(subgrp->sflags, SUBGRP_STATUS_FORCE_UPDATES);
 				bgp_attr_flush(pattr);
+			}
 		} else {
 			bgp_adj_out_unset_subgroup(dest, subgrp, 1, addpath_tx_id, wait_addpath_tx_id);
 			bgp_attr_flush(pattr);
