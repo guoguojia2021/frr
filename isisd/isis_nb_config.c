@@ -2786,6 +2786,58 @@ int lib_interface_isis_bfd_monitoring_enabled_modify(
 	return NB_OK;
 }
 
+
+/*
+ * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/detection-multiplier
+ */
+int lib_interface_isis_bfd_monitoring_multiplier_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct isis_circuit *circuit;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	circuit = nb_running_get_entry(args->dnode, NULL, true);
+	circuit->bfd_config.detection_multiplier = yang_dnode_get_uint8(args->dnode, NULL);
+
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/desired-transmission-interval
+ */
+int lib_interface_isis_bfd_monitoring_tx_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct isis_circuit *circuit;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	circuit = nb_running_get_entry(args->dnode, NULL, true);
+	circuit->bfd_config.min_tx = yang_dnode_get_uint32(args->dnode, NULL);
+
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/required-receive-interval
+ */
+int lib_interface_isis_bfd_monitoring_rx_modify(
+	struct nb_cb_modify_args *args)
+{
+	struct isis_circuit *circuit;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	circuit = nb_running_get_entry(args->dnode, NULL, true);
+	circuit->bfd_config.min_rx = yang_dnode_get_uint32(args->dnode, NULL);
+
+	return NB_OK;
+}
+
 /*
  * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/profile
  */

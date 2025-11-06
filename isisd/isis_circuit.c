@@ -172,6 +172,10 @@ struct isis_circuit *isis_circuit_new(struct interface *ifp, const char *tag)
 	}
 #endif /* ifndef FABRICD */
 
+	circuit->bfd_config.detection_multiplier = 3;
+	circuit->bfd_config.min_rx = 300000;
+	circuit->bfd_config.min_tx = 300000;
+
 	circuit->is_type = circuit->is_type_config;
 
 	circuit_mt_init(circuit);

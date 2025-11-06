@@ -123,8 +123,8 @@ static void bfd_handle_adj_up(struct isis_adjacency *adj)
 	if (adj->bfd_session == NULL)
 		adj->bfd_session = bfd_sess_new(adj_bfd_cb, adj);
 
-	bfd_sess_set_timers(adj->bfd_session, BFD_DEF_DETECT_MULT,
-			    BFD_DEF_MIN_RX, BFD_DEF_MIN_TX);
+	bfd_sess_set_timers(adj->bfd_session, circuit->bfd_config.detection_multiplier,
+			    circuit->bfd_config.min_rx, circuit->bfd_config.min_tx);
 	if (family == AF_INET)
 		bfd_sess_set_ipv4_addrs(adj->bfd_session, &src_ip.ipv4,
 					&dst_ip.ipv4);

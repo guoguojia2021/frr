@@ -570,6 +570,27 @@ module frr-isisd {
         description
           "Let BFD use a pre-configured profile.";
       }
+      leaf detection-multiplier {
+        type uint8 {
+            range 2..255;
+          }
+        default 3;
+        description "Local session detection multiplier";
+      }
+
+      leaf desired-transmission-interval {
+        type uint32;
+        units microseconds;
+        default 300000;
+        description "Minimum desired control packet transmission interval";
+      }
+
+      leaf required-receive-interval {
+        type uint32;
+        units microseconds;
+        default 300000;
+        description "Minimum required control packet receive interval";
+      }
     }
 
     container csnp-interval {

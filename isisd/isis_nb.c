@@ -810,6 +810,24 @@ const struct frr_yang_module_info frr_isisd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/detection-multiplier",
+			.cbs = {
+				.modify = lib_interface_isis_bfd_monitoring_multiplier_modify,
+			}
+		},
+		{
+			.xpath = "/frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/desired-transmission-interval",
+			.cbs = {
+				.modify = lib_interface_isis_bfd_monitoring_tx_modify,
+			}
+		},
+		{
+			.xpath = "/frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/required-receive-interval",
+			.cbs = {
+				.modify = lib_interface_isis_bfd_monitoring_rx_modify,
+			}
+		},
+		{
 			.xpath = "/frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/profile",
 			.cbs = {
 				.modify = lib_interface_isis_bfd_monitoring_profile_modify,

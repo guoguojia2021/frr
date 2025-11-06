@@ -157,6 +157,12 @@ struct isis_circuit {
 	struct {
 		bool enabled;
 		char *profile;
+		/** Detection multiplier. */
+		uint8_t detection_multiplier;
+		/** Minimum required RX interval. */
+		uint32_t min_rx;
+		/** Minimum required TX interval. */
+		uint32_t min_tx;
 	} bfd_config;
 	struct ldp_sync_info *ldp_sync_info;
 	bool lfa_protection[ISIS_LEVELS];
