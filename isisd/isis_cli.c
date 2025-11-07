@@ -712,6 +712,29 @@ void cli_show_isis_domain_pwd(struct vty *vty, const struct lyd_node *dnode,
 }
 
 /*
+ * XPath: /frr-isisd:isis/instance/advertise-link-attributes
+ */
+DEFPY_YANG(advertise_link_attributes, advertise_link_attributes_cmd,
+	   "[no] advertise-link-attributes",
+	   NO_STR "Advertise link attribute TLVs in LSPs\n")
+{
+	nb_cli_enqueue_change(vty, "./advertise-link-attributes", NB_OP_MODIFY,
+			      no ? "false" : "true");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+void cli_show_advertise_link_attributes(struct vty *vty,
+				     const struct lyd_node *dnode,
+				     bool show_defaults)
+{
+	if (yang_dnode_get_bool(dnode, NULL))
+		vty_out(vty, " advertise-link-attributes\n");
+	else if (show_defaults)
+		vty_out(vty, " no advertise-link-attributes\n");
+}
+
+/*
  * XPath: /frr-isisd:isis/instance/lsp/timers/level-1/generation-interval
  * XPath: /frr-isisd:isis/instance/lsp/timers/level-2/generation-interval
  */
@@ -3377,6 +3400,7 @@ void isis_cli_init(void)
 	install_element(ISIS_NODE, &no_metric_style_cmd);
 
 	install_element(ISIS_NODE, &advertise_high_metrics_cmd);
+	install_element(ISIS_NODE, &advertise_link_attributes_cmd);
 
 	install_element(ISIS_NODE, &area_passwd_cmd);
 	install_element(ISIS_NODE, &domain_passwd_cmd);

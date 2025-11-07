@@ -3501,6 +3501,31 @@ void isis_area_lsp_refresh_set(struct isis_area *area, int level,
 	lsp_regenerate_schedule(area, level, 1);
 }
 
+void isis_area_advertise_link_attributes_set(struct isis_area *area,
+					  bool advertise_link_attributes)
+{
+
+	struct listnode *node;
+	struct isis_circuit *circuit;
+
+	if (area->advertise_link_attributes == advertise_link_attributes)
+		return;
+
+	if (advertise_link_attributes) {
+			/* Update Extended TLVs according to Interface link parameters */
+		for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+			isis_link_params_update(circuit, circuit->interface);
+		area->advertise_link_attributes = true;
+	} else {
+		for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit)) {
+			isis_del_ext_subtlvs(circuit->ext);
+			circuit->ext = NULL;
+		}
+		area->advertise_link_attributes = false;
+	}
+	lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 0);
+}
+
 #ifdef FABRICD
 DEFUN (log_adj_changes,
        log_adj_changes_cmd,

@@ -184,9 +184,11 @@ void isis_link_params_update(struct isis_circuit *circuit,
 	struct isis_ext_subtlvs *ext;
 
 	/* Check if TE is enable or not */
-	if (!circuit->area || !IS_MPLS_TE(circuit->area->mta))
+	if (!circuit->area)
 		return;
 
+	if (!circuit->area->advertise_link_attributes && !IS_MPLS_TE(circuit->area->mta))
+		return;
 	/* Sanity Check */
 	if (ifp == NULL)
 		return;
@@ -204,7 +206,7 @@ void isis_link_params_update(struct isis_circuit *circuit,
 	ext = circuit->ext;
 
 	/* Fulfill Extended subTLVs from interface link parameters */
-	if (HAS_LINK_PARAMS(ifp)) {
+	if (HAS_LINK_PARAMS(ifp) || circuit->area->advertise_link_attributes) {
 		/* STD_TE metrics */
 		if (IS_PARAM_SET(ifp->link_params, LP_ADM_GRP)) {
 			ext->adm_group = ifp->link_params->admin_grp;

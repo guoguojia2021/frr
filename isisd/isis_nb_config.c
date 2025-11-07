@@ -433,6 +433,24 @@ int isis_instance_purge_originator_modify(struct nb_cb_modify_args *args)
 }
 
 /*
+ * XPath: /frr-isisd:isis/instance/advertise-link-attributes
+ */
+int isis_instance_advertise_link_attributes_modify(struct nb_cb_modify_args *args)
+{
+	struct isis_area *area;
+	bool advertise_link_attributes;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	advertise_link_attributes = yang_dnode_get_bool(args->dnode, NULL);
+	area = nb_running_get_entry(args->dnode, NULL, true);
+	isis_area_advertise_link_attributes_set(area, advertise_link_attributes);
+
+	return NB_OK;
+}
+
+/*
  * XPath: /frr-isisd:isis/instance/lsp/mtu
  */
 int isis_instance_lsp_mtu_modify(struct nb_cb_modify_args *args)
