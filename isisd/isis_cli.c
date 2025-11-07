@@ -31,6 +31,7 @@
 #include "libfrr.h"
 #include "yang.h"
 #include "lib/linklist.h"
+#include "lib/bfd.h"
 #include "isisd/isisd.h"
 #include "isisd/isis_nb.h"
 #include "isisd/isis_misc.h"
@@ -333,18 +334,17 @@ void cli_show_ip_isis_bfd_monitoring(struct vty *vty,
 			vty_out(vty, " no isis bfd\n");
 	} else {
 		vty_out(vty, " isis bfd");
-		if (yang_dnode_exists(dnode, "detection-multiplier")) {
-			vty_out(vty, " %u",
-				yang_dnode_get_uint8(dnode, "detection-multiplier"));
-			vty_out(vty, " %u",
-				yang_dnode_get_uint32(dnode, "desired-transmission-interval"));
-			vty_out(vty, " %u",
-				yang_dnode_get_uint32(dnode, "required-receive-interval"));
-			vty_out(vty, "\n");
+		uint8_t detection_multiplier = yang_dnode_get_uint8(dnode, "detection-multiplier");
+		uint32_t desired_tx = yang_dnode_get_uint32(dnode, "desired-transmission-interval");
+		uint32_t required_rx = yang_dnode_get_uint32(dnode, "required-receive-interval");
+
+		if (detection_multiplier != BFD_DEF_DETECT_MULT || desired_tx != BFD_DEF_MIN_TX || required_rx != BFD_DEF_MIN_RX) {
+			vty_out(vty, " %u", detection_multiplier);
+			vty_out(vty, " %u", required_rx);
+			vty_out(vty, " %u", desired_tx);
 		}
-
+		vty_out(vty, "\n");
 	}
-
 	if (yang_dnode_exists(dnode, "profile"))
 		vty_out(vty, " isis bfd profile %s\n",
 			yang_dnode_get_string(dnode, "profile"));

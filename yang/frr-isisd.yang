@@ -581,14 +581,14 @@ module frr-isisd {
       leaf desired-transmission-interval {
         type uint32;
         units microseconds;
-        default 300000;
+        default 300;
         description "Minimum desired control packet transmission interval";
       }
 
       leaf required-receive-interval {
         type uint32;
         units microseconds;
-        default 300000;
+        default 300;
         description "Minimum required control packet receive interval";
       }
     }

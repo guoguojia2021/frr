@@ -2766,6 +2766,11 @@ void lib_interface_isis_bfd_monitoring_apply_finish(
 	struct isis_circuit *circuit;
 
 	circuit = nb_running_get_entry(args->dnode, NULL, true);
+	if (!circuit->bfd_config.enabled) {
+		circuit->bfd_config.detection_multiplier = BFD_DEF_DETECT_MULT;
+		circuit->bfd_config.min_tx = BFD_DEF_MIN_TX;
+		circuit->bfd_config.min_rx = BFD_DEF_MIN_RX;
+	}
 	isis_bfd_circuit_cmd(circuit);
 }
 

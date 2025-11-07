@@ -39,6 +39,7 @@
 #include "stream.h"
 #include "qobj.h"
 #include "lib/northbound_cli.h"
+#include "lib/bfd.h"
 
 #include "isisd/isis_constants.h"
 #include "isisd/isis_common.h"
@@ -172,9 +173,9 @@ struct isis_circuit *isis_circuit_new(struct interface *ifp, const char *tag)
 	}
 #endif /* ifndef FABRICD */
 
-	circuit->bfd_config.detection_multiplier = 3;
-	circuit->bfd_config.min_rx = 300000;
-	circuit->bfd_config.min_tx = 300000;
+	circuit->bfd_config.detection_multiplier = BFD_DEF_DETECT_MULT;
+	circuit->bfd_config.min_rx = BFD_DEF_MIN_RX;
+	circuit->bfd_config.min_tx = BFD_DEF_MIN_TX;
 
 	circuit->is_type = circuit->is_type_config;
 
