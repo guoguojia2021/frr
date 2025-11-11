@@ -3615,6 +3615,7 @@ static inline void zread_ipset(ZAPI_HANDLER_ARGS)
 		STREAM_GETL(s, zpi.type);
 		STREAM_GETC(s, zpi.family);
 		STREAM_GET(&zpi.ipset_name, s, ZEBRA_IPSET_NAME_SIZE);
+		STREAM_GETC(s, zpi.table);
 
 		if (hdr->command == ZEBRA_IPSET_CREATE)
 			zebra_pbr_create_ipset(&zpi);
@@ -3869,6 +3870,13 @@ static inline void zread_iptable(ZAPI_HANDLER_ARGS)
 	STREAM_GETL(s, zpi->type);
 	STREAM_GETL(s, zpi->filter_bm);
 	STREAM_GETL(s, zpi->action);
+	if (zpi->action == ZEBRA_IPTABLES_TRAFFICRATE) {
+		uint32_t rate_as_uint32;
+		STREAM_GETL(s, rate_as_uint32);
+		memcpy(&zpi->rate, &rate_as_uint32, sizeof(zpi->rate));
+	} else if (zpi->action == ZEBRA_IPTABLES_MARKING) {
+		STREAM_GETC(s, zpi->marking_dscp);
+	}
 	STREAM_GETL(s, zpi->fwmark);
 	STREAM_GET(&zpi->ipset_name, s, ZEBRA_IPSET_NAME_SIZE);
 	STREAM_GETC(s, zpi->family);

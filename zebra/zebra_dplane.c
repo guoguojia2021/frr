@@ -2281,6 +2281,8 @@ void dplane_ctx_get_pbr_ipset(const struct zebra_dplane_ctx *ctx,
 		memset(ipset, 0, sizeof(struct zebra_pbr_ipset));
 		ipset->type = ctx->u.ipset_entry.info.type;
 		ipset->family = ctx->u.ipset_entry.info.family;
+		ipset->table = ctx->u.ipset_entry.info.table;
+
 		memcpy(&ipset->ipset_name, &ctx->u.ipset_entry.info.ipset_name,
 		       ZEBRA_IPSET_NAME_SIZE);
 	} else
@@ -3035,7 +3037,9 @@ static int dplane_ctx_iptable_init(struct zebra_dplane_ctx *ctx,
 			dplane_op2str(op), iptable->unique, iptable->fwmark,
 			family2str(iptable->family),
 			iptable->action == ZEBRA_IPTABLES_DROP ? "Drop"
-							       : "Forward");
+							       : ZEBRA_IPTABLES_MARKING ? "Remark-dscp"
+								   : ZEBRA_IPTABLES_TRAFFICRATE ? "Traffic-rate"
+								   : "Forward");
 	}
 
 	ctx->zd_op = op;
@@ -3123,6 +3127,7 @@ dplane_ctx_ipset_entry_init(struct zebra_dplane_ctx *ctx, enum dplane_op_e op,
 	ctx->u.ipset_entry.entry.backpointer = NULL;
 	ctx->u.ipset_entry.info.type = ipset->type;
 	ctx->u.ipset_entry.info.family = ipset->family;
+	ctx->u.ipset_entry.info.table = ipset->table;
 	memcpy(&ctx->u.ipset_entry.info.ipset_name, &ipset->ipset_name,
 	       ZEBRA_IPSET_NAME_SIZE);
 

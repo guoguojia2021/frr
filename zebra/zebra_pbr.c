@@ -20,7 +20,8 @@
  */
 
 #include <zebra.h>
-
+#include <float.h>
+#include <math.h>
 #include <jhash.h>
 #include <hash.h>
 #include <memory.h>
@@ -413,7 +414,9 @@ uint32_t zebra_pbr_iptable_hash_key(const void *arg)
 	key = jhash_1word(iptable->protocol, key);
 	key = jhash_1word(iptable->fragment, key);
 	key = jhash_1word(iptable->vrf_id, key);
-
+	key = jhash_1word(iptable->rate, key);
+	key = jhash_1word(iptable->marking_dscp, key);
+	key = jhash_1word(iptable->action, key);
 	return jhash_3words(iptable->filter_bm, iptable->type,
 			    iptable->unique, key);
 }
@@ -435,7 +438,8 @@ bool zebra_pbr_iptable_hash_equal(const void *arg1, const void *arg2)
 		return false;
 	if (r1->fwmark != r2->fwmark)
 		return false;
-	if (r1->action != r2->action)
+	if (r1->action != r2->action || r1->marking_dscp != r2->marking_dscp || 
+	    fabs(r1->rate - r2->rate) > FLT_EPSILON)
 		return false;
 	if (strncmp(r1->ipset_name, r2->ipset_name,
 		    ZEBRA_IPSET_NAME_SIZE))
@@ -559,6 +563,8 @@ void zebra_pbr_process_iptable(struct zebra_dplane_ctx *ctx)
 		dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_SUCCESS);
 	else
 		dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_FAILURE);
+
+	dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_SUCCESS);
 }
 
 void zebra_pbr_process_ipset(struct zebra_dplane_ctx *ctx)
@@ -578,6 +584,8 @@ void zebra_pbr_process_ipset(struct zebra_dplane_ctx *ctx)
 		dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_SUCCESS);
 	else
 		dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_FAILURE);
+
+	dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_SUCCESS);
 }
 
 void zebra_pbr_process_ipset_entry(struct zebra_dplane_ctx *ctx)
@@ -601,6 +609,8 @@ void zebra_pbr_process_ipset_entry(struct zebra_dplane_ctx *ctx)
 		dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_SUCCESS);
 	else
 		dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_FAILURE);
+
+	dplane_ctx_set_status(ctx, ZEBRA_DPLANE_REQUEST_SUCCESS);
 }
 
 static void zebra_pbr_cleanup_rules(struct hash_bucket *b, void *data)

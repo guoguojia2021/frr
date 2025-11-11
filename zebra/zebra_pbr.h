@@ -72,6 +72,7 @@ struct zebra_pbr_ipset_info {
 
 	uint8_t family;
 
+	uint8_t table; /* FILTER_TABLE or MANGLE_TABLE */
 	char ipset_name[ZEBRA_IPSET_NAME_SIZE];
 };
 
@@ -92,6 +93,10 @@ struct zebra_pbr_ipset {
 	uint32_t type;
 
 	uint8_t family;
+
+#define FILTER_TABLE 0
+#define MANGLE_TABLE 1
+	uint8_t table;
 
 	char ipset_name[ZEBRA_IPSET_NAME_SIZE];
 };
@@ -155,6 +160,10 @@ struct zebra_pbr_iptable {
 	uint32_t fwmark;
 
 	uint32_t action;
+	
+	float rate;
+
+	uint8_t marking_dscp;
 
 	uint16_t pkt_len_min;
 	uint16_t pkt_len_max;

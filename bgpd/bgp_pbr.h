@@ -126,6 +126,8 @@ struct bgp_pbr_entry_main {
 #define PROTOCOL_TCP 6
 #define PROTOCOL_ICMP 1
 #define PROTOCOL_ICMPV6 58
+#define PROTOCOL_IPIP 4
+#define PROTOCOL_IPV6 41
 	struct bgp_pbr_match_val protocol[BGP_PBR_MATCH_VAL_MAX];
 	struct bgp_pbr_match_val src_port[BGP_PBR_MATCH_VAL_MAX];
 	struct bgp_pbr_match_val dst_port[BGP_PBR_MATCH_VAL_MAX];
@@ -252,6 +254,9 @@ struct bgp_pbr_action {
 	uint32_t table_id;
 
 	float rate;
+	uint8_t marking_dscp;
+	/* used to store enum bgp_pbr_action_enum enumerate */
+	uint8_t action;
 
 	/*
 	 * nexthop information, or drop information

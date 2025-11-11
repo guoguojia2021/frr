@@ -782,6 +782,14 @@ AC_ARG_ENABLE([zebra_unit_testing],
 AC_ARG_ENABLE([netlink-debug],
   AS_HELP_STRING([--disable-netlink-debug], [pretty print netlink debug messages]))
 
+AC_ARG_ENABLE([gtest],
+              [AS_HELP_STRING([--enable-gtest],
+                              [enable gtest unit tests])],
+              [enable_gtest=$enableval],
+              [enable_gtest=no])
+
+AM_CONDITIONAL([ENABLE_GTEST], [test "$enable_gtest" = "yes"])
+
 if test "$enable_netlink_debug" != "no" ; then
   AC_DEFINE([NETLINK_DEBUG], [1], [Netlink extra debugging code])
 fi
@@ -1327,6 +1335,27 @@ dnl ##########################################################################
 dnl LARGE if block spans a lot of "configure"!
 if test "$enable_clippy_only" != "yes"; then
 dnl ##########################################################################
+
+# Checks for libnftnl
+PKG_CHECK_MODULES([NFTNL], [libnftnl])
+
+if test "x$have_gtest" = "xyes" && test "x$have_gtest_main" = "xyes"; then
+    AC_DEFINE([HAVE_GTEST], [1], [Define if Google Test is available])
+    enable_tests=yes
+else
+    AC_MSG_WARN([Google Test not found, unit tests will be disabled])
+    enable_tests=no
+fi
+
+PKG_CHECK_MODULES([GTEST], [gtest >= 1.8.0], 
+    [have_gtest=yes], 
+    [have_gtest=no])
+
+PKG_CHECK_MODULES([GTEST_MAIN], [gtest_main >= 1.8.0], 
+    [have_gtest_main=yes], 
+    [have_gtest_main=no])
+
+AM_CONDITIONAL([HAVE_GTEST], [test "x$enable_tests" = "xyes"])
 
 #
 # Logic for protobuf support.

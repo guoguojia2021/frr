@@ -52,7 +52,11 @@
 #include "zebra/rt_netlink.h"
 #include "zebra/rt_protobuf.h"
 #include "zebra/debug.h"
-
+#include <linux/netfilter.h>
+#include "zebra/zebra_pbr.h"
+#include "zebra/nf_netlink.h"
+#include <stdio.h>
+#include <string.h>
 #define SOUTHBOUND_DEFAULT_ADDR INADDR_LOOPBACK
 #define SOUTHBOUND_DEFAULT_PORT 2620
 
@@ -889,6 +893,54 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
 		nl_buf_len += (size_t)rv;
 		break;
 
+	case DPLANE_OP_IPTABLE_ADD:
+	case DPLANE_OP_IPTABLE_DELETE:
+	{
+		struct zebra_pbr_iptable ipt;
+		dplane_ctx_get_pbr_iptable(ctx, &ipt);
+
+		rv = netlink_nft_rule_msg_encode(op == DPLANE_OP_IPTABLE_ADD, &ipt, nl_buf);
+		if (rv <= 0) {
+			zlog_err("%s: netlink_nft_rule_msg_encode failed",
+				 __func__);
+			return 0;
+		}
+		nl_buf_len = (size_t)rv;
+		break;
+	}
+	case DPLANE_OP_IPSET_ADD:
+	case DPLANE_OP_IPSET_DELETE:
+	{
+		struct zebra_pbr_ipset ip_set;
+    	dplane_ctx_get_pbr_ipset(ctx, &ip_set);
+
+		rv = netlink_nft_set_msg_encode(op == DPLANE_OP_IPSET_ADD, &ip_set, nl_buf);
+
+		if (rv <= 0) {
+			zlog_err("%s: netlink_nft_set_msg_encode failed",
+				 __func__);
+			return 0;
+		}
+		nl_buf_len = (size_t)rv;
+		break;
+	}
+	case DPLANE_OP_IPSET_ENTRY_ADD:
+	case DPLANE_OP_IPSET_ENTRY_DELETE:
+	{
+		struct zebra_pbr_ipset_entry entry;
+    	dplane_ctx_get_pbr_ipset_entry(ctx, &entry);
+		struct zebra_pbr_ipset ipset;
+		dplane_ctx_get_pbr_ipset(ctx, &ipset);
+
+		rv = netlink_nft_setelem_msg_encode(op == DPLANE_OP_IPSET_ENTRY_ADD, &entry, &ipset, nl_buf);
+		if (rv <= 0) {
+			zlog_err("%s: netlink_nft_setelem_msg_encode failed",
+				 __func__);
+			return 0;
+		}
+		nl_buf_len = (size_t)rv;
+		break;
+	}
 	case DPLANE_OP_PW_INSTALL:
 	case DPLANE_OP_PW_UNINSTALL:
 	case DPLANE_OP_ADDR_INSTALL:

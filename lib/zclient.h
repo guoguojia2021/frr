@@ -73,11 +73,12 @@ typedef uint16_t zebra_size_t;
  */
 #define ZEBRA_IPSET_NAME_SIZE   32
 
-/* IPTable action is defined by two values: either
- * forward or drop
+/* iptables action is defined by 4 values: forward, drop, set-rate, set-dscp
  */
 #define ZEBRA_IPTABLES_FORWARD 0
 #define ZEBRA_IPTABLES_DROP    1
+#define ZEBRA_IPTABLES_TRAFFICRATE   	2
+#define ZEBRA_IPTABLES_MARKING 			3
 
 /* Zebra FEC register command flags. */
 #define ZEBRA_FEC_REGISTER_LABEL          0x1

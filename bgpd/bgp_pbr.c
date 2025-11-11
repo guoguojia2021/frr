@@ -17,6 +17,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <float.h>
+#include <math.h>
 #include "zebra.h"
 #include "prefix.h"
 #include "zclient.h"
@@ -288,7 +290,9 @@ static void bgp_pbr_policyroute_add_to_zebra_unit(struct bgp *bgp,
 						  struct bgp_path_info *path,
 						  struct bgp_pbr_filter *bpf,
 						  struct nexthop *nh,
-						  float *rate);
+						  float *rate,
+						  uint8_t *marking_dscp,
+						  uint8_t action);
 
 static void bgp_pbr_dump_entry(struct bgp_pbr_filter *bpf, bool add);
 
@@ -540,7 +544,9 @@ static int bgp_pbr_validate_policy_route(struct bgp_pbr_entry_main *api)
 	    api->protocol[0].value != PROTOCOL_UDP &&
 	    api->protocol[0].value != PROTOCOL_ICMP &&
 	    api->protocol[0].value != PROTOCOL_ICMPV6 &&
-	    api->protocol[0].value != PROTOCOL_TCP) {
+	    api->protocol[0].value != PROTOCOL_TCP &&
+	    api->protocol[0].value != PROTOCOL_IPIP &&
+	    api->protocol[0].value != PROTOCOL_IPV6) {
 		if (BGP_DEBUG(pbr, PBR))
 			zlog_debug("BGP: match protocol operations:protocol (%d) not supported. ignoring",
 				   api->match_protocol_num);
@@ -964,6 +970,27 @@ int bgp_pbr_build_and_validate_entry(const struct prefix *p,
 		api->actions[0].action = ACTION_TRAFFICRATE;
 	}
 
+	if (api->type == BGP_PBR_IPRULE && path && path->attr) {
+		ecom = path->attr->ecommunity;
+		if (ecom) {
+			for (i = 0; i < ecom->size; i++) {
+				if (api->actions[i].action != ACTION_REDIRECT_IP) {
+					api->type = BGP_PBR_IPSET;
+					break;
+				}
+			}
+		}
+		ecom = bgp_attr_get_ipv6_ecommunity(path->attr);
+		if (ecom) {
+			for (i = 0; i < ecom->size; i++) {
+				if (api->actions[i].action != ACTION_REDIRECT_IP) {
+					api->type = BGP_PBR_IPSET;
+					break;
+				}
+			}
+		}
+	}
+
 	/* validate if incoming matc/action is compatible
 	 * with our policy routing engine
 	 */
@@ -1294,6 +1321,9 @@ uint32_t bgp_pbr_action_hash_key(const void *arg)
 	key = jhash_1word(pbra->table_id, 0x4312abde);
 	key = jhash_1word(pbra->fwmark, key);
 	key = jhash_1word(pbra->afi, key);
+	key = jhash_1word(pbra->action, key);
+	key = jhash_1word(pbra->rate, key);
+	key = jhash_1word(pbra->marking_dscp, key);
 	return key;
 }
 
@@ -1312,6 +1342,15 @@ bool bgp_pbr_action_hash_equal(const void *arg1, const void *arg2)
 		return false;
 
 	if (r1->afi != r2->afi)
+		return false;
+
+	if (r1->action != r2->action)
+		return false;
+
+	if (fabs(r1->rate - r2->rate) > FLT_EPSILON)
+		return false;
+
+	if (r1->marking_dscp != r2->marking_dscp)
 		return false;
 
 	return nexthop_same(&r1->nh, &r2->nh);
@@ -1925,6 +1964,9 @@ static void bgp_pbr_policyroute_remove_from_zebra_unit(
 	}
 	temp2.proto = bpf->protocol;
 
+	if (bpf->protocol)
+		temp.flags |= MATCH_PROTOCOL_SET;
+
 	if (pkt_len) {
 		temp.pkt_len_min = pkt_len->min_port;
 		if (pkt_len->max_port)
@@ -2012,7 +2054,7 @@ static uint8_t bgp_pbr_next_type_entry(uint8_t type_entry)
 static void bgp_pbr_icmp_action(struct bgp *bgp, struct bgp_path_info *path,
 				struct bgp_pbr_filter *bpf,
 				struct bgp_pbr_or_filter *bpof, bool add,
-				struct nexthop *nh, float *rate)
+				struct nexthop *nh, float *rate, uint8_t *marking_dscp, uint8_t action)
 {
 	struct bgp_pbr_range_port srcp, dstp;
 	struct bgp_pbr_val_mask *icmp_type, *icmp_code;
@@ -2038,7 +2080,7 @@ static void bgp_pbr_icmp_action(struct bgp *bgp, struct bgp_path_info *path,
 			dstp.min_port = icmp_code->val;
 			if (add)
 				bgp_pbr_policyroute_add_to_zebra_unit(
-					bgp, path, bpf, nh, rate);
+					bgp, path, bpf, nh, rate, marking_dscp, action);
 			else
 				bgp_pbr_policyroute_remove_from_zebra_unit(
 					bgp, path, bpf);
@@ -2058,7 +2100,7 @@ static void bgp_pbr_icmp_action(struct bgp *bgp, struct bgp_path_info *path,
 			dstp.max_port = 255;
 			if (add)
 				bgp_pbr_policyroute_add_to_zebra_unit(
-					bgp, path, bpf, nh, rate);
+					bgp, path, bpf, nh, rate, marking_dscp, action);
 			else
 				bgp_pbr_policyroute_remove_from_zebra_unit(
 					bgp, path, bpf);
@@ -2068,7 +2110,7 @@ static void bgp_pbr_icmp_action(struct bgp *bgp, struct bgp_path_info *path,
 			dstp.min_port = icmp_code->val;
 			if (add)
 				bgp_pbr_policyroute_add_to_zebra_unit(
-					bgp, path, bpf, nh, rate);
+					bgp, path, bpf, nh, rate, marking_dscp, action);
 			else
 				bgp_pbr_policyroute_remove_from_zebra_unit(
 					bgp, path, bpf);
@@ -2109,7 +2151,7 @@ static void bgp_pbr_policyroute_remove_from_zebra_recursive(
 	} else if (type_entry == FLOWSPEC_ICMP_TYPE &&
 		   (bpof->icmp_type || bpof->icmp_code)) {
 		/* enumerate list for icmp - must be last one  */
-		bgp_pbr_icmp_action(bgp, path, bpf, bpof, false, NULL, NULL);
+		bgp_pbr_icmp_action(bgp, path, bpf, bpof, false, NULL, NULL, NULL, -1);
 		return;
 	} else {
 		bgp_pbr_policyroute_remove_from_zebra_recursive(
@@ -2272,7 +2314,9 @@ static void bgp_pbr_policyroute_add_to_zebra_unit(struct bgp *bgp,
 						  struct bgp_path_info *path,
 						  struct bgp_pbr_filter *bpf,
 						  struct nexthop *nh,
-						  float *rate)
+						  float *rate,
+						  uint8_t *marking_dscp,
+						  uint8_t action)
 {
 	struct bgp_pbr_match temp;
 	struct bgp_pbr_match_entry temp2;
@@ -2302,8 +2346,12 @@ static void bgp_pbr_policyroute_add_to_zebra_unit(struct bgp *bgp,
 
 	/* look for bpa first */
 	memset(&temp3, 0, sizeof(temp3));
+	
+	temp3.action = action;
 	if (rate)
 		temp3.rate = *rate;
+	if (marking_dscp)
+		temp3.marking_dscp = *marking_dscp;
 	if (nh)
 		memcpy(&temp3.nh, nh, sizeof(struct nexthop));
 	temp3.vrf_id = bpf->vrf_id;
@@ -2313,28 +2361,32 @@ static void bgp_pbr_policyroute_add_to_zebra_unit(struct bgp *bgp,
 
 	if (nh)
 		vrf = vrf_lookup_by_id(nh->vrf_id);
-	if (bpa->fwmark == 0) {
-		/* drop is handled by iptable */
-		if (nh && nh->type == NEXTHOP_TYPE_BLACKHOLE) {
-			bpa->table_id = 0;
-			bpa->installed = true;
-		} else {
-			bpa->fwmark = bgp_zebra_tm_get_id();
-			/* if action is redirect-vrf, then
-			 * use directly table_id of vrf
-			 */
-			if (nh && vrf && !vrf_is_backend_netns()
-			    && bpf->vrf_id != vrf->vrf_id)
-				bpa->table_id = vrf->data.l.table_id;
-			else
-				bpa->table_id = bpa->fwmark;
-			bpa->installed = false;
-		}
+	
+	// bpa for ip_rule hasn't been set up
+	if (bpa->fwmark == 0 && bpf->type == BGP_PBR_IPRULE) {
+		bpa->fwmark = bgp_zebra_tm_get_id();
+		/* if action is redirect-vrf, then
+		* use directly table_id of vrf
+		*/
+		if (nh && vrf && !vrf_is_backend_netns()
+			&& bpf->vrf_id != vrf->vrf_id)
+			bpa->table_id = vrf->data.l.table_id;
+		else
+			bpa->table_id = bpa->fwmark;
 		bpa->bgp = bgp;
 		bpa->unique = ++bgp_pbr_action_counter_unique;
 		/* 0 value is forbidden */
 		bpa->install_in_progress = false;
 	}
+
+	// bpa for iptables hasn't been set up
+	if (bpa->unique == 0 && bpf->type == BGP_PBR_IPSET) {
+		bpa->table_id = 0;  // not for routing
+		bpa->bgp = bgp;
+		bpa->unique = ++bgp_pbr_action_counter_unique;
+		bpa->installed = true;
+	}
+
 	if (bpf->type == BGP_PBR_IPRULE) {
 		memset(&pbr_rule, 0, sizeof(pbr_rule));
 		pbr_rule.vrf_id = bpf->vrf_id;
@@ -2541,8 +2593,6 @@ static void bgp_pbr_policyroute_add_to_zebra_unit(struct bgp *bgp,
 	 * a policy will be added, then ifan ecmp policy exists,
 	 * it will be suppressed subsequently
 	 */
-	/* ip rule add */
-	bgp_pbr_bpa_add(bpa);
 
 	/* ipset create */
 	if (!bpm->installed)
@@ -2576,7 +2626,7 @@ static void bgp_pbr_policyroute_add_to_zebra_unit(struct bgp *bgp,
 
 static void bgp_pbr_policyroute_add_to_zebra_recursive(
 	struct bgp *bgp, struct bgp_path_info *path, struct bgp_pbr_filter *bpf,
-	struct bgp_pbr_or_filter *bpof, struct nexthop *nh, float *rate,
+	struct bgp_pbr_or_filter *bpof, struct nexthop *nh, float *rate, uint8_t *marking_dscp, uint8_t action,
 	uint8_t type_entry)
 {
 	struct listnode *node, *nnode;
@@ -2586,7 +2636,7 @@ static void bgp_pbr_policyroute_add_to_zebra_recursive(
 	struct bgp_pbr_val_mask **target_val;
 
 	if (type_entry == 0) {
-		bgp_pbr_policyroute_add_to_zebra_unit(bgp, path, bpf, nh, rate);
+		bgp_pbr_policyroute_add_to_zebra_unit(bgp, path, bpf, nh, rate, marking_dscp, action);
 		return;
 	}
 	next_type_entry = bgp_pbr_next_type_entry(type_entry);
@@ -2605,17 +2655,17 @@ static void bgp_pbr_policyroute_add_to_zebra_recursive(
 	} else if (type_entry == FLOWSPEC_ICMP_TYPE &&
 		   (bpof->icmp_type || bpof->icmp_code)) {
 		/* enumerate list for icmp - must be last one  */
-		bgp_pbr_icmp_action(bgp, path, bpf, bpof, true, nh, rate);
+		bgp_pbr_icmp_action(bgp, path, bpf, bpof, true, nh, rate, marking_dscp, action);
 		return;
 	} else {
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, next_type_entry);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, next_type_entry);
 		return;
 	}
 	for (ALL_LIST_ELEMENTS(orig_list, node, nnode, valmask)) {
 		*target_val = valmask;
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, next_type_entry);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, next_type_entry);
 	}
 }
 
@@ -2623,29 +2673,29 @@ static void bgp_pbr_policyroute_add_to_zebra(struct bgp *bgp,
 					     struct bgp_path_info *path,
 					     struct bgp_pbr_filter *bpf,
 					     struct bgp_pbr_or_filter *bpof,
-					     struct nexthop *nh, float *rate)
+					     struct nexthop *nh, float *rate, uint8_t *marking_dscp, uint8_t action)
 {
 	if (!bpof) {
-		bgp_pbr_policyroute_add_to_zebra_unit(bgp, path, bpf, nh, rate);
+		bgp_pbr_policyroute_add_to_zebra_unit(bgp, path, bpf, nh, rate, marking_dscp, action);
 		return;
 	}
 	if (bpof->tcpflags)
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, FLOWSPEC_TCP_FLAGS);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, FLOWSPEC_TCP_FLAGS);
 	else if (bpof->dscp)
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, FLOWSPEC_DSCP);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, FLOWSPEC_DSCP);
 	else if (bpof->pkt_len)
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, FLOWSPEC_PKT_LEN);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, FLOWSPEC_PKT_LEN);
 	else if (bpof->fragment)
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, FLOWSPEC_FRAGMENT);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, FLOWSPEC_FRAGMENT);
 	else if (bpof->icmp_type || bpof->icmp_code)
 		bgp_pbr_policyroute_add_to_zebra_recursive(
-			bgp, path, bpf, bpof, nh, rate, FLOWSPEC_ICMP_TYPE);
+			bgp, path, bpf, bpof, nh, rate, marking_dscp, action, FLOWSPEC_ICMP_TYPE);
 	else
-		bgp_pbr_policyroute_add_to_zebra_unit(bgp, path, bpf, nh, rate);
+		bgp_pbr_policyroute_add_to_zebra_unit(bgp, path, bpf, nh, rate, marking_dscp, action);
 	/* flush bpof */
 	if (bpof->tcpflags)
 		list_delete_all_node(bpof->tcpflags);
@@ -2668,6 +2718,7 @@ static void bgp_pbr_handle_entry(struct bgp *bgp, struct bgp_path_info *path,
 	int i = 0;
 	int continue_loop = 1;
 	float rate = 0;
+	uint8_t marking_dscp = 0;
 	struct prefix *src = NULL, *dst = NULL;
 	uint8_t proto = 0;
 	struct bgp_pbr_range_port *srcp = NULL, *dstp = NULL;
@@ -2690,10 +2741,9 @@ static void bgp_pbr_handle_entry(struct bgp *bgp, struct bgp_path_info *path,
 	    (api->type == BGP_PBR_IPRULE &&
 	     api->match_bitmask_iprule & PREFIX_DST_PRESENT))
 		dst = &api->dst_prefix;
-	if (api->type == BGP_PBR_IPRULE)
-		bpf.type = api->type;
-	memset(&nh, 0, sizeof(struct nexthop));
-	nh.vrf_id = VRF_UNKNOWN;
+	
+	bpf.type = api->type;
+
 	if (api->match_protocol_num) {
 		proto = (uint8_t)api->protocol[0].value;
 		if (api->afi == AF_INET6 && proto == IPPROTO_ICMPV6)
@@ -2814,22 +2864,14 @@ static void bgp_pbr_handle_entry(struct bgp *bgp, struct bgp_path_info *path,
 	}
 	/* no action for add = true */
 	for (i = 0; i < api->action_num; i++) {
+		memset(&nh, 0, sizeof(struct nexthop));
+		nh.vrf_id = VRF_UNKNOWN;
 		switch (api->actions[i].action) {
 		case ACTION_TRAFFICRATE:
-			/* drop packet */
-			if (api->actions[i].u.r.rate == 0) {
-				nh.vrf_id = api->vrf_id;
-				nh.type = NEXTHOP_TYPE_BLACKHOLE;
-				bgp_pbr_policyroute_add_to_zebra(
-					bgp, path, &bpf, &bpof, &nh, &rate);
-			} else {
-				/* update rate. can be reentrant */
+			{
 				rate = api->actions[i].u.r.rate;
-				if (BGP_DEBUG(pbr, PBR)) {
-					bgp_pbr_print_policy_route(api);
-					zlog_warn("PBR: ignoring Set action rate %f",
-						  api->actions[i].u.r.rate);
-				}
+				bgp_pbr_policyroute_add_to_zebra(
+					bgp, path, &bpf, &bpof, NULL, &rate, NULL, ACTION_TRAFFICRATE);
 			}
 			break;
 		case ACTION_TRAFFIC_ACTION:
@@ -2857,7 +2899,7 @@ static void bgp_pbr_handle_entry(struct bgp *bgp, struct bgp_path_info *path,
 				       sizeof(struct in6_addr));
 			}
 			bgp_pbr_policyroute_add_to_zebra(bgp, path, &bpf, &bpof,
-							 &nh, &rate);
+							 &nh, NULL, NULL, ACTION_REDIRECT_IP);
 			/* XXX combination with REDIRECT_VRF
 			 * + REDIRECT_NH_IP not done
 			 */
@@ -2870,15 +2912,13 @@ static void bgp_pbr_handle_entry(struct bgp *bgp, struct bgp_path_info *path,
 				nh.type = NEXTHOP_TYPE_IPV6;
 			nh.vrf_id = api->actions[i].u.redirect_vrf;
 			bgp_pbr_policyroute_add_to_zebra(bgp, path, &bpf, &bpof,
-							 &nh, &rate);
+							 &nh, NULL, NULL, ACTION_REDIRECT);
 			continue_loop = 0;
 			break;
 		case ACTION_MARKING:
-			if (BGP_DEBUG(pbr, PBR)) {
-				bgp_pbr_print_policy_route(api);
-				zlog_warn("PBR: Set DSCP/FlowLabel %u Ignored",
-					  api->actions[i].u.marking_dscp);
-			}
+			marking_dscp = api->actions[i].u.marking_dscp;
+			bgp_pbr_policyroute_add_to_zebra(bgp, path, &bpf, &bpof,
+							 NULL, NULL, &marking_dscp, ACTION_MARKING);
 			break;
 		default:
 			break;

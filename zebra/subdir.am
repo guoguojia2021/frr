@@ -196,6 +196,7 @@ noinst_HEADERS += \
 	zebra/zserv.h \
 	zebra/zebra_db.h \
 	zebra/zebra_common.h \
+	zebra/nf_netlink.h \
 	# end
 
 zebra_zebra_SOURCES = zebra/main.c
@@ -251,8 +252,10 @@ if LINUX
 module_LTLIBRARIES += zebra/dplane_fpm_nl.la
 zebra_dplane_fpm_nl_la_SOURCES = zebra/rt_protobuf.c
 zebra_dplane_fpm_nl_la_SOURCES += zebra/dplane_fpm_nl.c
+zebra_dplane_fpm_nl_la_SOURCES += zebra/nf_netlink.c
 zebra_dplane_fpm_nl_la_LDFLAGS = $(MODULE_LDFLAGS)
-zebra_dplane_fpm_nl_la_LIBADD  = fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS)
+zebra_dplane_fpm_nl_la_LIBADD  = fpm/libfrrfpm_pb.la qpb/libfrr_pb.la $(PROTOBUF_C_LIBS) $(NFTNL_LIBS)
+zebra_dplane_fpm_nl_la_CFLAGS = $(AM_CFLAGS) $(NFTNL_CFLAGS)
 
 endif
 
@@ -261,4 +264,3 @@ zebra_libzebra_a_SOURCES += \
 	zebra/debug_nl.c \
 	# end
 endif
-

@@ -11,13 +11,13 @@ ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 RUN apt update && \
     apt-get install -y \
       git autoconf automake libtool make libreadline-dev texinfo \
-      pkg-config libpam0g-dev libjson-c-dev bison flex python3-pip \
+      pkgconf libpam0g-dev libjson-c-dev bison flex python3-pip \
       libc-ares-dev python3-dev python3-sphinx \
       install-info build-essential libsnmp-dev perl \
       libcap-dev python2 libelf-dev \
       sudo gdb curl iputils-ping time \
       lua5.3 liblua5.3-dev lcov vim \
-      net-tools iproute2
+      net-tools iproute2 libmnl0 libmnl-dev
 
 COPY docker/ubuntu20-ci/get-pip.py /home/
 

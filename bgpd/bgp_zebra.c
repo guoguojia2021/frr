@@ -1805,7 +1805,11 @@ void bgp_zebra_withdraw(const struct prefix *p, struct bgp_path_info *info,
 
 	if (safi == SAFI_FLOWSPEC) {
 		peer = info->peer;
-		bgp_pbr_update_entry(peer->bgp, p, info, AFI_IP, safi, false);
+		afi_t afi = AFI_IP;
+		uint8_t family = p->u.prefix_flowspec.family;
+		if (family == AF_INET6)
+			afi = AFI_IP6;
+		bgp_pbr_update_entry(peer->bgp, p, info, afi, safi, false);
 		return;
 	}
 
@@ -2809,6 +2813,13 @@ static void bgp_encode_pbr_ipset_match(struct stream *s,
 	stream_putc(s, pbim->family);
 	stream_put(s, pbim->ipset_name,
 		   ZEBRA_IPSET_NAME_SIZE);
+	#define FILTER_TABLE 0
+	#define MANGLE_TABLE 1
+	if (pbim->action->action == ACTION_MARKING)
+		stream_putc(s, MANGLE_TABLE);
+	else
+		stream_putc(s, FILTER_TABLE);
+
 }
 
 static void bgp_encode_pbr_ipset_entry_match(struct stream *s,
@@ -2848,8 +2859,20 @@ static void bgp_encode_pbr_iptable_match(struct stream *s,
 	 * into bgp_pbr_action.
 	 * currently only forward supported
 	 */
-	if (bpa->nh.type == NEXTHOP_TYPE_BLACKHOLE)
+	if (bpa->action == ACTION_TRAFFICRATE && bpa->rate == 0.0)
 		stream_putl(s, ZEBRA_IPTABLES_DROP);
+	else if (bpa->action == ACTION_TRAFFICRATE)
+	{
+		stream_putl(s, ZEBRA_IPTABLES_TRAFFICRATE);
+		uint32_t rate_as_uint32;
+		memcpy(&rate_as_uint32, &bpa->rate, sizeof(bpa->rate));
+		stream_putl(s, rate_as_uint32);
+	}
+	else if (bpa->action == ACTION_MARKING)
+	{
+		stream_putl(s, ZEBRA_IPTABLES_MARKING);
+		stream_putc(s, bpa->marking_dscp);
+	}
 	else
 		stream_putl(s, ZEBRA_IPTABLES_FORWARD);
 	stream_putl(s, bpa->fwmark);
