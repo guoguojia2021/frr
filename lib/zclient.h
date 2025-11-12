@@ -702,6 +702,16 @@ struct zapi_srv6te_tunnel {
 	struct zapi_srv6_active_sidlist sidlists_old[ZEBRA_SID_LIST_MAX_NUM];
 };
 
+struct zapi_srte_binding_sid {
+	struct ipaddr sid_v6;
+	uint8_t block_bits_length;
+	uint8_t node_bits_length;
+	uint8_t function_bits_length;
+	uint8_t argument_bits_length;
+	enum srv6_format format;
+	uint8_t compress;
+};
+
 struct zapi_sr_policy {
 	uint32_t color;
 	struct prefix endpoint;
@@ -710,7 +720,7 @@ struct zapi_sr_policy {
 	struct zapi_srte_tunnel segment_list;
 	/*srv6 tunnel*/
 	struct zapi_srv6te_tunnel srv6_tunnel;
-	struct ipaddr binding_v6sid;
+	struct zapi_srte_binding_sid bsid;
 	int status;
 };
 

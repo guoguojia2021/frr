@@ -302,7 +302,7 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy)
 	zp.endpoint = policy->endpoint;
 	strlcpy(zp.name, policy->name, sizeof(zp.name));
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
-	zp.binding_v6sid = policy->binding_v6_sid;
+	zp.bsid.sid_v6 = policy->binding_v6_sid;
 	zp.srv6_tunnel.path_num = 0;
 
 	char endpoint[46], binding_sid[46];
@@ -337,7 +337,7 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 	zp.endpoint = policy->endpoint;
 	strlcpy(zp.name, policy->name, sizeof(zp.name));
 	zp.tunnel_type = SRTE_TUNNEL_TYPE_SRV6;
-	zp.binding_v6sid = policy->binding_v6_sid;
+	zp.bsid.sid_v6 = policy->binding_v6_sid;
 	zp.srv6_tunnel.path_num = 0;
 	//policy->status = SRTE_POLICY_STATUS_DOWN;
 

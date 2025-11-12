@@ -3698,9 +3698,6 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
     
 	stream_putc(s, zp->tunnel_type);
 
-	stream_putw(s, zp->binding_v6sid.ipa_type);
-	stream_write(s, (uint8_t *)&zp->binding_v6sid.ipaddr_v6, sizeof(struct in6_addr));
-
 	stream_putc(s, zt->path_num);
 
 	for (uint32_t i = 0; i < zt->path_num; i++)
@@ -3710,6 +3707,15 @@ int zapi_srv6_policy_encode(struct stream *s, int cmd, struct zapi_sr_policy *zp
 		stream_putl(s, zt->sidlists[i].my_discriminator);
 		stream_putc(s, zt->sidlists[i].weight);
 	}
+
+	stream_putw(s, zp->bsid.sid_v6.ipa_type);
+	stream_write(s, (uint8_t *)&zp->bsid.sid_v6.ipaddr_v6, sizeof(struct in6_addr));
+	stream_putc(s, zp->bsid.block_bits_length);
+	stream_putc(s, zp->bsid.node_bits_length);
+	stream_putc(s, zp->bsid.function_bits_length);
+	stream_putc(s, zp->bsid.argument_bits_length);
+	stream_putc(s, zp->bsid.format);
+	stream_putc(s, zp->bsid.compress);
 
 	/* Put length at the first point of the stream. */
 	stream_putw_at(s, 0, stream_get_endp(s));
@@ -3731,8 +3737,6 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 
 	/* segment list of active candidate path */
 	STREAM_GETC(s, zp->tunnel_type);
-    STREAM_GETW(s, zp->binding_v6sid.ipa_type);
-	STREAM_GET(&zp->binding_v6sid.ipaddr_v6, s, sizeof(struct in6_addr));
 
 	STREAM_GETC(s, zp->srv6_tunnel.path_num);
 	for (uint32_t i = 0; i < zt->path_num; i++)
@@ -3742,6 +3746,15 @@ int zapi_srv6_policy_decode(struct stream *s, struct zapi_sr_policy *zp)
 		STREAM_GETL(s, zt->sidlists[i].my_discriminator);
 		STREAM_GETC(s, zt->sidlists[i].weight);
 	}
+
+	STREAM_GETW(s, zp->bsid.sid_v6.ipa_type);
+	STREAM_GET(&zp->bsid.sid_v6.ipaddr_v6, s, sizeof(struct in6_addr));
+	STREAM_GETC(s, zp->bsid.block_bits_length);
+	STREAM_GETC(s, zp->bsid.node_bits_length);
+	STREAM_GETC(s, zp->bsid.function_bits_length);
+	STREAM_GETC(s, zp->bsid.argument_bits_length);
+	STREAM_GETC(s, zp->bsid.format);
+	STREAM_GETC(s, zp->bsid.compress);
 
 	return 0;
 
