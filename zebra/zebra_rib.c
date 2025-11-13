@@ -59,6 +59,9 @@
 #include "zebra/zebra_dplane.h"
 #include "zebra/zebra_evpn_mh.h"
 #include "zebra/zebra_script.h"
+#include "zebra/zebra_srte.h"
+#include "zebra/zebra_db.h"
+#include "lib/srv6.h"
 
 DEFINE_MGROUP(ZEBRA, "zebra");
 
@@ -588,6 +591,7 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 			struct route_entry *old)
 {
 	struct nexthop *nexthop;
+	struct zebra_sr_policy *policy = NULL;
 	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	struct zebra_vrf *zvrf = vrf_info_lookup(re->vrf_id);
 	const struct prefix *p, *src_p;
@@ -607,8 +611,26 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 	/*
 	 * Install the resolved nexthop object first.
 	 */
-	if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
+	if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_SEGMENTLIST)) {
 		zebra_nhg_seg_install_kernel(re->nhe);
+		if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_BSID)) {
+			nexthop = re->nhe->nhg.nexthop;
+			policy = zebra_sr_policy_match_by_nexthop(nexthop);
+			if (policy) {
+				struct seg6local_context ctx = {};
+				ctx.block_bits_length = policy->binding_v6_sid.block_bits_length;
+				ctx.node_bits_length = policy->binding_v6_sid.node_bits_length;
+				ctx.function_bits_length = policy->binding_v6_sid.function_bits_length;
+				ctx.argument_bits_length = policy->binding_v6_sid.argument_bits_length;
+				ctx.nexthop_groupid = re->nhe->id;
+				zebra_Db_Set_SRV6_BSID_LOCAL_SID(&rn->p.u.prefix6,  ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP, &ctx);
+			}
+			dest->selected_fib = re;
+			SET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);
+			return;
+		}
+
+	}
 	else
 		zebra_nhg_install_kernel(re->nhe);
 
@@ -685,6 +707,12 @@ void rib_uninstall_kernel(struct route_node *rn, struct route_entry *re)
 		UNSET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);
 		for (ALL_NEXTHOPS(re->nhe->nhg, nexthop))
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_FIB);
+		return;
+	}
+
+	if (CHECK_FLAG(re->nhe->flags, NEXTHOP_GROUP_BSID)) {
+		zebra_Db_Del_SRV6_BSID_LOCAL_SID(&rn->p.u.prefix6, rn->p.prefixlen);
+		UNSET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);
 		return;
 	}
 

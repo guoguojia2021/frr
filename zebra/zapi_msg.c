@@ -2842,7 +2842,7 @@ void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 			endpoint, policy->color, new_flag ? "create" : "update");
 	}
 
-    zebra_srv6_policy_validate(policy, &zp.srv6_tunnel, new_flag);
+    zebra_srv6_policy_validate(policy, &zp, new_flag);
 }
 
 void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
@@ -2868,6 +2868,9 @@ void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 		prefix2str(&zp.endpoint, endpoint, sizeof(endpoint));
 		zlog_debug("%s: endpoint %s, color %u",__func__, endpoint, policy->color);
 	}
+	memcpy(&policy->binding_v6_sid, &zp.bsid, sizeof(struct zapi_srte_binding_sid));
+
+	zebra_binding_sid_route_del(policy, &zp);
     zebra_sr_policy_delete_by_prefix(policy);
 }
 

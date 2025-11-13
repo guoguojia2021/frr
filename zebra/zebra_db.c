@@ -308,6 +308,8 @@ static const char *local_action2str(enum seg6local_action_t action)
             return "end.dt6";
         case ZEBRA_SEG6_LOCAL_ACTION_END_DT4:
             return "end.dt4";
+        case ZEBRA_SEG6_LOCAL_ACTION_END_B6:
+            return "end.b6";
         case ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP:
             return "end.b6.encaps";
         case ZEBRA_SEG6_LOCAL_ACTION_END_DT46:
@@ -798,5 +800,214 @@ void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct
 
 }
 
+void zebra_Db_Set_SRV6_BSID_LOCAL_SID(const struct in6_addr *bsid,  enum seg6local_action_t act, const struct seg6local_context *ctx)
+{
+    int ret;
+    char key[ZEBRA_DB_MAX_KEY_LEN + 24] = {0};
+    char field[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
+    char set_key[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char set_value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
+    char channel[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char dbErrMsg[100] = {0};
+    char G[] = "G";
+
+    DB_FieldValue_List *pstDataLst_head = NULL;
+    DB_FieldValue_List *pstDataLst_block_len = NULL;
+    DB_FieldValue_List *pstDataLst_node_len = NULL;
+    DB_FieldValue_List *pstDataLst_func_len = NULL;
+    DB_FieldValue_List *pstDataLst_argu_len = NULL;
+    DB_FieldValue_List *pstDataLst_action = NULL;
+    DB_FieldValue_List *pstDataLst_groupid = NULL;
+
+    char my_local_sid[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    struct prefix p = {};
+
+    p.family = AF_INET6;
+    p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
+    p.u.prefix6 = *bsid;
+    prefix2str(&p, my_local_sid, ZEBRA_DB_MAX_KEY_LEN);
+
+    if (!g_bZebraRedisInUse_appdb) {
+        zlog_err("redis err, redis app db handle init failed");
+        return;
+    }
+
+    /* block len */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "block_len");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->block_bits_length);
+    pstDataLst_block_len = create_DB_Data(key, field, value);
+    if (pstDataLst_block_len == NULL)
+    {
+        zlog_err("create block len field segment failed.");
+        return;
+    }
+    pstDataLst_head = pstDataLst_block_len;
+
+    /* node len */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "node_len");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->node_bits_length);
+    pstDataLst_node_len = create_DB_Data(key, field, value);
+    if (pstDataLst_node_len == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create node len field segment failed.");
+        return;
+    }
+    pstDataLst_block_len->next = pstDataLst_node_len;
+
+    /* func_len */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "func_len");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->function_bits_length);
+    pstDataLst_func_len = create_DB_Data(key, field, value);
+    if (pstDataLst_func_len == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create func len field segment failed.");
+        return;
+    }
+    pstDataLst_node_len->next = pstDataLst_func_len;
+
+    /* argu len */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "argu_len");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->argument_bits_length);
+    pstDataLst_argu_len = create_DB_Data(key, field, value);
+    if (pstDataLst_argu_len == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create argu len field segment failed.");
+        return;
+    }
+    pstDataLst_func_len->next = pstDataLst_argu_len;
+
+    /* action */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "action");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%s", local_action2str(act));
+    pstDataLst_action = create_DB_Data(key, field, value);
+    if (pstDataLst_action == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create action field segment failed.");
+        return;
+    }
+    pstDataLst_argu_len->next = pstDataLst_action;
 
 
+    /* nexthop_groupid */
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN + 24, "_%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    snprintf(field, ZEBRA_DB_MAX_KEY_LEN, "nexthop_group");
+    snprintf(value, ZEBRA_DB_MAX_VALUE_LEN, "%u", ctx->nexthop_groupid);
+    pstDataLst_groupid = create_DB_Data(key, field, value);
+    if (pstDataLst_groupid == NULL)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("create groupid field segment failed.");
+        return;
+    }
+    pstDataLst_action->next = pstDataLst_groupid;
+
+
+    ret = g_zebra_redis_appdb.redis_Db_SetKeyAndFValue(key, pstDataLst_head, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetKeyAndFValue error code : %d", ret);
+        destroy_DB_Data(pstDataLst_head);
+        return;
+    }
+
+    /*sadd KEY_SET*/
+    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);
+    snprintf(set_value, ZEBRA_DB_MAX_VALUE_LEN, "%s", my_local_sid);
+    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd error code : %d", ret);
+        return;
+    }
+
+    snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
+    zlog_debug("redis publishMsg channel : %s", channel);
+    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
+    if (ret)
+    {
+        destroy_DB_Data(pstDataLst_head);
+        zlog_err("redis_PublishMsg error code : %d", ret);
+        return;
+    }
+
+    destroy_DB_Data(pstDataLst_head);
+    return;
+}
+
+void zebra_Db_Del_SRV6_BSID_LOCAL_SID(const struct in6_addr *result_sid, const uint16_t prefixlen)
+{
+    int ret;
+    char key[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char set_key[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char set_value[ZEBRA_DB_MAX_VALUE_LEN] = {0};
+    char channel[ZEBRA_DB_MAX_KEY_LEN] = {0};
+    char dbErrMsg[100] = {0};
+    DB_Key_List item = {0};
+    char G[] = "G";
+
+    if (!g_bZebraRedisInUse_appdb) {
+        zlog_err("redis err, redis app db handle init failed");
+        return;
+    }
+
+    char my_local_sid[ZEBRA_DB_MAX_SID_LEN] = {0};
+    struct prefix p = {};
+
+    p.family = AF_INET6;
+    p.prefixlen = prefixlen;
+    p.u.prefix6 = *result_sid;
+    prefix2str(&p, my_local_sid, ZEBRA_DB_MAX_SID_LEN);
+
+    /* del key*/
+    snprintf(key, ZEBRA_DB_MAX_KEY_LEN, "%s:%s", SRV6_MY_SID_TABLE, my_local_sid);
+    item.next = NULL;
+    item.key = key;
+
+    ret = g_zebra_redis_appdb.redis_Db_DelKeyLst(&item, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_DelKeyLst error code : %d", ret);
+        return;
+    }
+
+    /*sadd DEL_SET*/
+    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_DEL_SET", SRV6_MY_SID_TABLE);
+    snprintf(set_value, ZEBRA_DB_MAX_VALUE_LEN, "%s", my_local_sid);
+    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd DEL_SET error code : %d", ret);
+        return;
+    }
+
+    /*sadd KEY_SET*/
+    snprintf(set_key, ZEBRA_DB_MAX_KEY_LEN, "%s_KEY_SET", SRV6_MY_SID_TABLE);
+    ret = g_zebra_redis_appdb.redis_Db_SetSadd(set_key, set_value, dbErrMsg, sizeof(dbErrMsg), REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_Db_SetSadd KEY_SET error code : %d", ret);
+        return;
+    }
+
+    /*publish*/
+    snprintf(channel, ZEBRA_DB_MAX_KEY_LEN, "%s_CHANNEL@%s", SRV6_MY_SID_TABLE, TAG);
+    zlog_debug("redis publishMsg channel : %s", channel);
+    ret = g_zebra_redis_appdb.redis_PublishMsg(channel, G, REDIS_APP_DB);
+    if (ret)
+    {
+        zlog_err("redis_PublishMsg error code : %d", ret);
+    }
+
+    return;
+
+}

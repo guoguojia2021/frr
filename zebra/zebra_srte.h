@@ -44,7 +44,7 @@ struct zebra_sr_policy {
 	/* Binding SID */
 	mpls_label_t binding_sid;
 	/* Binding Srv6 Sid*/
-	struct ipaddr binding_v6_sid;
+	struct zapi_srte_binding_sid binding_v6_sid;
 	uint32_t color;
 	//struct ipaddr endpoint;
 	uint8_t type;
@@ -99,7 +99,7 @@ extern int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr
 extern void zebra_sr_policy_notify_update(struct rnh *rnh, struct zebra_sr_policy *policy, struct zserv *zclient);
 extern int zebra_sr_policy_notify_unknown(struct rnh *rnh, struct zserv *client);
 extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
-                     struct zapi_srv6te_tunnel *new_tunnel, bool new_flag);
+                     struct zapi_sr_policy *zp, bool new_flag);
 
 extern struct zebra_sr_policy *zebra_sr_policy_add_by_prefix(struct prefix *p, uint32_t color, char *name);
 
@@ -112,6 +112,16 @@ extern void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, uint
 extern int zebra_sr_policy_label_update_walk(struct hash_bucket *hb, void *arg);
 extern void zebra_free_sr_table(struct route_table *table);
 extern struct route_table *zebra_srte_table_create(afi_t afi, uint32_t color);
+extern void zebra_binding_sid_route_add(struct zebra_sr_policy *policy, struct zapi_sr_policy *zp);
+extern void zebra_binding_sid_route_del(struct zebra_sr_policy *policy, struct zapi_sr_policy *zp);
+extern void zebra_bsid_route_add(struct zebra_sr_policy *policy,
+						struct zapi_sr_policy *zp,
+						enum seg6local_action_t act,
+						struct seg6local_context *ctx);
+extern void zebra_bsid_route_del(struct zebra_sr_policy *policy,
+						struct zapi_sr_policy *zp,
+						enum seg6local_action_t act,
+						struct seg6local_context *ctx);
 
 #ifdef __cplusplus
 }

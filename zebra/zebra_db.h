@@ -25,8 +25,8 @@ extern void zebra_Db_Set_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const
 extern void zebra_Db_Set_SRV6_LOCAL_ENDX_SID(const struct in6_addr *result_sid, const char *vrf_name,
                     enum seg6local_action_t act, const struct seg6local_context *ctx, const struct list *sid_endx_params);
 extern void zebra_Db_Del_SRV6_LOCAL_SID(const struct in6_addr *result_sid, const struct seg6local_context *ctx);
-
-
+extern void zebra_Db_Set_SRV6_BSID_LOCAL_SID(const struct in6_addr *bsid,  enum seg6local_action_t act, const struct seg6local_context *ctx);
+extern void zebra_Db_Del_SRV6_BSID_LOCAL_SID(const struct in6_addr *result_sid, const uint16_t prefixlen);
 #endif /* _ZEBRA_BFD_H */
 
 

@@ -20,6 +20,7 @@
 
 #include <zebra.h>
 
+#include "lib/prefix.h"
 #include "lib/zclient.h"
 #include "lib/lib_errors.h"
 #include "lib/nexthop.h"
@@ -248,7 +249,7 @@ void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy)
 	else {
 		policy->type = 0;
 		memset(&policy->binding_sid, 0, sizeof(mpls_label_t));
-		memset(&policy->binding_v6_sid, 0, sizeof(struct ipaddr));
+		memset(&policy->binding_v6_sid, 0, sizeof(struct zapi_srte_binding_sid));
 		memset(&policy->segment_list, 0, sizeof(struct zapi_srte_tunnel));
 		memset(&policy->srv6_segment_list, 0, sizeof(struct zapi_srv6te_tunnel));
 	}
@@ -1078,32 +1079,111 @@ static void zebra_srv6_policy_copy_sidlist(struct zebra_sr_policy *policy, struc
 	new_tunnel->path_num_old = policy->srv6_segment_list.path_num;
 	return;
 }
+static bool zebra_srv6_binding_sid_equal(const struct zapi_srte_binding_sid *bs1,
+			    const struct zapi_srte_binding_sid *bs2)
+{
+	/* Check for NULL pointers */
+	if (!bs1 || !bs2)
+		return false;
+
+	if (bs1 == bs2)
+		return true;
+
+	/* Compare IP addresses */
+	if (bs1->sid_v6.ipa_type != bs2->sid_v6.ipa_type)
+		return false;
+
+	switch (bs1->sid_v6.ipa_type) {
+	case IPADDR_V4:
+		if (memcmp(&bs1->sid_v6.ipaddr_v4, &bs2->sid_v6.ipaddr_v4,
+			   sizeof(struct in_addr)))
+			return false;
+		break;
+	case IPADDR_V6:
+		if (memcmp(&bs1->sid_v6.ipaddr_v6, &bs2->sid_v6.ipaddr_v6,
+			   sizeof(struct in6_addr)))
+			return false;
+		break;
+	default:
+		/* For IPADDR_NONE or unknown types, just check the type */
+		break;
+	}
+
+	/* Compare SID format parameters */
+	if (bs1->block_bits_length != bs2->block_bits_length)
+		return false;
+
+	if (bs1->node_bits_length != bs2->node_bits_length)
+		return false;
+
+	if (bs1->function_bits_length != bs2->function_bits_length)
+		return false;
+
+	if (bs1->argument_bits_length != bs2->argument_bits_length)
+		return false;
+
+	if (bs1->format != bs2->format)
+		return false;
+
+	if (bs1->compress != bs2->compress)
+		return false;
+
+	return true;
+}
+
 void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
-			     struct zapi_srv6te_tunnel *new_tunnel, bool new_flag)
+			     struct zapi_sr_policy *zp,
+				 bool new_flag)
 {
 
 	bool segment_list_changed = false;
+	bool binding_sid_equal= false;
+	struct zapi_sr_policy zp_old = { 0 };
 
-	if (policy == NULL || new_tunnel == NULL)
+	if (policy == NULL || zp == NULL)
 		return;
 
 	if (new_flag) {
-		policy->srv6_segment_list = *new_tunnel;
+		memcpy(&policy->srv6_segment_list, &zp->srv6_tunnel,
+			sizeof(struct zapi_srv6te_tunnel));
 		policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
+
+		/* Evaluate next hops and notify related routes */
 		zebra_srte_evaluate_rn_nexthops(policy, zebra_router_get_next_sequence(), false);
-	} else {
-		zebra_srv6_policy_copy_sidlist(policy, new_tunnel);
-		segment_list_changed = zebra_srv6_policy_check_update(new_tunnel);
 
-		policy->srv6_segment_list = *new_tunnel;
+		/* Update binding SID information */
+		memcpy(&policy->binding_v6_sid, &zp->bsid, sizeof(struct zapi_srte_binding_sid));
+
+		/* Add binding SID route */
+		zebra_binding_sid_route_add(policy, zp);
+	} else {
+		zebra_srv6_policy_copy_sidlist(policy, &zp->srv6_tunnel);
+
+		/* Check if segment list has changed */
+		segment_list_changed = zebra_srv6_policy_check_update(&zp->srv6_tunnel);
+		memcpy(&policy->srv6_segment_list, &zp->srv6_tunnel,
+			sizeof(struct zapi_srv6te_tunnel));
 		policy->type = ZEBRA_SR_POLICY_TYPE_SRV6;
 
+		/* Check if binding SID has changed */
+		binding_sid_equal = zebra_srv6_binding_sid_equal(&policy->binding_v6_sid, &zp->bsid);
+		/* If binding SID or segment list changed, update binding SID route */
+		if (!binding_sid_equal || segment_list_changed) {
+			if (!binding_sid_equal) {
+				/* Delete old binding SID route */
+				memcpy(&zp_old.bsid, &policy->binding_v6_sid, sizeof(struct zapi_srte_binding_sid));
+				zebra_binding_sid_route_del(policy, &zp_old);
+			}
+			memcpy(&policy->binding_v6_sid, &zp->bsid, sizeof(struct zapi_srte_binding_sid));
+			zebra_binding_sid_route_add(policy, zp);
+		}
+
+		/* If segment list changed, update NHE segment information */
 		if (segment_list_changed)
 			zebra_nhe_seg_update(policy);
 	}
 	return;
 }
-
 
 static void zebra_sr_policy_deactivate(struct zebra_sr_policy *policy)
 {
@@ -1378,6 +1458,187 @@ void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, uint32_t se
 			policyNext = rn->info;
 	}
 }
+
+void zebra_bsid_route_add(struct zebra_sr_policy *policy,
+						struct zapi_sr_policy *zp,
+						enum seg6local_action_t act,
+						struct seg6local_context *ctx)
+{
+	struct route_entry *re;
+	struct nexthop_group *ng = NULL;
+	int ret = 0;
+	struct nhg_hash_entry nhe;
+    struct zebra_vrf *zvrf;
+    struct vrf *def_vrf = NULL;
+    struct prefix p = {};
+    struct nexthop *nexthop;
+	struct zebra_srv6 *srv6 = zebra_srv6_get_default();
+
+	/* Set the prefix based on the binding SID format */
+    p.family = AF_INET6;
+    p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
+
+	memcpy(&p.u.prefix6, &zp->bsid.sid_v6.ipaddr_v6,
+		sizeof(struct in6_addr));
+
+    def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
+    zvrf = zebra_vrf_lookup_by_id(def_vrf->vrf_id);
+    if (!zvrf) {
+        return;
+    }
+
+	/* Allocate new route. */
+	re = XCALLOC(MTYPE_RE, sizeof(struct route_entry));
+	re->type = ZEBRA_ROUTE_STATIC;
+	re->instance = 0;
+    SET_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE);
+	SET_FLAG(re->flags, ZEBRA_FLAG_FIB_BYPASS);
+    SET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);
+	re->uptime = monotime(NULL);
+	re->vrf_id = VRF_DEFAULT;
+
+	re->table = zvrf->table_id;
+
+    ng = nexthop_group_new();
+	if (!ng) {
+		return;
+	}
+
+	/* Create a nexthop from the IPv6 segment list */
+	nexthop = nexthop_from_ipv6_segment_list(&zp->endpoint.u.prefix6, 0);
+	if (!nexthop) {
+		if (ng)
+			nexthop_group_delete(&ng);
+		return;
+	}
+	nexthop->srte_color = policy->color;
+	nexthop->srte_color_flag = 1;
+	SET_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_BSID);
+	nexthop_add_srv6_seg6local(nexthop, act, ctx);
+	if (!IPV6_ADDR_SAME(&srv6->encap_src_addr, &in6addr_any)) {
+		nexthop->nh_srv6->seg6_src = srv6->encap_src_addr;
+		nexthop->seg6_src = srv6->encap_src_addr;
+	}
+
+	nexthop_group_add_sorted(ng, nexthop);
+
+	if (IS_ZEBRA_DEBUG_RIB) {
+		zlog_debug("%s: adding seg6local action %s",
+			__func__,
+			seg6local_action2str(act));
+	}
+
+	/* Initialize the nexthop group hash entry */
+	zebra_nhe_init(&nhe, AFI_IP6, ng->nexthop);
+	nhe.nhg.nexthop = ng->nexthop;
+	SET_FLAG(nhe.flags, NEXTHOP_GROUP_BSID);
+	ret = rib_add_multipath_nhe(AFI_IP6, SAFI_UNICAST, &p, NULL,
+				    re, &nhe);
+	if (ret == -1) {
+		XFREE(MTYPE_RE, re);
+	}
+	nexthop_group_delete(&ng);
+    return;
+
+}
+void zebra_binding_sid_route_add(struct zebra_sr_policy *policy, struct zapi_sr_policy *zp)
+{
+	struct seg6local_context ctx = {};
+	struct vrf *vrf;
+
+	if (!zp)
+		return;
+
+	/* If the binding SID is unspecified, delete the route instead */
+	if (IN6_IS_ADDR_UNSPECIFIED(&zp->bsid.sid_v6.ipaddr_v6)) {
+		return;
+	}
+
+	vrf = vrf_lookup_by_name(policy->zvrf->vrf->name);
+	if (!vrf)
+		return;
+
+	/* Set up the SEG6 local context with SID format information */
+	ctx.table = vrf->data.l.table_id;
+	ctx.node_bits_length = zp->bsid.node_bits_length;
+	ctx.function_bits_length = zp->bsid.function_bits_length;
+	ctx.block_bits_length = zp->bsid.block_bits_length;
+	ctx.argument_bits_length = zp->bsid.argument_bits_length;
+
+	strncpy(ctx.vrfName, policy->zvrf->vrf->name, VRF_ALIASNAMESIZ + 1);
+
+	/* Add the binding SID route if VRF is active */
+    if (CHECK_FLAG(vrf->status, VRF_ACTIVE))
+		zebra_bsid_route_add(policy, zp, ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP, &ctx);
+	return;
+}
+
+void zebra_bsid_route_del(struct zebra_sr_policy *policy,
+						struct zapi_sr_policy *zp,
+						enum seg6local_action_t act,
+						struct seg6local_context *ctx)
+{
+	uint32_t table_id;
+    struct zebra_vrf *zvrf;
+    struct vrf *def_vrf = NULL;
+    uint32_t flags = 0;
+
+    struct prefix p = {};
+
+	/* Set up the prefix based on the binding SID format */
+    p.family = AF_INET6;
+    p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
+
+
+	memcpy(&p.u.prefix6, &zp->bsid.sid_v6.ipaddr_v6,
+		sizeof(struct in6_addr));
+
+    def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
+    zvrf = zebra_vrf_lookup_by_id(def_vrf->vrf_id);
+    if (!zvrf) {
+        return ;
+    }
+
+	table_id = zvrf->table_id;
+	SET_FLAG(flags, ZEBRA_FLAG_LOCAL_SID_ROUTE);
+
+	/* Delete the route from the RIB */
+	rib_delete(AFI_IP6, SAFI_UNICAST, zvrf_id(zvrf), ZEBRA_ROUTE_STATIC, 0,
+		   flags, &p, NULL, NULL, 0, table_id, 0,
+		   0, false);
+
+    return ;
+
+}
+void zebra_binding_sid_route_del(struct zebra_sr_policy *policy, struct zapi_sr_policy *zp)
+{
+	struct seg6local_context ctx = {};
+	struct vrf *vrf;
+
+	if (!zp)
+		return;
+
+	/* If the binding SID is unspecified, nothing to do */
+	if (IN6_IS_ADDR_UNSPECIFIED(&zp->bsid.sid_v6.ipaddr_v6))
+		return;
+
+	vrf = vrf_lookup_by_name(policy->zvrf->vrf->name);
+	if (!vrf)
+		return;
+
+	/* Set up the SEG6 local context with SID format information */
+	ctx.table = vrf->data.l.table_id;
+	ctx.node_bits_length = zp->bsid.node_bits_length;
+	ctx.function_bits_length = zp->bsid.function_bits_length;
+	ctx.block_bits_length = zp->bsid.block_bits_length;
+	ctx.argument_bits_length = zp->bsid.argument_bits_length;
+
+	strncpy(ctx.vrfName, policy->zvrf->vrf->name, VRF_ALIASNAMESIZ + 1);
+
+	/* Delete the binding SID route */
+	zebra_bsid_route_del(policy, zp, ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP, &ctx);
+}
+
 
 void zebra_srte_init(void)
 {

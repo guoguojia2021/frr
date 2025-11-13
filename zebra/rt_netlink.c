@@ -2686,7 +2686,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				nl_attr_nest_end(&req->n, nest);
 			}
 
-			if (nh->nh_srv6) {
+			if (nh->nh_srv6 && !CHECK_FLAG(nh->flags, NEXTHOP_FLAG_SRV6_BSID)) {
 				/*
 				if (nh->nh_srv6->seg6local_action !=
 				    ZEBRA_SEG6_LOCAL_ACTION_UNSPEC) {

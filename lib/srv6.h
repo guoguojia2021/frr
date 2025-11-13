@@ -101,6 +101,7 @@ struct seg6local_context {
 	uint8_t function_bits_length;
 	uint8_t argument_bits_length;
     char vrfName[VRF_ALIASNAMESIZ + 1];
+	uint32_t nexthop_groupid;
 };
 
 enum srv6_format {
