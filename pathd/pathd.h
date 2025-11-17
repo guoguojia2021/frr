@@ -26,6 +26,7 @@
 #include "lib/hook.h"
 #include "lib/prefix.h"
 #include "lib/bfd.h"
+#include "lib/srv6.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -504,6 +505,11 @@ struct srte_policy {
     /* Binding Srv6 Sid*/
 	struct ipaddr binding_v6_sid;
 
+	bool binding_sid_valid;
+
+    /* locator name this policy is bound to */
+	char binding_locator[SRV6_LOCNAME_SIZE];
+
 	/* Operational Status of the policy */
 	enum srte_policy_status status;
 
@@ -528,7 +534,8 @@ struct srte_policy {
 	uint16_t flags;
 #define F_POLICY_NEW 0x0002
 #define F_POLICY_MODIFIED 0x0004
-#define F_POLICY_DELETED 0x0008
+#define F_POLICY_DELETED  0x0008
+#define F_POLICY_BINDING_SID_MODIFIED  0x0010
 
     struct sbfd_session_config *bfd_config;
 

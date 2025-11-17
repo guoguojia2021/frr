@@ -21,6 +21,7 @@
 
 #include <zebra.h>
 #include "pathd/pathd.h"
+#include "lib/srv6.h"
 
 bool get_ipv4_router_id(struct in_addr *router_id);
 bool get_ipv6_router_id(struct in6_addr *router_id);
@@ -33,5 +34,5 @@ void path_zebra_init(struct thread_master *master);
 void path_zebra_add_srv6_policy(struct srte_policy *policy);
 void path_zebra_delete_srv6_policy(struct srte_policy *policy);
 void path_zebra_stop(void);
-
+bool path_validate_sids_by_locator_name(char *loc_name, struct ipaddr *sid);
 #endif /* _FRR_PATH_MPLS_H_ */

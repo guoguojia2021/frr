@@ -925,6 +925,38 @@ void cli_show_srte_policy_binding_v6_sid(struct vty *vty,
 }
 
 /*
+ * XPath: /frr-pathd:pathd/srte/policy/binding-locator
+ */
+DEFPY_YANG(srte_policy_binding_locator,
+      srte_policy_binding_locator_cmd,
+      "binding-locator WORD$name",
+      "locator for binding-sid of Policy\n"
+      "locator name\n")
+{
+	nb_cli_enqueue_change(vty, "./binding-locator", NB_OP_CREATE, name);
+
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
+}
+
+DEFPY_YANG(srte_policy_no_binding_locator,
+      srte_policy_no_binding_locator_cmd,
+      "no binding-locator [WORD]",
+      NO_STR
+      "locator for binding-sid of Policy\n"
+      "locator name\n")
+{
+	nb_cli_enqueue_change(vty, "./binding-locator", NB_OP_DESTROY, NULL);
+
+	return nb_cli_apply_changes_skip_check_validate(vty, NULL);
+}
+
+void cli_show_srte_policy_binding_locator(struct vty *vty, const struct lyd_node *dnode,
+			       bool show_defaults)
+{
+	vty_out(vty, "   binding-locator %s\n", yang_dnode_get_string(dnode, NULL));
+}
+
+/*
  * XPath: /frr-pathd:pathd/srte/policy/candidate-path
  */
 DEFPY_YANG(srte_policy_candidate_exp,
@@ -1735,6 +1767,8 @@ void path_cli_init(void)
 	install_element(SR_POLICY_NODE, &srte_policy_binding_v6_sid_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_no_binding_sid_cmd);
     install_element(SR_POLICY_NODE, &srte_policy_no_binding_v6_sid_cmd);
+	install_element(SR_POLICY_NODE, &srte_policy_binding_locator_cmd);
+	install_element(SR_POLICY_NODE, &srte_policy_no_binding_locator_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_candidate_exp_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_candidate_dyn_cmd);
 	install_element(SR_POLICY_NODE, &srte_policy_no_candidate_cmd);

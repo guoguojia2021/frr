@@ -845,7 +845,10 @@ static bool srv6_policy_state_changed(struct srte_policy *policy)
 		return true;
 
 	state_changed = is_candidate_group_state_changed(policy->backup_candidate_group);
-	return state_changed;
+	if (state_changed)
+		return true;
+
+	return CHECK_FLAG(policy->flags, F_POLICY_BINDING_SID_MODIFIED) > 0;
 }
 void srv6_choose_best_cpath_group(struct srte_policy *policy)
 {

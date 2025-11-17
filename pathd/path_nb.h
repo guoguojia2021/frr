@@ -112,6 +112,8 @@ int pathd_srte_segment_list_segment_v6_sid_value_destroy(
 
 int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args);
 int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args);
+int pathd_srte_policy_binding_locator_modify(struct nb_cb_modify_args *args);
+int pathd_srte_policy_binding_locator_destroy(struct nb_cb_destroy_args *args);
 
 int pathd_srte_policy_candidate_path_weight_modify(struct nb_cb_modify_args *args);
 int pathd_srte_policy_candidate_path_bfd_name_modify(struct nb_cb_modify_args *args);
@@ -149,6 +151,9 @@ void cli_show_srte_policy_name(struct vty *vty, const struct lyd_node *dnode,
 void cli_show_srte_policy_binding_sid(struct vty *vty,
 				      const struct lyd_node *dnode,
 				      bool show_defaults);
+void cli_show_srte_policy_binding_locator(struct vty *vty,
+					  const struct lyd_node *dnode,
+					  bool show_defaults);
 void cli_show_srte_policy_candidate_path(struct vty *vty,
 					 const struct lyd_node *dnode,
 					 bool show_defaults);

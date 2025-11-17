@@ -177,6 +177,14 @@ const struct frr_yang_module_info frr_pathd_info = {
 			}
 		},
 		{
+			.xpath = "/frr-pathd:pathd/srte/policy/binding-locator",
+			.cbs = {
+				.modify = pathd_srte_policy_binding_locator_modify,
+				.cli_show = cli_show_srte_policy_binding_locator,
+				.destroy = pathd_srte_policy_binding_locator_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-pathd:pathd/srte/policy/is-operational",
 			.cbs = {
 				.get_elem = pathd_srte_policy_is_operational_get_elem

@@ -202,6 +202,13 @@ module frr-pathd {
           description 
             "BSID of the SR Policy.";
         }
+        leaf binding-locator {
+          type string {
+            length "1..255";
+          }
+          description
+            "Locator of BSID for the SR Policy.";
+        }
         leaf is-operational {
           type boolean;
           config false;

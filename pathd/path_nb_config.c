@@ -501,6 +501,7 @@ int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args)
 {
 	struct srte_policy *policy;
 	struct ipaddr binding_sid;
+	bool old_valid = false;
 	yang_dnode_get_ip(&binding_sid, args->dnode, NULL);
 
 	switch (args->event) {
@@ -515,7 +516,18 @@ int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args)
 	case NB_EV_APPLY:
 		policy = nb_running_get_entry(args->dnode, NULL, true);
 		policy->binding_v6_sid = binding_sid;
-		SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+		old_valid = policy->binding_sid_valid;
+		policy->binding_sid_valid = false;
+
+		if (policy->binding_locator[0]) {
+			policy->binding_sid_valid = path_validate_sids_by_locator_name(policy->binding_locator, &policy->binding_v6_sid);
+		}
+
+		if (old_valid == false && policy->binding_sid_valid == false) {
+			break;
+		}
+
+		SET_FLAG(policy->flags, F_POLICY_BINDING_SID_MODIFIED);
 
 		break;
 	}
@@ -526,14 +538,72 @@ int pathd_srte_policy_binding_v6_sid_modify(struct nb_cb_modify_args *args)
 int pathd_srte_policy_binding_v6_sid_destroy(struct nb_cb_destroy_args *args)
 {
 	struct srte_policy *policy;
+	bool old_valid = false;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
 	policy = nb_running_get_entry(args->dnode, NULL, true);
 	memset(&policy->binding_v6_sid, 0 , sizeof(struct ipaddr));
-	SET_FLAG(policy->flags, F_POLICY_MODIFIED);
+	old_valid = policy->binding_sid_valid;
+	policy->binding_sid_valid = false;
 
+	if (old_valid == false) {
+		return NB_OK;
+	}
+
+	SET_FLAG(policy->flags, F_POLICY_BINDING_SID_MODIFIED);
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-pathd:pathd/srte/policy/binding-locator
+ */
+int pathd_srte_policy_binding_locator_modify(struct nb_cb_modify_args *args)
+{
+	struct srte_policy *policy;
+	const char *name;
+	bool old_valid = false;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	policy = nb_running_get_entry(args->dnode, NULL, true);
+	name = yang_dnode_get_string(args->dnode, NULL);
+	if (policy->binding_locator[0] && strcmp(policy->binding_locator, name) == 0) {
+		return NB_OK;
+	}
+	old_valid = policy->binding_sid_valid;
+
+	strlcpy(policy->binding_locator, name, sizeof(policy->binding_locator));
+	policy->binding_sid_valid = path_validate_sids_by_locator_name(policy->binding_locator, &policy->binding_v6_sid);
+	if (old_valid == false && policy->binding_sid_valid == false) {
+		//no need to update if valid keep still false.
+		return NB_OK;
+	}
+
+	SET_FLAG(policy->flags, F_POLICY_BINDING_SID_MODIFIED);
+	return NB_OK;
+}
+
+int pathd_srte_policy_binding_locator_destroy(struct nb_cb_destroy_args *args)
+{
+	struct srte_policy *policy;
+	bool old_valid = false;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	policy = nb_running_get_entry(args->dnode, NULL, true);
+	policy->binding_locator[0] = '\0';
+	old_valid = policy->binding_sid_valid;
+	policy->binding_sid_valid = false;
+
+	if (old_valid == false) {
+		return NB_OK;
+	}
+
+	SET_FLAG(policy->flags, F_POLICY_BINDING_SID_MODIFIED);
 	return NB_OK;
 }
 
