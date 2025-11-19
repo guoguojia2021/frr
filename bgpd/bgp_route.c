@@ -3031,6 +3031,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 	enum bgp_path_selection_reason reason = bgp_path_selection_none;
 	bool unsorted_items = true;
 	uint32_t num_candidates = 0;
+	struct list mp_list;
 
 	do_mpath =
 		(mpath_cfg->maxpaths_ebgp > 1 || mpath_cfg->maxpaths_ibgp > 1);
@@ -3411,6 +3412,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 	}
 
 	if (do_mpath && new_select) {
+		bgp_mp_list_init(&mp_list);
 		for (pi = bgp_dest_get_bgp_path_info(dest); pi; pi = pi->next) {
 
 			if (debug)
@@ -3425,6 +3427,7 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 						path_buf);
 				SET_FLAG(pi->flags, BGP_PATH_MULTIPATH_NEW);
 				num_candidates++;
+				bgp_mp_list_add(&mp_list, pi);
 				continue;
 			}
 
@@ -3437,27 +3440,30 @@ void bgp_best_selection(struct bgp *bgp, struct bgp_dest *dest,
 				if (!peer_established(pi->peer->connection))
 					continue;
 
-			if (!bgp_path_info_nexthop_cmp(pi, new_select)) {
-				if (debug)
-					zlog_debug(
-						"%pBD: %s has the same nexthop as the bestpath, skip it",
-						dest, path_buf);
-				continue;
-			}
-
 			bgp_path_info_cmp(bgp, pi, new_select, &dest->rn->p, &paths_eq,
 					  mpath_cfg, debug, pfx_buf, afi, safi,
 					  &dest->reason);
 
 			if (paths_eq) {
-				if (debug)
-					zlog_debug(
-						"%pBD: %s is equivalent to the bestpath, add to the multipath list",
-						dest, path_buf);
-				SET_FLAG(pi->flags, BGP_PATH_MULTIPATH_NEW);
-				num_candidates++;
+				if (bgp_mp_list_add(&mp_list, pi))
+				{
+					if (debug)
+						zlog_debug(
+							"%pBD: %s is equivalent to the bestpath, add to the multipath list",
+							dest, path_buf);
+					SET_FLAG(pi->flags, BGP_PATH_MULTIPATH_NEW);
+					num_candidates++;
+				}
+				else
+				{
+					if (debug)
+						zlog_debug(
+							"%pBD: %s has the same nexthop as the bestpath, skip it",
+							dest, path_buf);
+				}
 			}
 		}
+		bgp_mp_list_clear(&mp_list);
 	}
 
 	bgp_path_info_mpath_update(bgp, dest, new_select, old_select, num_candidates, mpath_cfg);

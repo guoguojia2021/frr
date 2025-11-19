@@ -82,5 +82,8 @@ extern bool bgp_dest_mpath_chkwtd(struct bgp *bgp,
 				       struct bgp_dest *dest);
 extern uint64_t bgp_dest_mpath_cumbw(struct bgp_dest *dest);
 int bgp_path_vni_cmp(struct bgp_path_info *bpi1, struct bgp_path_info *bpi2);
+extern void bgp_mp_list_init(struct list *);
+extern void bgp_mp_list_clear(struct list *);
+extern bool bgp_mp_list_add(struct list *mp_list, struct bgp_path_info *mpinfo);
 
 #endif /* _QUAGGA_BGP_MPATH_H */
