@@ -175,7 +175,9 @@ struct srv6_locator *srv6_locator_alloc(const char *name)
 	locator->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
 
     locator->sids = list_new();
+	locator->sids->del = (void (*)(void *))srv6_locator_sid_free;
 	locator->sid_endx_ecmps = list_new();
+	locator->sid_endx_ecmps->del = (void (*)(void *))srv6_locator_sid_endx_params_free;
 
 	QOBJ_REG(locator, srv6_locator);
 	return locator;

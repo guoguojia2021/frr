@@ -3342,6 +3342,7 @@ static int bgp_zebra_process_srv6_locator_sid(ZAPI_CALLBACK_ARGS)
 		loc->chunks = list_new();
 		loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
 		loc->sids = list_new();
+		loc->sids->del = (void (*)(void *))srv6_locator_sid_free;
 
 		strncpy(loc->name, loc_name, len);
 		listnode_add(bgp->srv6_locators, loc);
@@ -3469,6 +3470,7 @@ static int bgp_zebra_process_srv6_locator_one_sid(ZAPI_CALLBACK_ARGS)
 		loc->chunks = list_new();
 		loc->chunks->del = (void (*)(void *))srv6_locator_chunk_free;
 		loc->sids = list_new();
+		loc->sids->del = (void (*)(void *))srv6_locator_sid_free;
 
 		strncpy(loc->name, loc_name, len);
 		listnode_add(bgp->srv6_locators, loc);
