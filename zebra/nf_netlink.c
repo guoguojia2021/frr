@@ -191,7 +191,7 @@ static int nftnl_rule_add_filters(struct nftnl_rule *rule, struct zebra_pbr_ipta
         uint8_t mask = 0xfc; // 0b11111100，only keep DSCP bits
         nftnl_expr_set_data(expr, NFTNL_EXPR_BITWISE_MASK, &mask, sizeof(mask));
         nftnl_rule_add_expr(rule, expr);
-
+        nft->dscp_value = (nft->dscp_value << 2);
         expr = create_cmp_expr(NFT_REG32_00, NFT_CMP_EQ, &nft->dscp_value, sizeof(nft->dscp_value));
         if (!expr) return -1;
         nftnl_rule_add_expr(rule, expr);
