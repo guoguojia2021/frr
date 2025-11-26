@@ -13625,11 +13625,11 @@ static void bgp_show_peer(struct vty *vty, struct peer *p, bool use_json,
 			   || (bgp->default_keepalive != SAVE_BGP_KEEPALIVE)) {
 			json_object_int_add(json_neigh,
 					    "bgpTimerConfiguredHoldTimeMsecs",
-					    bgp->default_holdtime);
+					    bgp->default_holdtime * 1000);
 			json_object_int_add(
 				json_neigh,
 				"bgpTimerConfiguredKeepAliveIntervalMsecs",
-				bgp->default_keepalive);
+				bgp->default_keepalive * 1000);
 		}
 
 		/* Extended Optional Parameters Length for BGP OPEN Message */
