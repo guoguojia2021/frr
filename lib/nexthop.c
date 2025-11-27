@@ -724,6 +724,17 @@ struct nexthop *nexthop_next(const struct nexthop *nexthop)
 	return NULL;
 }
 
+struct nexthop *nexthop_next_no_upward(const struct nexthop *nexthop)
+{
+	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
+		return nexthop->resolved;
+
+	if (nexthop->next)
+		return nexthop->next;
+
+	return NULL;
+}
+
 /* Return the next nexthop in the tree that is resolved and active */
 struct nexthop *nexthop_next_active_resolved(const struct nexthop *nexthop)
 {

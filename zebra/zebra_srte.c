@@ -375,7 +375,7 @@ static void zebra_nhg_seg_update_nexthop_resolved(struct nexthop *nexthop,
 	char *sidlist_name, uint32_t discriminator, bool is_backup, bool is_hidden)
 {
 	struct nexthop *nh = NULL;
-	for (nh = nexthop; nh; nh = nexthop_next(nh)) {
+	for (nh = nexthop; nh; nh = nexthop_next_no_upward(nh)) {
 		if (strncmp(nh->sidlist_name, sidlist_name, sizeof(nh->sidlist_name)) == 0) {
 			zebra_nhg_seg_update_nexthop_content(nh, discriminator, is_backup, is_hidden);
 		}
@@ -385,19 +385,25 @@ static void zebra_nhg_seg_update_nexthop_resolved(struct nexthop *nexthop,
 static void zebra_nhg_seg_update_depend(struct nhg_hash_entry *nhe, struct nexthop *nexthop,
 	char *policy_sid_name, uint32_t discriminator, bool is_backup, bool is_hidden)
 {
-	int ret = 0;
 	struct nexthop * nh = NULL;
 	struct nhg_segment *rb_node_dep = NULL;
 	frr_each_safe(nhg_segment_tree, &nhe->nhg_segdepends, rb_node_dep) {
 		for (nh = rb_node_dep->nhe->nhg.nexthop; nh; nh = nh->next) {
 
-			if (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST)
-				ret = memcmp(&nh->gate.ipv4, &nexthop->gate.ipv4, sizeof(struct in_addr));
-			else if (nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)
-				ret = memcmp(&nh->gate.ipv6, &nexthop->gate.ipv6, sizeof(struct in6_addr));
+			bool matches = false;
 
-			if (ret != 0)
+			if (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
+				matches = IPV4_ADDR_SAME(&nh->gate.ipv4, &nexthop->gate.ipv4);
+			}
+			else if (nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
+				matches = IPV6_ADDR_SAME(&nh->gate.ipv6, &nexthop->gate.ipv6);
+			}
+			if (nh->srte_color != nexthop->srte_color)
+				matches = false;
+
+			if (!matches)
 				continue;
+
 			if (IS_ZEBRA_DEBUG_SRV6) {
 				if (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST)
 					zlog_debug("%s:nhe id %d update nexthop %pI4 color %d sidlist %s backup %s",
@@ -420,7 +426,6 @@ static void zebra_nhg_seg_update_depend(struct nhg_hash_entry *nhe, struct nexth
 static void zebra_nhg_seg_update_dependent(struct nhg_hash_entry *nhe, struct nexthop *nexthop,
 	char *policy_sid_name, uint32_t discriminator, bool is_backup, bool is_hidden)
 {
-	int ret = 0;
 	struct nexthop *nh = NULL;
 	struct nexthop *nh_res = NULL;
 	struct nhg_segment *rb_node_depent = NULL;
@@ -428,14 +433,18 @@ static void zebra_nhg_seg_update_dependent(struct nhg_hash_entry *nhe, struct ne
 	frr_each_safe(nhg_segment_tree, &nhe->nhg_segdependents, rb_node_depent) {
 		for (nh = rb_node_depent->nhe->nhg.nexthop; nh; nh = nh->next) {
 
+			bool matches = false;
 			if (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST) {
-				ret = memcmp(&nh->gate.ipv4, &nexthop->gate.ipv4, sizeof(struct in_addr));
+				matches = IPV4_ADDR_SAME(&nh->gate.ipv4, &nexthop->gate.ipv4);
 			}
 			else if (nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST) {
-				ret = memcmp(&nh->gate.ipv6, &nexthop->gate.ipv6, sizeof(struct in6_addr));
+				matches = IPV6_ADDR_SAME(&nh->gate.ipv6, &nexthop->gate.ipv6);
 			}
 
-			if (ret != 0)
+			if (nh->srte_color != nexthop->srte_color)
+				matches = false;
+
+			if (!matches)
 				continue;
 
 			if (IS_ZEBRA_DEBUG_SRV6) {
@@ -449,13 +458,12 @@ static void zebra_nhg_seg_update_dependent(struct nhg_hash_entry *nhe, struct ne
 						is_backup ? "true":"false");
 			}
 
-			for (nh_res = nh->resolved; nh_res; nh_res = nexthop_next(nh_res)) {
+			for (nh_res = nh->resolved; nh_res; nh_res = nexthop_next_no_upward(nh_res)) {
 				if (strncmp(nh_res->sidlist_name, policy_sid_name, sizeof(nh_res->sidlist_name)) == 0) {
 					zebra_nhg_seg_update_nexthop_content(nh_res, discriminator, is_backup, is_hidden);
 					continue;
 				}
 			}
-			ret = 0;
 		}
 	}
 }
@@ -567,14 +575,17 @@ static void zebra_nhg_seg_update_nhe(struct nhg_hash_entry *nhe,
 		bool matches = false;
 		switch (p->family) {
 		case AF_INET:
-			matches = (memcmp(&nexthop->gate.ipv4, &p->u.prefix4, sizeof(struct in_addr)) == 0);
+			matches = IPV4_ADDR_SAME(&nexthop->gate.ipv4, &p->u.prefix4);
 			break;
 		case AF_INET6:
-			matches = (memcmp(&nexthop->gate.ipv6, &p->u.prefix6, sizeof(struct in6_addr)) == 0);
+			matches = IPV6_ADDR_SAME(&nexthop->gate.ipv6, &p->u.prefix6);
 			break;
 		default:
 			continue;
 		}
+
+		if (nexthop->srte_color != rnh->srte_color)
+			matches = false;
 
 		if (!matches)
 			continue;
