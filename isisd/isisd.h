@@ -188,6 +188,7 @@ struct isis_area {
 	bool overload_configured;
 	uint32_t overload_counter;
 	uint32_t overload_on_startup_time;
+	bool overload_advertise_high_metrics;
 	/* advertise prefixes of passive interfaces only? */
 	bool advertise_passive_only;
 	/* Are we advertising high metrics? */
@@ -312,6 +313,8 @@ void isis_area_switchover_routes(struct isis_area *area, int family,
 void isis_area_overload_bit_set(struct isis_area *area, bool overload_bit);
 void isis_area_overload_on_startup_set(struct isis_area *area,
 				       uint32_t startup_time);
+void isis_area_overload_advertise_high_metrics_set(struct isis_area *area,
+					  bool advertise_high_metrics);
 void isis_area_advertise_high_metrics_set(struct isis_area *area,
 					  bool advertise_high_metrics);
 void isis_area_attached_bit_send_set(struct isis_area *area, bool attached_bit);

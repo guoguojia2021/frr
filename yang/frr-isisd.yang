@@ -1131,6 +1131,12 @@ module frr-isisd {
           description
             "The duration the overload bit should be set on startup.";
         }
+        leaf advertise-high-metrics {
+          type boolean;
+          default "false";
+          description
+            "Advertise high metric value on all interfaces.";
+        }
       }
 
       leaf metric-style {

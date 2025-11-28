@@ -454,7 +454,7 @@ int set_overload_on_start_timer(struct thread *thread)
 	area->t_overload_on_startup_timer = NULL;
 
 	/* Check if set-overload-bit is not currently configured */
-	if (!area->overload_configured)
+	if (!area->overload_configured && !area->overload_advertise_high_metrics)
 		isis_area_overload_bit_set(area, false);
 
 	return 0;

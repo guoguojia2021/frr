@@ -3258,9 +3258,63 @@ void isis_area_metricstyle_set(struct isis_area *area, bool old_metric,
 	lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
 }
 
+static void isis_area_circuit_max_metric_set(struct isis_area *area)
+{
+    struct listnode *node;
+    struct isis_circuit *circuit;
+    int max_metric;
+
+    /* Determine maximum metric value based on metric style */
+    if (area->oldmetric && area->newmetric)
+        max_metric = ISIS_NARROW_METRIC_INFINITY;
+    else if (area->newmetric)
+        max_metric = MAX_WIDE_LINK_METRIC;
+    else
+        max_metric = MAX_NARROW_LINK_METRIC;
+
+    /* Set maximum metric value for all circuits in the area */
+    for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit)) {
+        isis_circuit_metric_set(circuit, IS_LEVEL_1, max_metric);
+        isis_circuit_metric_set(circuit, IS_LEVEL_2, max_metric);
+    }
+}
+
+static void isis_circuit_metric_config_get_and_set(struct isis_circuit *circuit,
+                                                   struct isis_area *area)
+{
+    char xpath[XPATH_MAXLEN];
+    struct lyd_node *dnode;
+    int configured_metric_l1;
+    int configured_metric_l2;
+
+    /* Get configured metric values */
+    snprintf(xpath, XPATH_MAXLEN,
+             "/frr-interface:lib/interface[name='%s']",
+             circuit->interface->name);
+
+    dnode = yang_dnode_get(running_config->dnode, xpath);
+    if (!dnode) {
+        /* If no configuration found, use default value 0 */
+        configured_metric_l1 = 0;
+        configured_metric_l2 = 0;
+    } else {
+        configured_metric_l1 = yang_dnode_get_uint32(
+            dnode, "./frr-isisd:isis/metric/level-1");
+        configured_metric_l2 = yang_dnode_get_uint32(
+            dnode, "./frr-isisd:isis/metric/level-2");
+    }
+
+    /* Set circuit metric values */
+    isis_circuit_metric_set(circuit, IS_LEVEL_1, configured_metric_l1);
+    isis_circuit_metric_set(circuit, IS_LEVEL_2, configured_metric_l2);
+}
+
 void isis_area_overload_bit_set(struct isis_area *area, bool overload_bit)
 {
 	char new_overload_bit = overload_bit ? LSPBIT_OL : 0;
+
+	if (area->overload_advertise_high_metrics && !overload_bit)
+		return;
 
 	if (new_overload_bit != area->overload_bit) {
 		area->overload_bit = new_overload_bit;
@@ -3294,6 +3348,59 @@ void isis_area_overload_on_startup_set(struct isis_area *area,
 	}
 }
 
+static void isis_area_overload_bit_high_metrics_set(struct isis_area *area, bool overload_bit)
+{
+    struct listnode *node;
+    struct isis_circuit *circuit;
+	bool need_regenerate = false;
+
+    char new_overload_bit = overload_bit ? LSPBIT_OL : 0;
+
+    /* Handle advertise high metrics change */
+	if (area->overload_advertise_high_metrics) {
+		/* Set maximum metric value for all circuits */
+		isis_area_circuit_max_metric_set(area);
+		need_regenerate = true;
+	} else {
+	   if (!area->advertise_high_metrics){
+			/* Restore configured metric values for all circuits */
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit)) {
+				isis_circuit_metric_config_get_and_set(circuit, area);
+			}
+			need_regenerate = true;
+		}
+	}
+
+	if (area->overload_configured && !overload_bit)
+		goto end;
+
+	if (area->t_overload_on_startup_timer && !overload_bit)
+		goto end;
+
+	if (new_overload_bit != area->overload_bit) {
+		area->overload_bit = new_overload_bit;
+		if (new_overload_bit)
+			area->overload_counter++;
+		need_regenerate = true;
+	}
+
+end:
+	if (need_regenerate)
+		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
+}
+
+void isis_area_overload_advertise_high_metrics_set(struct isis_area *area,
+					  bool advertise_high_metrics)
+{
+	if (area->overload_advertise_high_metrics != advertise_high_metrics) {
+		area->overload_advertise_high_metrics = advertise_high_metrics;
+		if (area->overload_advertise_high_metrics)
+			isis_area_overload_bit_high_metrics_set(area, true);
+		else
+			isis_area_overload_bit_high_metrics_set(area, false);
+	}
+}
+
 void config_end_lsp_generate(struct isis_area *area)
 {
 	if (listcount(area->area_addrs) > 0) {
@@ -3304,56 +3411,26 @@ void config_end_lsp_generate(struct isis_area *area)
 	}
 }
 
+
 void isis_area_advertise_high_metrics_set(struct isis_area *area,
-					  bool advertise_high_metrics)
+                                        bool advertise_high_metrics)
 {
-	struct listnode *node;
-	struct isis_circuit *circuit;
-	int max_metric;
-	char xpath[XPATH_MAXLEN];
-	struct lyd_node *dnode;
-	int configured_metric_l1;
-	int configured_metric_l2;
+    struct listnode *node;
+    struct isis_circuit *circuit;
 
-	if (area->advertise_high_metrics == advertise_high_metrics)
-		return;
+    if (area->advertise_high_metrics == advertise_high_metrics)
+        return;
 
-	if (advertise_high_metrics) {
-		if (area->oldmetric && area->newmetric)
-			max_metric = ISIS_NARROW_METRIC_INFINITY;
-		else if (area->newmetric)
-			max_metric = MAX_WIDE_LINK_METRIC;
-		else
-			max_metric = MAX_NARROW_LINK_METRIC;
-
-		for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit)) {
-			isis_circuit_metric_set(circuit, IS_LEVEL_1,
-						max_metric);
-			isis_circuit_metric_set(circuit, IS_LEVEL_2,
-						max_metric);
-		}
-
-		area->advertise_high_metrics = true;
-	} else {
-		area->advertise_high_metrics = false;
-		for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit)) {
-			/* Get configured metric */
-			snprintf(xpath, XPATH_MAXLEN,
-				 "/frr-interface:lib/interface[name='%s']",
-				 circuit->interface->name);
-			dnode = yang_dnode_get(running_config->dnode, xpath);
-
-			configured_metric_l1 = yang_dnode_get_uint32(
-				dnode, "./frr-isisd:isis/metric/level-1");
-			configured_metric_l2 = yang_dnode_get_uint32(
-				dnode, "./frr-isisd:isis/metric/level-2");
-
-			isis_circuit_metric_set(circuit, IS_LEVEL_1,
-						configured_metric_l1);
-			isis_circuit_metric_set(circuit, IS_LEVEL_2,
-						configured_metric_l2);
-		}
-	}
+    if (advertise_high_metrics) {
+        /* Set maximum metric value for all circuits */
+        isis_area_circuit_max_metric_set(area);
+        area->advertise_high_metrics = true;
+    } else if (!area->overload_advertise_high_metrics) {
+        area->advertise_high_metrics = false;
+        for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+            /* Get metric values from configuration and set to circuit */
+            isis_circuit_metric_config_get_and_set(circuit, area);
+    }
 }
 
 /*

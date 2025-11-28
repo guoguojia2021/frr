@@ -378,6 +378,24 @@ int isis_instance_overload_on_startup_modify(struct nb_cb_modify_args *args)
 }
 
 /*
+ * XPath: /frr-isisd:isis/instance/overload/advertise-high-metrics
+ */
+int isis_instance_overload_advertise_high_metrics_modify(struct nb_cb_modify_args *args)
+{
+	struct isis_area *area;
+	uint32_t advertise_high_metrics;
+
+	if (args->event != NB_EV_APPLY)
+		return NB_OK;
+
+	advertise_high_metrics = yang_dnode_get_bool(args->dnode, NULL);
+	area = nb_running_get_entry(args->dnode, NULL, true);
+	isis_area_overload_advertise_high_metrics_set(area, advertise_high_metrics);
+
+	return NB_OK;
+}
+
+/*
  * XPath: /frr-isisd:isis/instance/advertise-high-metrics
  */
 int isis_instance_advertise_high_metrics_modify(struct nb_cb_modify_args *args)
