@@ -49,6 +49,10 @@ DECLARE_MTYPE(RE);
 
 PREDECL_LIST(rnh_list);
 
+PREDECL_LIST(rnh_srte_list);
+
+PREDECL_LIST(rnh_backup_srte_list);
+
 /* Nexthop structure. */
 struct rnh {
     /* For linked list. */
@@ -63,16 +67,10 @@ struct rnh {
 #define ZEBRA_NHT_RESOLVE_VIA_DEFAULT 0x4
 #define ZEBRA_NHT_TRACK_MATCH    0x8
 
-/* Color flag: 00 */
-#define ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH          0x1
-/* Color flag: 01 */
-#define ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH    0x2
-/* Color flag: 10 */
-#define ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH       0x4
 /* BGP Track route */
-#define ZEBRA_NHT_TYPE_TRACK_MATCH               0x8
+#define ZEBRA_NHT_TYPE_TRACK_MATCH               0x1
 /* BGP Import Check */
-#define ZEBRA_NHT_TYPE_IMPORT_CHECK              0x10
+#define ZEBRA_NHT_TYPE_IMPORT_CHECK              0x2
 
 	/* VRF identifier. */
 	vrf_id_t vrf_id;
@@ -97,9 +95,23 @@ struct rnh {
 	int filtered[ZEBRA_ROUTE_MAX];
 
 	struct rnh_list_item rnh_list_item;
-    uint32_t srte_color;
-    enum zebra_sr_policy_status srp_status;
+	struct rnh_srte_list_item rnh_srte_list_item;
+	struct rnh_backup_srte_list_item rnh_backup_srte_list_item;
+/* Color flag: 00 */
+#define ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH          0
+/* Color flag: 01 */
+#define ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH    1
+/* Color flag: 10 */
+#define ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH       2
+
+	uint8_t srte_color_flag;
+	uint8_t srte_backup_color_flag;
+	uint32_t srte_color;
+	uint32_t srte_backup_color;
+	enum zebra_sr_policy_status srp_status;
+	enum zebra_sr_policy_status backup_srp_status;
 	struct zebra_sr_policy *policy;
+	struct zebra_sr_policy *backup_policy;
 };
 
 #define DISTANCE_INFINITY  255
@@ -272,6 +284,9 @@ typedef struct rib_dest_t_ {
 } rib_dest_t;
 
 DECLARE_LIST(rnh_list, struct rnh, rnh_list_item);
+DECLARE_LIST(rnh_srte_list, struct rnh, rnh_srte_list_item);
+DECLARE_LIST(rnh_backup_srte_list, struct rnh, rnh_backup_srte_list_item);
+
 DECLARE_LIST(re_list, struct route_entry, next);
 
 #define RIB_ROUTE_QUEUED(x)	(1 << (x))

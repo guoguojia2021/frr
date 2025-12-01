@@ -48,15 +48,17 @@ struct rnh_node {
 
 extern void zebra_rnh_init(void);
 
-extern struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, 
-			  bool *exists, uint32_t srte_color, uint8_t rnh_type_flag);
+extern struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, 
+									uint32_t srte_color, uint32_t srte_color_flag, 
+									uint32_t srte_backup_color, uint32_t srte_backup_color_flag, 
+									uint8_t rnh_type_flag);
 extern struct rnh *zebra_lookup_rnh(struct prefix *p, vrf_id_t vrfid,
 				    safi_t safi);
 extern void zebra_free_rnh(struct rnh *rnh);
 extern void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 				 vrf_id_t vrfid);
 extern int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
-				 vrf_id_t vrf_id, uint32_t srte_color);
+				 vrf_id_t vrf_id);
 extern void zebra_register_rnh_pseudowire(vrf_id_t, struct zebra_pw *, bool *);
 extern void zebra_deregister_rnh_pseudowire(vrf_id_t, struct zebra_pw *);
 extern void zebra_remove_rnh_client(struct rnh *rnh, struct zserv *client);

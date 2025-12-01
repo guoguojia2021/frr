@@ -61,6 +61,16 @@ int bgp_nexthop_cache_compare(const struct bgp_nexthop_cache *a,
 	if (a->srte_color_flag > b->srte_color_flag)
 		return 1;
 
+	if (a->srte_backup_color < b->srte_backup_color)
+		return -1;
+	if (a->srte_backup_color > b->srte_backup_color)
+		return 1;
+
+	if (a->srte_backup_color_flag < b->srte_backup_color_flag)
+		return -1;
+	if (a->srte_backup_color_flag > b->srte_backup_color_flag)
+		return 1;
+
 	return prefix_cmp(&a->prefix, &b->prefix);
 }
 
@@ -75,7 +85,8 @@ void bnc_nexthop_free(struct bgp_nexthop_cache *bnc)
 }
 
 struct bgp_nexthop_cache *bnc_new(struct bgp_nexthop_cache_head *tree,
-				  struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag)
+				  struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag,
+				   uint32_t srte_backup_color, uint8_t srte_backup_color_flag)
 {
 	struct bgp_nexthop_cache *bnc;
 
@@ -84,6 +95,8 @@ struct bgp_nexthop_cache *bnc_new(struct bgp_nexthop_cache_head *tree,
 	bnc->prefix = *prefix;
 	bnc->srte_color = srte_color;
 	bnc->srte_color_flag = srte_color_flag;
+	bnc->srte_backup_color = srte_backup_color;
+	bnc->srte_backup_color_flag = srte_backup_color_flag;
 	bnc->tree = tree;
 	LIST_INIT(&(bnc->paths));
     LIST_INIT(&(bnc->peer_filters));
@@ -114,7 +127,8 @@ void bnc_free(struct bgp_nexthop_cache *bnc)
 }
 
 struct bgp_nexthop_cache *bnc_find(struct bgp_nexthop_cache_head *tree,
-				   struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag)
+				   struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag,
+				   uint32_t srte_backup_color, uint8_t srte_backup_color_flag)
 {
 	struct bgp_nexthop_cache bnc = {};
 
@@ -124,6 +138,8 @@ struct bgp_nexthop_cache *bnc_find(struct bgp_nexthop_cache_head *tree,
 	bnc.prefix = *prefix;
 	bnc.srte_color = srte_color;
 	bnc.srte_color_flag = srte_color_flag;
+	bnc.srte_backup_color = srte_backup_color;
+	bnc.srte_backup_color_flag = srte_backup_color_flag;
 	return bgp_nexthop_cache_find(tree, &bnc);
 }
 
@@ -769,42 +785,22 @@ static void bgp_show_nexthop_paths(struct vty *vty, struct bgp *bgp,
 	char buf1[BUFSIZ];
 
 	vty_out(vty, "  Paths:\n");
-	if (bnc->srte_color) {
-		LIST_FOREACH (path, &(bnc->paths), te_nh_thread) {
-			dest = path->net;
-			assert(dest && bgp_dest_table(dest));
-			afi = family2afi(bgp_dest_get_prefix(dest)->family);
-			table = bgp_dest_table(dest);
-			safi = table->safi;
-			bgp_path = table->bgp;
+	LIST_FOREACH (path, &(bnc->paths), nh_thread) {
+		dest = path->net;
+		assert(dest && bgp_dest_table(dest));
+		afi = family2afi(bgp_dest_get_prefix(dest)->family);
+		table = bgp_dest_table(dest);
+		safi = table->safi;
+		bgp_path = table->bgp;
 
-			if (dest->pdest) {
-				prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
-						buf1, sizeof(buf1));
-				vty_out(vty, "    %d/%d %pBD RD %s %s flags 0x%x\n",
-					afi, safi, dest, buf1, bgp_path->name_pretty, path->flags);
-			} else
-				vty_out(vty, "    %d/%d %pBD %s flags 0x%x\n",
-					afi, safi, dest, bgp_path->name_pretty, path->flags);
-		}
-	} else {
-		LIST_FOREACH (path, &(bnc->paths), nh_thread) {
-			dest = path->net;
-			assert(dest && bgp_dest_table(dest));
-			afi = family2afi(bgp_dest_get_prefix(dest)->family);
-			table = bgp_dest_table(dest);
-			safi = table->safi;
-			bgp_path = table->bgp;
-
-			if (dest->pdest) {
-				prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
-						buf1, sizeof(buf1));
-				vty_out(vty, "    %d/%d %pBD RD %s %s flags 0x%x\n",
-					afi, safi, dest, buf1, bgp_path->name_pretty, path->flags);
-			} else
-				vty_out(vty, "    %d/%d %pBD %s flags 0x%x\n",
-					afi, safi, dest, bgp_path->name_pretty, path->flags);
-		}
+		if (dest->pdest) {
+			prefix_rd2str((struct prefix_rd *)bgp_dest_get_prefix(dest->pdest),
+					buf1, sizeof(buf1));
+			vty_out(vty, "    %d/%d %pBD RD %s %s flags 0x%x\n",
+				afi, safi, dest, buf1, bgp_path->name_pretty, path->flags);
+		} else
+			vty_out(vty, "    %d/%d %pBD %s flags 0x%x\n",
+				afi, safi, dest, bgp_path->name_pretty, path->flags);
 	}
 }
 

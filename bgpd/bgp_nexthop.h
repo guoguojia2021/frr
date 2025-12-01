@@ -53,6 +53,7 @@ struct bgp_nexthop_cache {
 	/* Nexthop number and nexthop linked list.*/
 	uint8_t nexthop_num;
 	uint8_t srte_color_flag;
+	uint8_t srte_backup_color_flag;
 	struct nexthop *nexthop;
 	time_t last_update;
 	uint16_t flags;
@@ -86,6 +87,7 @@ struct bgp_nexthop_cache {
 #define BGP_NEXTHOP_EVPN_INCOMPLETE   (1 << 7)
 #define BGP_CONDITION_TRACK_ROUTE     (1 << 8)
 #define BGP_NEXTHOP_SRV6TE_VALID      (1 << 9)
+#define BGP_NEXTHOP_SRV6_BACKUPTE_VALID      (1 << 10)
 	
 	
 #define BGP_NEXTHOP_TYPE_NEXTHOP     1
@@ -104,14 +106,12 @@ struct bgp_nexthop_cache {
 	struct bgp_nexthop_cache_head *tree;
 
 	uint32_t srte_color;
+	uint32_t srte_backup_color;
 	struct prefix prefix;
 	struct prefix resolve_prefix;
 	void *nht_info; /* In BGP, peer session */
 	LIST_HEAD(path_list, bgp_path_info) paths;
 	unsigned int path_count;
-
-	LIST_HEAD(backup_path_list, bgp_path_info) backup_paths;
-	unsigned int backup_path_count;
 
     /*add for condition track route*/
 	LIST_HEAD(filter_list, bgp_filter) peer_filters;
@@ -169,13 +169,14 @@ extern bool bgp_nexthop_self(struct bgp *bgp, afi_t afi, uint8_t type,
 extern struct bgp_nexthop_cache *bnc_new(struct bgp_nexthop_cache_head *tree,
 					 struct prefix *prefix,
 					 uint32_t srte_color,
-					 uint8_t srte_color_flag);
+					 uint8_t srte_color_flag,
+				   uint32_t srte_backup_color,
+				   uint8_t srte_backup_color_flag);
 extern bool bnc_existing_for_prefix(struct bgp_nexthop_cache *bnc);
 extern void bnc_free(struct bgp_nexthop_cache *bnc);
 extern struct bgp_nexthop_cache *bnc_find(struct bgp_nexthop_cache_head *tree,
-					  struct prefix *prefix,
-					  uint32_t srte_color,
-					  uint8_t srte_color_flag);
+				   struct prefix *prefix, uint32_t srte_color, uint8_t srte_color_flag,
+				   uint32_t srte_backup_color, uint8_t srte_backup_color_flag);
 extern void bnc_nexthop_free(struct bgp_nexthop_cache *bnc);
 extern const char *bnc_str(struct bgp_nexthop_cache *bnc, char *buf, int size);
 extern void bgp_scan_init(struct bgp *bgp);

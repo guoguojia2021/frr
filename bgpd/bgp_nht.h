@@ -53,8 +53,6 @@ extern int bgp_find_or_add_nexthop(struct bgp *bgp_route,
  *   p - path structure.
  */
 extern void bgp_unlink_nexthop(struct bgp_path_info *p);
-extern void bgp_unlink_te_nexthop(struct bgp_path_info *path);
-extern void bgp_unlink_tebk_nexthop(struct bgp_path_info *path);
 
 void bgp_unlink_nexthop_by_peer(struct peer *peer);
 void bgp_replace_nexthop_by_peer(struct peer *from, struct peer *to);

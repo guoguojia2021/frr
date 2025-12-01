@@ -419,6 +419,9 @@ extern int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS);
 #define ZAPI_MESSAGE_OPAQUE 0x0400
 /* vrf group */
 #define ZAPI_MESSAGE_VRF_GROUP 0x0800
+#define ZAPI_MESSAGE_SRTE_PRIMARY_VALID 0x1000
+#define ZAPI_MESSAGE_SRTE_BACKUP_VALID  0x2000
+#define ZAPI_MESSAGE_IP_VAILD           0x4000
 
 #define ZSERV_VERSION 6
 /* Zserv protocol message header */
@@ -494,6 +497,8 @@ struct zapi_color_para {
 	/* SR-TE color. */
 	uint32_t srte_color;
 	uint8_t srte_color_flag;
+	uint32_t srte_backup_color;
+	uint8_t srte_backup_color_flag;
 };
 
 /*
@@ -619,6 +624,7 @@ struct zapi_route {
 	uint8_t distance;
 
 	uint8_t srte_color_flag;
+	uint8_t srte_backup_color_flag;
 
 	uint32_t metric;
 
@@ -632,6 +638,7 @@ struct zapi_route {
 
 	/* SR-TE color (used for nexthop updates only). */
 	uint32_t srte_color;
+	uint32_t srte_backup_color;
 
 	uint32_t vrf_group;
 

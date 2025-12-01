@@ -136,7 +136,8 @@ struct zebra_sr_policy *zebra_sr_policy_add_by_prefix(struct prefix *p, uint32_t
 		policy->node = rn;
 		policy->color = color;
 		strlcpy(policy->name, name, sizeof(policy->name));
-		rnh_list_init(&policy->nht);
+		rnh_srte_list_init(&policy->nht);
+		rnh_backup_srte_list_init(&policy->backup_nht);
 		rn->info = policy;
 	}
 	policy->status = ZEBRA_SR_POLICY_UP;
@@ -215,10 +216,13 @@ void zebra_free_sr_table(struct route_table *table)
 		zlog_err("error sr-te table node!");
 		return;
 	}
-	if (route_table_count(table) == 1 && rnh_list_count(&policyRoot->nht) == 0
+	if (route_table_count(table) == 1 
+		&& rnh_srte_list_count(&policyRoot->nht) == 0
+		&& rnh_backup_srte_list_count(&policyRoot->backup_nht) == 0
 		&& policyRoot->status == ZEBRA_SR_POLICY_INIT)
 	{
-		rnh_list_fini(&policyRoot->nht);
+		rnh_srte_list_fini(&policyRoot->nht);
+		rnh_backup_srte_list_fini(&policyRoot->backup_nht);
 		rn->info = NULL;
 		srte_key.afi = family2afi(rn->p.family);
 		srte_key.color = policyRoot->color;
@@ -241,7 +245,8 @@ void zebra_sr_policy_delete_by_prefix(struct zebra_sr_policy *policy)
 
 	if (!is_default_prefix(&policy->node->p)) {
 		rn = policy->node;
-		rnh_list_fini(&policy->nht);
+		rnh_srte_list_fini(&policy->nht);
+		rnh_backup_srte_list_fini(&policy->backup_nht);
 		rn->info = NULL;
 		XFREE(MTYPE_ZEBRA_SR_POLICY, policy);
 		route_unlock_node(rn);
@@ -666,7 +671,7 @@ static void zebra_nhe_seg_update(struct zebra_sr_policy *policy)
     if (!policy)
         return;
 
-    frr_each_safe(rnh_list, &policy->nht, rnh) {
+    frr_each_safe(rnh_srte_list, &policy->nht, rnh) {
         picnhe = zebra_find_pic_nhe(policy, rnh);
         if (!picnhe)
             continue;
@@ -701,7 +706,7 @@ static void zebra_srv6_policy_down_update_pic_nhe(struct zebra_sr_policy *policy
     struct nhg_segment *rb_node_dep = NULL;
     struct rnh *rnh;
 
-    frr_each_safe(rnh_list, &policy->nht, rnh) {
+    frr_each_safe(rnh_srte_list, &policy->nht, rnh) {
         picnhe = zebra_find_pic_nhe(policy, rnh);
         if (!picnhe)
             continue;
@@ -721,238 +726,6 @@ static void zebra_srv6_policy_down_update_pic_nhe(struct zebra_sr_policy *policy
         }
     }
 }
-
-int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy *policy,
-						struct zserv *client)
-{
-	const struct zebra_nhlfe *nhlfe;
-	struct stream *s;
-	uint32_t message = 0;
-	unsigned long nump = 0;
-	uint8_t num;
-	struct zapi_nexthop znh;
-	int ret;
-	struct nexthop nh = {0};
-	struct route_node *rn;
-	uint8_t srte_color_flag = 0;
-	rn = rnh->node;
-
-	/* Get output stream. */
-	s = stream_new(ZEBRA_MAX_PACKET_SIZ);
-
-	zclient_create_header(s, ZEBRA_NEXTHOP_UPDATE, rnh->vrf_id);
-
-	/* Message flags. */
-	SET_FLAG(message, ZAPI_MESSAGE_SRTE);
-	stream_putl(s, message);
-
-	stream_putw(s, rnh->safi);
-	stream_putw(s, rn->p.family);
-	stream_putc(s, rn->p.prefixlen);
-	switch (rn->p.family) {
-	case AF_INET:
-		stream_put_in_addr(s, &rn->p.u.prefix4);
-		break;
-	case AF_INET6:
-		stream_put(s, &rn->p.u.prefix6, IPV6_MAX_BYTELEN);
-		break;
-	default:
-		flog_err(EC_ZEBRA_RNH_UNKNOWN_FAMILY,
-			 "%s: Unknown family (%d) notification attempted",
-			 __func__, rn->p.family);
-		goto failure;
-	}
-	stream_putw(s, rnh->resolved_route.family);
-	stream_putc(s, rnh->resolved_route.prefixlen);
-	switch (rnh->resolved_route.family) {
-	case AF_INET:
-		stream_put_in_addr(s, &rnh->resolved_route.u.prefix4);
-		break;
-	case AF_INET6:
-		stream_put(s, &rnh->resolved_route.u.prefix6, IPV6_MAX_BYTELEN);
-		break;
-	default:
-		flog_err(EC_ZEBRA_RNH_UNKNOWN_FAMILY,
-			 "%s: Unknown family (%d) notification attempted",
-			 __func__, rn->p.family);
-		goto failure;
-	}
-
-	stream_putl(s, rnh->srte_color);
-	if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH))
-		srte_color_flag = 0;
-	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH))
-		srte_color_flag = 1;
-	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH))
-		srte_color_flag = 2;
-	stream_putc(s, srte_color_flag);
-
-	if (IS_ZEBRA_DEBUG_SEND) {
-		zlog_debug("%s: sending notification for %pRN, color %u, color_flag %u", __func__,
-			rn, rnh->srte_color, srte_color_flag);
-	}
-	num = 0;
-	if (policy && policy->type == ZEBRA_SR_POLICY_TYPE_LSP)
-	{
-		frr_each (nhlfe_list_const, &policy->lsp->nhlfe_list, nhlfe) {
-			if (!CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_SELECTED)
-				|| CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_DELETED))
-				continue;
-
-			if (num == 0) {
-				stream_putc(s, re_type_from_lsp_type(nhlfe->type));
-				stream_putw(s, 0); /* instance - not available */
-				stream_putc(s, nhlfe->distance);
-				stream_putl(s, 0); /* metric - not available */
-				nump = stream_get_endp(s);
-				stream_putc(s, 0);
-			}
-
-			zapi_nexthop_from_nexthop(&znh, nhlfe->nexthop);
-			ret = zapi_nexthop_encode(s, &znh, 0, message);
-			if (ret < 0)
-				goto failure;
-
-			num++;
-		}
-		stream_putc_at(s, nump, num);
-	}
-	else if (policy && policy->type == ZEBRA_SR_POLICY_TYPE_SRV6)
-	{
-		stream_putc(s, ZEBRA_ROUTE_SRTE);
-		stream_putw(s, 0); /* instance - not available */
-		stream_putc(s, 0);/* distance - not available */
-		stream_putl(s, 0); /* metric - not available */
-		if (policy->status == ZEBRA_SR_POLICY_UP) {
-			stream_putc(s, 1);
-			memset(&nh, 0, sizeof(struct nexthop));
-			nh.vrf_id = policy->zvrf->vrf->vrf_id;
-
-			switch (policy->node->p.family) {
-				case IPADDR_V4:
-					memcpy(&nh.gate.ipv4, &policy->node->p.u.prefix, sizeof(struct in_addr));
-					nh.type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
-					break;
-				case IPADDR_V6:
-					memcpy(&nh.gate.ipv6, &policy->node->p.u.prefix, sizeof(struct in6_addr));
-					nh.type = NEXTHOP_TYPE_IPV6_SEGMENTLIST;
-					break;
-				default:
-					flog_warn(EC_LIB_DEVELOPMENT,
-						"%s: unknown policy endpoint address family: %u",
-						__func__, policy->node->p.family);
-					exit(1);
-			}
-			zapi_nexthop_from_nexthop(&znh, &nh);
-			ret = zapi_nexthop_encode(s, &znh, 0, message);
-			if (ret < 0)
-				goto failure;
-		}
-		else
-			stream_putc(s, 0);
-	}
-	else {
-		stream_putc(s, ZEBRA_ROUTE_SRTE);
-		stream_putw(s, 0); /* instance - not available */
-		stream_putc(s, 0);/* distance - not available */
-		stream_putl(s, 0); /* metric - not available */
-		stream_putc(s, 0);
-	}
-
-	stream_putw_at(s, 0, stream_get_endp(s));
-	client->nh_last_upd_time = monotime(NULL);
-	return zserv_send_message(client, s);
-
-failure:
-
-	stream_free(s);
-	return -1;
-}
-
-void zebra_sr_policy_notify_update(struct rnh *rnh, struct zebra_sr_policy *policy,
-	struct zserv *zclient)
-{
-	struct listnode *node;
-	struct zserv *client;
-
-	if (zclient) {
-		zebra_sr_policy_notify_update_client(rnh, policy, zclient);
-	}
-	else {
-		for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client)) {
-			zebra_sr_policy_notify_update_client(rnh, policy, client);
-		}
-	}
-}
-
-int zebra_sr_policy_notify_unknown(struct rnh *rnh,
-						struct zserv *client)
-{
-	struct stream *s;
-	uint32_t message = 0;
-    struct route_node *rn;
-	uint8_t srte_color_flag = 0;
-
-    rn = rnh->node;
-
-	/* Get output stream. */
-	s = stream_new(ZEBRA_MAX_PACKET_SIZ);
-
-	zclient_create_header(s, ZEBRA_NEXTHOP_UPDATE, rnh->vrf_id);
-
-	/* Message flags. */
-	SET_FLAG(message, ZAPI_MESSAGE_SRTE);
-	stream_putl(s, message);
-	stream_putw(s, rnh->safi);
-
-	switch (rn->p.family) {
-	case AF_INET:
-		stream_putw(s, AF_INET);
-		stream_putc(s, IPV4_MAX_BITLEN);
-		stream_put_in_addr(s, &rn->p.u.prefix4);
-		stream_putw(s, AF_INET);
-		stream_putc(s, IPV4_MAX_BITLEN);
-		stream_put_in_addr(s, &rn->p.u.prefix4);
-		break;
-	case AF_INET6:
-		stream_putw(s, AF_INET6);
-		stream_putc(s, IPV6_MAX_BITLEN);
-		stream_put(s, &rn->p.u.prefix6, IPV6_MAX_BYTELEN);
-		stream_putw(s, AF_INET6);
-		stream_putc(s, IPV6_MAX_BITLEN);
-		stream_put(s, &rn->p.u.prefix6, IPV6_MAX_BYTELEN);
-		break;
-	default:
-		flog_warn(EC_LIB_DEVELOPMENT,
-			  "%s: unknown policy endpoint address family: %u",
-			  __func__, rn->p.family);
-		exit(1);
-	}
-
-	stream_putl(s, rnh->srte_color);
-	if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH))
-		srte_color_flag = 0;
-	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH))
-		srte_color_flag = 1;
-	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH))
-		srte_color_flag = 2;
-	stream_putc(s, srte_color_flag);
-
-    stream_putc(s, ZEBRA_ROUTE_SRTE);
-	stream_putw(s, 0); /* instance - not available */
-	stream_putc(s, 0);/* distance - not available */
-	stream_putl(s, 0); /* metric - not available */
-    /*set nexthop num to 0 */
-    stream_putc(s, 0);
-
-    stream_putw_at(s, 0, stream_get_endp(s));
-	client->nh_last_upd_time = monotime(NULL);
-	client->last_write_cmd = ZEBRA_NEXTHOP_UPDATE;
-	return zserv_send_message(client, s);
-
-}
-
-
 
 static void zebra_sr_policy_activate(struct zebra_sr_policy *policy,
 				     struct zebra_lsp *lsp)
@@ -1367,7 +1140,8 @@ struct route_table *zebra_srte_table_create(afi_t afi, uint32_t color)
 		policy->node = rn;
 		policy->color = color;
 		policy->status = ZEBRA_SR_POLICY_INIT;
-		rnh_list_init(&policy->nht);
+		rnh_srte_list_init(&policy->nht);
+		rnh_backup_srte_list_init(&policy->backup_nht);
 		rn->info = policy;
 	} 
 	return table;
@@ -1411,7 +1185,8 @@ void *srte_table_alloc(void *arg)
 void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, uint32_t seq, bool rt_delete)
 {
 	struct route_node *rn;
-	struct rnh *rnh;
+	struct rnh *rnh = NULL;
+	struct rnh *backup_rnh = NULL;
 	struct zebra_sr_policy *policyNext = policy;
 
 	rn = policy->node;
@@ -1432,38 +1207,45 @@ void zebra_srte_evaluate_rn_nexthops(struct zebra_sr_policy *policy, uint32_t se
 				policyNext = rn->info;
 			continue;
 		}
-		if (rt_delete && (!rnh_list_count(&policyNext->nht))) {
+		if (rt_delete && (!rnh_srte_list_count(&policyNext->nht))
+			&& (!rnh_backup_srte_list_count(&policyNext->backup_nht))) {
 			if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 				zlog_debug("%pRN has no tracking NHTs. Bailing",
 					   rn);
 			break;
 		}
-		if (!rnh_list_count(&policyNext->nht)) {
-			rn = rn->parent;
-			if (rn)
-				policyNext = rn->info;
-			continue;
-		}
-		/*
-		 * If we have any rnh's stored in the nht list
-		 * then we know that this route node was used for
-		 * nht resolution and as such we need to call the
-		 * nexthop tracking evaluation code
-		 */
-		frr_each_safe(rnh_list, &policyNext->nht, rnh) {
 
-			if (rnh->seqno == seq) {
-				if (IS_ZEBRA_DEBUG_NHT_DETAILED)
-					zlog_debug(
-						"    Node processed and moved already");
-				continue;
+		if (rnh_srte_list_count(&policyNext->nht)) {
+			frr_each_safe(rnh_srte_list, &policyNext->nht, rnh) {
+				if (rnh->seqno == seq) {
+					if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+						zlog_debug(
+							"    Node processed and moved already");
+					continue;
+				}
+
+				rnh->seqno = seq;
+				struct prefix *p = &rnh->node->p;
+
+				zebra_evaluate_rnh_by_srte(family2afi(p->family), rnh);
 			}
-
-			rnh->seqno = seq;
-			struct prefix *p = &rnh->node->p;
-
-			zebra_evaluate_rnh_by_srte(family2afi(p->family), rnh);
 		}
+		if (rnh_backup_srte_list_count(&policyNext->backup_nht)) {
+			frr_each_safe(rnh_backup_srte_list, &policyNext->backup_nht, backup_rnh) {
+				if (backup_rnh->seqno == seq) {
+					if (IS_ZEBRA_DEBUG_NHT_DETAILED)
+						zlog_debug(
+							"    Node processed and moved already");
+					continue;
+				}
+
+				backup_rnh->seqno = seq;
+				struct prefix *p = &backup_rnh->node->p;
+
+				zebra_evaluate_rnh_by_srte(family2afi(p->family), backup_rnh);
+			}
+		}
+		
 		rn = rn->parent;
 		if (rn)
 			policyNext = rn->info;

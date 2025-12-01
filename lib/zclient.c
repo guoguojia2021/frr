@@ -811,6 +811,8 @@ enum zclient_send_status zclient_send_rnh(struct zclient *zclient, int command,
 			para = userdata;
 			stream_putl(s, para->srte_color);
 			stream_putc(s, para->srte_color_flag);
+			stream_putl(s, para->srte_backup_color);
+			stream_putc(s, para->srte_backup_color_flag);
 			break;
 		default:
 			zlog_err("error type with userdate:%u", type);
@@ -2225,6 +2227,8 @@ bool zapi_nexthop_update_decode(struct stream *s, struct prefix *match,
 	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE)) {
 		STREAM_GETL(s, nhr->srte_color);
 		STREAM_GETC(s, nhr->srte_color_flag);
+		STREAM_GETL(s, nhr->srte_backup_color);
+		STREAM_GETC(s, nhr->srte_backup_color_flag);
 	}
 
 	STREAM_GETC(s, nhr->type);
@@ -4936,11 +4940,11 @@ void zapi_route_init(struct zapi_route *api)
 
 	/* Initialize nexthop information */
 	api->nexthop_num = 0;
-    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始化 */
+    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
 
 	/* Initialize backup nexthop information */
 	api->backup_nexthop_num = 0;
-    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始化 */
+    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
 
 	/* Initialize other fields */
 	api->nhgid = 0;

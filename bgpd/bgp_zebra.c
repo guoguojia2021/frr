@@ -1450,17 +1450,17 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 				}
 			}
 		}
-		if (mpinfo->te_nexthop && CHECK_FLAG(mpinfo->te_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-		{
-			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
-			api_nh->srte_color = mpinfo->te_nexthop->srte_color;
-			api_nh->srte_color_flag = mpinfo->te_nexthop->srte_color_flag;
-		}
-		else if (mpinfo->te_backup_nexthop && CHECK_FLAG(mpinfo->te_backup_nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-		{
-			SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
-			api_nh->srte_color = mpinfo->te_backup_nexthop->srte_color;
-			api_nh->srte_color_flag = mpinfo->te_backup_nexthop->srte_color_flag;
+		if (mpinfo->nexthop) {
+			if (CHECK_FLAG(mpinfo->nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)) {
+				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
+				api_nh->srte_color = mpinfo->nexthop->srte_color;
+				api_nh->srte_color_flag = mpinfo->nexthop->srte_color_flag;
+			}
+			else if (CHECK_FLAG(mpinfo->nexthop->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID)) {
+				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_SRTE);
+				api_nh->srte_color = mpinfo->nexthop->srte_backup_color;
+				api_nh->srte_color_flag = mpinfo->nexthop->srte_backup_color_flag;
+			}
 		}
 		BGP_ORIGINAL_UPDATE(bgp_orig, mpinfo, bgp);
 

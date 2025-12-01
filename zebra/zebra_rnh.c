@@ -133,30 +133,62 @@ static void zebra_rnh_store_in_routing_table(struct rnh *rnh)
 	route_unlock_node(rn);
 }
 
-static void zebra_rnh_store_in_srte_table(struct rnh *rnh)
+static void zebra_rnh_store_in_srte_table(struct rnh *rnh, struct zebra_sr_policy *policy, struct zebra_sr_policy *backup_policy)
 {
 	struct route_node *rn;
-	struct zebra_sr_policy *policy;
+	struct zebra_sr_policy *default_policy;
+	struct zebra_sr_policy *default_backup_policy;
 	struct srte_table_key srte_key = {0};
+	struct srte_table_key backup_srte_key = {0};
 	struct srte_table_key *srte_key_table = NULL;
+	struct srte_table_key *backup_srte_key_table = NULL;
+	struct prefix resolved_prefix = {0};
+	struct prefix backup_resolved_prefix = {0};
 
-	srte_key.afi = rnh->afi;
-	srte_key.color = rnh->srte_color;
+	if (policy) {
+		rnh_srte_list_add_tail(&policy->nht, rnh);
+		rnh->policy = policy;
+	}
+	else {
+		srte_key.afi = rnh->afi;
+		srte_key.color = rnh->srte_color;
 
-	srte_key_table = hash_get(srte_table_hash, &srte_key, srte_table_alloc);
+		srte_key_table = hash_get(srte_table_hash, &srte_key, srte_table_alloc);
 
-	rn = route_node_match(srte_key_table->table, &rnh->resolved_route);
-	if (!rn)
-		return;
+		rn = route_node_match(srte_key_table->table, &resolved_prefix);
+		if (rn) {
+			default_policy = (struct zebra_sr_policy *)rn->info;
+			rnh_srte_list_add_tail(&default_policy->nht, rnh);
+			rnh->policy = default_policy;
+			route_unlock_node(rn);
+		}
+	}
 
-	policy = (struct zebra_sr_policy *)rn->info;
-	rnh_list_add_tail(&policy->nht, rnh);
-	rnh->policy = policy;
-	route_unlock_node(rn);
+	if (backup_policy) {
+		rnh_backup_srte_list_add_tail(&backup_policy->backup_nht, rnh);
+		rnh->backup_policy = backup_policy;
+	}
+	else if (rnh->srte_backup_color){
+		backup_srte_key.afi = rnh->afi;
+		backup_srte_key.color = rnh->srte_backup_color;
+
+		backup_srte_key_table = hash_get(srte_table_hash, &backup_srte_key, srte_table_alloc);
+
+		rn = route_node_match(backup_srte_key_table->table, &backup_resolved_prefix);
+		if (rn) {
+			default_backup_policy = (struct zebra_sr_policy *)rn->info;
+			rnh_backup_srte_list_add_tail(&default_backup_policy->backup_nht, rnh);
+			rnh->backup_policy = default_backup_policy;
+			route_unlock_node(rn);
+		}
+	}
 }
 static void zebra_rnh_remove_from_srte_table(struct rnh *rnh)
 {
-	rnh_list_del(&rnh->policy->nht, rnh);
+	if (rnh->policy)
+		rnh_srte_list_del(&rnh->policy->nht, rnh);
+	if (rnh->backup_policy)
+		rnh_backup_srte_list_del(&rnh->backup_policy->backup_nht, rnh);
 }
 
 /* Clear the NEXTHOP_FLAG_RNH_FILTERED flags on all nexthops
@@ -234,7 +266,10 @@ void zebra_rnh_info_del(struct route_node *dest, struct rnh *pi)
 		dest->info = pi->next;
 }
 
-struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32_t srte_color, uint8_t rnh_type_flag)
+struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, 
+									uint32_t srte_color, uint32_t srte_color_flag, 
+									uint32_t srte_backup_color, uint32_t srte_backup_color_flag, 
+									uint8_t rnh_type_flag)
 {
 	struct route_table *table;
 	struct route_node *rn;
@@ -267,7 +302,9 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 	rn = route_node_get(table, p);
 	/* Check previously received route. */
 	for (rnh = rn->info; rnh; rnh = rnh->next)
-		if ((rnh->srte_color == srte_color) && (rnh->type_flags == rnh_type_flag))
+		if ((rnh->srte_color == srte_color) && (rnh->srte_color_flag == srte_color_flag)
+			&& (rnh->srte_backup_color == srte_backup_color) && (rnh->srte_backup_color_flag == srte_backup_color_flag)
+			&& (rnh->type_flags == rnh_type_flag))
 			break;
 
 	if (!rnh) {
@@ -289,16 +326,17 @@ struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid, bool *exists, uint32
 		route_lock_node(rn);
 		rnh->node = rn;
 		rnh->srte_color = srte_color;
+		rnh->srte_color_flag = srte_color_flag;
+		rnh->srte_backup_color = srte_backup_color;
+		rnh->srte_backup_color_flag = srte_backup_color_flag;
 		rnh->type_flags = rnh_type_flag;
 		rnh->srp_status = ZEBRA_SR_POLICY_DOWN;
 		*exists = false;
         
 		zebra_rnh_info_add(rn, rnh);
-		if (!srte_color)
-			zebra_rnh_store_in_routing_table(rnh);
-		else {
-			zebra_rnh_store_in_srte_table(rnh);
-		}
+		zebra_rnh_store_in_routing_table(rnh);
+		if (srte_color)
+			zebra_rnh_store_in_srte_table(rnh, NULL, NULL);
 	} else
 		*exists = true;
 
@@ -450,16 +488,7 @@ void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client,
 	}
 
 
-	if (!rnh->srte_color)
-		zebra_send_rnh_update(rnh, client, vrf_id, rnh->srte_color);
-	else
-	{
-		if (rnh->policy && rnh->srp_status == ZEBRA_SR_POLICY_UP) {
-			zebra_sr_policy_notify_update(rnh, rnh->policy, client);
-		}
-		else
-			zebra_sr_policy_notify_unknown(rnh, client);
-	}
+	zebra_send_rnh_update(rnh, client, vrf_id);
 	if(rnh->state)
 		zebra_rnh_clear_nexthop_rnh_filters(rnh->state);
 
@@ -515,7 +544,7 @@ void zebra_register_rnh_pseudowire(vrf_id_t vrf_id, struct zebra_pw *pw,
 		return;
 
 	addr2hostprefix(pw->af, &pw->nexthop, &nh);
-	rnh = zebra_add_rnh(&nh, vrf_id, &exists, 0, 0);
+	rnh = zebra_add_rnh(&nh, vrf_id, &exists, 0, 0, 0, 0, 0);
 	if (!rnh)
 		return;
 
@@ -599,7 +628,7 @@ static void zebra_rnh_notify_protocol_clients(struct zebra_vrf *zvrf, afi_t afi,
 					zebra_route_string(client->proto));
 		}
 
-		zebra_send_rnh_update(rnh, client, zvrf->vrf->vrf_id, rnh->srte_color);
+		zebra_send_rnh_update(rnh, client, zvrf->vrf->vrf_id);
 	}
 
 	if (re)
@@ -860,41 +889,41 @@ static void zebra_rnh_eval_nexthop_entry(struct zebra_vrf *zvrf, afi_t afi,
 static void zebra_rnh_eval_nexthop_entry_srte(afi_t afi,
 					 struct route_node *nrn,
 					 struct rnh *rnh,
-					 struct zebra_sr_policy *policy)
+					 struct zebra_sr_policy *policy,
+					 struct zebra_sr_policy *backup_policy)
 {
 	int state_changed = 0;
-	struct route_node *prn = policy ? policy->node : NULL;
+	struct zebra_vrf *zvrf = zebra_vrf_lookup_by_id(rnh->vrf_id);
 
 	/* If we're resolving over a different route, resolution has changed or
 	 * the resolving route has some change (e.g., metric), there is a state
 	 * change.
 	 */
 
-	if (!prefix_same(&rnh->resolved_route, prn ? &prn->p : NULL)) {
-		if (prn)
-			prefix_copy(&rnh->resolved_route, &prn->p);
-		else {
-			/*
-			 * Just quickly store the family of the resolved
-			 * route so that we can reset it in a second here
-			 */
-			int family = rnh->resolved_route.family;
-
-			memset(&rnh->resolved_route, 0, sizeof(struct prefix));
-			rnh->resolved_route.family = family;
-		}
+	if (rnh->policy != policy) {
 		rnh->srp_status = policy ? policy->status : ZEBRA_SR_POLICY_DOWN;
 		state_changed = 1;
-	} else if (rnh->srp_status != policy->status || rnh->policy != policy) {
+	}
+	else if (policy && (rnh->srp_status != policy->status)) {
 		rnh->srp_status = policy->status;
 		state_changed = 1;
 	}
 
+	if (rnh->backup_policy != backup_policy) {
+		rnh->backup_srp_status = backup_policy ? backup_policy->status : ZEBRA_SR_POLICY_DOWN;
+		state_changed = 1;
+	}
+	else if (backup_policy && rnh->backup_srp_status != backup_policy->status) {
+		rnh->backup_srp_status = backup_policy->status;
+		state_changed = 1;
+	}
+
 	if (state_changed) {
-		if (rnh->policy)
+		if (rnh->policy || rnh->backup_policy)
 			zebra_rnh_remove_from_srte_table(rnh);
-		zebra_rnh_store_in_srte_table(rnh);
-		zebra_sr_policy_notify_update(rnh, policy, NULL);
+		zebra_rnh_store_in_srte_table(rnh, policy, backup_policy);
+		zebra_rnh_notify_protocol_clients(zvrf, afi, nrn, rnh, NULL,
+						  rnh->state);
 	}
 }
 
@@ -913,21 +942,19 @@ static void zebra_rnh_evaluate_entry(struct zebra_vrf *zvrf, afi_t afi,
 	}
 
 	rnh = nrn->info;
-	/* check color */
-	for (; rnh; rnh = rnh->next)
-		if (rnh->srte_color == 0) {
-			/* Identify route entry (RE) resolving this tracked entry. */
-			re = zebra_rnh_resolve_nexthop_entry(zvrf, afi, nrn, rnh, &prn);
+	for (; rnh; rnh = rnh->next) {
+		/* Identify route entry (RE) resolving this tracked entry. */
+		re = zebra_rnh_resolve_nexthop_entry(zvrf, afi, nrn, rnh, &prn);
 
-			/* If the entry cannot be resolved and that is also the existing state,
-			 * there is nothing further to do.
-			 */
-			if (!re && rnh->state == NULL && !force)
-				continue;
+		/* If the entry cannot be resolved and that is also the existing state,
+		 * there is nothing further to do.
+		 */
+		if (!re && rnh->state == NULL && !force)
+			continue;
 
-			/* Process based on type of entry. */
-			zebra_rnh_eval_nexthop_entry(zvrf, afi, force, nrn, rnh, prn, re);
-		}
+		/* Process based on type of entry. */
+		zebra_rnh_eval_nexthop_entry(zvrf, afi, force, nrn, rnh, prn, re);
+	}
 }
 
 /*
@@ -997,29 +1024,46 @@ void zebra_evaluate_rnh_by_srte(afi_t afi,
 			struct rnh *rnh)
 {
 	struct zebra_sr_policy *policy = NULL;
+	struct zebra_sr_policy *backup_policy = NULL;
 	struct route_node *nrn = rnh->node;
 
-	if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH)) {
+	if (rnh->srte_color_flag == ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH) {
 		policy = zebra_sr_policy_lookup_by_prefix(&nrn->p, rnh->srte_color);
 		if (!policy || policy->status != ZEBRA_SR_POLICY_UP)
 			policy = NULL;
 	}
-	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH))
+	else if (rnh->srte_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH)
 		policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_color);
-	else if (CHECK_FLAG(rnh->type_flags, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH)) {
+	else if (rnh->srte_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH) {
 		struct prefix endpoint = {0};
 		endpoint.family = AF_INET6;
 		policy = zebra_sr_policy_match_by_prefix(&endpoint, rnh->srte_color);
 	}
 
+	if (rnh->srte_backup_color != 0) {
+		if (rnh->srte_backup_color_flag == ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH) {
+			backup_policy = zebra_sr_policy_lookup_by_prefix(&nrn->p, rnh->srte_backup_color);
+			if (!backup_policy || backup_policy->status != ZEBRA_SR_POLICY_UP)
+				backup_policy = NULL;
+		}
+		else if (rnh->srte_backup_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH)
+			backup_policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_backup_color);
+		else if (rnh->srte_backup_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH) {
+			struct prefix endpoint = {0};
+			endpoint.family = AF_INET6;
+			backup_policy = zebra_sr_policy_match_by_prefix(&endpoint, rnh->srte_backup_color);
+		}
+	}
+
 	/* If the entry cannot be resolved and that is also the existing state,
 	 * there is nothing further to do.
 	 */
-	if (!policy && rnh->policy == NULL)
+	if ((!policy && !rnh->policy)
+			&& (!backup_policy && !rnh->backup_policy))
 		return;
 
 	/* Process based on type of entry. */
-	zebra_rnh_eval_nexthop_entry_srte(afi, nrn, rnh, policy);
+	zebra_rnh_eval_nexthop_entry_srte(afi, nrn, rnh, policy, backup_policy);
 }
 
 void zebra_print_rnh_table(vrf_id_t vrfid, afi_t afi, struct vty *vty,
@@ -1365,7 +1409,7 @@ static bool compare_state(struct route_entry *r1,
 }
 
 int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
-			  vrf_id_t vrf_id, uint32_t srte_color)
+			  vrf_id_t vrf_id)
 {
 	struct stream *s = NULL;
 	struct route_entry *re;
@@ -1384,6 +1428,13 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 
 	zclient_create_header(s, ZEBRA_NEXTHOP_UPDATE, vrf_id);
 
+	if (rnh->srte_color)
+		SET_FLAG(message, ZAPI_MESSAGE_SRTE);
+
+	if (rnh->srp_status == ZEBRA_SR_POLICY_UP)
+		SET_FLAG(message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID);
+	if (rnh->backup_srp_status == ZEBRA_SR_POLICY_UP)
+		SET_FLAG(message, ZAPI_MESSAGE_SRTE_BACKUP_VALID);
 	stream_putl(s, message);
 
 	/*
@@ -1425,8 +1476,12 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 		goto failure;
 	}
 
-	//if (srte_color)
-	//	stream_putl(s, srte_color);
+	if (rnh->srte_color) {
+		stream_putl(s, rnh->srte_color);
+		stream_putc(s, rnh->srte_color_flag);
+		stream_putl(s, rnh->srte_backup_color);
+		stream_putc(s, rnh->srte_backup_color_flag);
+	}
 
 	if (re) {
 		struct zapi_nexthop znh;
@@ -1540,21 +1595,30 @@ static void print_rnh(struct route_node *rn, struct vty *vty)
 
 	rnh = rn->info;
 	for (; rnh; rnh = rnh->next) {
-		vty_out(vty, "%s%s - type flag:%d, %u\n",
+		vty_out(vty, "%s%s - type flag:%d, color %d:%u, backup color %d:%u \n",
 			inet_ntop(rn->p.family, &rn->p.u.prefix, buf, BUFSIZ),
 			CHECK_FLAG(rnh->flags, ZEBRA_NHT_CONNECTED) ? "(Connected)"
-								    : "", rnh->type_flags, rnh->srte_color);
-		if (rnh->state) {
-			vty_out(vty, " resolved via %s\n",
-				zebra_route_string(rnh->state->type));
-			for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
-			     nexthop = nexthop->next)
-				print_nh(nexthop, vty);
-		}
-		else if (rnh->srp_status == ZEBRA_SR_POLICY_UP) {
-			policy_rn = rnh->policy->node;
-			vty_out(vty, " resolved via sr-te:color:%u, endpoint:%s \n", rnh->policy->color,
-				inet_ntop(policy_rn->p.family, &policy_rn->p.u.prefix, endpoint, sizeof(endpoint)));
+								    : "", rnh->type_flags, 
+								    rnh->srte_color_flag, rnh->srte_color, 
+								    rnh->srte_backup_color_flag,rnh->srte_backup_color);
+		if (rnh->state || rnh->srp_status == ZEBRA_SR_POLICY_UP) {
+			if (rnh->state) {
+				vty_out(vty, " resolved via %s\n",
+					zebra_route_string(rnh->state->type));
+				for (nexthop = rnh->state->nhe->nhg.nexthop; nexthop;
+				     nexthop = nexthop->next)
+					print_nh(nexthop, vty);
+			}
+			if (rnh->srp_status == ZEBRA_SR_POLICY_UP) {
+				policy_rn = rnh->policy->node;
+				vty_out(vty, " resolved via sr-te:color:%u, endpoint:%s \n", rnh->policy->color,
+					inet_ntop(policy_rn->p.family, &policy_rn->p.u.prefix, endpoint, sizeof(endpoint)));
+			}
+			if (rnh->backup_srp_status == ZEBRA_SR_POLICY_UP) {
+				policy_rn = rnh->backup_policy->node;
+				vty_out(vty, " (backup)resolved via sr-te:color:%u, endpoint:%s \n", rnh->backup_policy->color,
+					inet_ntop(policy_rn->p.family, &policy_rn->p.u.prefix, endpoint, sizeof(endpoint)));
+			}
 		}
 		else
 			vty_out(vty, " unresolved%s\n",

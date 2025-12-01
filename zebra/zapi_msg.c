@@ -1215,6 +1215,8 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 	uint32_t userdata_type = 0;
 	uint32_t srte_color = 0;
 	uint8_t srte_color_flag = 0;
+	uint32_t srte_backup_color = 0;
+	uint8_t srte_backup_color_flag = 0;
 	uint8_t rnh_type_flag = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
@@ -1272,12 +1274,8 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 			case NEXTHOP_REGISTER_TYPE_COLOR:
 				STREAM_GETL(s, srte_color);
 				STREAM_GETC(s, srte_color_flag);
-				if (srte_color_flag == 0)
-					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH);
-				else if (srte_color_flag == 1)
-					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH);
-				else if (srte_color_flag == 2)
-					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH);
+				STREAM_GETL(s, srte_backup_color);
+				STREAM_GETC(s, srte_backup_color_flag);
 				l += 9;
 				break;
 			default:
@@ -1290,7 +1288,7 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_TRACKROUTE))
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TRACK_MATCH);
-		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, rnh_type_flag);
+		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, srte_color_flag, srte_backup_color, srte_backup_color_flag, rnh_type_flag);
 		if (!rnh)
 			return;
 
@@ -1308,7 +1306,7 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 			flag_changed = true;
 
 		/* Anything not AF_INET/INET6 has been filtered out above */
-		if (!srte_color && (!exist || flag_changed))
+		if (!exist || flag_changed)
 			zebra_evaluate_rnh(zvrf, family2afi(p.family), 1, &p,
 					   safi);
 		if (srte_color)
@@ -1330,9 +1328,11 @@ void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 	unsigned short l = 0;
 	safi_t safi;
 	uint32_t userdata_type = 0;
-	uint32_t srte_color = 0;
 	uint8_t rnh_type_flag = 0;
+	uint32_t srte_color = 0;
 	uint8_t srte_color_flag = 0;
+	uint32_t srte_backup_color = 0;
+	uint8_t srte_backup_color_flag = 0;
 
 	if (IS_ZEBRA_DEBUG_NHT)
 		zlog_debug(
@@ -1345,6 +1345,8 @@ void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 	while (l < hdr->length) {
 		srte_color = 0;
 		srte_color_flag = 0;
+		srte_backup_color = 0;
+		srte_backup_color_flag = 0;
 		uint8_t ignore;
 		uint8_t flags;
 
@@ -1391,12 +1393,8 @@ void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 			case NEXTHOP_REGISTER_TYPE_COLOR:
 				STREAM_GETL(s, srte_color);
 				STREAM_GETC(s, srte_color_flag);
-				if (srte_color_flag == 0)
-					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH);
-				else if (srte_color_flag == 1)
-					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH);
-				else if (srte_color_flag == 2)
-					SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH);
+				STREAM_GETL(s, srte_backup_color);
+				STREAM_GETC(s, srte_backup_color_flag);
 				l += 9;
 				break;
 			default:
@@ -1412,7 +1410,9 @@ void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
 		for (; rnh; rnh = rnh->next)
-			if (rnh->srte_color == srte_color && rnh->type_flags == rnh_type_flag)
+			if ((rnh->srte_color == srte_color) && (rnh->srte_color_flag == srte_color_flag)
+				&& (rnh->srte_backup_color == srte_backup_color) && (rnh->srte_backup_color_flag == srte_backup_color_flag)
+				&& (rnh->type_flags == rnh_type_flag))
 				break;
 		if (rnh) {
 			client->nh_dereg_time = monotime(NULL);

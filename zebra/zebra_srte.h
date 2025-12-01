@@ -59,7 +59,8 @@ struct zebra_sr_policy {
 	 * The list of nht prefixes that have ended up
 	 * depending on this policy.
 	 */
-	struct rnh_list_head nht;
+	struct rnh_srte_list_head nht;
+	struct rnh_backup_srte_list_head backup_nht;
 };
 #if 0
 RB_HEAD(zebra_sr_policy_instance_head, zebra_sr_policy);
@@ -94,10 +95,6 @@ void zebra_sr_policy_bsid_uninstall(struct zebra_sr_policy *policy,
 void zebra_srte_init(void);
 int zebra_sr_policy_label_update(mpls_label_t label,
 				 enum zebra_sr_policy_update_label_mode mode);
-extern int zebra_sr_policy_notify_update_client(struct rnh *rnh, struct zebra_sr_policy *policy,
-                            struct zserv *client);
-extern void zebra_sr_policy_notify_update(struct rnh *rnh, struct zebra_sr_policy *policy, struct zserv *zclient);
-extern int zebra_sr_policy_notify_unknown(struct rnh *rnh, struct zserv *client);
 extern void zebra_srv6_policy_validate(struct zebra_sr_policy *policy,
                      struct zapi_sr_policy *zp, bool new_flag);
 
