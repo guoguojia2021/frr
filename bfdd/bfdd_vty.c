@@ -107,7 +107,7 @@ static void _clear_peer_counter(struct bfd_session *bs);
 static const char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
         case BFD_MODE_TYPE_NONE:
-            return "bgp-bfd";
+            return "protocol-bfd";
         case BFD_MODE_TYPE_BFD:
             return "bfd";
         case BFD_MODE_TYPE_SBFD_ECHO:

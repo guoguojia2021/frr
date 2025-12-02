@@ -533,7 +533,7 @@ DEFPY_YANG(
 static const char *_bfd_cli_bfd_mode_type_to_string(enum bfd_mode_type mode) {
     switch (mode) {
         case BFD_MODE_TYPE_NONE:
-            return "None";
+            return "protocol-bfd";
         case BFD_MODE_TYPE_BFD:
             return "bfd";
         case BFD_MODE_TYPE_SBFD_ECHO:
