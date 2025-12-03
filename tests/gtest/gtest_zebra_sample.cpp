@@ -97,10 +97,10 @@ static void dump_zebra_sr_policy(struct zebra_sr_policy *policy)
 
 	struct rnh *rnh;
 	char buff[64];
-	if (rnh_list_count(&policy->nht) == 0) {
+	if (rnh_srte_list_count(&policy->nht) == 0) {
 		std::cout << " ------ policy.nht is empty" << std::endl;
 	} else {
-		frr_each_safe (rnh_list, &policy->nht, rnh) {
+		frr_each_safe (rnh_srte_list, &policy->nht, rnh) {
 			memset(buff, 0, sizeof(buff));
 			prefix2str(&rnh->node->p, buff, sizeof(buff));
 			std::cout << " -------- policy.nht: rnh.route.prefix "

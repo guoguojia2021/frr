@@ -153,6 +153,8 @@ static void zebra_rnh_store_in_srte_table(struct rnh *rnh, struct zebra_sr_polic
 		srte_key.afi = rnh->afi;
 		srte_key.color = rnh->srte_color;
 
+		resolved_prefix.family = afi2family(rnh->afi);
+
 		srte_key_table = hash_get(srte_table_hash, &srte_key, srte_table_alloc);
 
 		rn = route_node_match(srte_key_table->table, &resolved_prefix);

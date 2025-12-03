@@ -484,6 +484,15 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_BACKUP_VALID) != CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID))
 		bnc->change_flags |= BGP_NEXTHOP_CHANGED;
 
+	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID))
+		SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
+	else
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
+	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_BACKUP_VALID))
+		SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID);
+	else
+		UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID);
+
 	if (import_check && (nhr->type == ZEBRA_ROUTE_BGP ||
 				 !prefix_same(&bnc->prefix, &nhr->prefix))) {
 		SET_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED);
@@ -505,14 +514,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 
 		if (!bnc->is_evpn_gwip_nexthop)
 			bnc->flags |= BGP_NEXTHOP_VALID;
-		if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID))
-			SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
-		else
-			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
-		if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_BACKUP_VALID))
-			SET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID);
-		else
-			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID);
+		
 		bnc->resolve_prefix = nhr->prefix;
 		bnc->metric = nhr->metric;
 		bnc->nexthop_num = nhr->nexthop_num;
@@ -620,7 +622,6 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 		bnc->flags &= ~BGP_NEXTHOP_EVPN_INCOMPLETE;
 		bnc->flags &= ~BGP_NEXTHOP_VALID;
 		bnc->flags &= ~BGP_NEXTHOP_LABELED_VALID;
-        UNSET_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID);
 		bnc->nexthop_num = nhr->nexthop_num;
 
 		/* notify bgp fsm if nbr ip goes from valid->invalid */

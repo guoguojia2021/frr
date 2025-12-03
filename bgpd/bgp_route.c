@@ -12589,7 +12589,7 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 				if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID))
 					json_object_string_addf(json_path, "Relay-Nexthop(backup-tunnel)", "srv6-tunnel:%s|%u(endpoint|color)",
 							inet_ntop(bnc->prefix.family, &bnc->prefix.u.prefix, buf, sizeof(buf)),
-							bnc->srte_color);
+							bnc->srte_backup_color);
 			}
 
 		}

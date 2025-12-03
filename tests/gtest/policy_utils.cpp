@@ -269,13 +269,13 @@ static void dump_zebra_srv6_policy(struct zebra_sr_policy *policy,
 
 	struct rnh *rnh;
 	char buff[64];
-	size_t rnh_count = rnh_list_count(&policy->nht);
+	size_t rnh_count = rnh_srte_list_count(&policy->nht);
 	if (rnh_count == 0) {
 		std::cout << " ------ policy.nht is empty" << std::endl;
 	} else {
 		std::cout << " ------ policy.nht count is " << rnh_count
 			  << std::endl;
-		frr_each_safe (rnh_list, &policy->nht, rnh) {
+		frr_each_safe (rnh_srte_list, &policy->nht, rnh) {
 			EXPECT_EQ(policy, rnh->policy);
 
 			memset(buff, 0, sizeof(buff));

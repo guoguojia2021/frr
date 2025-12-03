@@ -56,6 +56,8 @@ class RnhUtils
 				para = (zapi_color_para *)userdata;
 				stream_putl(s, para->srte_color);
 				stream_putc(s, para->srte_color_flag);
+				stream_putl(s, para->srte_backup_color);
+				stream_putc(s, para->srte_backup_color_flag);
 				break;
 			default:
 				zlog_err("error type with userdate:%u", type);

@@ -193,7 +193,7 @@ def test_bgp_srv6_te():
                         },
                         "Relay-Nexthop(ip)": "if pe3-eth0",
                         "Relay-Nexthop(tunnel)": "srv6-tunnel:2001:db8:12::1|2(endpoint|color)",
-                        "Relay-Nexthop(backup-tunnel)": "srv6-tunnel:2001:db8:12::1|2(endpoint|color)",
+                        "Relay-Nexthop(backup-tunnel)": "srv6-tunnel:2001:db8:12::1|1(endpoint|color)",
                         "extendedCommunity": {"string": "RT:1:1 Color:01:1 Color:01:2"},
                         "remoteLabel": 3,
                         "remoteSid": "fd00:201:2022:fff0:1::",
@@ -369,7 +369,7 @@ def test_bgp_srv6_te():
                         },
                         "Relay-Nexthop(ip)": "if pe3-eth1",
                         "Relay-Nexthop(tunnel)":"srv6-tunnel:2001:db8:13::1|2(endpoint|color)",
-                        "Relay-Nexthop(backup-tunnel)":"srv6-tunnel:2001:db8:13::1|2(endpoint|color)",
+                        "Relay-Nexthop(backup-tunnel)":"srv6-tunnel:2001:db8:13::1|1(endpoint|color)",
                         "extendedCommunity": {"string": "RT:2:2 Color:01:1 Color:01:2"},
                         "remoteLabel": 3,
                         "remoteSid": "fd00:201:2023:fff0:1::",
@@ -390,7 +390,8 @@ def test_bgp_srv6_te():
         pe2.vtysh_cmd(
             """
               configure terminal
-                no route-map setcolor
+                route-map setcolor permit 10
+                  no set extcommunity color 1:1 1:2
             """
         )
         
@@ -424,7 +425,6 @@ def test_bgp_srv6_te():
     success, result = topotest.run_and_expect(test_func, None, count=30, wait=1)
     assert result is None, 'Failed to verify removal of tunnel info in "{}"'.format(pe3)
 
-    
 if __name__ == "__main__":
     args = ["-s"] + sys.argv[1:]
     sys.exit(pytest.main(args))

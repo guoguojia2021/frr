@@ -421,7 +421,6 @@ extern int zclient_bfd_session_update(ZAPI_CALLBACK_ARGS);
 #define ZAPI_MESSAGE_VRF_GROUP 0x0800
 #define ZAPI_MESSAGE_SRTE_PRIMARY_VALID 0x1000
 #define ZAPI_MESSAGE_SRTE_BACKUP_VALID  0x2000
-#define ZAPI_MESSAGE_IP_VAILD           0x4000
 
 #define ZSERV_VERSION 6
 /* Zserv protocol message header */

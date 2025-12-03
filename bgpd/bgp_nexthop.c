@@ -113,7 +113,9 @@ bool bnc_existing_for_prefix(struct bgp_nexthop_cache *bnc)
 		if (bnc_tmp == bnc)
 			continue;
 		if ((prefix_cmp(&bnc->prefix, &bnc_tmp->prefix) == 0) && (bnc->srte_color == bnc_tmp->srte_color) 
-			&& (bnc->srte_color_flag == bnc_tmp->srte_color_flag))
+			&& (bnc->srte_color_flag == bnc_tmp->srte_color_flag)
+			 && (bnc->srte_backup_color == bnc_tmp->srte_backup_color)
+			 && (bnc->srte_backup_color_flag == bnc_tmp->srte_backup_color_flag))
 			return true;
 	}
 	return false;
