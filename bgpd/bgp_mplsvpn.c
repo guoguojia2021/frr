@@ -1486,164 +1486,171 @@ void vpn_leak_from_vrf_withdraw(struct bgp *bgp_vpn,		/* to */
 	bgp_dest_unlock_node(bn);
 }
 
-void vrf_leak_from_vrf_update(struct bgp *to_vrf,       /* to */
-                  struct bgp *from_vrf,     /* from */
-                  struct bgp_path_info *path_vrf) /* route */
+void vrf_leak_from_vrf_update(struct bgp *to_vrf,		/* to */
+				  struct bgp *from_vrf, 	/* from */
+				  struct bgp_path_info *path_vrf) /* route */
 {
-    int debug = BGP_DEBUG(vpn, VPN_LEAK_FROM_VRF);
-    const struct prefix *p = bgp_dest_get_prefix(path_vrf->net);
-    afi_t afi = family2afi(p->family);
-    struct attr static_attr = {0};
-    struct attr *new_attr = NULL;
-    safi_t safi = SAFI_UNICAST;
-    struct bgp_dest *bn;
-    int nexthop_self_flag = 0;
-    struct listnode *node;
-    struct vrf_redist *tmp_vrf_red = NULL;
-    struct route_map *red_map = NULL;
+	int debug = BGP_DEBUG(vpn, VPN_LEAK_FROM_VRF);
+	const struct prefix *p = bgp_dest_get_prefix(path_vrf->net);
+	afi_t afi = family2afi(p->family);
+	struct attr static_attr = {0};
+	struct attr *new_attr = NULL;
+	safi_t safi = SAFI_UNICAST;
+	struct bgp_dest *bn;
+	int nexthop_self_flag = 0;
+	struct listnode *node;
+	struct vrf_redist *tmp_vrf_red = NULL;
+	struct route_map *red_map = NULL;
 
-    if (debug)
-        zlog_debug("%s: from vrf %s", __func__, from_vrf->name_pretty);
+	if (debug)
+		zlog_debug("%s: from vrf %s", __func__, from_vrf->name_pretty);
 
-    if (debug && path_vrf->attr->ecommunity) {
-        char *s = ecommunity_ecom2str(path_vrf->attr->ecommunity,
-                          ECOMMUNITY_FORMAT_ROUTE_MAP, 0);
+	if (debug && path_vrf->attr->ecommunity) {
+		char *s = ecommunity_ecom2str(path_vrf->attr->ecommunity,
+						  ECOMMUNITY_FORMAT_ROUTE_MAP, 0);
 
-        zlog_debug("%s: %s path_vrf->type=%d, EC{%s}", __func__,
-               from_vrf->name, path_vrf->type, s);
-        XFREE(MTYPE_ECOMMUNITY_STR, s);
-    }
+		zlog_debug("%s: %s path_vrf->type=%d, EC{%s}", __func__,
+			   from_vrf->name, path_vrf->type, s);
+		XFREE(MTYPE_ECOMMUNITY_STR, s);
+	}
 
-    if (!to_vrf || !from_vrf)
-        return;
+	if (!to_vrf || !from_vrf)
+		return;
 
-    if (!afi) {
-        if (debug)
-            zlog_debug("%s: can't get afi of prefix", __func__);
-        return;
-    }
-    /* Is this route import from VPN table? */
-    if (path_vrf->sub_type == BGP_ROUTE_IMPORTED &&
-        path_vrf->extra && path_vrf->extra->vrfleak &&
-        path_vrf->extra->vrfleak->parent)
-        return ;
+	if (!afi) {
+		if (debug)
+			zlog_debug("%s: can't get afi of prefix", __func__);
+		return;
+	}
+	/* Is this route import from VPN table? */
+	if (path_vrf->sub_type == BGP_ROUTE_IMPORTED &&
+		path_vrf->extra && path_vrf->extra->vrfleak &&
+		path_vrf->extra->vrfleak->parent)
+		return ;
 
-    /* shallow copy */
-    static_attr = *path_vrf->attr;
-    for (ALL_LIST_ELEMENTS_RO(to_vrf->vpn_policy[afi].redistribute_import_vrf, node, tmp_vrf_red)) 
-    {
-        if (strcmp(tmp_vrf_red->vrfname, from_vrf->name) == 0)
-        {
-            red_map = tmp_vrf_red->rmap.map;
-            break;
-        }
-    }
-    /*
-     * route map handling
-     */
+	/* shallow copy */
+	static_attr = *path_vrf->attr;
+	for (ALL_LIST_ELEMENTS_RO(to_vrf->vpn_policy[afi].redistribute_import_vrf, node, tmp_vrf_red)) 
+	{
+		/*
+		 * When from_vrf_name is Default VRF, the name field is not stored,
+		 * meaning the name pointer is NULL for Default VRF.
+		 * To handle this special case without changing the original logic,
+		 * we need to normalize the comparison by using VRF_DEFAULT_NAME
+		 * when from_vrf->name is NULL.
+		 */
+		const char *from_vrf_name = from_vrf->name ? from_vrf->name : VRF_DEFAULT_NAME;
+		if (strcmp(tmp_vrf_red->vrfname, from_vrf_name) == 0) {
+			red_map = tmp_vrf_red->rmap.map;
+			break;
+		}
+	}
+	/*
+	 * route map handling
+	 */
 
-    if (red_map)
-    {
-        struct bgp_path_info info;
-        route_map_result_t ret;
+	if (red_map)
+	{
+		struct bgp_path_info info;
+		route_map_result_t ret;
 
-        memset(&info, 0, sizeof(info));
-        info.peer = to_vrf->peer_self;
-        info.attr = &static_attr;
-        ret = route_map_apply(
-            red_map,
-            p, &info);
-        if (RMAP_DENYMATCH == ret) {
-            bgp_attr_flush(&static_attr); /* free any added parts */
-            if (debug)
-                zlog_debug(
-                    "%s: vrf %s route map \"%s\" says DENY, returning",
-                    __func__, from_vrf->name_pretty,
-                    red_map->name);
-            return;
-        }
-    }
+		memset(&info, 0, sizeof(info));
+		info.peer = to_vrf->peer_self;
+		info.attr = &static_attr;
+		ret = route_map_apply(
+			red_map,
+			p, &info);
+		if (RMAP_DENYMATCH == ret) {
+			bgp_attr_flush(&static_attr); /* free any added parts */
+			if (debug)
+				zlog_debug(
+					"%s: vrf %s route map \"%s\" says DENY, returning",
+					__func__, from_vrf->name_pretty,
+					red_map->name);
+			return;
+		}
+	}
 
-    if (debug && static_attr.ecommunity) {
-        char *s = ecommunity_ecom2str(static_attr.ecommunity,
-                          ECOMMUNITY_FORMAT_ROUTE_MAP, 0);
+	if (debug && static_attr.ecommunity) {
+		char *s = ecommunity_ecom2str(static_attr.ecommunity,
+						  ECOMMUNITY_FORMAT_ROUTE_MAP, 0);
 
-        zlog_debug("%s: post route map static_attr.ecommunity{%s}",
-               __func__, s);
-        XFREE(MTYPE_ECOMMUNITY_STR, s);
-    }
+		zlog_debug("%s: post route map static_attr.ecommunity{%s}",
+			   __func__, s);
+		XFREE(MTYPE_ECOMMUNITY_STR, s);
+	}
 
-    if (afi == AFI_IP) {
-        /*
-         * For ipv4, copy to multiprotocol
-         * nexthop field
-         */
-        static_attr.mp_nexthop_global_in =
-            static_attr.nexthop;
-        static_attr.mp_nexthop_len =
-            BGP_ATTR_NHLEN_IPV4;
-        /*
-         * XXX Leave static_attr.nexthop
-         * intact for NHT
-         */
-        static_attr.flag &=
-            ~ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP);
-    } else {
-    /* Update based on next-hop family to account for
-     * RFC 5549 (BGP unnumbered) scenario. Note that
-     * specific action is only needed for the case of
-     * IPv4 nexthops as the attr has been copied
-     * otherwise.
-     */
-        if (afi == AFI_IP
-            && !BGP_ATTR_NEXTHOP_AFI_IP6(path_vrf->attr)) {
-            static_attr.mp_nexthop_global_in.s_addr =
-                static_attr.nexthop.s_addr;
-            static_attr.mp_nexthop_len =
-                BGP_ATTR_NHLEN_IPV4;
-            static_attr.flag |=
-                ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP);
-        }
-    }
-    nexthop_self_flag = 1;
+	if (afi == AFI_IP) {
+		/*
+		 * For ipv4, copy to multiprotocol
+		 * nexthop field
+		 */
+		static_attr.mp_nexthop_global_in =
+			static_attr.nexthop;
+		static_attr.mp_nexthop_len =
+			BGP_ATTR_NHLEN_IPV4;
+		/*
+		 * XXX Leave static_attr.nexthop
+		 * intact for NHT
+		 */
+		static_attr.flag &=
+			~ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP);
+	} else {
+	/* Update based on next-hop family to account for
+	 * RFC 5549 (BGP unnumbered) scenario. Note that
+	 * specific action is only needed for the case of
+	 * IPv4 nexthops as the attr has been copied
+	 * otherwise.
+	 */
+		if (afi == AFI_IP
+			&& !BGP_ATTR_NEXTHOP_AFI_IP6(path_vrf->attr)) {
+			static_attr.mp_nexthop_global_in.s_addr =
+				static_attr.nexthop.s_addr;
+			static_attr.mp_nexthop_len =
+				BGP_ATTR_NHLEN_IPV4;
+			static_attr.flag |=
+				ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP);
+		}
+	}
+	nexthop_self_flag = 1;
 
-    /* Set originator ID to "me" */
-    SET_FLAG(static_attr.flag, ATTR_FLAG_BIT(BGP_ATTR_ORIGINATOR_ID));
-    static_attr.originator_id = to_vrf->router_id;
+	/* Set originator ID to "me" */
+	SET_FLAG(static_attr.flag, ATTR_FLAG_BIT(BGP_ATTR_ORIGINATOR_ID));
+	static_attr.originator_id = to_vrf->router_id;
 
-    /*there is unuseful for ori srv6 attr*/
-    if (static_attr.srv6_l3vpn)
-        srv6_l3vpn_unintern(&static_attr.srv6_l3vpn);
+	/*there is unuseful for ori srv6 attr*/
+	if (static_attr.srv6_l3vpn)
+		srv6_l3vpn_unintern(&static_attr.srv6_l3vpn);
 
-    if (static_attr.srv6_vpn)
-        srv6_vpn_unintern(&static_attr.srv6_vpn);
+	if (static_attr.srv6_vpn)
+		srv6_vpn_unintern(&static_attr.srv6_vpn);
 
-    new_attr = bgp_attr_intern(
-        &static_attr);  /* hashed refcounted everything */
-    bgp_attr_flush(&static_attr); /* free locally-allocated parts */
-    /* Now new_attr is an allocated interned attr */
+	new_attr = bgp_attr_intern(
+		&static_attr);	/* hashed refcounted everything */
+	bgp_attr_flush(&static_attr); /* free locally-allocated parts */
+	/* Now new_attr is an allocated interned attr */
 
-    bn = bgp_afi_node_get(to_vrf->rib[afi][safi], afi, safi, p,
-                  &(to_vrf->vpn_policy[afi].tovpn_rd));
+	bn = bgp_afi_node_get(to_vrf->rib[afi][safi], afi, safi, p,
+				  &(to_vrf->vpn_policy[afi].tovpn_rd));
 
-    struct bgp_path_info *new_info;
+	struct bgp_path_info *new_info;
 
-    new_info = leak_update(to_vrf, bn, new_attr, afi, safi, path_vrf,
-                   NULL, 0, from_vrf, NULL,
-                   nexthop_self_flag, debug);
-    /*
-     * Routes actually installed in the vpn RIB must also be
-     * offered to all vrfs (because now they originate from
-     * the vpn RIB).
-     *
-     * Acceptance into other vrfs depends on rt-lists.
-     * Originating vrf will not accept the looped back route
-     * because of loop checking.
-     */
-    if (new_info)
-    {
-        vpn_leak_from_vrf_update(bgp_get_default(), to_vrf, new_info, NULL);
-    }
+	new_info = leak_update(to_vrf, bn, new_attr, afi, safi, path_vrf,
+				   NULL, 0, from_vrf, NULL,
+				   nexthop_self_flag, debug);
+	/*
+	 * Routes actually installed in the vpn RIB must also be
+	 * offered to all vrfs (because now they originate from
+	 * the vpn RIB).
+	 *
+	 * Acceptance into other vrfs depends on rt-lists.
+	 * Originating vrf will not accept the looped back route
+	 * because of loop checking.
+	 */
+	if (new_info)
+	{
+		vpn_leak_from_vrf_update(bgp_get_default(), to_vrf, new_info, NULL);
+	}
 }
 
 void vrf_leak_from_vrf_withdraw(struct bgp *to_vrf,		/* to */

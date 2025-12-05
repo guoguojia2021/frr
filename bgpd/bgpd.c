@@ -3733,7 +3733,8 @@ struct bgp *bgp_lookup_by_name(const char *name)
 
 	for (ALL_LIST_ELEMENTS(bm->bgp, node, nnode, bgp))
 		if ((bgp->name == NULL && name == NULL)
-		    || (bgp->name && name && strcmp(bgp->name, name) == 0))
+		    || (bgp->name && name && strcmp(bgp->name, name) == 0)
+		    || (bgp->name == NULL && strcmp(name, VRF_DEFAULT_NAME) == 0))
 			return bgp;
 	return NULL;
 }
