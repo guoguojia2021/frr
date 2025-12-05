@@ -499,7 +499,7 @@ DEFPY_YANG(no_set_overload_bit_on_startup, no_set_overload_bit_on_startup_cmd,
 	   "Set overload bit on startup\n"
 	   "Set overload time in seconds\n")
 {
-	nb_cli_enqueue_change(vty, "./overload/on-startup", NB_OP_DESTROY,
+	nb_cli_enqueue_change(vty, "./overload/on-startup", NB_OP_MODIFY,
 			      NULL);
 
 	return nb_cli_apply_changes(vty, NULL);
