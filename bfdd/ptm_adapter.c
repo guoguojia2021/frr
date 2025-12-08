@@ -910,7 +910,7 @@ void bfdd_sessions_enable_vrf(struct vrf *vrf)
 		if (bs->vrf)
 			continue;
 		if (bs->key.vrfname[0] &&
-		    strcmp(vrf->name, bs->key.vrfname))
+		    strcmp(vrf->name, bs->key.vrfname) && strcmp(vrf->aliasName, bs->key.vrfname))
 			continue;
 		/* need to update the vrf information on
 		 * bs so that callbacks are handled

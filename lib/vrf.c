@@ -813,7 +813,7 @@ int vrf_bind(vrf_id_t vrf_id, int fd, const char *ifname)
 	if (!vrf_is_enabled(vrf))
 		return -1;
 
-	if (ifname && strcmp(ifname, vrf->name)) {
+	if (ifname && strcmp(ifname, vrf->name) && strcmp(ifname, vrf->aliasName)) {
 		/* binding to a regular interface */
 
 		/* can't bind to an interface that doesn't exist */
