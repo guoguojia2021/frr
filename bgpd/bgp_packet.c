@@ -307,16 +307,6 @@ static void bgp_update_explicit_eors(struct peer *peer)
 int bgp_nlri_parse(struct peer *peer, struct attr *attr,
 		   struct bgp_nlri *packet, int mp_withdraw)
 {
-	if (attr && attr->aspath ) {
-		if (strlen(attr->aspath->str) + 1 > ZAPI_MESSAGE_OPAQUE_LENGTH) {
-			flog_err(
-					EC_BGP_UPDATE_RCV,
-					"[Error] Update packet error (AS path overflow for opaque data %zu)",
-					strlen(attr->aspath->str) + 1);
-			return BGP_NLRI_PARSE_ERROR_AS_PATH_OVERFLOW;
-		}
-	}
-
 	switch (packet->safi) {
 	case SAFI_UNICAST:
 	case SAFI_MULTICAST:
