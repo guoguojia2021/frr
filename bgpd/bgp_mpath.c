@@ -313,7 +313,7 @@ struct bgp_path_info *bgp_path_info_mpath_first(struct bgp_path_info *path)
  */
 uint32_t bgp_dest_mpath_count(struct bgp_dest *dest)
 {
-	if (!dest->mpath)
+	if (!dest || !dest->mpath)
 		return 1;
 
 	return dest->mpath->mp_count;
@@ -328,7 +328,7 @@ static void bgp_dest_mpath_count_set(struct bgp_dest *dest,
 					  uint16_t count)
 {
 	struct bgp_path_info_mpath *mpath;
-	if (!count && !dest->mpath)
+	if (!count && (!dest || !dest->mpath))
 		return;
 	mpath = bgp_dest_mpath_get(dest);
 	if (!mpath)
@@ -383,7 +383,7 @@ static void bgp_dest_mpath_lb_update(struct bgp_dest *dest, bool set,
  */
 struct attr *bgp_dest_mpath_attr(struct bgp_dest *dest)
 {
-	if (!dest->mpath)
+	if (!dest || !dest->mpath)
 		return NULL;
 	return dest->mpath->mp_attr;
 }
@@ -397,7 +397,7 @@ struct attr *bgp_dest_mpath_attr(struct bgp_dest *dest)
 bool bgp_dest_mpath_chkwtd(struct bgp *bgp, struct bgp_dest *dest)
 {
 	/* Check if told to ignore weights or not multipath */
-	if (bgp->lb_handling == BGP_LINK_BW_IGNORE_BW || !dest->mpath)
+	if (bgp->lb_handling == BGP_LINK_BW_IGNORE_BW || (!dest || !dest->mpath))
 		return false;
 
 	/* All paths in multipath should have associated weight (bandwidth)
@@ -419,7 +419,7 @@ bool bgp_dest_mpath_chkwtd(struct bgp *bgp, struct bgp_dest *dest)
  */
 uint64_t bgp_dest_mpath_cumbw(struct bgp_dest *dest)
 {
-	if (!dest->mpath)
+	if (!dest || !dest->mpath)
 		return 0;
 	return dest->mpath->cum_bw;
 }
@@ -433,7 +433,7 @@ static void bgp_dest_mpath_attr_set(struct bgp_dest *dest,
 					 struct attr *attr)
 {
 	struct bgp_path_info_mpath *mpath;
-	if (!attr && !dest->mpath)
+	if (!attr && (!dest || !dest->mpath))
 		return;
 	mpath = bgp_dest_mpath_get(dest);
 	if (!mpath)
@@ -484,14 +484,14 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 	}
 
 	if (old_best) {
-		old_mpath_count = bgp_dest_mpath_count(old_best->net);
+		old_mpath_count = bgp_dest_mpath_count(dest);
 		if (old_mpath_count == 1)
 			SET_FLAG(old_best->flags, BGP_PATH_MULTIPATH);
-		old_cum_bw = bgp_dest_mpath_cumbw(old_best->net);
-		bgp_dest_mpath_count_set(old_best->net, 0);
-		bgp_dest_mpath_lb_update(old_best->net, false, false, 0);
-		bgp_path_info_mpath_free(&old_best->net->mpath);
-		old_best->net->mpath = NULL;
+		old_cum_bw = bgp_dest_mpath_cumbw(dest);
+		bgp_dest_mpath_count_set(dest, 0);
+		bgp_dest_mpath_lb_update(dest, false, false, 0);
+		bgp_path_info_mpath_free(&dest->mpath);
+		dest->mpath = NULL;
 	}
 
 	if (debug)
@@ -590,9 +590,9 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 	}
 
 	if (new_best) {
-		if (mpath_count > 1 || new_best->net->mpath) {
-			bgp_dest_mpath_count_set(new_best->net, mpath_count);
-			bgp_dest_mpath_lb_update(new_best->net, true, all_paths_lb, cum_bw);
+		if (mpath_count > 1) {
+			bgp_dest_mpath_count_set(dest, mpath_count);
+			bgp_dest_mpath_lb_update(dest, true, all_paths_lb, cum_bw);
 		}
 		if (debug)
 			zlog_debug(
@@ -601,10 +601,13 @@ void bgp_path_info_mpath_update(struct bgp *bgp, struct bgp_dest *dest,
 				mpath_count, mpath_changed ? "YES" : "NO",
 				all_paths_lb, cum_bw);
 
-		if (mpath_count == 1)
+		if (mpath_count == 1) {
 			UNSET_FLAG(new_best->flags, BGP_PATH_MULTIPATH);
+			if (dest->mpath)
+				bgp_path_info_mpath_free(&dest->mpath);
+		}
 		if (mpath_changed
-		    || (bgp_dest_mpath_count(new_best->net) != old_mpath_count))
+		    || (bgp_dest_mpath_count(dest) != old_mpath_count))
 			SET_FLAG(new_best->flags, BGP_PATH_MULTIPATH_CHG);
 		if ((mpath_count) != old_mpath_count || old_cum_bw != cum_bw)
 			SET_FLAG(new_best->flags, BGP_PATH_LINK_BW_CHG);
