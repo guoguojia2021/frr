@@ -754,43 +754,6 @@ void bgp_path_info_mpath_aggregate_update(struct bgp_path_info *new_best,
 }
 
 /*
- * bgp_path_info_mpath_cmp
- *
- * This function determines our multipath list ordering. By ordering
- * the list we can deterministically select which paths are included
- * in the multipath set. The ordering also helps in detecting changes
- * in the multipath selection so we can detect whether to send an
- * update to zebra.
- *
- * The order of paths is determined first by received nexthop, and then
- * by peer address if the nexthops are the same.
- */
-static int bgp_path_info_mpath_cmp(void *val1, void *val2)
-{
-	struct bgp_path_info *bpi1, *bpi2;
-	int compare;
-
-	bpi1 = val1;
-	bpi2 = val2;
-
-	compare = bgp_path_info_nexthop_cmp(bpi1, bpi2);
-
-	if (!compare) {
-		if (!bpi1->peer->su_remote && !bpi2->peer->su_remote)
-			compare = 0;
-		else if (!bpi1->peer->su_remote)
-			compare = 1;
-		else if (!bpi2->peer->su_remote)
-			compare = -1;
-		else
-			compare = sockunion_cmp(bpi1->peer->su_remote,
-						bpi2->peer->su_remote);
-	}
-
-	return compare;
-}
-
-/*
  * bgp_mp_list_init
  *
  * Initialize the mp_list, which holds the list of multipaths
@@ -800,7 +763,7 @@ void bgp_mp_list_init(struct list *mp_list)
 {
 	assert(mp_list);
 	memset(mp_list, 0, sizeof(struct list));
-	mp_list->cmp = bgp_path_info_mpath_cmp;
+	mp_list->cmp = (int (*)(void *, void *))bgp_path_info_nexthop_cmp;
 }
 
 /*
