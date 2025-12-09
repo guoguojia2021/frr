@@ -427,6 +427,9 @@ static void parse_json_msg_nexthop_update(json_object *obj,
 				nhe.color = nh.color;
 				res.nhr.route_entry.push_back(nhe);
 			}
+			if (res.nhr.route_entry.size() > 0) {
+				SET_FLAG(res.message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID);
+			}
 		} else {
 			std::cerr << "Unhandled key in Msg.NexthopUpdate JSON: "
 				  << key << std::endl;

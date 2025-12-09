@@ -120,6 +120,7 @@ struct msg_policy_status_t {
 
 struct msg_nexthop_update_t {
 	struct prefix_t match;
+	uint32_t message;
 	struct api_route_t nhr;
 };
 

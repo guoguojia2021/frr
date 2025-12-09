@@ -1307,9 +1307,9 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 
 		/* Anything not AF_INET/INET6 has been filtered out above */
 		if (!exist || flag_changed)
-			zebra_evaluate_rnh(zvrf, family2afi(p.family), 1, &p,
+			zebra_evaluate_rnh(zvrf, family2afi(p.family), 1, rnh,
 					   safi);
-		if (srte_color)
+		if (srte_color && !exist)
 			zebra_evaluate_rnh_by_srte(family2afi(p.family), rnh);
 
 		zebra_add_rnh_client(rnh, client, zvrf_id(zvrf));

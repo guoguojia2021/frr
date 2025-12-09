@@ -896,7 +896,6 @@ void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 		frr_each_safe(rnh_list, &dest->nht, rnh) {
 			struct zebra_vrf *zvrf =
 				zebra_vrf_lookup_by_id(rnh->vrf_id);
-			struct prefix *p = &rnh->node->p;
 
 			if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 				zlog_debug(
@@ -924,7 +923,7 @@ void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 			}
 
 			rnh->seqno = seq;
-			zebra_evaluate_rnh(zvrf, family2afi(p->family), 0, p,
+			zebra_evaluate_rnh(zvrf, rnh->afi, 0, rnh,
 					   rnh->safi);
 		}
 

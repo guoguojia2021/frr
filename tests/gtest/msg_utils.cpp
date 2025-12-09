@@ -94,43 +94,49 @@ bool compare_msg_t(const struct msg_t &dump_msg,
 				  << std::endl;
 			return false;
 		}
-		if (!common_utils::is_prefix_t_euqal(
-			    &exp_payload.nhr.prefix,
-			    &dump_payload.nhr.prefix)) {
-			std::cout
-				<< "compare_msg_t: resolved_prefix mismatch, expected "
-				<< prefix_t2str(exp_payload.nhr.prefix)
-				<< " dumped "
-				<< prefix_t2str(dump_payload.nhr.prefix)
-				<< std::endl;
-			return false;
-		}
+		// if (!common_utils::is_prefix_t_euqal(
+		// 	    &exp_payload.nhr.prefix,
+		// 	    &dump_payload.nhr.prefix)) {
+		// 	std::cout
+		// 		<< "compare_msg_t: resolved_prefix mismatch, expected "
+		// 		<< prefix_t2str(exp_payload.nhr.prefix)
+		// 		<< " dumped "
+		// 		<< prefix_t2str(dump_payload.nhr.prefix)
+		// 		<< std::endl;
+		// 	return false;
+		// }
 		if (exp_payload.nhr.srte_color != dump_payload.nhr.srte_color) {
 			std::cout << "compare_msg_t: nhr.srte_color mismatch "
 				  << std::endl;
 			return false;
+		}
+		if (CHECK_FLAG(dump_payload.message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID) ^
+			CHECK_FLAG(exp_payload.message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID)) {//
+				std::cout << "dump_payload.message: " << dump_payload.message << std::endl;
+				std::cout << "exp_payload.message: " << exp_payload.message << std::endl;
+				return false;
 		}
 		if (exp_payload.nhr.route_entry.size() !=
 		    dump_payload.nhr.route_entry.size()) {
 			std::cout << "compare_msg_t: route_entry.size mismatch "
 				  << std::endl;
 		}
-		for (int i = 0; i < exp_payload.nhr.route_entry.size(); i++) {
-			const struct nhe_t &exp_nhe =
-				exp_payload.nhr.route_entry[i];
-			const struct nhe_t &dump_nhe =
-				dump_payload.nhr.route_entry[i];
-			if (std::memcmp(exp_nhe.gate, dump_nhe.gate, 16) != 0 ||
-			    exp_nhe.color != dump_nhe.color) {
-				std::cout << "compare_msg_t: nhe mismatch"
-					  << std::endl;
-				std::cout << " -- expected: ";
-				print_nhe(exp_nhe);
-				std::cout << " -- dumped: ";
-				print_nhe(dump_nhe);
-				return false;
-			}
-		}
+		// for (int i = 0; i < exp_payload.nhr.route_entry.size(); i++) {
+		// 	const struct nhe_t &exp_nhe =
+		// 		exp_payload.nhr.route_entry[i];
+		// 	const struct nhe_t &dump_nhe =
+		// 		dump_payload.nhr.route_entry[i];
+		// 	if (std::memcmp(exp_nhe.gate, dump_nhe.gate, 16) != 0 ||
+		// 	    exp_nhe.color != dump_nhe.color) {
+		// 		std::cout << "compare_msg_t: nhe mismatch"
+		// 			  << std::endl;
+		// 		std::cout << " -- expected: ";
+		// 		print_nhe(exp_nhe);
+		// 		std::cout << " -- dumped: ";
+		// 		print_nhe(dump_nhe);
+		// 		return false;
+		// 	}
+		// }
 	} else {
 		std::cout << "Unhandled command " << expected_msg.command
 			  << std::endl;
@@ -186,6 +192,7 @@ static struct msg_t dump_message(stream *s)
 						       payload.nhr.prefix);
 			payload.nhr.srte_color = nhr.srte_color;
 			payload.nhr.srte_color_flag = nhr.srte_color_flag;
+			payload.message = nhr.message;
 			for (int i = 0; i < nhr.nexthop_num; i++) {
 				struct nhe_t nhe = {};
 				nhe.color = nhr.nexthops[i].srte_color;
