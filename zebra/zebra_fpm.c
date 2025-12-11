@@ -1601,6 +1601,8 @@ static int zfpm_trigger_update(struct route_node *rn, const char *reason)
 	}
 
 #ifdef ARP2HOST_BACKUP
+      char buf[PREFIX_STRLEN];
+
       if (zfpm_if_dest_is_arp2host(dest) &&
           !zfpm_if_any_update_on_non_arp2host_route(dest))
       {

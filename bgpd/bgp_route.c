@@ -3706,7 +3706,7 @@ bgp_process_primary_backup (struct bgp *bgp, struct bgp_dest *bd,
 			    afi_t afi, safi_t safi,
 			    struct bgp_path_info *new_select, struct bgp_path_info *old_select)
 {
-	struct prefix *p = &bd->p;
+	struct prefix *p = &bd->rn->p;
 	struct bgp_path_info *new_select_backup = NULL;
 	struct bgp_path_info *old_select_backup = NULL;
 	struct bgp_path_info_pair old_and_new_arp;
