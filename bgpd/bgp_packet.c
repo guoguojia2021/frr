@@ -881,6 +881,8 @@ static void bgp_notify_send_internal(struct peer_connection *connection,
 			peer->last_reset = PEER_DOWN_USER_RESET;
 		else if (sub_code == BGP_NOTIFY_CEASE_ADMIN_SHUTDOWN)
 			peer->last_reset = PEER_DOWN_USER_SHUTDOWN;
+		else if (sub_code == BGP_NOTIFY_CEASE_BFD_DOWN)
+			peer->last_reset = PEER_DOWN_BFD_DOWN;
 		else
 			peer->last_reset = PEER_DOWN_NOTIFY_SEND;
 	} else
