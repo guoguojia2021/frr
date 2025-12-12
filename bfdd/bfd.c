@@ -426,6 +426,9 @@ int bfd_session_enable(struct bfd_session *bs)
 				bs->key.vrfname);
 			return 0;
 		}
+		/* Update the vrfname and vrfaliasname to the correct values */
+		strlcpy(bs->key.vrfname, vrf->name, sizeof(bs->key.vrfname));
+		strlcpy(bs->key.vrfaliasname, vrf->aliasName, sizeof(bs->key.vrfaliasname));
 	} else {
 		vrf = vrf_lookup_by_id(VRF_DEFAULT);
 	}
