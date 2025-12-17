@@ -1399,7 +1399,7 @@ struct peer_connection {
 DECLARE_LIST(peer_connection_fifo, struct peer_connection, fifo_item);
 
 const char *bgp_peer_get_connection_direction(struct peer_connection *connection);
-extern struct peer_connection *bgp_peer_connection_new(struct peer *peer);
+extern struct peer_connection *bgp_peer_connection_new(struct peer *peer, const union sockunion *su);
 extern void bgp_peer_connection_free(struct peer_connection **connection);
 extern void bgp_peer_connection_buffers_free(struct peer_connection *connection);
 
@@ -2412,7 +2412,7 @@ extern bool peer_afc_advertised(struct peer *peer);
 extern void bgp_recalculate_all_bestpaths(struct bgp *bgp);
 extern struct peer *peer_create(union sockunion *, const char *, struct bgp *,
 				as_t, as_t, int, struct peer_group *);
-extern struct peer *peer_create_accept(struct bgp *);
+extern struct peer *peer_create_accept(struct bgp *bgp, union sockunion *su);
 extern void peer_xfer_config(struct peer *dst, struct peer *src);
 extern char *peer_uptime(time_t uptime2, char *buf, size_t len, bool use_json,
 			 json_object *json);
@@ -2892,7 +2892,7 @@ static inline bool bgp_in_graceful_shutdown(struct bgp *bgp)
 }
 
 /* For benefit of rfapi */
-extern struct peer *peer_new(struct bgp *bgp);
+extern struct peer *peer_new(struct bgp *bgp, union sockunion *su);
 
 extern struct peer *peer_lookup_in_view(struct vty *vty, struct bgp *bgp,
 					const char *ip_str, bool use_json);
