@@ -68,7 +68,7 @@ static int lsp_l2_refresh_pseudo(struct thread *thread);
 
 static void lsp_destroy(struct isis_lsp *lsp);
 
-static bool device_startup;
+bool device_startup;
 
 int lsp_id_cmp(uint8_t *id1, uint8_t *id2)
 {
@@ -454,8 +454,8 @@ int set_overload_on_start_timer(struct thread *thread)
 	area->t_overload_on_startup_timer = NULL;
 
 	/* Check if set-overload-bit is not currently configured */
-	if (!area->overload_configured && !area->overload_advertise_high_metrics)
-		isis_area_overload_bit_set(area, false);
+	area->overload_advertise_high_metrics = false;
+	isis_area_overload_bit_set(area, false);
 
 	return 0;
 }
@@ -1357,7 +1357,6 @@ int lsp_generate(struct isis_area *area, int level)
 	uint32_t seq_num = 0;
 	uint8_t lspid[ISIS_SYS_ID_LEN + 2];
 	uint16_t rem_lifetime, refresh_time;
-	uint32_t overload_time;
 
 	if ((area == NULL) || (area->is_type & level) != level)
 		return ISIS_ERROR;
@@ -1372,11 +1371,10 @@ int lsp_generate(struct isis_area *area, int level)
 
 	/* Check if device should be overloaded on startup */
 	if (device_startup) {
-		overload_time = isis_restart_read_overload_time(area);
-		if (overload_time > 0) {
+		if (area->overload_on_startup_time > 0) {
 			isis_area_overload_bit_set(area, true);
 			thread_add_timer(master, set_overload_on_start_timer,
-					 area, overload_time,
+					 area, area->overload_on_startup_time,
 					 &area->t_overload_on_startup_timer);
 		}
 		device_startup = false;

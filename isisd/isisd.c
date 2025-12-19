@@ -106,7 +106,7 @@ struct thread *t_isis_cfg;
 #ifndef FABRICD
 DEFINE_HOOK(isis_hook_db_overload, (const struct isis_area *area), (area));
 #endif /* ifndef FABRICD */
-
+extern bool device_startup;
 /*
  * Prototypes.
  */
@@ -3311,94 +3311,59 @@ static void isis_circuit_metric_config_get_and_set(struct isis_circuit *circuit,
 
 void isis_area_overload_bit_set(struct isis_area *area, bool overload_bit)
 {
+    struct listnode *node;
+    struct isis_circuit *circuit;
 	char new_overload_bit = overload_bit ? LSPBIT_OL : 0;
 
-	if (area->overload_advertise_high_metrics && !overload_bit)
+	area->overload_bit = new_overload_bit;
+	if (device_startup == false && area->overload_on_startup_time > 0) {
+		area->overload_bit = 0;
+		if(!area->overload_advertise_high_metrics && !area->advertise_high_metrics) {
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				/* Get metric values from configuration and set to circuit */
+				isis_circuit_metric_config_get_and_set(circuit, area);
+			lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
+		}
 		return;
-
-	if (new_overload_bit != area->overload_bit) {
-		area->overload_bit = new_overload_bit;
-		if (new_overload_bit) {
-			area->overload_counter++;
-		} else {
-			/* Cancel overload on startup timer if it's running */
+	}
+	if (overload_bit) {
+		if (area->overload_advertise_high_metrics && !area->advertise_high_metrics) {
+			/* Set maximum metric value for all circuits */
+			isis_area_circuit_max_metric_set(area);
+		}
+		if(!area->overload_advertise_high_metrics && !area->advertise_high_metrics) {
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				/* Get metric values from configuration and set to circuit */
+				isis_circuit_metric_config_get_and_set(circuit, area);
+		}
+		if (area->overload_on_startup_time == 0) {
 			if (area->t_overload_on_startup_timer) {
 				THREAD_OFF(area->t_overload_on_startup_timer);
 				area->t_overload_on_startup_timer = NULL;
 			}
 		}
 
-#ifndef FABRICD
-		hook_call(isis_hook_db_overload, area);
-#endif /* ifndef FABRICD */
-
-		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
-	}
-#ifndef FABRICD
-	isis_notif_db_overload(area, overload_bit);
-#endif /* ifndef FABRICD */
-}
-
-void isis_area_overload_on_startup_set(struct isis_area *area,
-				       uint32_t startup_time)
-{
-	if (area->overload_on_startup_time != startup_time) {
-		area->overload_on_startup_time = startup_time;
-		isis_restart_write_overload_time(area, startup_time);
-	}
-}
-
-static void isis_area_overload_bit_high_metrics_set(struct isis_area *area, bool overload_bit)
-{
-    struct listnode *node;
-    struct isis_circuit *circuit;
-	bool need_regenerate = false;
-
-    char new_overload_bit = overload_bit ? LSPBIT_OL : 0;
-
-    /* Handle advertise high metrics change */
-	if (area->overload_advertise_high_metrics) {
-		/* Set maximum metric value for all circuits */
-		isis_area_circuit_max_metric_set(area);
-		need_regenerate = true;
+		area->overload_counter++;
 	} else {
-	   if (!area->advertise_high_metrics){
-			/* Restore configured metric values for all circuits */
-			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit)) {
+		/* Cancel overload on startup timer if it's running */
+		if (area->t_overload_on_startup_timer) {
+			THREAD_OFF(area->t_overload_on_startup_timer);
+			area->t_overload_on_startup_timer = NULL;
+		}
+		if(!area->advertise_high_metrics) {
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				/* Get metric values from configuration and set to circuit */
 				isis_circuit_metric_config_get_and_set(circuit, area);
-			}
-			need_regenerate = true;
 		}
 	}
 
-	if (area->overload_configured && !overload_bit)
-		goto end;
-
-	if (area->t_overload_on_startup_timer && !overload_bit)
-		goto end;
-
-	if (new_overload_bit != area->overload_bit) {
-		area->overload_bit = new_overload_bit;
-		if (new_overload_bit)
-			area->overload_counter++;
-		need_regenerate = true;
-	}
-
-end:
-	if (need_regenerate)
-		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
-}
-
-void isis_area_overload_advertise_high_metrics_set(struct isis_area *area,
-					  bool advertise_high_metrics)
-{
-	if (area->overload_advertise_high_metrics != advertise_high_metrics) {
-		area->overload_advertise_high_metrics = advertise_high_metrics;
-		if (area->overload_advertise_high_metrics)
-			isis_area_overload_bit_high_metrics_set(area, true);
-		else
-			isis_area_overload_bit_high_metrics_set(area, false);
-	}
+#ifndef FABRICD
+	hook_call(isis_hook_db_overload, area);
+#endif /* ifndef FABRICD */
+	lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
+#ifndef FABRICD
+	isis_notif_db_overload(area, overload_bit);
+#endif /* ifndef FABRICD */
 }
 
 void config_end_lsp_generate(struct isis_area *area)

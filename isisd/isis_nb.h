@@ -37,6 +37,7 @@ int isis_instance_dynamic_hostname_modify(struct nb_cb_modify_args *args);
 int isis_instance_attached_send_modify(struct nb_cb_modify_args *args);
 int isis_instance_attached_receive_modify(struct nb_cb_modify_args *args);
 int isis_instance_attached_modify(struct nb_cb_modify_args *args);
+void isis_instance_overload_enabled_apply_finish(struct nb_cb_apply_finish_args *args);
 int isis_instance_overload_enabled_modify(struct nb_cb_modify_args *args);
 int isis_instance_overload_on_startup_modify(struct nb_cb_modify_args *args);
 int isis_instance_overload_advertise_high_metrics_modify(struct nb_cb_modify_args *args);
@@ -198,8 +199,6 @@ int isis_instance_fast_reroute_level_1_lfa_tiebreaker_create(
 	struct nb_cb_create_args *args);
 int isis_instance_fast_reroute_level_1_lfa_tiebreaker_destroy(
 	struct nb_cb_destroy_args *args);
-int isis_instance_fast_reroute_level_1_lfa_tiebreaker_type_modify(
-	struct nb_cb_modify_args *args);
 int isis_instance_fast_reroute_level_1_remote_lfa_prefix_list_modify(
 	struct nb_cb_modify_args *args);
 int isis_instance_fast_reroute_level_1_remote_lfa_prefix_list_destroy(
@@ -214,8 +213,6 @@ int isis_instance_fast_reroute_level_2_lfa_tiebreaker_create(
 	struct nb_cb_create_args *args);
 int isis_instance_fast_reroute_level_2_lfa_tiebreaker_destroy(
 	struct nb_cb_destroy_args *args);
-int isis_instance_fast_reroute_level_2_lfa_tiebreaker_type_modify(
-	struct nb_cb_modify_args *args);
 int isis_instance_fast_reroute_level_2_remote_lfa_prefix_list_modify(
 	struct nb_cb_modify_args *args);
 int isis_instance_fast_reroute_level_2_remote_lfa_prefix_list_destroy(
@@ -464,12 +461,6 @@ void cli_show_isis_attached_receive(struct vty *vty,
 				    bool show_defaults);
 void cli_show_isis_overload(struct vty *vty, const struct lyd_node *dnode,
 			    bool show_defaults);
-void cli_show_isis_overload_on_startup(struct vty *vty,
-				       const struct lyd_node *dnode,
-				       bool show_defaults);
-void cli_show_isis_overload_advertise_high_metrics(struct vty *vty,
-				       const struct lyd_node *dnode,
-				       bool show_defaults);
 void cli_show_advertise_high_metrics(struct vty *vty,
 				     const struct lyd_node *dnode,
 				     bool show_defaults);

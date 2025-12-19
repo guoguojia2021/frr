@@ -340,40 +340,39 @@ int isis_instance_attached_modify(struct nb_cb_modify_args *args)
 }
 
 /*
+ * XPath: /frr-isisd:isis/instance/overload
+ */
+void isis_instance_overload_enabled_apply_finish(struct nb_cb_apply_finish_args *args)
+{
+	struct isis_area *area;
+	bool overload;
+	uint32_t overload_time;
+	uint32_t advertise_high_metrics;
+
+	area = nb_running_get_entry(args->dnode, NULL, true);
+	overload = yang_dnode_get_bool(args->dnode, "enabled");
+	overload_time = yang_dnode_get_uint32(args->dnode, "on-startup");
+	advertise_high_metrics = yang_dnode_get_bool(args->dnode, "advertise-high-metrics");
+	area->overload_configured = overload;
+	area->overload_on_startup_time = overload_time;
+	area->overload_advertise_high_metrics = advertise_high_metrics;
+
+	isis_area_overload_bit_set(area, overload);
+
+}
+
+/*
  * XPath: /frr-isisd:isis/instance/overload/enabled
  */
 int isis_instance_overload_enabled_modify(struct nb_cb_modify_args *args)
 {
-	struct isis_area *area;
-	bool overload;
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
-	area = nb_running_get_entry(args->dnode, NULL, true);
-	overload = yang_dnode_get_bool(args->dnode, NULL);
-	area->overload_configured = overload;
-
-	isis_area_overload_bit_set(area, overload);
-
 	return NB_OK;
 }
-
 /*
  * XPath: /frr-isisd:isis/instance/overload/on-startup
  */
 int isis_instance_overload_on_startup_modify(struct nb_cb_modify_args *args)
 {
-	struct isis_area *area;
-	uint32_t overload_time;
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
-	overload_time = yang_dnode_get_uint32(args->dnode, NULL);
-	area = nb_running_get_entry(args->dnode, NULL, true);
-	isis_area_overload_on_startup_set(area, overload_time);
-
 	return NB_OK;
 }
 
@@ -382,16 +381,6 @@ int isis_instance_overload_on_startup_modify(struct nb_cb_modify_args *args)
  */
 int isis_instance_overload_advertise_high_metrics_modify(struct nb_cb_modify_args *args)
 {
-	struct isis_area *area;
-	uint32_t advertise_high_metrics;
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
-	advertise_high_metrics = yang_dnode_get_bool(args->dnode, NULL);
-	area = nb_running_get_entry(args->dnode, NULL, true);
-	isis_area_overload_advertise_high_metrics_set(area, advertise_high_metrics);
-
 	return NB_OK;
 }
 
@@ -1741,26 +1730,6 @@ int isis_instance_fast_reroute_level_1_lfa_tiebreaker_destroy(
 }
 
 /*
- * XPath: /frr-isisd:isis/instance/fast-reroute/level-1/lfa/tiebreaker/type
- */
-int isis_instance_fast_reroute_level_1_lfa_tiebreaker_type_modify(
-	struct nb_cb_modify_args *args)
-{
-	struct lfa_tiebreaker *tie_b;
-	struct isis_area *area;
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
-	tie_b = nb_running_get_entry(args->dnode, NULL, true);
-	area = tie_b->area;
-	tie_b->type = yang_dnode_get_enum(args->dnode, NULL);
-	lsp_regenerate_schedule(area, area->is_type, 0);
-
-	return NB_OK;
-}
-
-/*
  * XPath: /frr-isisd:isis/instance/fast-reroute/level-1/remote-lfa/prefix-list
  */
 int isis_instance_fast_reroute_level_1_remote_lfa_prefix_list_modify(
@@ -1888,27 +1857,6 @@ int isis_instance_fast_reroute_level_2_lfa_tiebreaker_destroy(
 
 	return NB_OK;
 }
-
-/*
- * XPath: /frr-isisd:isis/instance/fast-reroute/level-2/lfa/tiebreaker/type
- */
-int isis_instance_fast_reroute_level_2_lfa_tiebreaker_type_modify(
-	struct nb_cb_modify_args *args)
-{
-	struct lfa_tiebreaker *tie_b;
-	struct isis_area *area;
-
-	if (args->event != NB_EV_APPLY)
-		return NB_OK;
-
-	tie_b = nb_running_get_entry(args->dnode, NULL, true);
-	area = tie_b->area;
-	tie_b->type = yang_dnode_get_enum(args->dnode, NULL);
-	lsp_regenerate_schedule(area, area->is_type, 0);
-
-	return NB_OK;
-}
-
 /*
  * XPath: /frr-isisd:isis/instance/fast-reroute/level-2/remote-lfa/prefix-list
  */

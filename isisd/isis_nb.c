@@ -81,23 +81,27 @@ const struct frr_yang_module_info frr_isisd_info = {
 			},
 		},
 		{
-			.xpath = "/frr-isisd:isis/instance/overload/enabled",
+			.xpath = "/frr-isisd:isis/instance/overload",
 			.cbs = {
 				.cli_show = cli_show_isis_overload,
+				.apply_finish = isis_instance_overload_enabled_apply_finish,
+			}
+		},
+		{
+			.xpath = "/frr-isisd:isis/instance/overload/enabled",
+			.cbs = {
 				.modify = isis_instance_overload_enabled_modify,
 			}
 		},
 		{
 			.xpath = "/frr-isisd:isis/instance/overload/on-startup",
 			.cbs = {
-				.cli_show = cli_show_isis_overload_on_startup,
 				.modify = isis_instance_overload_on_startup_modify,
 			}
 		},
 		{
 			.xpath = "/frr-isisd:isis/instance/overload/advertise-high-metrics",
 			.cbs = {
-				.cli_show = cli_show_isis_overload_advertise_high_metrics,
 				.modify = isis_instance_overload_advertise_high_metrics_modify,
 			}
 		},
@@ -574,12 +578,6 @@ const struct frr_yang_module_info frr_isisd_info = {
 			}
 		},
 		{
-			.xpath = "/frr-isisd:isis/instance/fast-reroute/level-1/lfa/tiebreaker/type",
-			.cbs = {
-				.modify = isis_instance_fast_reroute_level_1_lfa_tiebreaker_type_modify,
-			}
-		},
-		{
 			.xpath = "/frr-isisd:isis/instance/fast-reroute/level-1/remote-lfa/prefix-list",
 			.cbs = {
 				.cli_show = cli_show_isis_frr_remote_lfa_plist,
@@ -608,12 +606,6 @@ const struct frr_yang_module_info frr_isisd_info = {
 				.cli_show = cli_show_isis_frr_lfa_tiebreaker,
 				.create = isis_instance_fast_reroute_level_2_lfa_tiebreaker_create,
 				.destroy = isis_instance_fast_reroute_level_2_lfa_tiebreaker_destroy,
-			}
-		},
-		{
-			.xpath = "/frr-isisd:isis/instance/fast-reroute/level-2/lfa/tiebreaker/type",
-			.cbs = {
-				.modify = isis_instance_fast_reroute_level_2_lfa_tiebreaker_type_modify,
 			}
 		},
 		{
