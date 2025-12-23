@@ -887,6 +887,7 @@ static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 			vty_out(vty, ", peer %s", peer->host);
 		if (bnc->is_evpn_gwip_nexthop)
 			vty_out(vty, " EVPN Gateway IP");
+		vty_out(vty, " [0x%x-0x%x]", bnc->flags, bnc->change_flags);
 		vty_out(vty, "\n");
 		bgp_show_nexthops_detail(vty, bgp, bnc);
 	} else if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_EVPN_INCOMPLETE)) {
@@ -897,6 +898,7 @@ static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 			bnc->metric, bnc->path_count);
 		if (bnc->is_evpn_gwip_nexthop)
 			vty_out(vty, " EVPN Gateway IP");
+		vty_out(vty, " [0x%x-0x%x]", bnc->flags, bnc->change_flags);
 		vty_out(vty, "\n");
 		bgp_show_nexthops_detail(vty, bgp, bnc);
 	} else {
@@ -908,6 +910,7 @@ static void bgp_show_nexthop(struct vty *vty, struct bgp *bgp,
 			vty_out(vty, ", peer %s", peer->host);
 		if (bnc->is_evpn_gwip_nexthop)
 			vty_out(vty, " EVPN Gateway IP");
+		vty_out(vty, " [0x%x-0x%x]", bnc->flags, bnc->change_flags);
 		vty_out(vty, "\n");
 		if (CHECK_FLAG(bnc->flags, BGP_NEXTHOP_CONNECTED))
 			vty_out(vty, "  Must be Connected\n");
@@ -1219,7 +1222,7 @@ char *bgp_nexthop_dump_bnc_flags(struct bgp_nexthop_cache *bnc, char *buf,
 		return buf;
 	}
 
-	snprintfrr(buf, len, "%s%s%s%s%s%s%s",
+	snprintfrr(buf, len, "%s%s%s%s%s%s%s%s%s%s%s",
 		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_VALID) ? "Valid " : "",
 		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED) ? "Reg " : "",
 		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_CONNECTED) ? "Conn " : "",
@@ -1231,6 +1234,18 @@ char *bgp_nexthop_dump_bnc_flags(struct bgp_nexthop_cache *bnc, char *buf,
 			   : "",
 		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_LABELED_VALID)
 			   ? "Label Valid "
+			   : "",
+		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_EVPN_INCOMPLETE)
+			   ? "EVPN Incomplete "
+			   : "",
+		   CHECK_FLAG(bnc->flags, BGP_CONDITION_TRACK_ROUTE)
+			   ? "Condition Track "
+			   : "",
+		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID)
+			   ? "SRV6TE Valid "
+			   : "",
+		   CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID)
+			   ? "SRV6TE BackupTE Valid "
 			   : "");
 
 	return buf;
@@ -1244,16 +1259,22 @@ char *bgp_nexthop_dump_bnc_change_flags(struct bgp_nexthop_cache *bnc,
 		return buf;
 	}
 
-	snprintfrr(buf, len, "%s%s%s",
-		   CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED)
-			   ? "Changed "
-			   : "",
-		   CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_METRIC_CHANGED)
-			   ? "Metric "
-			   : "",
-		   CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CONNECTED_CHANGED)
-			   ? "Connected "
-			   : "");
+	snprintfrr(buf, len, "%s%s%s%s%s",
+			CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CHANGED)
+				? "Changed "
+				: "",
+			CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_METRIC_CHANGED)
+				? "Metric "
+				: "",
+			CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_CONNECTED_CHANGED)
+				? "Connected "
+				: "",
+			CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_MACIP_CHANGED)
+				? "MACIP "
+				: "",
+			CHECK_FLAG(bnc->change_flags, BGP_NEXTHOP_COUNT_UNCHANGED)
+				? "UNCHANGED "
+				: "");
 
 	return buf;
 }
