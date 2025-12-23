@@ -734,15 +734,11 @@ void bgp_adj_out_unset_subgroup(struct bgp_dest *dest,
 
 		if (adj->attr && withdraw) {
 			/* We need advertisement structure.  */
-			struct attr dummy_attr;
-			memset(&dummy_attr, 0, sizeof(struct attr));
 			adj->adv = bgp_advertise_new();
 			adv = adj->adv;
 			adv->dest = dest;
 			adv->wait_addpath_tx_id = wait_addpath_tx_id;
-			/*use dummy_attr to generate withdraw_baa*/
-			adv->withdraw_baa = bgp_advertise_intern(subgrp->hash, &dummy_attr);
-			bgp_advertise_add(adv->withdraw_baa, adv); 
+			adv->withdraw_baa = NULL;
 			adv->adj = adj;
 			SET_FLAG(adv->flags, ADV_IN_QUEUE);
 

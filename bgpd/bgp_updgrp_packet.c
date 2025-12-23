@@ -138,6 +138,9 @@ struct bpacket *bpacket_queue_add(struct bpacket_queue *q, struct stream *s,
 		{
 			memcpy(&(pkt->from), from, sizeof(union sockunion));
 		}
+		else {
+			pkt->from.sa.sa_family = 0;
+		}
 		bpacket_queue_add_packet(q, pkt);
 		return pkt;
 	}
@@ -153,6 +156,9 @@ struct bpacket *bpacket_queue_add(struct bpacket_queue *q, struct stream *s,
 	{
              memcpy(&(last_pkt->from), from, sizeof(union sockunion));
 
+	}
+	else {
+		last_pkt->from.sa.sa_family = 0;
 	}
 	if (vecarrp)
 		memcpy(&last_pkt->arr, vecarrp,
@@ -1126,10 +1132,16 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 			bgp_advertise_free(adj->old_adv);
 			adj->old_adv = NULL;
 			goto next;
+		} else {
+			subgrp->scount--;
+			bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+			next = bgp_adv_fifo_first(&subgrp->sync->withdraw);
+			if(next!=NULL && next->withdraw_baa!=NULL){
+				break;
+			}
 		}
 
-		subgrp->scount--;
-		bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+
 next:
 		adv = next;
 
@@ -1165,8 +1177,10 @@ next:
 				   subgrp->update_group->id, subgrp->id,
 				   (stream_get_endp(s) - stream_get_getp(s)),
 				   num_pfx);
-		pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), stream_dup(s),
-					NULL,&withdraw_peer);
+		if(is_old_adv)
+			pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), stream_dup(s),NULL,&withdraw_peer);
+		else
+			pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), stream_dup(s), NULL,NULL);
 		stream_reset(s);
 		return pkt;
 	}
