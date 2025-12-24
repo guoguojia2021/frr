@@ -597,6 +597,7 @@ int lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_get_keys(
 			sizeof(args->keys->key[3]));
 
 		break;
+	case NEXTHOP_TYPE_VRF_REDIRECT:
 	case NEXTHOP_TYPE_BLACKHOLE:
 		/* Gateway IP */
 		strlcpy(args->keys->key[2], "", sizeof(args->keys->key[2]));
@@ -660,6 +661,7 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_lookup_entry(
 		break;
 	case NEXTHOP_TYPE_IFINDEX:
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -676,6 +678,7 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_lookup_entry(
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -770,6 +773,7 @@ lib_vrf_zebra_ribs_rib_route_route_entry_nexthop_group_nexthop_gateway_get_elem(
 		       sizeof(struct in6_addr));
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
 	case NEXTHOP_TYPE_IFINDEX:
 		/* No addr here */
 		return yang_data_new_string(args->xpath, "");

@@ -202,6 +202,11 @@ static struct nexthop *nhg_nh_find(const struct nexthop_group *nhg,
 			if (nexthop->bh_type != nh->bh_type)
 				continue;
 			break;
+		case NEXTHOP_TYPE_VRF_REDIRECT:
+			/* VRF redirect: compare vrf_id */
+			if (nexthop->vrf_id != nh->vrf_id)
+				continue;
+			break;
 		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			ret = nexthop_g_addr_cmp(nexthop->type,
@@ -1113,6 +1118,7 @@ void nexthop_group_write_nexthop_simple(struct vty *vty,
 		vty_out(vty, "%pI6 %s", &nh->gate.ipv6, ifname);
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 }
@@ -1180,6 +1186,7 @@ void nexthop_group_json_nexthop(json_object *j, const struct nexthop *nh)
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -1357,6 +1364,7 @@ void nexthop_group_interface_state_change(struct interface *ifp,
 				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				case NEXTHOP_TYPE_BLACKHOLE:
+				case NEXTHOP_TYPE_VRF_REDIRECT:
 					continue;
 				case NEXTHOP_TYPE_IFINDEX:
 				case NEXTHOP_TYPE_IPV4_IFINDEX:
@@ -1390,6 +1398,7 @@ void nexthop_group_interface_state_change(struct interface *ifp,
 				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 				case NEXTHOP_TYPE_BLACKHOLE:
+				case NEXTHOP_TYPE_VRF_REDIRECT:
 					continue;
 				case NEXTHOP_TYPE_IFINDEX:
 				case NEXTHOP_TYPE_IPV4_IFINDEX:

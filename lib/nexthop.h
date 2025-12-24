@@ -49,6 +49,7 @@ enum nexthop_types_t {
 	NEXTHOP_TYPE_BLACKHOLE,    /* Null0 nexthop.  */
 	NEXTHOP_TYPE_IPV4_SEGMENTLIST, /* Segment list */
 	NEXTHOP_TYPE_IPV6_SEGMENTLIST, /* Segment list */
+	NEXTHOP_TYPE_VRF_REDIRECT, /* VRF redirect */
 };
 
 enum blackhole_type {
@@ -201,6 +202,7 @@ struct nexthop *nexthop_from_ipv6_ifindex(const struct in6_addr *ipv6,
 					  ifindex_t ifindex, vrf_id_t vrf_id);
 struct nexthop *nexthop_from_blackhole(enum blackhole_type bh_type,
 				       vrf_id_t nh_vrf_id);
+struct nexthop *nexthop_from_vrf_redirect(vrf_id_t vrf_id);
 
 struct nexthop *nexthop_from_ipv4_segment_list(const struct in_addr *ipv4,
 	vrf_id_t vrf_id);

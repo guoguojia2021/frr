@@ -1084,6 +1084,9 @@ const char *yang_nexthop_type2str(uint32_t ntype)
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		return "ip6-segment";
 		break;
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+		return "vrf-redirect";
+		break;
 	default:
 		return "unknown";
 		break;

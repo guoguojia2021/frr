@@ -1629,6 +1629,9 @@ static uint8_t *mplsL3vpnRteTable(struct variable *v, oid name[],
 					return SNMP_INTEGER(
 						MPLSL3VPNVRFRTECIDRTYPEBLACKHOLE);
 				}
+			case NEXTHOP_TYPE_VRF_REDIRECT:
+				return SNMP_INTEGER(
+					MPLSL3VPNVRFRTECIDRTYPEOTHER);
 			default:
 				return SNMP_INTEGER(
 					MPLSL3VPNVRFRTECIDRTYPEOTHER);

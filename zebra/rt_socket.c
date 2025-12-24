@@ -199,6 +199,9 @@ static int kernel_rtm(int cmd, const struct prefix *p,
 				gate = true;
 			} break;
 			}
+			break;
+		case NEXTHOP_TYPE_VRF_REDIRECT:
+			break;
 		}
 
 		switch (p->family) {

@@ -236,6 +236,13 @@ struct yang_data *ripd_instance_state_routes_route_next_hop_get_elem(
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
 		return yang_data_new_ipv4(args->xpath, &rinfo->nh.gate.ipv4);
+	case NEXTHOP_TYPE_IFINDEX:
+	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+	case NEXTHOP_TYPE_IPV6:
+	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 	default:
 		return NULL;
 	}
@@ -257,6 +264,13 @@ struct yang_data *ripd_instance_state_routes_route_interface_get_elem(
 		return yang_data_new_string(
 			args->xpath,
 			ifindex2ifname(rinfo->nh.ifindex, rip->vrf->vrf_id));
+	case NEXTHOP_TYPE_IPV4:
+	case NEXTHOP_TYPE_BLACKHOLE:
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+	case NEXTHOP_TYPE_IPV6:
+	case NEXTHOP_TYPE_IPV6_IFINDEX:
+	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 	default:
 		return NULL;
 	}

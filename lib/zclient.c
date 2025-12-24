@@ -919,6 +919,13 @@ static int zapi_nexthop_cmp_no_labels(const struct zapi_nexthop *next1,
 		if (ret != 0)
 			return ret;
 		break;
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+		if (next1->vrf_id < next2->vrf_id)
+			return -1;
+
+		if (next1->vrf_id > next2->vrf_id)
+			return 1;
+		break;
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
 	case NEXTHOP_TYPE_IPV6_IFINDEX:
 		ret = nexthop_g_addr_cmp(next1->type, &next1->gate,
@@ -1057,6 +1064,9 @@ int zapi_nexthop_encode(struct stream *s, const struct zapi_nexthop *api_nh,
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		stream_write(s, (uint8_t *)&api_nh->gate.ipv6,
 			     16);
+		break;
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+		/* VRF redirect: no additional data to encode */
 		break;
 	}
 
@@ -1629,6 +1639,9 @@ int zapi_nexthop_decode(struct stream *s, struct zapi_nexthop *api_nh,
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		STREAM_GET(&api_nh->gate.ipv6, s, 16);
 		break;
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+		/* VRF redirect: no additional data to decode */
+		break;
 	}
 
 	/* MPLS labels for BGP-LU or Segment Routing */
@@ -2175,6 +2188,9 @@ const char *zapi_nexthop2str(const struct zapi_nexthop *znh, char *buf,
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
 		snprintf(buf, bufsize, "blackhole");
+		break;
+	case NEXTHOP_TYPE_VRF_REDIRECT:
+		snprintf(buf, bufsize, "vrf_redirect vrf %u", znh->vrf_id);
 		break;
 	default:
 		snprintf(buf, bufsize, "unknown");
@@ -4940,11 +4956,11 @@ void zapi_route_init(struct zapi_route *api)
 
 	/* Initialize nexthop information */
 	api->nexthop_num = 0;
-    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
+    // memset(api->nexthops, 0, sizeof(api->nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
 
 	/* Initialize backup nexthop information */
 	api->backup_nexthop_num = 0;
-    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
+    // memset(api->backup_nexthops, 0, sizeof(api->backup_nexthops));  /* 注释原因：为了减少初始化耗时，在实际使用时再进行初始�?*/
 
 	/* Initialize other fields */
 	api->nhgid = 0;

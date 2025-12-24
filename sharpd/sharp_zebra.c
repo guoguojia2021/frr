@@ -674,6 +674,9 @@ static int sharp_debug_nexthops(struct zapi_route *api)
 		case NEXTHOP_TYPE_BLACKHOLE:
 			zlog_debug("        Nexthop blackhole");
 			break;
+		case NEXTHOP_TYPE_VRF_REDIRECT:
+			zlog_debug("        Nexthop VRF redirect");
+			break;
 		}
 	}
 

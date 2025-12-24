@@ -111,6 +111,11 @@ module frr-nexthop {
         description
           "IPv6 segment address.";
       }
+      enum "vrf-redirect" {
+        value 11;
+        description
+          "VRF redirect nexthop.";
+      }
     }
     description
       "Nexthop types.";

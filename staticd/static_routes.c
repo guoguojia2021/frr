@@ -406,6 +406,7 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 	case STATIC_IPV4_SEGMENTLIST:
 	case STATIC_IPV6_SEGMENTLIST:
 	case STATIC_BLACKHOLE:
+	case STATIC_VRF_REDIRECT:
 		break;
 	case STATIC_IPV4_GATEWAY_EVPN:
 	case STATIC_IPV6_GATEWAY_EVPN:
@@ -471,6 +472,9 @@ void static_install_nexthop(struct static_nexthop *nh)
 			static_zebra_nht_register(nh, true);
 		break;
 	case STATIC_BLACKHOLE:
+		static_install_path(pn);
+		break;
+	case STATIC_VRF_REDIRECT:
 		static_install_path(pn);
 		break;
 	case STATIC_IFNAME:
@@ -931,6 +935,9 @@ void static_get_nh_type(enum static_nh_type stype, const char *gatestr, char *ty
 	case STATIC_IPV6_SEGMENTLIST:
 		strlcpy(type, "ip6-segment", size);
 		break;
+	case STATIC_VRF_REDIRECT:
+		strlcpy(type, "vrf-redirect", size);
+		break;
 	};
 }
 
@@ -973,6 +980,9 @@ void static_get_nh_str(struct static_nexthop *nh, char *nexthop, size_t size)
 	case STATIC_IPV6_SEGMENTLIST:
 		snprintfrr(nexthop, size, "ip6-segment : %pI6 color : %d", &nh->addr.ipv6, nh->color);
 		break;
+	case STATIC_VRF_REDIRECT:
+		snprintfrr(nexthop, size, "vrf-redirect : %u", nh->nh_vrf_id);
+		break;
 	};
 }
 
@@ -1008,6 +1018,9 @@ static void static_route_show_nexthop(struct vty *vty,
 		break;
 	case STATIC_IPV6_SEGMENTLIST:
 		vty_out(vty, " ip6-segment:%pI6", &sn->addr.ipv6);
+		break;
+	case STATIC_VRF_REDIRECT:
+		vty_out(vty, " vrf-redirect:%s", sn->nh_vrfname);
 		break;
 	};
 
