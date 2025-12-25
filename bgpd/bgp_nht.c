@@ -388,13 +388,13 @@ int bgp_find_or_add_nexthop(struct bgp *bgp_route, struct bgp *bgp_nexthop,
 		 if (!CHECK_FLAG(bgp_nexthop->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
 			return (bgp_isvalid_labeled_nexthop(bnc));
 		 else {
-			return ((bgp_isvalid_labeled_nexthop(bnc))  && CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID));
+			return ((bgp_isvalid_labeled_nexthop(bnc))  || CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID));
 		 }
 	} else {
 		if (!CHECK_FLAG(bgp_nexthop->flags, BGP_FLAG_BESTPATH_NH_RESOLVED_TUNNEL))
 			return (bgp_isvalid_nexthop(bnc));
 		else {
-			return ((bgp_isvalid_nexthop(bnc)) && CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID));
+			return ((bgp_isvalid_nexthop(bnc)) || CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID));
 		}
 	}
 
