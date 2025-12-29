@@ -1,8 +1,5 @@
 name: gtest
 triggers:
-  push:
-    branches:
-      - 'dev-sonic8.2.2'
   merge_request:
     target-branches:
       - 'dev-sonic8.2.2'
