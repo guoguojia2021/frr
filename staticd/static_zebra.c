@@ -306,6 +306,17 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 
 	if (nhtd) {
 		nhtd->nh_num = nhr.nexthop_num;
+		/* For static routes configured with a color, 
+		   we only care about the corresponding SR-TE iteration result 
+		   as the key criterion for determining whether the next hop 
+		   of the static route is valid, and we no longer check the IP iteration result.
+		   */
+		if (nhr.srte_color) {
+			if (CHECK_FLAG(nhr.message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID))
+				nhtd->nh_num = 1;
+			else
+				nhtd->nh_num = 0;
+		}
 		/*
 		* nexthop update event can't appear later. 
 		* we should save nhr.type to nhtd for recognizing nexthop type
@@ -315,11 +326,11 @@ static int static_zebra_nexthop_update(ZAPI_CALLBACK_ARGS)
 		        "update nexthop(%pFX) nh_num %d  type %u", nhtd->nh,
 		        nhtd->nh_num, nhtd->type);
 		static_nht_reset_start(&matched, afi, nhtd->nh_vrf_id);
-		static_nht_update(NULL, &matched, nhr.nexthop_num, afi,
+		static_nht_update(NULL, &matched, nhtd->nh_num, afi,
 				  nhtd->nh_vrf_id, set_etag, nhr.srte_color);
 		if (afi == AFI_IP6) {
 			static_nht_reset_start(&matched, AFI_IP, nhtd->nh_vrf_id);
-			static_nht_update(NULL, &matched, nhr.nexthop_num, AFI_IP,
+			static_nht_update(NULL, &matched, nhtd->nh_num, AFI_IP,
 					  nhtd->nh_vrf_id, set_etag, nhr.srte_color);
 		}
 	} else
