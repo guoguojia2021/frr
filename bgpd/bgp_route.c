@@ -2226,15 +2226,9 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	 * off box as that the RT and RD created are localy
 	 * significant and globaly useless.
 	 */
-	if (safi == SAFI_MPLS_VPN && pi->extra && pi->extra->num_labels) {
-		if (pi->extra->label[0] == BGP_PREVENT_VRF_2_VRF_LEAK)
-			return false;
-
-		if (label_pton(&pi->extra->label[0]) == MPLS_LABEL_IMPLICIT_NULL) {
-			if (piattr->srv6_vpn == NULL && piattr->srv6_l3vpn == NULL)
-				return false;
-		}
-	}
+	if (safi == SAFI_MPLS_VPN && pi->extra && pi->extra->num_labels
+	    && pi->extra->label[0] == BGP_PREVENT_VRF_2_VRF_LEAK)
+		return false;
 
 	/* If it's labeled safi, make sure the route has a valid label. */
 	if (safi == SAFI_LABELED_UNICAST) {
