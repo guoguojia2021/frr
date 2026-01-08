@@ -144,8 +144,6 @@ static int zserv_encode_nexthop(struct stream *s, struct nexthop *nexthop)
 	case NEXTHOP_TYPE_IFINDEX:
 		stream_putl(s, nexthop->ifindex);
 		break;
-	case NEXTHOP_TYPE_BLACKHOLE:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 	default:
 		/* do nothing */
 		break;
@@ -623,9 +621,6 @@ int zsend_redistribute_route(int cmd, struct zserv *client,
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			api_nh->gate.ipv6 = nexthop->gate.ipv6;
 			api_nh->ifindex = nexthop->ifindex;
-			break;
-		case NEXTHOP_TYPE_VRF_REDIRECT:
-			break;
 		}
 		count++;
 	}
@@ -1757,14 +1752,6 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 
 		nexthop =
 			nexthop_from_blackhole(api_nh->bh_type, api_nh->vrf_id);
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		if (IS_ZEBRA_DEBUG_RECV)
-			zlog_debug("%s: nh vrf redirect to vrf_id %d",
-				   __func__, api_nh->vrf_id);
-
-		nexthop =
-			nexthop_from_vrf_redirect(api_nh->vrf_id);
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		if (IS_ZEBRA_DEBUG_RECV) {

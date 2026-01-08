@@ -174,8 +174,6 @@ static bool pbr_nh_hash_equal(const void *arg1, const void *arg2)
 			       &pbrnc2->nexthop.gate.ipv6, 16);
 	case NEXTHOP_TYPE_BLACKHOLE:
 		return pbrnc1->nexthop.bh_type == pbrnc2->nexthop.bh_type;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		return pbrnc1->nexthop.vrf_id == pbrnc2->nexthop.vrf_id;
 	}
 
 	/*
@@ -416,7 +414,6 @@ static afi_t pbr_nht_which_afi(struct nexthop_group nhg,
 		case NEXTHOP_TYPE_BLACKHOLE:
 		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		case NEXTHOP_TYPE_VRF_REDIRECT:
 			return AFI_MAX;
 		}
 	}
@@ -428,7 +425,6 @@ static afi_t pbr_nht_which_afi(struct nexthop_group nhg,
 
 		switch (nh_type) {
 		case NEXTHOP_TYPE_IFINDEX:
-		case NEXTHOP_TYPE_VRF_REDIRECT:
 		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			break;
@@ -554,12 +550,6 @@ void pbr_nht_set_seq_nhg_data(struct pbr_map_sequence *pbrms,
 	case NEXTHOP_TYPE_IPV4:
 	case NEXTHOP_TYPE_IPV4_IFINDEX:
 		pbrms->family = AF_INET;
-		break;
-	case NEXTHOP_TYPE_IFINDEX:
-	case NEXTHOP_TYPE_BLACKHOLE:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
-	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 	default:
 		break;
 	}
@@ -814,7 +804,6 @@ pbr_nht_individual_nexthop_gw_update(struct pbr_nexthop_cache *pnhc,
 		case NEXTHOP_TYPE_IPV6:
 		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		case NEXTHOP_TYPE_VRF_REDIRECT:
 			goto done;
 		case NEXTHOP_TYPE_IFINDEX:
 		case NEXTHOP_TYPE_IPV4_IFINDEX:
@@ -926,7 +915,6 @@ static void pbr_nht_individual_nexthop_update(struct pbr_nexthop_cache *pnhc,
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 }

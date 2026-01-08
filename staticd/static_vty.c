@@ -141,10 +141,7 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 	}
 
 	if (gate_str == NULL && ifname == NULL)
-		if (nh_svrf && strcmp(nh_svrf, svrf) != 0)
-			type = STATIC_VRF_REDIRECT;
-		else
-			type = STATIC_BLACKHOLE;
+		type = STATIC_BLACKHOLE;
 	else if (nh_vni_str && nh_rmac_str) {
 		if (afi == AFI_IP)
 			type = STATIC_IPV4_GATEWAY_EVPN;
@@ -225,36 +222,6 @@ static int static_route_leak(struct vty *vty, const char *svrf,
 
 			nb_cli_enqueue_change(vty, ab_xpath, NB_OP_DESTROY,
 					      NULL);
-		}
-
-		// For VRF redirect routes, we want to replace all existing nexthops
-		// with the new one, so we also remove the entire path-list if it exists
-		if (type == STATIC_VRF_REDIRECT) {
-			if (src_str)
-				snprintf(ab_xpath, sizeof(ab_xpath),
-					 FRR_S_ROUTE_SRC_INFO_KEY_XPATH,
-					 "frr-staticd:staticd", "staticd", svrf,
-					 buf_prefix,
-					 yang_afi_safi_value2identity(afi, safi),
-					 buf_src_prefix, table_id, distance);
-			else
-				snprintf(ab_xpath, sizeof(ab_xpath),
-					 FRR_STATIC_ROUTE_INFO_KEY_XPATH,
-					 "frr-staticd:staticd", "staticd", svrf,
-					 buf_prefix,
-					 yang_afi_safi_value2identity(afi, safi),
-					 table_id, distance);
-
-			// Check if the route path-list already exists
-			dnode = yang_dnode_get(vty->candidate_config->dnode, ab_xpath);
-			if (dnode) {
-				// If route exists, we need to remove it completely to replace all nexthops
-				dnode = yang_get_subtree_with_no_sibling(dnode);
-				assert(dnode);
-				yang_dnode_get_path(dnode, ab_xpath, XPATH_MAXLEN);
-
-				nb_cli_enqueue_change(vty, ab_xpath, NB_OP_DESTROY, NULL);
-			}
 		}
 
 		/* route + path procesing */
@@ -742,80 +709,6 @@ DEFPY_YANG(ip_route,
 				 false, color_str, NULL, NULL, bfd_name);
 }
 
-DEFPY_YANG(ip_route_vrf_redirect,
-      ip_route_vrf_redirect_cmd,
-      "[no] ip route\
-	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
-	[{                                             \
-	vrf NAME$vrf                                   \
-	|nexthop-vrf NAME$nexthop_vrf                  \
-	}]                                            \
-	[{                                             \
-	  tag (1-4294967295)                           \
-	  |(1-255)$distance                            \
-	  |table (1-4294967295)                        \
-	  }]",
-      NO_STR IP_STR
-      "Establish static routes\n"
-      "IP destination prefix (e.g. 10.0.0.0/8)\n"
-      "IP destination prefix\n"
-      "IP destination prefix mask\n"
-      VRF_CMD_HELP_STR
-      VRF_CMD_HELP_STR
-      "Set tag for this route\n"
-      "Tag value\n"
-      "Distance value for this route\n"
-      "Table to configure\n"
-      "The table number to configure\n")
-{
-	if (!vrf)
-		vrf = VRF_DEFAULT_NAME;
-	return static_route_leak(vty, vrf, nexthop_vrf, AFI_IP, SAFI_UNICAST,
-				 no, prefix, mask_str, NULL, NULL, NULL, NULL,
-				 tag_str, NULL, distance_str, NULL, table_str,
-				 false, NULL, NULL, NULL, NULL);
-}
-
-DEFPY_YANG(ip_route_vrf_redirect_vrf,
-      ip_route_vrf_redirect_vrf_cmd,
-      "[no] ip route\
-	<A.B.C.D/M$prefix|A.B.C.D$prefix A.B.C.D$mask> \
-	nexthop-vrf NAME$nexthop_vrf                   \
-	[{                                             \
-	  tag (1-4294967295)                           \
-	  |(1-255)$distance                            \
-	  |table (1-4294967295)                        \
-	  }]",
-      NO_STR IP_STR
-      "Establish static routes\n"
-      "IP destination prefix (e.g. 10.0.0.0/8)\n"
-      "IP destination prefix\n"
-      "IP destination prefix mask\n"
-      VRF_CMD_HELP_STR
-      "Set tag for this route\n"
-      "Tag value\n"
-      "Distance value for this route\n"
-      "Table to configure\n"
-      "The table number to configure\n")
-{
-	const struct lyd_node *vrf_dnode;
-	const char *vrfname;
-
-	vrf_dnode =
-		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
-	if (!vrf_dnode) {
-		vty_out(vty, "%% Failed to get vrf dnode in candidate db\n");
-		return CMD_WARNING_CONFIG_FAILED;
-	}
-	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
-
-	/* VRF redirect: no gateway, no interface, just nexthop-vrf */
-	return static_route_leak(vty, vrfname, nexthop_vrf, AFI_IP, SAFI_UNICAST,
-				 no, prefix, mask_str, NULL, NULL, NULL, NULL,
-				 tag_str, NULL, distance_str, NULL, table_str,
-				 false, NULL, NULL, NULL, NULL);
-}
-
 DEFPY_YANG(ip_route_v6gate,
       ip_route_v6gate_cmd,
       "[no] ip route\
@@ -859,79 +752,6 @@ DEFPY_YANG(ip_route_v6gate,
 				 prefix, mask_str, NULL, gate_str, NULL, NULL,
 				 tag_str, NULL, distance_str, NULL, NULL,
 				 false, color_str, NULL, NULL, bfd_name);
-}
-
-DEFPY_YANG(ipv6_route_vrf_redirect,
-      ipv6_route_vrf_redirect_cmd,
-      "[no] ipv6 route X:X::X:X/M$prefix [from X:X::X:X/M] \
-	[{                                                    \
-	vrf NAME$vrf                                          \
-	|nexthop-vrf NAME$nexthop_vrf                         \
-	}]                                                   \
-	[{                                                    \
-	  tag (1-4294967295)                                  \
-	  |(1-255)$distance                                   \
-	  |table (1-4294967295)                               \
-	  }]",
-      NO_STR
-      IPV6_STR
-      "Establish static routes\n"
-      "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
-      "IPv6 source-dest route\n"
-      "IPv6 source prefix\n"
-      VRF_CMD_HELP_STR
-      VRF_CMD_HELP_STR
-      "Set tag for this route\n"
-      "Tag value\n"
-      "Distance value for this prefix\n"
-      "Table to configure\n"
-      "The table number to configure\n")
-{
-	if (!vrf)
-		vrf = VRF_DEFAULT_NAME;
-	return static_route_leak(vty, vrf, nexthop_vrf, AFI_IP6, SAFI_UNICAST,
-				 no, prefix_str, NULL, from_str, NULL, NULL, NULL,
-				 tag_str, NULL, distance_str, NULL, table_str,
-				 false, NULL, NULL, NULL, NULL);
-}
-
-DEFPY_YANG(ipv6_route_vrf_redirect_vrf,
-      ipv6_route_vrf_redirect_vrf_cmd,
-      "[no] ipv6 route X:X::X:X/M$prefix [from X:X::X:X/M] \
-	nexthop-vrf NAME$nexthop_vrf                          \
-	[{                                                    \
-	  tag (1-4294967295)                                  \
-	  |(1-255)$distance                                   \
-	  |table (1-4294967295)                               \
-	  }]",
-      NO_STR
-      IPV6_STR
-      "Establish static routes\n"
-      "IPv6 destination prefix (e.g. 3ffe:506::/32)\n"
-      "IPv6 source-dest route\n"
-      "IPv6 source prefix\n"
-      VRF_CMD_HELP_STR
-      "Set tag for this route\n"
-      "Tag value\n"
-      "Distance value for this prefix\n"
-      "Table to configure\n"
-      "The table number to configure\n")
-{
-	const struct lyd_node *vrf_dnode;
-	const char *vrfname;
-
-	vrf_dnode =
-		yang_dnode_get(vty->candidate_config->dnode, VTY_CURR_XPATH);
-	if (!vrf_dnode) {
-		vty_out(vty, "%% Failed to get vrf dnode in candidate db\n");
-		return CMD_WARNING_CONFIG_FAILED;
-	}
-	vrfname = yang_dnode_get_string(vrf_dnode, "./name");
-
-	return static_route_leak(vty, vrfname, nexthop_vrf, AFI_IP6, SAFI_UNICAST,
-				 no, prefix_str, NULL, from_str, NULL, NULL, NULL,
-				 tag_str, NULL, distance_str, NULL, table_str,
-				 false, NULL, NULL, NULL, NULL);
 }
 
 DEFPY_YANG(ip_route_vrf,
@@ -1645,9 +1465,6 @@ static void nexthop_cli_show(struct vty *vty, const struct lyd_node *route,
 			break;
 		}
 		break;
-	case STATIC_VRF_REDIRECT:
-		/* VRF redirect: no gateway/interface to show */
-		break;
     case STATIC_IPV4_GATEWAY_EVPN:
         rmac = yang_dnode_get_string(nexthop, "rmac");
         vni = yang_dnode_get_uint32(nexthop, "vni");
@@ -1767,10 +1584,6 @@ int static_nexthop_cli_cmp(const struct lyd_node *dnode1,
 		break;
 	case STATIC_BLACKHOLE:
 		/* There's only one blackhole nexthop per route */
-		ret = 0;
-		break;
-	case STATIC_VRF_REDIRECT:
-		/* VRF redirect: no additional comparison needed */
 		ret = 0;
 		break;
 	}
@@ -1939,20 +1752,16 @@ void static_vty_init(void)
 	install_element(VRF_NODE, &ip_route_address_interface_vrf_cmd);
 	install_element(CONFIG_NODE, &ip_route_cmd);
 	install_element(CONFIG_NODE, &ip_route_v6gate_cmd);
-	install_element(CONFIG_NODE, &ip_route_vrf_redirect_cmd);
 	install_element(VRF_NODE, &ip_route_vrf_cmd);
 	install_element(VRF_NODE, &ip_route_v6gate_vrf_cmd);
-	install_element(VRF_NODE, &ip_route_vrf_redirect_vrf_cmd);
 
 	install_element(CONFIG_NODE, &ipv6_route_blackhole_cmd);
 	install_element(VRF_NODE, &ipv6_route_blackhole_vrf_cmd);
 	install_element(CONFIG_NODE, &ipv6_route_address_interface_cmd);
 	install_element(VRF_NODE, &ipv6_route_address_interface_vrf_cmd);
 	install_element(CONFIG_NODE, &ipv6_route_cmd);
-	install_element(CONFIG_NODE, &ipv6_route_vrf_redirect_cmd);
 	install_element(VRF_NODE, &ipv6_route_vrf_cmd);
 	install_element(VRF_NODE, &ip_route_vrf_etag_cmd);
-	install_element(VRF_NODE, &ipv6_route_vrf_redirect_vrf_cmd);
 	install_element(CONFIG_NODE, &ip_route_etag_cmd);
 	install_element(VRF_NODE, &ip_route_evpn_vrf_cmd);
 	install_element(VRF_NODE, &ipv6_route_evpn_vrf_cmd);

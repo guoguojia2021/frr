@@ -859,10 +859,6 @@ static void bgp_show_nexthops_detail(struct vty *vty, struct bgp *bgp,
 				inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
 					  sizeof(buf)));
 			break;
-		case NEXTHOP_TYPE_VRF_REDIRECT:
-			vty_out(vty, "  vrf redirect to vrf %u\n",
-				nexthop->vrf_id);
-			break;
 		default:
 			vty_out(vty, "  invalid nexthop type %u\n",
 				nexthop->type);

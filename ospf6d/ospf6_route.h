@@ -71,10 +71,6 @@ static inline bool ospf6_nexthop_is_same(const struct ospf6_nexthop *nha,
 		/* NOTHING */
 		break;
 
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		/* VRF redirect is not supported in OSPFv6 */
-		return false;
-
 	case NEXTHOP_TYPE_IFINDEX:
 		if (nha->ifindex != nhb->ifindex)
 			return false;

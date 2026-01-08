@@ -3081,11 +3081,6 @@ DEFUN (show_ip_rip,
 						"blackhole            %2d ",
 						rinfo->metric);
 					break;
-				case NEXTHOP_TYPE_VRF_REDIRECT:
-					vty_out(vty,
-						"vrf redirect         %2d ",
-						rinfo->metric);
-					break;
 				case NEXTHOP_TYPE_IPV6:
 				case NEXTHOP_TYPE_IPV6_IFINDEX:
 					vty_out(vty,

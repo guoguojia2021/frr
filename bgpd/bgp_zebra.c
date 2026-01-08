@@ -1679,9 +1679,6 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 			case NEXTHOP_TYPE_BLACKHOLE:
 				strlcpy(nh_buf, "blackhole", sizeof(nh_buf));
 				break;
-			case NEXTHOP_TYPE_VRF_REDIRECT:
-				snprintf(nh_buf, sizeof(nh_buf), "redirect vrf %u", api_nh->vrf_id);
-				break;
 			default:
 				/* Note: add new nexthop case */
 				assert(0);

@@ -418,7 +418,6 @@ void static_zebra_nht_register(struct static_nexthop *nh, bool reg)
 	case STATIC_BLACKHOLE:
 	case STATIC_IPV4_GATEWAY_EVPN:
 	case STATIC_IPV6_GATEWAY_EVPN:
-	case STATIC_VRF_REDIRECT:
 		return;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
@@ -508,7 +507,6 @@ void get_static_nht_nh_rttype(struct route_node *rn, struct static_nexthop *nh, 
 	case STATIC_BLACKHOLE:
 	case STATIC_IPV4_GATEWAY_EVPN:
 	case STATIC_IPV6_GATEWAY_EVPN:
-	case STATIC_VRF_REDIRECT:
 		return;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
@@ -561,7 +559,6 @@ int static_zebra_nh_update(struct static_nexthop *nh)
 	case STATIC_BLACKHOLE:
     case STATIC_IPV4_GATEWAY_EVPN:
     case STATIC_IPV6_GATEWAY_EVPN:
-	case STATIC_VRF_REDIRECT:
 		return 0;
 	case STATIC_IPV4_GATEWAY:
 	case STATIC_IPV4_GATEWAY_IFNAME:
@@ -759,10 +756,6 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 				continue;
 			api_nh->type = NEXTHOP_TYPE_IPV4_SEGMENTLIST;
 			api_nh->gate = nh->addr;
-			break;
-		case STATIC_VRF_REDIRECT:
-			api_nh->type = NEXTHOP_TYPE_VRF_REDIRECT;
-			api_nh->vrf_id = nh->nh_vrf_id;
 			break;
 		}
 

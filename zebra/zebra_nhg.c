@@ -607,10 +607,9 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 		switch (nh->type) {
 		case NEXTHOP_TYPE_IFINDEX:
 		case NEXTHOP_TYPE_BLACKHOLE:
-		case NEXTHOP_TYPE_VRF_REDIRECT:
 			/*
 			 * This switch case handles setting the afi different
-			 * for ipv4/v6 routes. Ifindex/blackhole/vrf_redirect nexthop
+			 * for ipv4/v6 routes. Ifindex/blackhole nexthop
 			 * objects cannot be ambiguous, they must be Address
 			 * Family specific. If we get here, we will either use
 			 * the AF of the route, or the one we got passed from
@@ -635,9 +634,6 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
 	}
-
-	if (nh && nh->type == NEXTHOP_TYPE_VRF_REDIRECT)
-		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 
 	if (nh && nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
@@ -1457,10 +1453,9 @@ bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value */
 		switch (pic_nh_lookup.nhg.nexthop->type) {
 		case (NEXTHOP_TYPE_IFINDEX):
 		case (NEXTHOP_TYPE_BLACKHOLE):
-		case (NEXTHOP_TYPE_VRF_REDIRECT):
 			/*
 			 * This switch case handles setting the afi different
-			 * for ipv4/v6 routes. Ifindex/blackhole/vrf_redirect nexthop
+			 * for ipv4/v6 routes. Ifindex/blackhole nexthop
 			 * objects cannot be ambiguous, they must be Address
 			 * Family specific. If we get here, we will either use
 			 * the AF of the route, or the one we got passed from
@@ -1533,10 +1528,9 @@ static bool zebra_nhg_find(struct nhg_hash_entry **nhe, uint32_t id,
 		switch (nexthop->type) {
 		case (NEXTHOP_TYPE_IFINDEX):
 		case (NEXTHOP_TYPE_BLACKHOLE):
-		case (NEXTHOP_TYPE_VRF_REDIRECT):
 			/*
 			 * This switch case handles setting the afi different
-			 * for ipv4/v6 routes. Ifindex/blackhole/vrf_redirect nexthop
+			 * for ipv4/v6 routes. Ifindex/blackhole nexthop
 			 * objects cannot be ambiguous, they must be Address
 			 * Family specific. If we get here, we will either use
 			 * the AF of the route, or the one we got passed from
@@ -2646,10 +2640,6 @@ static struct nexthop *nexthop_set_resolved(afi_t afi,
 		resolved_hop->type = NEXTHOP_TYPE_BLACKHOLE;
 		resolved_hop->bh_type = newhop->bh_type;
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		resolved_hop->type = NEXTHOP_TYPE_VRF_REDIRECT;
-		resolved_hop->vrf_id = newhop->vrf_id;
-		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 		return NULL;
@@ -2792,7 +2782,6 @@ static bool nexthop_valid_resolve(const struct nexthop *nexthop,
 	case NEXTHOP_TYPE_IPV6:
 	case NEXTHOP_TYPE_IFINDEX:
 	case NEXTHOP_TYPE_BLACKHOLE:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
@@ -3032,22 +3021,6 @@ static int nexthop_active(struct nexthop *nexthop, struct nhg_hash_entry *nhe,
 
 	case NEXTHOP_TYPE_BLACKHOLE:
 		return 1;
-
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		/* VRF redirect: check if target VRF exists */
-		zvrf = zebra_vrf_lookup_by_id(nexthop->vrf_id);
-		if (zvrf && zvrf->vrf && CHECK_FLAG(zvrf->vrf->status, VRF_ACTIVE)) {
-			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-				zlog_debug("%s: VRF redirect to vrf_id %u is active",
-					   __func__, nexthop->vrf_id);
-			return 1;
-		} else {
-			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
-				zlog_debug("%s: VRF redirect to vrf_id %u failed - VRF not found or inactive",
-					   __func__, nexthop->vrf_id);
-			nexthop->inactive_reason = 25;
-			return 0;
-		}
 
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
@@ -3558,15 +3531,6 @@ static unsigned nexthop_active_check(struct route_node *rn,
 		else {
 			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 			nexthop->inactive_reason += 600;
-		}
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		/* VRF redirect: need to check if target VRF exists */
-		if (nexthop_active(nexthop, nhe, &rn->p, re, &mtu))
-			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-		else {
-			UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
-			nexthop->inactive_reason += 700;
 		}
 		break;
 	default:

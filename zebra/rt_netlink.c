@@ -2624,14 +2624,6 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 						 IPV6_MAX_BYTELEN))
 					return 0;
 				break;
-			case NEXTHOP_TYPE_VRF_REDIRECT:
-				zlog_debug(
-					"%s: ID (%u): VRF redirect nexthop vrf (%u)",
-					__func__, id, nh->vrf_id);
-				if (!nl_attr_put32(&req->n, buflen, NHA_OIF,
-					   nh->vrf_id))
-					return 0;
-				break;
 			case NEXTHOP_TYPE_BLACKHOLE:
 				if (!nl_attr_put(&req->n, buflen, NHA_BLACKHOLE,
 						 NULL, 0))
@@ -2657,12 +2649,9 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 				return -1;
 			}
 
-			if (nh->type != NEXTHOP_TYPE_VRF_REDIRECT)
-			{
-				if (!nl_attr_put32(&req->n, buflen, NHA_OIF,
-						nh->ifindex))
-					return 0;
-			}
+			if (!nl_attr_put32(&req->n, buflen, NHA_OIF,
+					   nh->ifindex))
+				return 0;
 
 			if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_ONLINK))
 				req->nhm.nh_flags |= RTNH_F_ONLINK;

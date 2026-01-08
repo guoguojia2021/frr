@@ -1570,9 +1570,6 @@ static void print_nh(struct nexthop *nexthop, struct vty *vty)
 	case NEXTHOP_TYPE_BLACKHOLE:
 		vty_out(vty, " is directly connected, Null0");
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		vty_out(vty, " vrf redirect to vrf %u", nexthop->vrf_id);
-		break;
 	default:
 		break;
 	}

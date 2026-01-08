@@ -10446,8 +10446,6 @@ void bgp_redistribute_add(struct bgp *bgp, struct prefix *p,
 		}
 		attr.bh_type = bhtype;
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		break;
 	}
 	attr.nh_type = nhtype;
 	attr.nh_ifindex = ifindex;
@@ -12512,9 +12510,6 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 				case NEXTHOP_TYPE_BLACKHOLE:
 					vty_out(vty, " blackhole, ");
 					break;
-				case NEXTHOP_TYPE_VRF_REDIRECT:
-					vty_out(vty, " vrf redirect to vrf %u, ", nexthop->vrf_id);
-					break;
 				default:
 					vty_out(vty, " invalid nexthop type %u\n",
 						nexthop->type);
@@ -12572,9 +12567,6 @@ void route_vty_out_detail(struct vty *vty, struct bgp *bgp, struct bgp_dest *bn,
 					break;
 				case NEXTHOP_TYPE_BLACKHOLE:
 					json_object_string_add(json_path, "Relay-Nexthop(ip)", "blackhole");
-					break;
-				case NEXTHOP_TYPE_VRF_REDIRECT:
-					json_object_string_addf(json_path, "Relay-Nexthop(ip)", "redirect to vrf %u", nexthop->vrf_id);
 					break;
 				default:
 					json_object_string_add(json_path, "Relay-Nexthop(ip)", "invalid nexthop type");

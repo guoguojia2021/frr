@@ -768,7 +768,6 @@ static int nhlfe_nexthop_active(struct zebra_nhlfe *nhlfe)
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -1212,7 +1211,6 @@ static char *nhlfe2str(const struct zebra_nhlfe *nhlfe, char *buf, int size)
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -1257,7 +1255,6 @@ static int nhlfe_nhop_match(struct zebra_nhlfe *nhlfe,
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -1330,9 +1327,8 @@ nhlfe_alloc(struct zebra_lsp *lsp, enum lsp_types_t lsp_type,
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		if (IS_ZEBRA_DEBUG_MPLS)
-			zlog_debug("%s: invalid: blackhole, segment or vrf-redirect nexthop", __func__);
+			zlog_debug("%s: invalid: blackhole or segment nexthop", __func__);
 
 		nexthop_free(nexthop);
 		XFREE(MTYPE_NHLFE, nhlfe);
@@ -1584,7 +1580,6 @@ static json_object *nhlfe_json(struct zebra_nhlfe *nhlfe)
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 
@@ -1654,7 +1649,6 @@ static void nhlfe_print(struct zebra_nhlfe *nhlfe, struct vty *vty,
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 	vty_out(vty, "%s",
@@ -2907,7 +2901,6 @@ static bool ftn_update_znh(bool add_p, enum lsp_types_t type,
 		case NEXTHOP_TYPE_BLACKHOLE:
 		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-		case NEXTHOP_TYPE_VRF_REDIRECT:
 			/* Not valid */
 			continue;
 		}
@@ -3829,7 +3822,6 @@ void zebra_mpls_print_lsp_table(struct vty *vty, struct zebra_vrf *zvrf,
 				case NEXTHOP_TYPE_BLACKHOLE:
 				case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 				case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-				case NEXTHOP_TYPE_VRF_REDIRECT:
 					break;
 				}
 
@@ -3897,7 +3889,6 @@ static char *nhlfe_config_str(const struct zebra_nhlfe *nhlfe, char *buf,
 	case NEXTHOP_TYPE_BLACKHOLE:
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		break;
 	}
 

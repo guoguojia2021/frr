@@ -3834,9 +3834,6 @@ static void _route_entry_dump_nh(const struct route_entry *re,
 	case NEXTHOP_TYPE_BLACKHOLE:
 		snprintf(nhname, sizeof(nhname), "Blackhole");
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		snprintf(nhname, sizeof(nhname), "VRF-Redirect(vrf %u)", nexthop->vrf_id);
-		break;
 	case NEXTHOP_TYPE_IFINDEX:
 		ifp = if_lookup_by_index(nexthop->ifindex, nexthop->vrf_id);
 		snprintf(nhname, sizeof(nhname), "%s",

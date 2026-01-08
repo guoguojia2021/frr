@@ -1583,7 +1583,6 @@ route_set_kernel_bypass(void *rule, const struct prefix *prefix,
 				rm_data->re->flags);
 			break;
 		case NEXTHOP_TYPE_BLACKHOLE:
-		case NEXTHOP_TYPE_VRF_REDIRECT:
 		case NEXTHOP_TYPE_IFINDEX:
 			break;
 		}

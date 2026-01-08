@@ -379,9 +379,6 @@ static void vty_show_inactive_route_debug_info(struct vty *vty,
 			case 6:
 				vty_out(vty, "\tnexthop_seg_active:: ");
 				break;
-			case 7:
-				vty_out(vty, "\tvrf_redirect_active: ");
-				break;
 			default:
 				vty_out(vty, "\tReason was missed out:: ");
 				break;
@@ -506,13 +503,6 @@ static void show_nexthop_detail_helper(struct vty *vty,
 			break;
 		case BLACKHOLE_UNSPEC:
 			break;
-		}
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		vty_out(vty, " vrf redirect");
-		if (re->vrf_id != nexthop->vrf_id) {
-			struct vrf *vrf = vrf_lookup_by_id(nexthop->vrf_id);
-			vty_out(vty, " to vrf %s", VRF_LOGALIASNAME(vrf));
 		}
 		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
@@ -907,9 +897,6 @@ static void show_route_nexthop_helper(struct vty *vty,
 			break;
 		}
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		vty_out(vty, " vrf redirect to vrf %u", nexthop->vrf_id);
-		break;
 	case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
 		vty_out(vty, " via %pI4%s",&nexthop->gate.ipv4, CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_IS_BACKUP) ? "(backup)" : "");
 		vty_out(vty, " segment-list %s", nexthop->sidlist_name);
@@ -1110,12 +1097,6 @@ static void show_nexthop_json_helper(json_object *json_nexthop,
 		case BLACKHOLE_UNSPEC:
 			break;
 		}
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		json_object_boolean_true_add(json_nexthop, "vrfRedirect");
-		if ((re == NULL || (nexthop->vrf_id != re->vrf_id)))
-			json_object_string_add(json_nexthop, "targetVrf",
-					       vrf_id_to_name(nexthop->vrf_id));
 		break;
 	}
 
@@ -2811,10 +2792,6 @@ static void show_ip_route_nht_dump(struct vty *vty, struct nexthop *nexthop,
 		case BLACKHOLE_UNSPEC:
 			break;
 		}
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		vty_out(vty, "      Nexthop type is VRF redirect to vrf %u.\n",
-			nexthop->vrf_id);
 		break;
 	}
 }

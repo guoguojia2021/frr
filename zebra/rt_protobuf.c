@@ -483,9 +483,6 @@ Fpm__NextHopGroup *protobuf_nexthop_msg_encode(qpb_allocator_t *allocator,
 				/* Blackhole shouldn't have anymore attributes
 				 */
 				goto nexthop_done;
-				
-			case NEXTHOP_TYPE_VRF_REDIRECT:
-				goto nexthop_done;
 			case NEXTHOP_TYPE_IFINDEX:
 				/* Don't need anymore info for this */
 				break;

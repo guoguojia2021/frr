@@ -118,7 +118,6 @@ int nexthop_g_addr_cmp(enum nexthop_types_t type, const union g_addr *addr1,
 		break;
 	case NEXTHOP_TYPE_IFINDEX:
 	case NEXTHOP_TYPE_BLACKHOLE:
-	case NEXTHOP_TYPE_VRF_REDIRECT:
 		/* No addr here */
 		break;
 	}
@@ -188,13 +187,6 @@ static int _nexthop_cmp_no_labels(const struct nexthop *next1,
 			return -1;
 
 		if (next1->bh_type > next2->bh_type)
-			return 1;
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		if (next1->vrf_id < next2->vrf_id)
-			return -1;
-
-		if (next1->vrf_id > next2->vrf_id)
 			return 1;
 		break;
 	}
@@ -330,13 +322,6 @@ int nexthop_cmp_basic(const struct nexthop *nh1,
 		if (nh1->bh_type > nh2->bh_type)
 			return 1;
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		if (nh1->vrf_id < nh2->vrf_id)
-			return -1;
-
-		if (nh1->vrf_id > nh2->vrf_id)
-			return 1;
-		break;
 	}
 
 	/* Compare source addr */
@@ -380,7 +365,7 @@ const char *nexthop_type_to_str(enum nexthop_types_t nh_type)
 		"IPv4 nexthop",  "IPv4 nexthop with ifindex",
 		"IPv6 nexthop",  "IPv6 nexthop with ifindex",
 		"Null0 nexthop", "IPv4 segment list",
-		"IPv6 Segment list", "VRF redirect",
+		"IPv6 Segment list",
 	};
 
 	return desc[nh_type];
@@ -550,17 +535,6 @@ struct nexthop *nexthop_from_ipv6_ifindex(const struct in6_addr *ipv6,
 	return nexthop;
 }
 
-struct nexthop *nexthop_from_vrf_redirect(vrf_id_t vrf_id)
-{
-	struct nexthop *nexthop;
-
-	nexthop = nexthop_new();
-	nexthop->vrf_id = vrf_id;
-	nexthop->type = NEXTHOP_TYPE_VRF_REDIRECT;
-	
-	return nexthop;
-}
-
 struct nexthop *nexthop_from_blackhole(enum blackhole_type bh_type,
 				       vrf_id_t nh_vrf_id)
 {
@@ -714,9 +688,6 @@ const char *nexthop2str(const struct nexthop *nexthop, char *str, int size)
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
 		snprintf(str, size, "blackhole");
-		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		snprintf(str, size, "redirect vrf_id %u", nexthop->vrf_id);
 		break;
 	}
 
@@ -1099,9 +1070,6 @@ ssize_t printfrr_nhs(struct fbuf *buf, const struct nexthop *nexthop)
 	case NEXTHOP_TYPE_BLACKHOLE:
 		ret += bputs(buf, "blackhole");
 		break;
-	case NEXTHOP_TYPE_VRF_REDIRECT:
-		ret += bprintfrr(buf, "redirect vrf %u", nexthop->vrf_id);
-		break;
 	}
 	return ret;
 }
@@ -1186,10 +1154,6 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 				break;
 			}
 			break;
-		case NEXTHOP_TYPE_VRF_REDIRECT:
-			ret += bprintfrr(buf, "redirect to vrf %u",
-					 nexthop->vrf_id);
-			break;
 		}
 		if (do_ifi && nexthop->ifindex)
 			ret += bprintfrr(buf, ", %s%s", v_viaif,
@@ -1222,7 +1186,6 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 				break;
 			case NEXTHOP_TYPE_IFINDEX:
 			case NEXTHOP_TYPE_BLACKHOLE:
-			case NEXTHOP_TYPE_VRF_REDIRECT:
 				break;
 			}
 		} else if (*ea->fmt == 'i') {
@@ -1250,7 +1213,6 @@ static ssize_t printfrr_nh(struct fbuf *buf, struct printfrr_eargs *ea,
 							nexthop->vrf_id));
 				break;
 			case NEXTHOP_TYPE_BLACKHOLE:
-			case NEXTHOP_TYPE_VRF_REDIRECT:
 				break;
 			}
 		}
