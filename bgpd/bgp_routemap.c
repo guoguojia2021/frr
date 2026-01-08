@@ -3783,6 +3783,52 @@ static const struct route_map_rule_cmd route_set_ipv6_nexthop_peer_cmd = {
 	route_set_ipv6_nexthop_peer_free
 };
 
+/* `set ipv6 nexthop peer-address' */
+
+/* Set nexthop to object.  ojbect must be pointer to struct attr. */
+static enum route_map_cmd_result_t
+route_set_ipv6_nexthop_unchanged(void *rule, const struct prefix *pfx, void *object)
+{
+	struct bgp_path_info *path;
+
+	if (pfx->family == AF_INET)
+		return RMAP_OKAY;
+
+	/* Fetch routemap's rule information. */
+	path = object;
+
+	SET_FLAG(path->attr->rmap_change_flags,
+			 BATTR_RMAP_NEXTHOP_UNCHANGED);
+
+	return RMAP_OKAY;
+}
+
+/* Route map `ip next-hop' compile function.  Given string is converted
+   to struct in_addr structure. */
+static void *route_set_ipv6_nexthop_unchanged_compile(const char *arg)
+{
+	int *rins = NULL;
+
+	rins = XCALLOC(MTYPE_ROUTE_MAP_COMPILED, sizeof(int));
+	*rins = 1;
+
+	return rins;
+}
+
+/* Free route map's compiled `ip next-hop' value. */
+static void route_set_ipv6_nexthop_unchanged_free(void *rule)
+{
+	XFREE(MTYPE_ROUTE_MAP_COMPILED, rule);
+}
+
+/* Route map commands for ip nexthop set. */
+static const struct route_map_rule_cmd route_set_ipv6_nexthop_unchanged_cmd = {
+	"ipv6 next-hop unchanged",
+	route_set_ipv6_nexthop_unchanged,
+	route_set_ipv6_nexthop_unchanged_compile,
+	route_set_ipv6_nexthop_unchanged_free
+};
+
 /* `set ipv4 vpn next-hop A.B.C.D' */
 
 static enum route_map_cmd_result_t
@@ -6997,6 +7043,42 @@ DEFUN_YANG (no_set_ipv6_nexthop_global,
 	return nb_cli_apply_changes(vty, NULL);
 }
 
+DEFUN_YANG (set_ipv6_nexthop_unchanged,
+	    set_ipv6_nexthop_unchanged_cmd,
+	    "set ipv6 next-hop unchanged",
+	    SET_STR
+	    IPV6_STR
+	    "IPv6 next-hop address\n"
+	    "Don't modify existing Next hop address\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:ipv6-nexthop-unchanged']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:preference", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_MODIFY, "true");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFUN_YANG (no_set_ipv6_nexthop_unchanged,
+	    no_set_ipv6_nexthop_unchanged_cmd,
+	    "no set ipv6 next-hop unchanged",
+	    NO_STR
+	    SET_STR
+	    IPV6_STR
+	    "IPv6 next-hop address\n"
+	    "Don't modify existing Next hop address\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:ipv6-nexthop-unchanged']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 #ifdef KEEP_OLD_VPN_COMMANDS
 DEFUN_YANG (set_vpn_nexthop,
 	    set_vpn_nexthop_cmd,
@@ -7680,6 +7762,7 @@ void bgp_route_map_init(void)
     route_map_install_set(&route_set_ipv6_nexthop_prefer_global_cmd);
     route_map_install_set(&route_set_ipv6_nexthop_local_cmd);
     route_map_install_set(&route_set_ipv6_nexthop_peer_cmd);
+	route_map_install_set(&route_set_ipv6_nexthop_unchanged_cmd);
     route_map_install_set(&route_set_aspath_overwrite_cmd);
     route_map_install_set(&route_set_aspath_replace_cmd);
     route_map_install_set(&route_set_rmac_cmd);
@@ -7701,6 +7784,8 @@ void bgp_route_map_init(void)
     install_element(RMAP_NODE, &no_set_ipv6_nexthop_prefer_global_cmd);
     install_element(RMAP_NODE, &set_ipv6_nexthop_peer_cmd);
     install_element(RMAP_NODE, &no_set_ipv6_nexthop_peer_cmd);
+	install_element(RMAP_NODE, &set_ipv6_nexthop_unchanged_cmd);
+    install_element(RMAP_NODE, &no_set_ipv6_nexthop_unchanged_cmd);
     install_element(RMAP_NODE, &set_aspath_overwrite_cmd);
     install_element(RMAP_NODE, &no_set_aspath_overwrite_cmd);
     install_element(RMAP_NODE, &set_aspath_replace_cmd);

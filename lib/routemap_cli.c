@@ -1324,6 +1324,12 @@ void route_map_action_show(struct vty *vty, const struct lyd_node *dnode,
 			    dnode,
 			    "./rmap-set-action/frr-bgp-route-map:preference"))
 			vty_out(vty, " set ipv6 next-hop prefer-global\n");
+	} else if (IS_SET_IPV6_NH_UNCHANGED(action)) {
+		if (true
+		    == yang_dnode_get_bool(
+			    dnode,
+			    "./rmap-set-action/frr-bgp-route-map:preference"))
+			vty_out(vty, " set ipv6 next-hop unchanged\n");
 	} else if (IS_SET_IPV4_VPN_NH(action)) {
 		vty_out(vty, " set ipv4 vpn next-hop %s\n",
 			yang_dnode_get_string(

@@ -228,6 +228,12 @@ identity set-extcommunity-color {
       "Set IPv6 next-hop global address";
   }
 
+  identity ipv6-nexthop-unchanged {
+    base frr-route-map:rmap-set-type;
+    description
+      "Set IPv6 next-hop unchanged";
+  }
+
   identity ipv6-prefer-global {
     base frr-route-map:rmap-set-type;
     description
@@ -770,7 +776,8 @@ identity set-extcommunity-color {
 
     case preference {
       when "derived-from-or-self(../frr-route-map:action, 'frr-bgp-route-map:ipv6-prefer-global') or "
-        + "derived-from-or-self(../frr-route-map:action, 'frr-bgp-route-map:ipv6-peer-address')";
+        + "derived-from-or-self(../frr-route-map:action, 'frr-bgp-route-map:ipv6-peer-address') or "
+        + "derived-from-or-self(../frr-route-map:action, 'frr-bgp-route-map:ipv6-nexthop-unchanged')";
       leaf preference {
         type boolean;
       }

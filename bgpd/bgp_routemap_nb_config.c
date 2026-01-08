@@ -1688,8 +1688,10 @@ int lib_route_map_entry_set_action_rmap_set_action_preference_modify(
 			if (IS_SET_IPV6_PEER_ADDR(action))
 				/* Set destroy information. */
 				rhc->rhc_rule = "ipv6 next-hop peer-address";
-			else
+			else if (IS_SET_IPV6_PREFER_GLOBAL(action))
 				rhc->rhc_rule = "ipv6 next-hop prefer-global";
+			else
+				rhc->rhc_rule = "ipv6 next-hop unchanged";
 
 			rv = generic_set_add(rhc->rhc_rmi, rhc->rhc_rule,
 					     NULL,

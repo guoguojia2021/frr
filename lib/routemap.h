@@ -390,6 +390,8 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(A, "frr-bgp-route-map:ipv6-peer-address"))
 #define IS_SET_IPV6_PREFER_GLOBAL(A)                                           \
 	(strmatch(A, "frr-bgp-route-map:ipv6-prefer-global"))
+#define IS_SET_IPV6_NH_UNCHANGED(A)                                           \
+	(strmatch(A, "frr-bgp-route-map:ipv6-nexthop-unchanged"))
 #define IS_SET_IPV4_VPN_NH(A)                                                  \
 	(strmatch(A, "frr-bgp-route-map:ipv4-vpn-address"))
 #define IS_SET_BGP_IPV4_NH(A)                                                  \
