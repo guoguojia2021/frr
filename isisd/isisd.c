@@ -3318,7 +3318,7 @@ void isis_area_overload_bit_set(struct isis_area *area, bool overload_bit)
 	area->overload_bit = new_overload_bit;
 	if (device_startup == false && area->overload_on_startup_time > 0) {
 		area->overload_bit = 0;
-		if(!area->overload_advertise_high_metrics && !area->advertise_high_metrics) {
+		if(!area->advertise_high_metrics) {
 			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
 				/* Get metric values from configuration and set to circuit */
 				isis_circuit_metric_config_get_and_set(circuit, area);

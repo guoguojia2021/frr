@@ -139,7 +139,7 @@ struct isis_circuit {
 	uint16_t hello_multiplier[ISIS_LEVELS]; /* hello-multiplier */
 	uint16_t csnp_interval[ISIS_LEVELS];    /* csnp-interval in seconds */
 	uint16_t psnp_interval[ISIS_LEVELS];    /* psnp-interval in seconds */
-	uint8_t metric[ISIS_LEVELS];
+	uint32_t metric[ISIS_LEVELS];
 	uint32_t te_metric[ISIS_LEVELS];
 	struct isis_ext_subtlvs *ext; /* Extended parameters (TE + Adj SID */
 	int ip_router;  /* Route IP ? */

@@ -77,6 +77,41 @@ int isis_if_delete_hook(struct interface *);
 DEFINE_HOOK(isis_circuit_new_hook, (struct isis_circuit *circuit), (circuit));
 DEFINE_HOOK(isis_circuit_del_hook, (struct isis_circuit *circuit), (circuit));
 
+static void isis_area_circuit_set_high_metric(struct isis_area *area,
+                                           struct isis_circuit *circuit)
+{
+	uint32_t metric = 0;
+	bool should_set_high_metric = false;
+
+	/* Determine the maximum metric value based on area's metric style */
+	if (area->oldmetric && area->newmetric) {
+		metric = ISIS_NARROW_METRIC_INFINITY;
+	} else if (area->newmetric) {
+		metric = MAX_WIDE_LINK_METRIC;
+	} else {
+		metric = MAX_NARROW_LINK_METRIC;
+	}
+
+	/* Check if high metrics should be advertised */
+	if (area->advertise_high_metrics) {
+		should_set_high_metric = true;
+	} else if (area->overload_advertise_high_metrics) {
+		/* When overload_advertise_high_metrics is set, apply high metric either:
+		 * 1. When overload_on_startup_time is 0 (immediate overload)
+		 * 2. When overload startup timer is still running */
+		if (area->overload_on_startup_time == 0 || area->t_overload_on_startup_timer) {
+			should_set_high_metric = true;
+		}
+	}
+
+	/* Apply high metric if required */
+	if (should_set_high_metric) {
+		circuit->metric[0] = metric;
+		circuit->metric[1] = metric;
+		circuit->te_metric[0] = metric;
+		circuit->te_metric[1] = metric;
+	}
+}
 static void isis_circuit_enable(struct isis_circuit *circuit)
 {
 	struct isis_area *area = circuit->area;
@@ -84,8 +119,10 @@ static void isis_circuit_enable(struct isis_circuit *circuit)
 
 	if (!area) {
 		area = isis_area_lookup(circuit->tag, ifp->vrf->vrf_id);
-		if (area)
+		if (area) {
+			isis_area_circuit_set_high_metric(area, circuit);
 			isis_area_add_circuit(area, circuit);
+		}
 	}
 
 	if (if_is_operative(ifp))
@@ -1520,10 +1557,6 @@ ferr_r isis_circuit_metric_set(struct isis_circuit *circuit, int level,
 	    && metric > MAX_NARROW_LINK_METRIC)
 		return ferr_cfg_invalid("metric %d too large for narrow metric",
 					metric);
-
-	/* Don't modify metric if advertise high metrics is configured */
-	if (circuit->area && circuit->area->advertise_high_metrics)
-		return ferr_ok();
 
 	/* inform ldp-sync of metric change
          *   if ldp-sync is running need to save metric
