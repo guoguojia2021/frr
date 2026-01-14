@@ -110,6 +110,7 @@ struct nexthop {
 	uint8_t alibgp_flags;
 	#define NEXTHOP_FLAG_EVPN_RVTEP (1 << 0) /* EVPN remote vtep nexthop */
 	#define NEXTHOP_FLAG_SRV6_RVIP  (1 << 1) /* SRv6 remote overlay nexthop */
+	#define NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT (1 << 2) /* VRF redirect to Default VRF */
 
 	/* Nexthop address */
 	union {

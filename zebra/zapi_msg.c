@@ -1834,6 +1834,10 @@ static struct nexthop *nexthop_from_zapi(/*const*/ struct zapi_nexthop *api_nh,
 	{
 		SET_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP);
 	}
+	if (CHECK_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_VRF_DEFAULT))
+	{
+		SET_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT);
+	}
 
 done:
 	return nexthop;

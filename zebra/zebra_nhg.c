@@ -637,6 +637,14 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 
 	if (nh && nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+
+	/*
+	 * VRF redirect to Default VRF: Default VRF has no VRF master device,
+	 * so ifindex=0. Skip kernel nexthop installation since hardware
+	 * supports this redirect directly.
+	 */
+	if (nh && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT))
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 }
 
 struct nhg_hash_entry *zebra_nhg_alloc(void)
@@ -3472,6 +3480,15 @@ static unsigned nexthop_active_check(struct route_node *rn,
 
 	switch (nexthop->type) {
 	case NEXTHOP_TYPE_IFINDEX:
+		/*
+		 * VRF redirect to Default VRF: ifindex=0, vrf_id=VRF_DEFAULT.
+		 * Skip active check, directly mark as ACTIVE.
+		 */
+		if (CHECK_FLAG(nexthop->alibgp_flags,
+			       NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT)) {
+			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
+			break;
+		}
 		if (nexthop_active(nexthop, nhe, &rn->p, re, &mtu))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE);
 		else {

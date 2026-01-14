@@ -491,6 +491,7 @@ struct zapi_nexthop {
 #define ZAPI_NEXTHOP_FLAG_SEG6		0x20
 #define ZAPI_NEXTHOP_FLAG_SEG6LOCAL	0x40
 #define ZAPI_NEXTHOP_FLAG_SRTE      0x80
+#define ZAPI_NEXTHOP_FLAG_VRF_DEFAULT	0x100 /* VRF redirect to Default VRF */
 
 struct zapi_color_para {
 	/* SR-TE color. */

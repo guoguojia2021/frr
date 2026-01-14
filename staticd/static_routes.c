@@ -487,14 +487,20 @@ void static_install_nexthop(struct static_nexthop *nh)
 		static_install_path(pn);
 		break;
 	case STATIC_IFNAME:
-		if (nh->ifindex != IFINDEX_INTERNAL) {
+	{
+		/* Check if this is VRF redirect */
+		struct vrf *target_vrf = vrf_lookup_by_name(nh->ifname);
+		if (target_vrf && target_vrf->vrf_id != VRF_UNKNOWN) {
+			/* VRF redirect: ifname is a VRF device */
 			static_install_path(pn);
 		} else {
+			/* Normal interface */
 			ifp = if_lookup_by_name(nh->ifname, nh->nh_vrf_id);
 			if (ifp && ifp->ifindex != IFINDEX_INTERNAL)
 				static_install_path(pn);
 		}
 		break;
+	}
 	case STATIC_IPV4_GATEWAY_EVPN:
 	case STATIC_IPV6_GATEWAY_EVPN:
 		ifp = if_lookup_by_name(nh->ifname, nh->nh_vrf_id);

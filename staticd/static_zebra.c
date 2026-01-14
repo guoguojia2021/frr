@@ -681,11 +681,23 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 
 		switch (nh->type) {
 		case STATIC_IFNAME:
-			if (nh->ifindex == IFINDEX_INTERNAL)
+		{
+			/* For VRF redirect, allow ifindex to be IFINDEX_INTERNAL */
+			struct vrf *target_vrf = vrf_lookup_by_name(nh->ifname);
+			if (nh->ifindex == IFINDEX_INTERNAL &&
+			    (!target_vrf || target_vrf->vrf_id == VRF_UNKNOWN))
 				continue;
+
+			/* VRF redirect to Default VRF: set flag for zebra */
+			if (nh->ifindex == IFINDEX_INTERNAL &&
+			    target_vrf && target_vrf->vrf_id == VRF_DEFAULT) {
+				SET_FLAG(api_nh->flags, ZAPI_NEXTHOP_FLAG_VRF_DEFAULT);
+			}
+
 			api_nh->ifindex = nh->ifindex;
 			api_nh->type = NEXTHOP_TYPE_IFINDEX;
 			break;
+		}
 		case STATIC_IPV4_GATEWAY:
 			if (!nh->nh_valid)
 				continue;
