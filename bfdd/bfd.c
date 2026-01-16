@@ -407,6 +407,8 @@ int bfd_session_enable(struct bfd_session *bs)
 	struct interface *ifp = NULL;
 	struct vrf *vrf = NULL;
 	int psock;
+	char ifip[INET6_ADDRSTRLEN] = {0};
+	struct sockaddr_any lsa;
 
 	/* We are using data plane, we don't need software. */
 	if (bs->bdc)
@@ -460,6 +462,22 @@ int bfd_session_enable(struct bfd_session *bs)
 			|| CHECK_FLAG(bs->flags, BFD_SESS_FLAG_SBFD_ECHO))
 		)
 	{
+		if (ifp && !memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
+		{
+			get_ip_by_interface(ifp->name, bs->key.family, ifip);
+			if(strtosa(ifip, &lsa) == 0) {
+				switch (bs->key.family) {
+				case AF_INET:
+					memcpy(&bs->key.local, &lsa.sa_sin.sin_addr,
+						sizeof(lsa.sa_sin.sin_addr));
+					break;
+				case AF_INET6:
+					memcpy(&bs->key.local, &lsa.sa_sin6.sin6_addr,
+						sizeof(lsa.sa_sin6.sin6_addr));
+					break;
+				}
+			}
+		}
 		if (!memcmp(&bs->key.local, &zero_addr, sizeof(bs->key.local)))
 		{
 			if (bglobal.debug_peer_event)

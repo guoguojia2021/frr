@@ -35,9 +35,9 @@
  * Helpers.
  */
 
-static void get_ip_by_interface(const char *ifname, int family, char *ifip) {
+void get_ip_by_interface(const char *ifname, int family, char *ifip) {
     struct ifaddrs *ifaddr, *ifa;
-    char intfip[INET6_ADDRSTRLEN];
+    char intfip[INET6_ADDRSTRLEN] = {0};
 	
     if (getifaddrs(&ifaddr) == -1) {
         zlog_err("getifaddrs failed, ifname: %s", ifname);
@@ -64,7 +64,6 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 				struct bfd_key *bk)
 {
 	const char *ifname = NULL, *vrfname = NULL;
-	char ifip[INET6_ADDRSTRLEN];
 	struct sockaddr_any psa, lsa;
 
 	/* Required destination parameter. */
@@ -81,11 +80,6 @@ static void bfd_session_get_key(bool mhop, const struct lyd_node *dnode,
 		ifname = yang_dnode_get_string(dnode, "interface");
 		if (strcmp(ifname, "*") == 0)
 			ifname = NULL;
-		if (ifname != NULL && !yang_dnode_exists(dnode, "source-addr"))
-		{
-			get_ip_by_interface(ifname,psa.sa_sin.sin_family,ifip);
-			strtosa(ifip, &lsa);
-		}
 	}
 
 	/* Generate the corresponding key. */

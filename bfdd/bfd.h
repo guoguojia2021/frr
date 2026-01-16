@@ -934,5 +934,6 @@ void sbfd_echo_state_handler(struct bfd_session *bs, int nstate);
 void sbfd_initiator_state_handler(struct bfd_session *bs, int nstate);
 
 struct bfd_session * bfd_session_get_by_name(const char * name);
+void get_ip_by_interface(const char *ifname, int family, char *ifip);
 
 #endif /* _BFD_H_ */
