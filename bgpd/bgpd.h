@@ -1628,7 +1628,6 @@ struct peer {
 #define PEER_FLAG_DISABLE_LINK_BW_ENCODING_IEEE (1ULL << 29)
 /* force the extended format for Optional Parameters in OPEN message */
 #define PEER_FLAG_EXTENDED_OPT_PARAMS (1ULL << 30)
-#define PEER_FLAG_TRACKING (1U << 31)	 /* neighbor tracking */
 
 	/* BGP Open Policy flags.
 	 * Enforce using roles on both sides:
@@ -1648,6 +1647,8 @@ struct peer {
 #define PEER_FLAG_CAPABILITY_LINK_LOCAL	  (1ULL << 41)
 /* Peer is part of a batch clearing its routes */
 #define PEER_FLAG_CLEARING_BATCH (1ULL << 42)
+
+#define PEER_FLAG_TRACKING (1ULL << 43)	 /* neighbor tracking */
 
 	/*
 	 *GR-Disabled mode means unset PEER_FLAG_GRACEFUL_RESTART
