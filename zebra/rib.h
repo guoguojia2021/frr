@@ -65,7 +65,6 @@ struct rnh {
 #define ZEBRA_NHT_CONNECTED 0x1
 #define ZEBRA_NHT_DELETED 0x2
 #define ZEBRA_NHT_RESOLVE_VIA_DEFAULT 0x4
-#define ZEBRA_NHT_TRACK_MATCH    0x8
 
 /* BGP Track route */
 #define ZEBRA_NHT_TYPE_TRACK_MATCH               0x1

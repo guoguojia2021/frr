@@ -1287,7 +1287,7 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK))
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_TRACKROUTE))
-			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TRACK_MATCH);
+			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_TRACK_MATCH);
 		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, srte_color_flag, srte_backup_color, srte_backup_color_flag, rnh_type_flag);
 		if (!rnh)
 			return;
@@ -1406,7 +1406,7 @@ void zread_rnh_unregister(ZAPI_HANDLER_ARGS)
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_IMPORTCHECK))
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_TRACKROUTE))
-			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TRACK_MATCH);
+			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_TRACK_MATCH);
 		rnh = zebra_lookup_rnh(&p, zvrf_id(zvrf), safi);
 		/* check color */
 		for (; rnh; rnh = rnh->next)
