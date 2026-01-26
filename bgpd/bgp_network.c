@@ -357,6 +357,7 @@ static int bgp_accept(struct thread *thread)
 	struct peer_connection *connection, *connection1;
 	char buf[SU_ADDRSTRLEN];
 	struct bgp *bgp = NULL;
+	union sockunion *su_local;
 
 	sockunion_init(&su);
 
@@ -517,6 +518,22 @@ static int bgp_accept(struct thread *thread)
 		close(bgp_sock);
 		return -1;
 	}
+	su_local = sockunion_getsockname(bgp_sock);
+	if (su_local) {
+		if (CHECK_FLAG(peer1->flags, PEER_FLAG_UPDATE_SOURCE) &&
+		    peer1->update_source &&
+		    !sockunion_same(su_local, peer1->update_source)) {
+			if (bgp_debug_neighbor_events(peer1))
+				zlog_debug(
+					"[Event] Closing incoming conn for %s (%p) state %d, update_source not matched",
+					peer1->host, peer1,
+					peer1->connection->status);
+			sockunion_free(su_local);
+			close(bgp_sock);
+			return -1;
+		}
+		sockunion_free(su_local);
+	}
 
 	/* Do not try to reconnect if the peer reached maximum
 	 * prefixes, restart timer is still running or the peer
@@ -544,11 +561,11 @@ static int bgp_accept(struct thread *thread)
 			zlog_debug(
 				"[Event] New active connection from peer %s, Killing previous active connection",
 				peer1->host);
-        if (peer1->connection->status != Established) {
+		if (peer1->connection->status != Established) {
 			peer_quick_delete(peer1->doppelganger);
 		}
 		else
-    		peer_delete(peer1->doppelganger);
+			peer_delete(peer1->doppelganger);
 	}
 
 	if (bgp_set_socket_ttl(peer1->connection) < 0)
