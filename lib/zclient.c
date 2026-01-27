@@ -2510,7 +2510,7 @@ struct interface *zebra_interface_state_read(struct stream *s, vrf_id_t vrf_id)
 	/* Lookup this by interface index. */
 	ifp = if_lookup_by_name(ifname_tmp, vrf_id);
 	if (ifp == NULL) {
-		flog_err(EC_LIB_ZAPI_ENCODE,
+		flog_warn(EC_LIB_ZAPI_ENCODE,
 			 "INTERFACE_STATE: Cannot find IF %s in VRF %d",
 			 ifname_tmp, vrf_id);
 		return NULL;
@@ -2807,7 +2807,7 @@ struct connected *zebra_interface_address_read(int type, struct stream *s,
 	/* Lookup index. */
 	ifp = if_lookup_by_index(ifindex, vrf_id);
 	if (ifp == NULL) {
-		flog_err(EC_LIB_ZAPI_ENCODE,
+		flog_warn(EC_LIB_ZAPI_ENCODE,
 			 "INTERFACE_ADDRESS_%s: Cannot find IF %u in VRF %d",
 			 (type == ZEBRA_INTERFACE_ADDRESS_ADD) ? "ADD" : "DEL",
 			 ifindex, vrf_id);
@@ -2955,7 +2955,7 @@ struct interface *zebra_interface_vrf_update_read(struct stream *s,
 	/* Lookup interface. */
 	ifp = if_lookup_by_name(ifname, vrf_id);
 	if (ifp == NULL) {
-		flog_err(EC_LIB_ZAPI_ENCODE,
+		flog_warn(EC_LIB_ZAPI_ENCODE,
 			 "INTERFACE_VRF_UPDATE: Cannot find IF %s in VRF %d",
 			 ifname, vrf_id);
 		return NULL;
