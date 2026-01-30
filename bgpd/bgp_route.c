@@ -697,9 +697,13 @@ static int bgp_path_info_srv6_cmp_compatible(struct bgp_path_info *exist,
 {
 	bool new_te = false;
 	bool exist_te = false;
-	if (new->nexthop && CHECK_FLAG(new->nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
-		new_te = true;;
-	if (exist->nexthop && CHECK_FLAG(exist->nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID))
+	if (new->nexthop
+		&& (CHECK_FLAG(new->nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)
+		|| CHECK_FLAG(new->nexthop->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID)))
+		new_te = true;
+	if (exist->nexthop
+		&& (CHECK_FLAG(exist->nexthop->flags, BGP_NEXTHOP_SRV6TE_VALID)
+		|| CHECK_FLAG(exist->nexthop->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID)))
 		exist_te = true;
 
 	if (new_te == true && exist_te == false)
