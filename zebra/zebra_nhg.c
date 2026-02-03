@@ -4198,7 +4198,6 @@ void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe)
 			zebra_nhg_handle_install(nhe_resolve);
 			break;
 		}
-		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
 	}
 
 #if 0
