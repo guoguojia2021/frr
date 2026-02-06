@@ -1727,7 +1727,7 @@ static int fpm_nl_new(struct thread_master *tm)
 	int rv;
 
 	gfnc = calloc(1, sizeof(*gfnc));
-	rv = dplane_provider_register(prov_name, DPLANE_PRIO_PRE_KERNEL,
+	rv = dplane_provider_register(prov_name, DPLANE_PRIO_POSTPROCESS,
 				      DPLANE_PROV_FLAG_THREADED, fpm_nl_start,
 				      fpm_nl_process, fpm_nl_finish, gfnc,
 				      &prov);
