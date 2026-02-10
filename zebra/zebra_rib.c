@@ -936,10 +936,16 @@ void zebra_rib_evaluate_rn_nexthops(struct route_node *rn, uint32_t seq,
 static void rib_pending_list_add(afi_t afi, rib_dest_t *dest)
 {
 	rib_dest_t *top;
-	if (afi == AFI_IP)
+	if (afi == AFI_IP) {
 		top = pending_list.ip4_pending;
-	else
+		ip4_pending_fib_count++;
+	}
+	else if (afi == AFI_IP6) {
 		top = pending_list.ip6_pending;
+		ip6_pending_fib_count++;
+	}
+	else 
+		return;
 
 	dest->next = top;
 	dest->prev = NULL;
@@ -954,10 +960,14 @@ static void rib_pending_list_add(afi_t afi, rib_dest_t *dest)
 static void rib_pending_list_del(afi_t afi, rib_dest_t *dest)
 {
 	rib_dest_t *top;
-	if (afi == AFI_IP)
+	if (afi == AFI_IP) {
 		top = pending_list.ip4_pending;
-	else if (afi == AFI_IP6)
+		ip4_pending_fib_count--;
+	}
+	else if (afi == AFI_IP6) {
 		top = pending_list.ip6_pending;
+		ip6_pending_fib_count--;
+	}
 	else
 		return;
 
@@ -1097,7 +1107,6 @@ static void rib_install_ipv4_pending_to_fib(rib_dest_t *dest)
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 					zlog_debug("handle pending ip4 rn %p", dest->rnode);
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
-			ip4_pending_fib_count--;
 			ip4_sent_fib_count++;
 			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			hook_call(rib_update, dest->rnode, "pending route release to fpm");
@@ -1114,7 +1123,6 @@ static void rib_install_ipv6_pending_to_fib(rib_dest_t *dest)
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 					zlog_debug("handle pending ip6 rn %p", dest->rnode);
 			UNSET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
-			ip6_pending_fib_count--;
 			ip6_sent_fib_count++;
 			SET_FLAG(dest->flags,RIB_DEST_FIB_COUNT);
 			hook_call(rib_update, dest->rnode, "pending route release to fpm");
@@ -1188,7 +1196,6 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 			}
 			if (!CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
 				rib_pending_list_add(AFI_IP, dest);
-				(ip4_pending_fib_count)++;
 				SET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
 			}
 		}
@@ -1226,7 +1233,6 @@ static void rib_process_add_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 			}
 			if (!CHECK_FLAG(dest->flags,RIB_DEST_PENDING_FPM)) {
 				rib_pending_list_add(AFI_IP6, dest);
-				(ip6_pending_fib_count)++;
 				SET_FLAG(dest->flags,RIB_DEST_PENDING_FPM);
 			}
 		}
@@ -1303,14 +1309,12 @@ static void rib_process_del_fib(struct zebra_vrf *zvrf, struct route_node *rn,
 		if(info && (info->afi == AFI_IP) && (info->safi == SAFI_UNICAST))
 		{
 			rib_pending_list_del(AFI_IP, dest);
-			(ip4_pending_fib_count)--;
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("deleting pending fib, decrease ip4_pending_fib_count: %lu %lu",ip4_sent_fib_count,ip4_pending_fib_count);
 		}
 		else if (info && (info->afi == AFI_IP6) && (info->safi == SAFI_UNICAST))
 		{
 			rib_pending_list_del(AFI_IP6, dest);
-			(ip6_pending_fib_count)--;
 			if (IS_ZEBRA_DEBUG_RIB_DETAILED)
 				zlog_debug("deleting pending fib, decrease ip6_pending_fib_count: %lu %lu",ip6_sent_fib_count,ip6_pending_fib_count);
 		}
