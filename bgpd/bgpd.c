@@ -3706,6 +3706,7 @@ static struct bgp *bgp_create(as_t *as, const char *name,
 	bgp_evpn_vrf_es_init(bgp);
 	bgp_pbr_init(bgp);
 	bgp_srv6_init(bgp);
+	bgp_ls_init(bgp);
 
 	/*initilize global GR FSM */
 	bgp_global_gr_init(bgp);
@@ -4344,6 +4345,7 @@ void bgp_free(struct bgp *bgp)
 	bgp_pbr_cleanup(bgp);
 	bgp_srv6_cleanup(bgp);
 	XFREE(MTYPE_BGP_EVPN_INFO, bgp->evpn_info);
+	bgp_ls_cleanup(bgp);
 
 	for (afi = AFI_IP; afi < AFI_MAX; afi++) {
 		vpn_policy_direction_t dir;
