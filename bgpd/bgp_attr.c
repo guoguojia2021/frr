@@ -707,6 +707,9 @@ unsigned int attrhash_key_make(const void *p)
 	MIX(attr->nh_type);
 	MIX(attr->bh_type);
 	MIX(attr->vrf_group);
+	
+	if (attr->ls_attr)
+		MIX(bgp_ls_attr_hash_key(attr->ls_attr));
 
 	return key;
 }
@@ -770,7 +773,8 @@ unsigned int attrhash_key_make(const void *p)
 	    && !memcmp(&attr1->from, &attr2->from, sizeof(union sockunion))
             && attr1->vni == attr2->vni
 			&& attr1->vrf_group == attr2->vrf_group
-            && !memcmp(&attr1->rmac, &attr2->rmac, ETH_ALEN))
+            && !memcmp(&attr1->rmac, &attr2->rmac, ETH_ALEN)
+			&& bgp_ls_attr_same(attr1->ls_attr, attr2->ls_attr))
             return true;
     }
 
@@ -945,6 +949,13 @@ struct attr *bgp_attr_intern(struct attr *attr)
 			vnc_subtlvs->refcnt++;
 	}
 #endif
+
+	if (attr->ls_attr) {
+		if (!attr->ls_attr->refcnt)
+			attr->ls_attr = bgp_ls_attr_intern(attr->ls_attr);
+		else
+			attr->ls_attr->refcnt++;
+	}
 
 	/* At this point, attr only contains intern'd pointers.  that means
 	 * if we find it in attrhash, it has all the same pointers and we
@@ -1148,6 +1159,8 @@ void bgp_attr_unintern_sub(struct attr *attr)
 
 	if (attr->srv6_vpn)
 		srv6_vpn_unintern(&attr->srv6_vpn);
+
+	bgp_ls_attr_unintern(&attr->ls_attr);
 }
 
 /*

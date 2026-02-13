@@ -343,6 +343,9 @@ struct attr {
 	uint32_t vrf_group;
 
 	union sockunion from;  /* Sockunion address of the peer. */
+
+	/* For BGP-LS Attribute (RFC 9552) */
+	struct bgp_ls_attr *ls_attr;
 };
 
 /* rmap_change_flags definition */
