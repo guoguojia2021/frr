@@ -67,6 +67,8 @@
 #include "bgpd/bgp_trace.h"
 #include "bgpd/bgp_community.h"
 #include "bgpd/bgp_lcommunity.h"
+#include "lib/link_state.h"
+#include "bgpd/bgp_ls_ted.h"
 
 /* All information about zebra. */
 struct zclient *zclient = NULL;
@@ -3621,6 +3623,33 @@ static int bgp_zebra_process_srv6_locator_delete(ZAPI_CALLBACK_ARGS)
 
 }
 
+/* Handle ZEBRA_OPAQUE_MESSAGE for BGP-LS link-state updates */
+static int bgp_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS)
+{
+	int ret = 0;
+	struct stream *s;
+	struct zapi_opaque_msg info;
+
+	s = zclient->ibuf;
+	if (zclient_opaque_decode(s, &info) != 0) {
+		zlog_err("%s: Failed to decode opaque message", __func__);
+		return -1;
+	}
+
+	switch (info.type) {
+	case LINK_STATE_SYNC:
+	case LINK_STATE_UPDATE:
+		ret = bgp_ls_process_linkstate_message(s, info.type);
+		break;
+
+	default:
+		zlog_warn("%s: Unknown opaque message type %d", __func__, info.type);
+		break;
+	}
+
+	return ret;
+}
+
 static zclient_handler *const bgp_handlers[] = {
 	[ZEBRA_ROUTER_ID_UPDATE] = bgp_router_id_update,
 	[ZEBRA_INTERFACE_ADDRESS_ADD] = bgp_interface_address_add,
@@ -3657,6 +3686,7 @@ static zclient_handler *const bgp_handlers[] = {
 	[ZEBRA_SRV6_MANAGER_GET_LOCATOR_SID] = bgp_zebra_process_srv6_locator_sid,
 	[ZEBRA_SRV6_MANAGER_GET_ONE_LOCATOR_SID] = bgp_zebra_process_srv6_locator_one_sid,
 	[ZEBRA_SRV6_MANAGER_RELEASE_LOCATOR_SID] = bgp_zebra_process_srv6_del_sid,
+	[ZEBRA_OPAQUE_MESSAGE] = bgp_zebra_opaque_msg_handler,
 };
 
 void bgp_zebra_init(struct thread_master *master, unsigned short instance)
