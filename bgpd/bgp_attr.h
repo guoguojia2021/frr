@@ -378,6 +378,10 @@ struct transit {
 #define ATTR_FLAG_BIT(X)                                                       \
 	__builtin_choose_expr((X) >= 1 && (X) <= 64, 1ULL << ((X)-1), (void)0)
 
+#define bgp_attr_exists(attr, id) CHECK_FLAG((attr)->flag, ATTR_FLAG_BIT(id))
+#define bgp_attr_set(attr, id) SET_FLAG((attr)->flag, ATTR_FLAG_BIT(id))
+#define bgp_attr_unset(attr, id) UNSET_FLAG((attr)->flag, ATTR_FLAG_BIT(id))
+
 #define BGP_CLUSTER_LIST_LENGTH(attr)                                          \
 	(((attr)->flag & ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST))                 \
 		 ? bgp_attr_get_cluster((attr))->length                        \
@@ -410,7 +414,7 @@ extern struct attr *bgp_attr_intern(struct attr *attr);
 extern void bgp_attr_unintern_sub(struct attr *);
 extern void bgp_attr_unintern(struct attr **);
 extern void bgp_attr_flush(struct attr *);
-extern struct attr *bgp_attr_default_set(struct attr *attr, uint8_t);
+extern struct attr *bgp_attr_default_set(struct attr *attr, uint8_t origin);
 extern struct attr *bgp_attr_aggregate_intern(
 	struct bgp *bgp, uint8_t origin, struct aspath *aspath,
 	struct community *community, struct ecommunity *ecommunity,

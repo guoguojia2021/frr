@@ -1186,7 +1186,7 @@ static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 
 	/* 5: Encode all the attributes, except MP_REACH_NLRI attr. */
 	total_attr_len = bgp_packet_attribute(NULL, peer, s, attr,
-			&vecarr, NULL, afi, safi, peer, NULL, NULL, 0, 0, 0);
+			&vecarr, NULL, afi, safi, peer, NULL, NULL, 0, 0, 0, NULL);
 
 	/* space check? */
 
@@ -1200,8 +1200,7 @@ static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 
 		mpattrlen_pos = bgp_packet_mpattr_start(s, peer, afi, safi,
 				&vecarr, attr);
-		bgp_packet_mpattr_prefix(s, afi, safi, p, prd, label, num_labels, addpath_encode, addpath_rx_id,
-					 attr);
+		bgp_packet_mpattr_prefix(s, afi, safi, p, prd, label, num_labels, addpath_encode, addpath_rx_id, attr, NULL);
 		bgp_packet_mpattr_end(s, mpattrlen_pos);
 		total_attr_len += stream_get_endp(s) - p1;
 	}
@@ -1240,8 +1239,7 @@ static struct stream *bmp_withdraw(const struct prefix *p,
 		mp_start = stream_get_endp(s);
 		mplen_pos = bgp_packet_mpunreach_start(s, afi, safi);
 
-		bgp_packet_mpunreach_prefix(s, p, afi, safi, prd, label, num_labels, addpath_encode, addpath_rx_id,
-					    NULL);
+		bgp_packet_mpunreach_prefix(s, p, afi, safi, prd, label, num_labels, addpath_encode, addpath_rx_id, NULL, NULL);
 		/* Set the mp_unreach attr's length */
 		bgp_packet_mpunreach_end(s, mplen_pos);
 
