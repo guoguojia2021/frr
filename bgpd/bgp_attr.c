@@ -56,6 +56,7 @@
 #include "bgp_evpn.h"
 #include "bgp_flowspec_private.h"
 #include "bgp_mac.h"
+#include "bgpd/bgp_ls_nlri.h"
 
 /* Attribute strings for logging. */
 static const struct message attr_str[] = {
@@ -3777,6 +3778,10 @@ size_t bgp_packet_mpattr_start(struct stream *s, struct peer *peer, afi_t afi,
 			stream_putc(s, 4);
 			stream_put_ipv4(s, attr->nexthop.s_addr);
 			break;
+		case SAFI_BGP_LS:
+			stream_putc(s, IPV4_MAX_BYTELEN);
+			stream_put_ipv4(s, attr->mp_nexthop_global_in.s_addr);
+			break;
 		case SAFI_MPLS_VPN:
 			stream_putc(s, 12);
 			stream_putl(s, 0); /* RD = 0, per RFC */
@@ -3844,6 +3849,13 @@ size_t bgp_packet_mpattr_start(struct stream *s, struct peer *peer, afi_t afi,
 			break;
 		case SAFI_FLOWSPEC:
 			stream_putc(s, 0); /* no nexthop for flowspec */
+			break;
+		case SAFI_BGP_LS:
+			stream_putc(s, attr->mp_nexthop_len);
+			stream_put(s, &attr->mp_nexthop_global, IPV6_MAX_BYTELEN);
+			if (attr->mp_nexthop_len == BGP_ATTR_NHLEN_IPV6_GLOBAL_AND_LL)
+				stream_put(s, &attr->mp_nexthop_local, IPV6_MAX_BYTELEN);
+			break;
 		default:
 			break;
 		}
@@ -3862,11 +3874,39 @@ size_t bgp_packet_mpattr_start(struct stream *s, struct peer *peer, afi_t afi,
 	return sizep;
 }
 
+static void bgp_packet_ls_attribute(struct stream *s, struct bgp *bgp, struct attr *attr)
+{
+	struct bgp_ls_attr *ls_attr = attr->ls_attr;
+	size_t attr_start, len_pos, attr_len;
+	int ret = -1;
+
+	/* Write BGP-LS attribute header (RFC 9552 Section 4) */
+	attr_start = stream_get_endp(s);
+	stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
+	stream_putc(s, BGP_ATTR_LINK_STATE);
+	len_pos = stream_get_endp(s);
+	stream_putc(s, 0); /* Placeholder for length */
+
+	ret = bgp_ls_encode_attr(s, ls_attr);
+
+	if (ret < 0) {
+		/* No attributes or encoding failed - rollback the stream */
+		stream_set_endp(s, attr_start);
+		return;
+	}
+
+	/* Update the length field */
+	attr_len = stream_get_endp(s) - len_pos - 1;
+
+	stream_putc_at(s, len_pos, attr_len);
+}
+
 void bgp_packet_mpattr_prefix(struct stream *s, afi_t afi, safi_t safi,
 			      const struct prefix *p,
 			      const struct prefix_rd *prd, mpls_label_t *label,
 			      uint32_t num_labels, bool addpath_capable,
-			      uint32_t addpath_tx_id, struct attr *attr)
+			      uint32_t addpath_tx_id, struct attr *attr,
+				  struct bgp_ls_nlri *ls_nlri)
 {
 	if (safi == SAFI_MPLS_VPN) {
 		if (addpath_capable)
@@ -3888,6 +3928,8 @@ void bgp_packet_mpattr_prefix(struct stream *s, afi_t afi, safi_t safi,
 		stream_putc(s, p->u.prefix_flowspec.prefixlen);
 		stream_put(s, (const void *)p->u.prefix_flowspec.ptr,
 			   p->u.prefix_flowspec.prefixlen);
+	} else if (safi == SAFI_BGP_LS) {
+		bgp_ls_encode_nlri(s, ls_nlri);
 	} else
 		stream_put_prefix_addpath(s, p, addpath_capable, addpath_tx_id);
 }
@@ -3903,6 +3945,8 @@ size_t bgp_packet_mpattr_prefix_size(afi_t afi, safi_t safi,
 	else if (afi == AFI_L2VPN && safi == SAFI_EVPN)
 		size += 232; // TODO: Maximum possible for type-2, type-3 and
 			     // type-5
+	else if (safi == SAFI_BGP_LS)
+		size = 0;
 	return size;
 }
 
@@ -4033,7 +4077,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				struct prefix *p, afi_t afi, safi_t safi,
 				struct peer *from, struct prefix_rd *prd,
 				mpls_label_t *label, uint32_t num_labels,
-				bool addpath_capable, uint32_t addpath_tx_id)
+				bool addpath_capable, uint32_t addpath_tx_id,
+				struct bgp_ls_nlri *ls_nlri)
 {
 	size_t cp;
 	size_t aspath_sizep;
@@ -4057,9 +4102,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
 		mpattrlen_pos = bgp_packet_mpattr_start(s, peer, afi, safi,
 							vecarr, attr);
-		bgp_packet_mpattr_prefix(s, afi, safi, p, prd, label,
-					 num_labels, addpath_capable,
-					 addpath_tx_id, attr);
+		bgp_packet_mpattr_prefix(s, afi, safi, p, prd, label, num_labels, addpath_capable,
+					addpath_tx_id, attr, ls_nlri);
 		bgp_packet_mpattr_end(s, mpattrlen_pos);
 	}
 	/*
@@ -4559,6 +4603,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 		// Unicast tunnel endpoint IP address
 	}
 
+	/* BGP-LS Attribute (Type 29) - RFC 9552 Section 4 */
+	if (afi == AFI_BGP_LS && safi == SAFI_BGP_LS && attr->ls_attr)
+		bgp_packet_ls_attribute(s, bgp, attr);
+
 	/* Unknown transit attribute. */
 	struct transit *transit = bgp_attr_get_transit(attr);
 
@@ -4596,7 +4644,7 @@ void bgp_packet_mpunreach_prefix(struct stream *s, const struct prefix *p,
 				 const struct prefix_rd *prd,
 				 mpls_label_t *label, uint32_t num_labels,
 				 bool addpath_capable, uint32_t addpath_tx_id,
-				 struct attr *attr)
+				 struct attr *attr, struct bgp_ls_nlri *ls_nlri)
 {
 	uint8_t wlabel[3] = {0x80, 0x00, 0x00};
 
@@ -4606,7 +4654,7 @@ void bgp_packet_mpunreach_prefix(struct stream *s, const struct prefix *p,
 	}
 
 	bgp_packet_mpattr_prefix(s, afi, safi, p, prd, label, num_labels,
-				 addpath_capable, addpath_tx_id, attr);
+				 addpath_capable, addpath_tx_id, attr, ls_nlri);
 }
 
 void bgp_packet_mpunreach_end(struct stream *s, size_t attrlen_pnt)

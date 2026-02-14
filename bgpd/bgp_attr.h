@@ -423,7 +423,7 @@ extern bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				       struct peer *from, struct prefix_rd *prd,
 				       mpls_label_t *label, uint32_t num_labels,
 				       bool addpath_capable,
-				       uint32_t addpath_tx_id);
+				       uint32_t addpath_tx_id, struct bgp_ls_nlri *ls_nlri);
 extern void bgp_dump_routes_attr(struct stream *s, struct attr *attr,
 				 const struct prefix *p);
 extern bool attrhash_cmp(const void *arg1, const void *arg2);
@@ -477,7 +477,7 @@ extern void bgp_packet_mpattr_prefix(struct stream *s, afi_t afi, safi_t safi,
 				     const struct prefix_rd *prd,
 				     mpls_label_t *label, uint32_t num_labels,
 				     bool addpath_capable,
-				     uint32_t addpath_tx_id, struct attr *);
+				     uint32_t addpath_tx_id, struct attr *attr, struct bgp_ls_nlri *ls_nlri);
 extern size_t bgp_packet_mpattr_prefix_size(afi_t afi, safi_t safi,
 					    const struct prefix *p);
 extern void bgp_packet_mpattr_end(struct stream *s, size_t sizep);
@@ -487,7 +487,8 @@ extern size_t bgp_packet_mpunreach_start(struct stream *s, afi_t afi,
 extern void bgp_packet_mpunreach_prefix(
 	struct stream *s, const struct prefix *p, afi_t afi, safi_t safi,
 	const struct prefix_rd *prd, mpls_label_t *label, uint32_t num_labels,
-	bool addpath_capable, uint32_t addpath_tx_id, struct attr *attr);
+	bool addpath_capable, uint32_t addpath_tx_id,
+	struct attr *attr, struct bgp_ls_nlri *ls_nlri);
 extern void bgp_packet_mpunreach_end(struct stream *s, size_t attrlen_pnt);
 
 extern bgp_attr_parse_ret_t bgp_attr_nexthop_valid(struct peer *peer,
