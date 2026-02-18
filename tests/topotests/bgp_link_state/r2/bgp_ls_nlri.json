@@ -1,0 +1,923 @@
+{
+	"vrfId": 0,
+	"vrfName": "default",
+	"routerId": "2.2.2.2",
+	"routes": {
+		"[V][L2][I0x0][N[s0000.0000.0002]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "node",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					}
+				},
+				"nlriStr": "[V][L2][I0x0][N[s0000.0000.0002]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[p10.0.1.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.1.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[p10.0.1.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[p10.0.2.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.2.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[p10.0.2.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[p2.2.2.2/32]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "2.2.2.2/32"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[p2.2.2.2/32]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[pfc00:0:2::1/128]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:0:2::1/128"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[pfc00:0:2::1/128]]"
+			}
+		],
+		"[V][L2][I0x0][N[s0000.0000.0001]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "node",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					}
+				},
+				"nlriStr": "[V][L2][I0x0][N[s0000.0000.0001]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0001]][P[p1.1.1.1/32]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "1.1.1.1/32"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0001]][P[p1.1.1.1/32]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0001]][P[p10.0.4.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.4.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0001]][P[p10.0.4.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0001]][P[pfc00:0:1::1/128]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:0:1::1/128"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0001]][P[pfc00:0:1::1/128]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0001]][P[pfc00:10:0:1::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:1::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0001]][P[pfc00:10:0:1::/64]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0001]][P[pfc00:10:0:4::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:4::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0001]][P[pfc00:10:0:4::/64]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[p10.0.3.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.3.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[p10.0.3.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0001]][P[p10.0.1.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0001"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.1.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0001]][P[p10.0.1.0/24]]"
+			}
+		],
+		"[V][L2][I0x0][N[s0000.0000.0003]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "node",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					}
+				},
+				"nlriStr": "[V][L2][I0x0][N[s0000.0000.0003]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0003]][P[p3.3.3.3/32]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "3.3.3.3/32"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0003]][P[p3.3.3.3/32]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0003]][P[p10.0.5.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.5.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0003]][P[p10.0.5.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0003]][P[pfc00:0:3::1/128]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:0:3::1/128"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0003]][P[pfc00:0:3::1/128]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[pfc00:10:0:1::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:1::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[pfc00:10:0:1::/64]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0002]][P[pfc00:10:0:2::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0002"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:2::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0002]][P[pfc00:10:0:2::/64]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0003]][P[p10.0.2.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.2.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0003]][P[p10.0.2.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0003]][P[pfc00:10:0:5::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:5::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0003]][P[pfc00:10:0:5::/64]]"
+			}
+		],
+		"[V][L2][I0x0][N[s0000.0000.0004]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "node",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					}
+				},
+				"nlriStr": "[V][L2][I0x0][N[s0000.0000.0004]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0004]][P[p4.4.4.4/32]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "4.4.4.4/32"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0004]][P[p4.4.4.4/32]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0004]][P[pfc00:0:4::1/128]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:0:4::1/128"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0004]][P[pfc00:0:4::1/128]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0003]][P[pfc00:10:0:2::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0003"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:2::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0003]][P[pfc00:10:0:2::/64]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0004]][P[p10.0.4.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.4.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0004]][P[p10.0.4.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0004]][P[p10.0.5.0/24]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv4Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "10.0.5.0/24"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0004]][P[p10.0.5.0/24]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0004]][P[pfc00:10:0:5::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:5::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0004]][P[pfc00:10:0:5::/64]]"
+			}
+		],
+		"[T][L2][I0x0][N[s0000.0000.0004]][P[pfc00:10:0:4::/64]]": [
+			{
+				"valid": true,
+				"bestpath": true,
+				"selectionReason": "First path received",
+				"pathFrom": "external",
+				"weight": 32768,
+				"peerId": "(unspec)",
+				"path": "",
+				"origin": "incomplete",
+				"nexthops": [
+					{
+						"ip": "0.0.0.0",
+						"hostname": "r2",
+						"afi": "ipv4",
+						"used": true
+					}
+				],
+				"nlri": {
+					"nlriType": "ipv6Prefix",
+					"protocolId": 2,
+					"identifier": 0,
+					"localNodeDescriptors": {
+						"igpRouterId": "0000.0000.0004"
+					},
+					"prefixDescriptors": {
+						"ipReachabilityInformation": "fc00:10:0:4::/64"
+					}
+				},
+				"nlriStr": "[T][L2][I0x0][N[s0000.0000.0004]][P[pfc00:10:0:4::/64]]"
+			}
+		]
+	}
+}
