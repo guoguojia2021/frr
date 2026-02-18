@@ -3154,6 +3154,36 @@ bgp_attr_pmsi_tunnel(struct bgp_attr_parser_args *args)
 	return BGP_ATTR_PARSE_PROCEED;
 }
 
+/* BGP-LS attribute (rfc9552) */
+static bgp_attr_parse_ret_t bgp_attr_ls(struct bgp_attr_parser_args *args)
+{
+	struct peer *const peer = args->peer;
+	struct attr *const attr = args->attr;
+	int ret;
+	struct bgp_ls_attr *ls_attr;
+
+	// TODO: cherry-pick e2863b4
+	// if (peer->discard_attrs[args->type] || peer->withdraw_attrs[args->type])
+	// 	goto ls_attr_ignore;
+
+	ls_attr = bgp_ls_attr_alloc();
+
+	ret = bgp_ls_parse_attr(peer->curr, args->length, ls_attr);
+	if (ret != 0)
+		return BGP_ATTR_PARSE_ERROR;
+
+	attr->ls_attr = bgp_ls_attr_intern(ls_attr);
+
+	bgp_ls_attr_free(ls_attr);
+
+	return BGP_ATTR_PARSE_PROCEED;
+
+// ls_attr_ignore:
+// 	stream_forward_getp(connection->curr, args->length);
+
+// 	return bgp_attr_ignore(peer, args->type);
+}
+
 /* BGP unknown attribute treatment. */
 static bgp_attr_parse_ret_t bgp_attr_unknown(struct bgp_attr_parser_args *args)
 {
@@ -3512,6 +3542,9 @@ bgp_attr_parse_ret_t bgp_attr_parse(struct peer *peer, struct attr *attr,
 			break;
 		case BGP_ATTR_IPV6_EXT_COMMUNITIES:
 			ret = bgp_attr_ipv6_ext_communities(&attr_args);
+			break;
+		case BGP_ATTR_LINK_STATE:
+			ret = bgp_attr_ls(&attr_args);
 			break;
 		default:
 			ret = bgp_attr_unknown(&attr_args);
