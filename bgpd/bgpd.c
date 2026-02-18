@@ -2437,6 +2437,19 @@ static int peer_activate_af(struct peer *peer, afi_t afi, safi_t safi)
 		}
 	}
 
+	if (afi == AFI_BGP_LS && safi == SAFI_BGP_LS) {
+		if (peer->connection->su.sa.sa_family == AF_INET6) {
+			SET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV6);
+			UNSET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV4);
+		} else if (peer->connection->su.sa.sa_family == AF_INET) {
+			SET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV4);
+			UNSET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV6);
+		} else {
+			UNSET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV4);
+			UNSET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV6);
+		}
+	}
+
 	return 0;
 }
 
@@ -2560,6 +2573,11 @@ static bool non_peergroup_deactivate_af(struct peer *peer, afi_t afi,
 			bgp_notify_send(peer->connection, BGP_NOTIFY_CEASE,
 					BGP_NOTIFY_CEASE_CONFIG_CHANGE);
 		}
+	}
+
+	if (afi == AFI_BGP_LS && safi == SAFI_BGP_LS) {
+		UNSET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV4);
+		UNSET_FLAG(peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS], PEER_FLAG_BGP_LS_IPV6);
 	}
 
 	return false;

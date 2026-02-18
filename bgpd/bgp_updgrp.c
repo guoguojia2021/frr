@@ -433,6 +433,11 @@ static unsigned int updgrp_hash_key_make(const void *p)
 	key = jhash_1word(
 		(peer->shared_network && peer_afi_active_nego(peer, AFI_IP6)),
 		key);
+	
+	key = jhash_1word((peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS] & PEER_FLAG_BGP_LS_IPV4), key);
+
+	key = jhash_1word((peer->af_flags[AFI_BGP_LS][SAFI_BGP_LS] & PEER_FLAG_BGP_LS_IPV6), key);
+
 	/*
 	 * There are certain peers that must get their own update-group:
 	 * - lonesoul peers
