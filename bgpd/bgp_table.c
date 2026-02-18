@@ -97,6 +97,10 @@ inline struct bgp_dest *bgp_dest_unlock_node(struct bgp_dest *dest)
 	bgp_delete_listnode(dest);
 	struct route_node *rn = bgp_dest_to_rnode(dest);
 
+	/* BGP-LS uses pseudo dest with NULL rn - skip unlock */
+	if (!rn)
+		return NULL;
+
 	if (rn->lock == 1) {
 		struct bgp_table *rt = bgp_dest_table(dest);
 		if (rt->bgp) {

@@ -422,6 +422,7 @@ extern afi_t family2afi(int);
 extern const char *family2str(int family);
 extern const char *safi2str(safi_t safi);
 extern const char *afi2str(afi_t afi);
+extern const char *afi2str_lower(afi_t afi);
 
 /*
  * Check bit of the prefix.

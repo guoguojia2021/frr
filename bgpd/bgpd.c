@@ -1185,6 +1185,23 @@ void bgp_peer_connection_free(struct peer_connection **connection)
 	connection = NULL;
 }
 
+const char *bgp_peer_get_connection_direction(struct peer_connection *connection)
+{
+	switch (connection->dir) {
+	case CONNECTION_UNKNOWN:
+		return "Unknown";
+	case CONNECTION_INCOMING:
+		return "Incoming";
+	case CONNECTION_OUTGOING:
+		return "Outgoing";
+	case ESTABLISHED:
+		return "Established";
+	}
+
+	assert(!"DEV Escape: Expected switch to take care of this state");
+	return "DEV ESCAPE";
+}
+
 struct peer_connection *bgp_peer_connection_new(struct peer *peer)
 {
 	struct peer_connection *connection;
@@ -2472,6 +2489,8 @@ int peer_activate(struct peer *peer, afi_t afi, safi_t safi)
 		/* connect to table manager */
 		bgp_zebra_init_tm_connect(bgp);
 	}
+
+
 	return ret;
 }
 
@@ -4661,7 +4680,8 @@ bool peer_active(struct peer *peer)
 	    || peer->afc[AFI_IP6][SAFI_MPLS_VPN]
 	    || peer->afc[AFI_IP6][SAFI_ENCAP]
 	    || peer->afc[AFI_IP6][SAFI_FLOWSPEC]
-	    || peer->afc[AFI_L2VPN][SAFI_EVPN])
+	    || peer->afc[AFI_L2VPN][SAFI_EVPN]
+		|| peer->afc[AFI_BGP_LS][SAFI_BGP_LS])
 		return true;
 	return false;
 }
@@ -4681,7 +4701,8 @@ bool peer_active_nego(struct peer *peer)
 	    || peer->afc_nego[AFI_IP6][SAFI_MPLS_VPN]
 	    || peer->afc_nego[AFI_IP6][SAFI_ENCAP]
 	    || peer->afc_nego[AFI_IP6][SAFI_FLOWSPEC]
-	    || peer->afc_nego[AFI_L2VPN][SAFI_EVPN])
+	    || peer->afc_nego[AFI_L2VPN][SAFI_EVPN]
+		|| peer->afc_nego[AFI_BGP_LS][SAFI_BGP_LS])
 		return true;
 	return false;
 }

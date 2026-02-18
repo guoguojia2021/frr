@@ -137,6 +137,26 @@ afi_t family2afi(int family)
 	return 0;
 }
 
+const char *afi2str_lower(afi_t afi)
+{
+	switch (afi) {
+	case AFI_IP:
+		return "ipv4";
+	case AFI_IP6:
+		return "ipv6";
+	case AFI_L2VPN:
+		return "l2vpn";
+	case AFI_BGP_LS:
+		return "bgp-ls";
+	case AFI_MAX:
+	case AFI_UNSPEC:
+		return "bad-value";
+	}
+
+	assert(!"Reached end of function we should never reach");
+	return "DEV ESCAPE";
+}
+
 const char *afi2str(afi_t afi)
 {
 	switch (afi) {
@@ -146,6 +166,8 @@ const char *afi2str(afi_t afi)
 		return "IPv6";
 	case AFI_L2VPN:
 		return "l2vpn";
+	case AFI_BGP_LS:
+		return "bgp-ls";
 	case AFI_MAX:
 		return "bad-value";
 	default:
@@ -171,6 +193,8 @@ const char *safi2str(safi_t safi)
 		return "labeled-unicast";
 	case SAFI_FLOWSPEC:
 		return "flowspec";
+	case SAFI_BGP_LS:
+		return "bgp-ls";
 	default:
 		return "unknown";
 	}

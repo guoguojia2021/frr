@@ -1886,6 +1886,7 @@ int bgp_stop(struct peer_connection *connection)
 	if (connection->fd >= 0) {
 		close(connection->fd);
 		connection->fd = -1;
+		connection->dir = CONNECTION_UNKNOWN;
 	}
 
 	/* Reset capabilities. */

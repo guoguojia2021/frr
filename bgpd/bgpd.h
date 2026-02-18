@@ -101,6 +101,7 @@ enum bgp_af_index {
 	BGP_AF_IPV6_LBL_UNICAST,
 	BGP_AF_IPV4_FLOWSPEC,
 	BGP_AF_IPV6_FLOWSPEC,
+	BGP_AF_BGP_LS,
 	BGP_AF_MAX
 };
 
@@ -1319,8 +1320,29 @@ struct packet_queue {
 	char buf[PACKET_QUEUE_MAXSIZE][BGP_MAX_PACKET_SIZE];
 	time_t pkt_time[PACKET_QUEUE_MAXSIZE];
 };
+
+/*
+ * The peer data structure has a incoming and outgoing peer connection
+ * variables.  In the early stage of the FSM, it is possible to have
+ * both a incoming and outgoing connection at the same time.  These
+ * connections both have events scheduled to happen that both produce
+ * logs.  It is very hard to tell these debugs apart when looking at
+ * the log files so the debugs are now adding direction strings to
+ * help figure out what is going on.  At a later stage in the FSM
+ * one of the connections will be closed and the other one kept.
+ * The one being kept is moved to the ESTABLISHED connection direction
+ * so that debugs can be figured out.
+ */
+enum connection_direction {
+	CONNECTION_UNKNOWN,
+	CONNECTION_INCOMING,
+	CONNECTION_OUTGOING,
+	ESTABLISHED,
+};
+
 struct peer_connection {
 	struct peer *peer;
+	enum connection_direction dir;
 
 	/* Status of the peer connection. */
 	enum bgp_fsm_status status;
@@ -2131,6 +2153,7 @@ struct bgp_nlri {
 #define BGP_ATTR_PMSI_TUNNEL                    22
 #define BGP_ATTR_ENCAP                          23
 #define BGP_ATTR_IPV6_EXT_COMMUNITIES           25
+#define BGP_ATTR_LINK_STATE                     29 /* BGP-LS Attribute (RFC 9552) */
 #define BGP_ATTR_LARGE_COMMUNITIES              32
 #define BGP_ATTR_PREFIX_SID                     40
 #define BGP_ATTR_SRTE_COLOR                     51
@@ -2723,6 +2746,14 @@ static inline int afindex(afi_t afi, safi_t safi)
 		default:
 			return BGP_AF_MAX;
 		}
+	case AFI_BGP_LS:
+		switch (safi) {
+		case SAFI_BGP_LS:
+			return BGP_AF_BGP_LS;
+		default:
+			return BGP_AF_MAX;
+		}
+		break;
 	default:
 		return BGP_AF_MAX;
 	}
@@ -2765,7 +2796,8 @@ static inline int peer_group_af_configured(struct peer_group *group)
 	    || peer->afc[AFI_IP6][SAFI_MPLS_VPN]
 	    || peer->afc[AFI_IP6][SAFI_ENCAP]
 	    || peer->afc[AFI_IP6][SAFI_FLOWSPEC]
-	    || peer->afc[AFI_L2VPN][SAFI_EVPN])
+	    || peer->afc[AFI_L2VPN][SAFI_EVPN]
+		|| peer->afc[AFI_BGP_LS][SAFI_BGP_LS])
 		return 1;
 	return 0;
 }

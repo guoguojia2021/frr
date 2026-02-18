@@ -475,6 +475,12 @@ static struct log_ref ferr_bgp_err[] = {
 		.suggestion = "Get log files from router and open an issue",
 	},
 	{
+		.code = EC_BGP_LS_PACKET,
+		.title = "BGP-LS packet error",
+		.description = "BGP-LS NLRI or attribute packet parsing/encoding error",
+		.suggestion = "Check that BGP-LS peer is sending valid packets per RFC 9552. May indicate interoperability issue or malformed data.",
+	},
+	{
 		.code = END_FERR,
 	}
 };
