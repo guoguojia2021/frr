@@ -2503,11 +2503,11 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	 */
 	if (peer->sort == BGP_PEER_EBGP
 	    && attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) {
-		if (from != bgp->peer_self && !transparent
-		    && !CHECK_FLAG(peer->af_flags[afi][safi],
-				   PEER_FLAG_MED_UNCHANGED))
-			attr->flag &=
-				~(ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC));
+		if (from != bgp->peer_self && !transparent &&
+		    !CHECK_FLAG(peer->af_flags[afi][safi], PEER_FLAG_MED_UNCHANGED)) {
+			attr->med = 0;
+			UNSET_FLAG(attr->flag, (ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)));
+		}
 	}
 
 	/* Since the nexthop attribute can vary per peer, it is not explicitly
@@ -2905,12 +2905,17 @@ announce_chk_status subgroup_announce_check(struct bgp_dest *dest, struct bgp_pa
 	 * EBGP. Note in route reflection the nexthop is usually unmodified
 	 * and the AIGP should not be adjusted in that case.
 	 */
-	if (CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AIGP)) && AIGP_TRANSMIT_ALLOWED(peer)) {
-		if (nh_reset ||
-		    CHECK_FLAG(attr->rmap_change_flags, BATTR_RMAP_NEXTHOP_PEER_ADDRESS)) {
-			uint64_t aigp = bgp_aigp_metric_total(pi);
+	if (CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AIGP))) {
+		if (AIGP_TRANSMIT_ALLOWED(peer)) {
+			if (nh_reset ||
+			    CHECK_FLAG(attr->rmap_change_flags, BATTR_RMAP_NEXTHOP_PEER_ADDRESS)) {
+				uint64_t aigp = bgp_aigp_metric_total(pi);
 
-			bgp_attr_set_aigp_metric(attr, aigp);
+				bgp_attr_set_aigp_metric(attr, aigp);
+			}
+		} else {
+			attr->aigp_metric = 0;
+			UNSET_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AIGP));
 		}
 	}
 
