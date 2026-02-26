@@ -3168,8 +3168,10 @@ static bgp_attr_parse_ret_t bgp_attr_ls(struct bgp_attr_parser_args *args)
 	ls_attr = bgp_ls_attr_alloc();
 
 	ret = bgp_ls_parse_attr(peer->curr, args->length, ls_attr);
-	if (ret != 0)
+	if (ret != 0) {
+		bgp_ls_attr_free(ls_attr);
 		return BGP_ATTR_PARSE_ERROR;
+	}
 
 	attr->ls_attr = bgp_ls_attr_intern(ls_attr);
 
