@@ -6976,7 +6976,17 @@ static void clearing_clear_one_pi(struct bgp_table *table, struct bgp_dest *dest
 		    bgp->inst_type == BGP_INSTANCE_TYPE_DEFAULT) {
 			vpn_leak_to_vrf_withdraw(bgp_get_default(), pi);
 		}
-
+		if (SAFI_UNICAST == safi
+			&& (bgp->inst_type == BGP_INSTANCE_TYPE_VRF)) {
+			struct listnode *mnode, *mnnode;
+			struct bgp *tovrf;
+			char *bgpname;
+			for (ALL_LIST_ELEMENTS(bgp->vpn_policy[afi].redistribute_export_vrf, mnode, mnnode, bgpname)) {
+				tovrf = bgp_lookup_by_name(bgpname);
+				if (tovrf)
+					vrf_leak_from_vrf_withdraw(tovrf, bgp, pi);
+			}
+		}
 		bgp_rib_remove(dest, pi, pi->peer, afi, safi);
 	}
 }

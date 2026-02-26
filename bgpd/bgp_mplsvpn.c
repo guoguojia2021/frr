@@ -1833,16 +1833,17 @@ void vrf_leak_from_vrf_withdraw_all(struct bgp *to_vrf, /* to */
 	int debug = BGP_DEBUG(vpn, VPN_LEAK_FROM_VRF);
 	safi_t safi = SAFI_UNICAST;
 	struct bgp_dest *bn;
-	struct bgp_path_info *bpi;
+	struct bgp_path_info *bpi, *next;
 
 	for (bn = bgp_table_top(to_vrf->rib[afi][SAFI_UNICAST]); bn; bn = bgp_route_next(bn)) {
 		bpi = bgp_dest_get_bgp_path_info(bn);
 		if (debug && bpi) {
 			zlog_debug("%s: looking at prefix %pBD",
-				   __func__, bn);
+					__func__, bn);
 		}
 
-		for (; bpi; bpi = bpi->next) {
+		for (; (bpi != NULL) && (next = bpi->next, 1);
+				bpi = next) {
 			if (debug)
 				zlog_debug("%s: type %d, sub_type %d",
 					   __func__, bpi->type,
