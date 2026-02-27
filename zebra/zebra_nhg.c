@@ -689,6 +689,8 @@ struct nhg_hash_entry *zebra_nhe_copy(const struct nhg_hash_entry *orig,
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_FIB_BYPASS);
 	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_BSID))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_BSID);
+	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_COLOR_ONLY))
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
 	/* Copy backup info also, if present */
 	if (orig->backup_info)
 		nhe->backup_info = nhg_backup_copy(orig->backup_info);
@@ -782,7 +784,7 @@ uint32_t zebra_nhg_hash_key(const void *arg)
 
 	key = jhash_3words(primary, backup, nhe->type, key);
 
-	key = jhash_2words(nhe->vrf_id, nhe->afi, key);
+	key = jhash_3words(nhe->vrf_id, nhe->afi, CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY), key);
 
 	return key;
 }
@@ -3402,7 +3404,8 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 
 			resolved = 0;
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
-
+			if (CHECK_FLAG(policy->flags, ZEBRA_SR_POLICY_FLAG_COLOR_ONLY))
+				SET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
 			for (path_num = 0; path_num < policy->srv6_segment_list.path_num; path_num++) {
 				SET_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE);
 				if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_HIDDEN)

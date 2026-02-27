@@ -478,10 +478,7 @@ static void bgp_process_nexthop_update(struct bgp_nexthop_cache *bnc,
 			bnc->change_flags |= BGP_NEXTHOP_COUNT_UNCHANGED;
 		bnc->change_flags |= BGP_NEXTHOP_CHANGED;
 	}
-	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID) != CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6TE_VALID))
-		bnc->change_flags |= BGP_NEXTHOP_CHANGED;
-	else if (!CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID))
-		if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_BACKUP_VALID) != CHECK_FLAG(bnc->flags, BGP_NEXTHOP_SRV6_BACKUPTE_VALID))
+	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE))
 		bnc->change_flags |= BGP_NEXTHOP_CHANGED;
 
 	if (CHECK_FLAG(nhr->message, ZAPI_MESSAGE_SRTE_PRIMARY_VALID))

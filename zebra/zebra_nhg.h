@@ -149,6 +149,7 @@ struct nhg_hash_entry {
 #define NEXTHOP_GROUP_FIB_BYPASS        (1 << 13)
 #define NEXTHOP_GROUP_NOTIFY_FPM        (1 << 14)
 #define NEXTHOP_GROUP_BSID              (1 << 15)
+#define NEXTHOP_GROUP_COLOR_ONLY        (1 << 16)
 
 };
 

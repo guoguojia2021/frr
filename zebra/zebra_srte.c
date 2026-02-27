@@ -632,6 +632,8 @@ static struct nhg_hash_entry *zebra_find_pic_nhe(struct zebra_sr_policy *policy,
     lookup.vrf_id = vrf_id;
     SET_FLAG(lookup.flags, NEXTHOP_GROUP_PIC_NHT);
     SET_FLAG(lookup.flags, NEXTHOP_GROUP_SEGMENTLIST);
+	if (CHECK_FLAG(policy->flags, ZEBRA_SR_POLICY_FLAG_COLOR_ONLY))
+		SET_FLAG(lookup.flags, NEXTHOP_GROUP_COLOR_ONLY);
 
     switch (p->family) {
     case AF_INET:
@@ -1143,6 +1145,7 @@ struct route_table *zebra_srte_table_create(afi_t afi, uint32_t color)
 		rnh_srte_list_init(&policy->nht);
 		rnh_backup_srte_list_init(&policy->backup_nht);
 		rn->info = policy;
+		policy->flags |= ZEBRA_SR_POLICY_FLAG_COLOR_ONLY;
 	} 
 	return table;
 }

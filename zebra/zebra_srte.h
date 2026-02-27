@@ -48,6 +48,8 @@ struct zebra_sr_policy {
 	uint32_t color;
 	//struct ipaddr endpoint;
 	uint8_t type;
+	uint8_t flags;
+#define ZEBRA_SR_POLICY_FLAG_COLOR_ONLY  (1 << 0)
 	char name[SRTE_POLICY_NAME_MAX_LENGTH];
 	enum zebra_sr_policy_status status;
 	struct zapi_srte_tunnel segment_list;
