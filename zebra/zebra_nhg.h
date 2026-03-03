@@ -396,7 +396,7 @@ extern bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value 
 				   struct nhg_hash_entry *nhe,
 				   afi_t afi, bool from_dplane);
 extern void handle_recursive_segdepend(struct nhg_segment_tree_head *nhg_segdepends,
-				struct nexthop *nh, afi_t afi, int type, bool pic);
+				struct nexthop *nh, afi_t afi, int type, bool pic, bool color_only);
 extern void zebra_nhg_segment_depends(struct nhg_hash_entry *nhe,
 			struct nhg_segment_tree_head *nhg_segdepends);
 extern void zebra_nhg_seg_handle_uninstall(struct nhg_hash_entry *nhe);

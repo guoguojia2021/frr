@@ -320,6 +320,7 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 	bool is_hidden = false;
 	struct nexthop *add_hop = NULL;
 	char *policy_sid_name = NULL;
+	bool color_only = false;
 
 	policy_sid_name = policy->srv6_segment_list.sidlists[path_num].sidlist_name;
 	discriminator = policy->srv6_segment_list.sidlists[path_num].my_discriminator;
@@ -337,11 +338,13 @@ static void zebra_nhg_seg_add_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 				nhe->id, skip_update_depend ? "true":"false");
 		return;
 	}
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY))
+		color_only = true;
 
 	if (add_hop->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST)
-		handle_recursive_segdepend(&nhe->nhg_segdepends, add_hop, AFI_IP, nhe->type, true);
+		handle_recursive_segdepend(&nhe->nhg_segdepends, add_hop, AFI_IP, nhe->type, true, color_only);
 	else
-		handle_recursive_segdepend(&nhe->nhg_segdepends, add_hop, AFI_IP6, nhe->type, true);
+		handle_recursive_segdepend(&nhe->nhg_segdepends, add_hop, AFI_IP6, nhe->type, true, color_only);
 
 	zebra_nhg_segment_depends(nhe, &nhe->nhg_segdepends);
 	nhe->uptime = monotime(NULL);
@@ -570,10 +573,16 @@ static void zebra_nhg_seg_del_sidlist(struct nhg_hash_entry *nhe, struct zebra_s
 }
 
 static void zebra_nhg_seg_update_nhe(struct nhg_hash_entry *nhe,
-	struct rnh *rnh, struct zebra_sr_policy *policy, bool skip_depend)
+	struct rnh *rnh, struct zebra_sr_policy *policy,
+	bool skip_depend, bool backup)
 {
 	struct nexthop *nexthop = NULL;
 	struct prefix *p = &rnh->node->p;
+	uint32_t color = 0;
+	if (backup)
+		color = rnh->srte_backup_color;
+	else
+		color = rnh->srte_color;
 
 	for (nexthop = nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
 		/* Check if nexthop matches the prefix */
@@ -589,7 +598,7 @@ static void zebra_nhg_seg_update_nhe(struct nhg_hash_entry *nhe,
 			continue;
 		}
 
-		if (nexthop->srte_color != rnh->srte_color)
+		if (nexthop->srte_color != color)
 			matches = false;
 
 		if (!matches)
@@ -668,7 +677,8 @@ static void zebra_nhe_seg_update(struct zebra_sr_policy *policy)
 {
     struct nhg_hash_entry *picnhe = NULL;
     struct nhg_segment *rb_node_dep = NULL;
-    struct rnh *rnh;
+    struct rnh *rnh = NULL;
+    struct rnh *backup_rnh = NULL;
 
     if (!policy)
         return;
@@ -679,7 +689,7 @@ static void zebra_nhe_seg_update(struct zebra_sr_policy *policy)
             continue;
 
         /* Update the main NHE */
-        zebra_nhg_seg_update_nhe(picnhe, rnh, policy, false);
+        zebra_nhg_seg_update_nhe(picnhe, rnh, policy, false, false);
 
         /* Mark all dependent NHEs as not installed */
         frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
@@ -696,7 +706,35 @@ static void zebra_nhe_seg_update(struct zebra_sr_policy *policy)
 
         /* pdate and install all dependent NHEs */
         frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
-            zebra_nhg_seg_update_nhe(rb_node_dep->nhe, rnh, policy, true);
+            zebra_nhg_seg_update_nhe(rb_node_dep->nhe, rnh, policy, true, false);
+            zebra_nhg_install_nhe(rb_node_dep->nhe);
+        }
+    }
+	/* process backup nht */
+    frr_each_safe(rnh_backup_srte_list, &policy->backup_nht, backup_rnh) {
+        picnhe = zebra_find_pic_nhe(policy, backup_rnh);
+        if (!picnhe)
+            continue;
+
+        /* Update the main NHE */
+        zebra_nhg_seg_update_nhe(picnhe, backup_rnh, policy, false, true);
+
+        /* Mark all dependent NHEs as not installed */
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
+            UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_INSTALLED);
+        }
+
+        /* Install the main NHE */
+        zebra_nhg_install_nhe(picnhe);
+
+        if (IS_ZEBRA_DEBUG_SRV6) {
+            zlog_debug("%s: nhe id %d update flags 0x%x", __func__,
+                picnhe->id, picnhe->flags);
+        }
+
+        /* pdate and install all dependent NHEs */
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
+            zebra_nhg_seg_update_nhe(rb_node_dep->nhe, backup_rnh, policy, true, true);
             zebra_nhg_install_nhe(rb_node_dep->nhe);
         }
     }
@@ -706,10 +744,31 @@ static void zebra_srv6_policy_down_update_pic_nhe(struct zebra_sr_policy *policy
 {
     struct nhg_hash_entry *picnhe = NULL;
     struct nhg_segment *rb_node_dep = NULL;
-    struct rnh *rnh;
+    struct rnh *rnh = NULL;
+    struct rnh *backup_rnh = NULL;
 
     frr_each_safe(rnh_srte_list, &policy->nht, rnh) {
         picnhe = zebra_find_pic_nhe(policy, rnh);
+        if (!picnhe)
+            continue;
+
+        if (IS_ZEBRA_DEBUG_NHG_DETAIL)
+            zlog_debug("%s: nhe id=%d flags=0x%x", __func__,
+                picnhe->id, picnhe->flags);
+
+        UNSET_FLAG(picnhe->flags, NEXTHOP_GROUP_VALID);
+
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdepends, rb_node_dep) {
+            UNSET_FLAG(rb_node_dep->nhe->flags, NEXTHOP_GROUP_VALID);
+        }
+
+        frr_each_safe(nhg_segment_tree, &picnhe->nhg_segdependents, rb_node_dep) {
+            zebra_nhg_install_nhe(rb_node_dep->nhe);
+        }
+    }
+	/* process backup nht */
+    frr_each_safe(rnh_backup_srte_list, &policy->backup_nht, backup_rnh) {
+        picnhe = zebra_find_pic_nhe(policy, backup_rnh);
         if (!picnhe)
             continue;
 

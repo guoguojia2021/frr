@@ -82,12 +82,12 @@ depends_find_id_add(struct nhg_connected_tree_head *head, uint32_t id);
 static void depends_decrement_free(struct nhg_connected_tree_head *head);
 
 static struct nhg_hash_entry *segdepends_find(const struct nexthop *nh, afi_t afi,
-					   int type, bool from_dplane, bool pic);
+					   int type, bool from_dplane, bool pic, bool color_only);
 static void segdepends_add(struct nhg_segment_tree_head *head,
 			struct nhg_hash_entry *depend);
 static struct nhg_hash_entry *
 segdepends_find_add(struct nhg_segment_tree_head *head, struct nexthop *nh,
-		 afi_t afi, int type, bool from_dplane, bool pic);
+		 afi_t afi, int type, bool from_dplane, bool pic, bool color_only);
 
 static struct nhg_backup_info *
 nhg_backup_copy(const struct nhg_backup_info *orig);
@@ -985,7 +985,7 @@ static void handle_recursive_depend(struct nhg_connected_tree_head *nhg_depends,
 }
 
 void handle_recursive_segdepend(struct nhg_segment_tree_head *nhg_segdepends,
-				struct nexthop *nexthop, afi_t afi, int type, bool pic)
+				struct nexthop *nexthop, afi_t afi, int type, bool pic, bool color_only)
 {
 	struct nexthop *nh = NULL;
 	for (nh = nexthop; nh; nh = nh->next) {
@@ -995,7 +995,7 @@ void handle_recursive_segdepend(struct nhg_segment_tree_head *nhg_segdepends,
 				__func__, nhg_segdepends, nh, nh->sidlist_name,
 				nh->my_discriminator, type, nh->flags);
 
-		segdepends_find_add(nhg_segdepends, nh, afi, type, false, pic);
+		segdepends_find_add(nhg_segdepends, nh, afi, type, false, pic, color_only);
 	}
 }
 
@@ -1069,6 +1069,7 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 	struct nexthop *nexthop = NULL;
 	struct nhg_hash_entry *lookup_tmp;
 	bool free_flag = false;
+	bool color_only = false;
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 		zlog_debug(
@@ -1164,7 +1165,8 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 	zebra_nhg_segdepends_init(newnhe);
 	zebra_nhg_segdependents_init(newnhe);
 	nh = newnhe->nhg.nexthop;
-
+	if (CHECK_FLAG(newnhe->flags, NEXTHOP_GROUP_COLOR_ONLY))
+		color_only = true;
 	if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE))
 		SET_FLAG(newnhe->flags, NEXTHOP_GROUP_VALID);
 
@@ -1173,7 +1175,7 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 			/* Single recursive nexthop */
 			handle_recursive_segdepend(&newnhe->nhg_segdepends,
 						nh->resolved, afi,
-						newnhe->type, pic);
+						newnhe->type, pic, color_only);
 			recursive = true;
 		}
 	} else {
@@ -1185,7 +1187,7 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 					   __func__, nh, nh->flags);
 			if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_RECURSIVE))
 				segdepends_find_add(&newnhe->nhg_segdepends, nh, afi,
-						newnhe->type, from_dplane, pic);
+						newnhe->type, from_dplane, pic, color_only);
 		}
 	}
 
@@ -1441,6 +1443,8 @@ bool zebra_pic_nhe_find(struct nhg_hash_entry **pic_nhe, /* return value */
 	pic_nh_lookup.vrf_id = nhe->vrf_id;
 	SET_FLAG(pic_nh_lookup.flags, NEXTHOP_GROUP_PIC_NHT);
 	SET_FLAG(pic_nh_lookup.flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY))
+		SET_FLAG(pic_nh_lookup.flags, NEXTHOP_GROUP_COLOR_ONLY);
     /* the nhg.nexthop is sorted */
 	for (nh = nhe->nhg.nexthop; nh; nh = nh->next) {
 		if (nh->type == NEXTHOP_TYPE_IFINDEX)
@@ -1509,7 +1513,7 @@ static bool zebra_nhg_find(struct nhg_hash_entry **nhe, uint32_t id,
 			   struct nhg_connected_tree_head *nhg_depends,
 			   struct nhg_segment_tree_head *nhg_segdepends,
 			   vrf_id_t vrf_id, afi_t afi, int type,
-			   bool from_dplane, bool pic)
+			   bool from_dplane, bool pic, bool color_only)
 {
 	struct nhg_hash_entry lookup = {};
 	bool created = false;
@@ -1530,7 +1534,8 @@ static bool zebra_nhg_find(struct nhg_hash_entry **nhe, uint32_t id,
 		SET_FLAG(lookup.flags, NEXTHOP_GROUP_PIC_NHT);
 	if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_SRV6_BSID))
 		SET_FLAG(lookup.flags, NEXTHOP_GROUP_BSID);
-
+	if (color_only)
+		SET_FLAG(lookup.flags, NEXTHOP_GROUP_COLOR_ONLY);
 	if (nhg_depends || nexthop->next) {
 		/* Groups can have all vrfs and AF's in them */
 		lookup.afi = AFI_UNSPEC;
@@ -1572,7 +1577,7 @@ static bool zebra_nhg_find(struct nhg_hash_entry **nhe, uint32_t id,
 static struct nhg_hash_entry *zebra_nhg_find_nexthop(uint32_t id,
 						     struct nexthop *nh,
 						     afi_t afi, int type,
-						     bool from_dplane, bool pic)
+						     bool from_dplane, bool pic, bool color_only)
 {
 	struct nhg_hash_entry *nhe = NULL;
 	struct nexthop_group nhg = {};
@@ -1580,7 +1585,7 @@ static struct nhg_hash_entry *zebra_nhg_find_nexthop(uint32_t id,
 
 	nexthop_group_add_sorted(&nhg, nh);
 
-	zebra_nhg_find(&nhe, id, &nhg, NULL, NULL, vrf_id, afi, type, from_dplane, pic);
+	zebra_nhg_find(&nhe, id, &nhg, NULL, NULL, vrf_id, afi, type, from_dplane, pic, color_only);
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 		zlog_debug("%s: nh %pNHv => %p (%pNG)",
@@ -1924,14 +1929,14 @@ static int nhg_ctx_process_new(struct nhg_ctx *ctx)
 		}
 
 		if (!zebra_nhg_find(&nhe, id, nhg, &nhg_depends, NULL, vrf_id, afi,
-				    type, true, false))
+				    type, true, false, false))
 			depends_decrement_free(&nhg_depends);
 
 		/* These got copied over in zebra_nhg_alloc() */
 		nexthop_group_delete(&nhg);
 	} else
 		nhe = zebra_nhg_find_nexthop(id, nhg_ctx_get_nh(ctx), afi, type,
-					     true, false);
+					     true, false, false);
 
 	if (!nhe) {
 		flog_err(
@@ -2105,7 +2110,7 @@ static struct nhg_hash_entry *depends_find_recursive(const struct nexthop *nh,
 
 	lookup = nexthop_dup(nh, NULL);
 
-	nhe = zebra_nhg_find_nexthop(0, lookup, afi, type, false, pic);
+	nhe = zebra_nhg_find_nexthop(0, lookup, afi, type, false, pic, false);
 
 	nexthops_free(lookup);
 
@@ -2124,7 +2129,7 @@ static struct nhg_hash_entry *depends_find_singleton(const struct nexthop *nh,
 	 */
 	nexthop_copy_no_recurse(&lookup, nh, NULL);
 
-	nhe = zebra_nhg_find_nexthop(0, &lookup, afi, type, from_dplane, pic);
+	nhe = zebra_nhg_find_nexthop(0, &lookup, afi, type, from_dplane, pic, false);
 
 	/* The copy may have allocated labels; free them if necessary. */
 	nexthop_del_labels(&lookup);
@@ -2222,14 +2227,14 @@ static void depends_decrement_free(struct nhg_connected_tree_head *head)
 
 /* Some dependency helper functions */
 static struct nhg_hash_entry *segdepends_find_recursive(const struct nexthop *nh,
-						     afi_t afi, int type, bool pic)
+						     afi_t afi, int type, bool pic, bool color_only)
 {
 	struct nhg_hash_entry *nhe;
 	struct nexthop *lookup = NULL;
 
 	lookup = nexthop_dup(nh, NULL);
 
-	nhe = zebra_nhg_find_nexthop(0, lookup, afi, type, false, pic);
+	nhe = zebra_nhg_find_nexthop(0, lookup, afi, type, false, pic, color_only);
 
 	nexthops_free(lookup);
 
@@ -2238,7 +2243,7 @@ static struct nhg_hash_entry *segdepends_find_recursive(const struct nexthop *nh
 
 static struct nhg_hash_entry *segdepends_find_singleton(const struct nexthop *nh,
 						     afi_t afi, int type,
-						     bool from_dplane, bool pic)
+						     bool from_dplane, bool pic, bool color_only)
 {
 	struct nhg_hash_entry *nhe;
 	struct nexthop lookup = {};
@@ -2248,7 +2253,7 @@ static struct nhg_hash_entry *segdepends_find_singleton(const struct nexthop *nh
 	 */
 	nexthop_copy_no_recurse(&lookup, nh, NULL);
 
-	nhe = zebra_nhg_find_nexthop(0, &lookup, afi, type, from_dplane, pic);
+	nhe = zebra_nhg_find_nexthop(0, &lookup, afi, type, from_dplane, pic, color_only);
 
 	/* The copy may have allocated labels; free them if necessary. */
 	nexthop_del_labels(&lookup);
@@ -2263,7 +2268,7 @@ static struct nhg_hash_entry *segdepends_find_singleton(const struct nexthop *nh
 }
 
 static struct nhg_hash_entry *segdepends_find(const struct nexthop *nh, afi_t afi,
-					   int type, bool from_dplane, bool pic)
+					   int type, bool from_dplane, bool pic, bool color_only)
 {
 	struct nhg_hash_entry *nhe = NULL;
 
@@ -2274,9 +2279,9 @@ static struct nhg_hash_entry *segdepends_find(const struct nexthop *nh, afi_t af
 	 * in the non-recursive case (by not alloc/freeing)
 	 */
 	if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_RECURSIVE))
-		nhe = segdepends_find_recursive(nh, afi, type, pic);
+		nhe = segdepends_find_recursive(nh, afi, type, pic, color_only);
 	else
-		nhe = segdepends_find_singleton(nh, afi, type, from_dplane, pic);
+		nhe = segdepends_find_singleton(nh, afi, type, from_dplane, pic, color_only);
 
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL) {
@@ -2309,11 +2314,11 @@ static void segdepends_add(struct nhg_segment_tree_head *head,
 
 static struct nhg_hash_entry *
 segdepends_find_add(struct nhg_segment_tree_head *head, struct nexthop *nh,
-		 afi_t afi, int type, bool from_dplane, bool pic)
+		 afi_t afi, int type, bool from_dplane, bool pic, bool color_only)
 {
 	struct nhg_hash_entry *depend = NULL;
 
-	depend = segdepends_find(nh, afi, type, from_dplane, pic);
+	depend = segdepends_find(nh, afi, type, from_dplane, pic, color_only);
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 		zlog_debug("%s: nh %pNHv => %p",
@@ -2340,7 +2345,7 @@ struct nhg_hash_entry *zebra_nhg_rib_find(uint32_t id,
 	assert(nhg->nexthop);
 	vrf_id = !vrf_is_backend_netns() ? VRF_DEFAULT : nhg->nexthop->vrf_id;
 
-	zebra_nhg_find(&nhe, id, nhg, NULL, NULL, vrf_id, rt_afi, type, false, pic);
+	zebra_nhg_find(&nhe, id, nhg, NULL, NULL, vrf_id, rt_afi, type, false, pic, false);
 
 	if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 		zlog_debug("%s: => nhe %p (%pNG)", __func__, nhe, nhe);
