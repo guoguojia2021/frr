@@ -260,10 +260,10 @@ static int static_neighbor_operation(ZAPI_CALLBACK_ARGS)
 			frr_each(static_path_list, &si->path_list, pn) {
 				frr_each(static_nexthop_list,
 					  &pn->nexthop_list, nh) {
-						if ((nh->type == STATIC_IPV6_GATEWAY_IFNAME) 
- 								&& (memcmp(&addr.sin6.sin6_addr, &nh->addr.ipv6, 16) == 0)
-								&& (strncmp(ifp->name, nh->ifname, INTERFACE_NAMSIZ) == 0))
-					        		static_gateway_update_nh(pn, nh, add);
+						if (nh->type == STATIC_IPV6_GATEWAY_IFNAME
+						    && memcmp(&addr.sin6.sin6_addr, &nh->addr.ipv6, 16) == 0
+						    && strncmp(ifp->name, nh->ifname, INTERFACE_NAMSIZ) == 0)
+							static_gateway_update_nh(pn, nh, add);
 				}
 			}
 		}
