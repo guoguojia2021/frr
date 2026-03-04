@@ -745,6 +745,7 @@ struct nhg_hash_entry *zebra_nhe_copy_no_recurse(const struct nhg_hash_entry *or
 		for (nexthop = nhe->nhg.nexthop; nexthop; nexthop = nexthop->next) {
 			if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE)) {
 				nexthops_free(nexthop->resolved);
+				nexthop->resolved = NULL;
 				UNSET_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE);
 			}
 		}
@@ -1216,8 +1217,10 @@ done:
 	/* Reset time since last update */
 	(*nhe)->uptime = monotime(NULL);
 
-	if (free_flag)
+	if (free_flag) {
+		nexthops_free(lookup_tmp->nhg.nexthop);
 		XFREE(MTYPE_NHG, lookup_tmp);
+	}
 
 	return created;
 }
