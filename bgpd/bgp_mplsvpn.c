@@ -1567,6 +1567,7 @@ void vrf_leak_from_vrf_update(struct bgp *to_vrf,		/* to */
 					"%s: vrf %s route map \"%s\" says DENY, returning",
 					__func__, from_vrf->name_pretty,
 					red_map->name);
+			vrf_leak_from_vrf_withdraw(to_vrf, from_vrf, path_vrf);
 			return;
 		}
 	}
