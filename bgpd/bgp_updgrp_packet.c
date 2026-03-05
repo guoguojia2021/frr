@@ -1094,7 +1094,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		} else
 			first_time = 0;
 
-			/* BGP-LS uses special encoding - handle before standard cases */
+		/* BGP-LS uses special encoding - handle before standard cases */
 		if (afi == AFI_BGP_LS && safi == SAFI_BGP_LS) {
 			/* Format MP_UNREACH header if first time */
 			if (first_time) {
@@ -1120,12 +1120,14 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 					flog_err(EC_BGP_UPDATE_SND,
 						 "Failed to encode BGP-LS NLRI withdrawal");
 					bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+					adv = bgp_adv_fifo_first(&subgrp->sync->withdraw);
 					continue;
 				}
 			} else {
 				flog_err(EC_BGP_UPDATE_SND,
 					 "BGP-LS withdrawal missing ls_nlri data");
 				bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+				adv = bgp_adv_fifo_first(&subgrp->sync->withdraw);
 				continue;
 			}
 
@@ -1138,6 +1140,9 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 
 			subgrp->scount--;
 			bgp_adj_out_remove_subgroup(dest, adj, subgrp);
+			adv = bgp_adv_fifo_first(&subgrp->sync->withdraw);
+			if (adv && adv->withdraw_baa)
+                break;
 			continue;
 		}
 
@@ -1215,7 +1220,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 			// bgp_advertise_attr_fifo_first this api will return the first adv.
 			// if u want to fetch next adv, u should use bgp_advertise_delete to remove the first adv
 			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
-			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
+			bgp_advertise_attr_unintern(subgrp->hash, withdraw_baa);
             /* Unlink myself from advertisement FIFO.  */
 			bgp_adv_fifo_del(&subgrp->sync->withdraw, adv);
 			bgp_advertise_free(adj->old_adv);

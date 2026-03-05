@@ -473,7 +473,7 @@ struct bgp_advertise * bgp_advertise_free_old_adv_subgroup(struct update_subgrou
 			//next = withdraw_baa->adv;
 			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
 			/* Unintern BGP advertise attribute.  */
-			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
+			bgp_advertise_attr_unintern(subgrp->hash, withdraw_baa);
 		}
 		bgp_adv_fifo_del(&subgrp->sync->withdraw, adj->old_adv);
 		bgp_advertise_free(adj->old_adv);
@@ -506,15 +506,15 @@ bgp_advertise_clean_subgroup(struct update_subgroup *subgrp,
 		next = bgp_advertise_attr_fifo_first(&baa->fifo);
 
 		/* Unintern BGP advertise attribute.  */
-		bgp_advertise_unintern(subgrp->hash, baa);
-	} else{
+		bgp_advertise_attr_unintern(subgrp->hash, baa);
+	} else {
 		fhead = &subgrp->sync->withdraw;
 		withdraw_baa = adv->withdraw_baa;
 		if (withdraw_baa){
 			bgp_advertise_delete(withdraw_baa, adv);
 			//next = withdraw_baa->adv;
 			next = bgp_advertise_attr_fifo_first(&withdraw_baa->fifo);
-			bgp_advertise_unintern(subgrp->hash, withdraw_baa);
+			bgp_advertise_attr_unintern(subgrp->hash, withdraw_baa);
 		}
 	}
 
@@ -640,7 +640,7 @@ bool bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 			assert(old_adv->pathi == NULL);
 			/* bgp_path_info adj_out reference */
 			old_adv->pathi = bgp_path_info_lock(path);
-			old_adv->withdraw_baa = bgp_advertise_intern(subgrp->hash, &dummy_attr);
+			old_adv->withdraw_baa = bgp_advertise_attr_intern(subgrp->hash, &dummy_attr);
 			old_adv->adj = adj;
 			/*withdraw adv for same peer add to withdraw_baa */
 			bgp_advertise_add(old_adv->withdraw_baa, old_adv);
@@ -657,7 +657,7 @@ bool bgp_adj_out_set_subgroup(struct bgp_dest *dest,
 	/* bgp_path_info adj_out reference */
 	adv->pathi = bgp_path_info_lock(path);
 
-	adv->baa = bgp_advertise_intern(subgrp->hash, attr);
+	adv->baa = bgp_advertise_attr_intern(subgrp->hash, attr);
 	adv->adj = adj;
 	adj->attr_hash = attr_hash;
 	SET_FLAG(adv->flags, ADV_IN_QUEUE);
