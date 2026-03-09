@@ -3104,6 +3104,8 @@ static int rib_meta_queue_add(struct meta_queue *mq, void *data)
 
 	RNODE_FOREACH_RE (rn, curr_re) {
 		curr_qindex = route_info[curr_re->type].meta_q_map;
+		if (CHECK_FLAG(curr_re->flags, ZEBRA_FLAG_HIGH_PRIORITY))
+			curr_qindex = 5;
 
 		if (curr_qindex <= qindex) {
 			re = curr_re;

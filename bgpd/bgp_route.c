@@ -4706,6 +4706,13 @@ static void bgp_process_internal(struct bgp *bgp, struct bgp_dest *dest,
 		return;
 	}
 
+	if (CHECK_FLAG(dest->flags, BGP_NODE_HIGH_PRIORITY)) {
+		if (BGP_DEBUG(update, UPDATE_OUT))
+			zlog_debug("High priority processing triggered by route-map for route %pBD",
+				   dest);
+		early_process = true;
+	}
+
 	/* all unlocked in process_subq_xxx functions */
 	bgp_table_lock(bgp_dest_table(dest));
 
@@ -14072,6 +14079,16 @@ void route_vty_out_detail_header(struct vty *vty, struct bgp *bgp,
 				json_object_int_add(json, "localLabel", label);
 		} else
 			vty_out(vty, "Local label: %d\n", label);
+	}
+
+	if (CHECK_FLAG(dest->flags, BGP_NODE_HIGH_PRIORITY)) {
+		if (json) {
+			if (incremental_print)
+				vty_out(vty, "\"highPriority\": true,\n");
+			else
+				json_object_boolean_true_add(json, "highPriority");
+		} else
+			vty_out(vty, "High priority: yes (marked by route-map)\n");
 	}
 
 	if (!json)

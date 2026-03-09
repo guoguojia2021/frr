@@ -1610,6 +1610,9 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 	if (allow_recursion)
 		SET_FLAG(api.flags, ZEBRA_FLAG_ALLOW_RECURSION);
 
+	if (CHECK_FLAG(dest->flags, BGP_NODE_HIGH_PRIORITY))
+		SET_FLAG(api.flags, ZEBRA_FLAG_HIGH_PRIORITY);
+
 	/*
 	 * When we create an aggregate route we must also
 	 * install a Null0 route in the RIB, so overwrite

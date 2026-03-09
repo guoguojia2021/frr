@@ -366,6 +366,12 @@ identity set-extcommunity-color {
       "Set the BGP AS-path replace";
   }
 
+  identity high-priority {
+    base frr-route-map:rmap-set-type;
+    description
+      "Mark route as high priority";
+  }
+
   identity rmac {
     base frr-route-map:rmap-set-type;
     description
@@ -1011,6 +1017,14 @@ identity set-extcommunity-color {
         type string;
         description
           "Exclude the AS-path replace";
+      }
+    }
+    case high-priority {
+      when "derived-from-or-self(../frr-route-map:action, 'frr-bgp-route-map:high-priority')";
+      leaf high-priority {
+        type empty;
+        description
+          "Mark route as high priority";
       }
     }
     case rmac {

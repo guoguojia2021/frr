@@ -4575,6 +4575,38 @@ struct route_map_rule_cmd route_set_aspath_replace_cmd =
   };
 
 
+/* `set high-priority' */
+static enum route_map_cmd_result_t
+route_set_high_priority(void *rule, const struct prefix *dummy, void *object)
+{
+	struct bgp_path_info *path;
+
+	path = object;
+	if (path && path->net)
+		SET_FLAG(path->net->flags, BGP_NODE_HIGH_PRIORITY);
+
+	return RMAP_OKAY;
+}
+
+static void *route_set_high_priority_compile(const char *arg)
+{
+	return (void *)1;
+}
+
+static void route_set_high_priority_free(void *rule)
+{
+	/* Nothing to free */
+}
+
+struct route_map_rule_cmd route_set_high_priority_cmd =
+  {
+    "high-priority",
+    route_set_high_priority,
+    route_set_high_priority_compile,
+    route_set_high_priority_free,
+  };
+
+
 /* `set rmac' */
 struct rmap_rmac_set {
 	struct ethaddr rmac;
@@ -7436,6 +7468,38 @@ DEFUN_YANG (no_set_aspath_replace,
 }
 
 
+DEFUN_YANG (set_high_priority,
+       set_high_priority_cmd,
+       "set high-priority",
+       SET_STR
+       "Mark route as high priority\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:high-priority']";
+	char xpath_value[XPATH_MAXLEN];
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_CREATE, NULL);
+	snprintf(xpath_value, sizeof(xpath_value),
+		 "%s/rmap-set-action/frr-bgp-route-map:high-priority", xpath);
+	nb_cli_enqueue_change(vty, xpath_value, NB_OP_CREATE, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFUN_YANG (no_set_high_priority,
+       no_set_high_priority_cmd,
+       "no set high-priority",
+       NO_STR
+       SET_STR
+       "Mark route as high priority\n")
+{
+	const char *xpath =
+		"./set-action[action='frr-bgp-route-map:high-priority']";
+
+	nb_cli_enqueue_change(vty, xpath, NB_OP_DESTROY, NULL);
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+
 DEFUN_YANG (set_rmac,
        set_rmac_cmd,
        "set rmac WORD",
@@ -7854,6 +7918,7 @@ void bgp_route_map_init(void)
 	route_map_install_set(&route_set_ipv6_nexthop_unchanged_cmd);
     route_map_install_set(&route_set_aspath_overwrite_cmd);
     route_map_install_set(&route_set_aspath_replace_cmd);
+    route_map_install_set(&route_set_high_priority_cmd);
     route_map_install_set(&route_set_rmac_cmd);
     route_map_install_set(&route_set_vni_cmd);
 
@@ -7879,6 +7944,8 @@ void bgp_route_map_init(void)
     install_element(RMAP_NODE, &no_set_aspath_overwrite_cmd);
     install_element(RMAP_NODE, &set_aspath_replace_cmd);
     install_element(RMAP_NODE, &no_set_aspath_replace_cmd);
+    install_element(RMAP_NODE, &set_high_priority_cmd);
+    install_element(RMAP_NODE, &no_set_high_priority_cmd);
 	install_element(RMAP_NODE, &set_rmac_cmd);
 	install_element(RMAP_NODE, &no_set_rmac_cmd);
 	install_element(RMAP_NODE, &set_vni_cmd);

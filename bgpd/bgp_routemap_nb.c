@@ -449,6 +449,13 @@ const struct frr_yang_module_info frr_bgp_route_map_info = {
 			}
 		},
 		{
+			.xpath = "/frr-route-map:lib/route-map/entry/set-action/rmap-set-action/frr-bgp-route-map:high-priority",
+			.cbs = {
+				.create = lib_route_map_entry_set_action_rmap_set_action_high_priority_create,
+				.destroy = lib_route_map_entry_set_action_rmap_set_action_high_priority_destroy,
+			}
+		},
+		{
 			.xpath = "/frr-route-map:lib/route-map/entry/set-action/rmap-set-action/frr-bgp-route-map:rmac",
 			.cbs = {
 				.modify = lib_route_map_entry_set_action_rmap_set_action_rmac_modify,

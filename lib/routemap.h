@@ -405,6 +405,8 @@ DECLARE_QOBJ_TYPE(route_map);
 	(strmatch(A, "frr-bgp-route-map:as-path-overwrite"))
 #define IS_SET_AS_REPLACE(A)                                                 \
 	(strmatch(A, "frr-bgp-route-map:as-path-replace"))
+#define IS_SET_HIGH_PRIORITY(A)                                                  \
+	(strmatch(A, "frr-bgp-route-map:high-priority"))
 #define IS_SET_RMAC(A)                                                      \
 	(strmatch(A, "frr-bgp-route-map:rmac"))
 #define IS_SET_VNI(A)                                                       \
