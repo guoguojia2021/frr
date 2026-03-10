@@ -820,9 +820,20 @@ static int bgp_capability_hostname(struct peer *peer,
 	size_t end = stream_get_getp(s) + hdr->length;
 	uint8_t len;
 
-	SET_FLAG(peer->cap, PEER_CAP_HOSTNAME_RCV);
+	if (stream_get_getp(s) + 1 > end) {
+		flog_warn(EC_BGP_CAPABILITY_INVALID_DATA,
+			  "%s: Received invalid hostname len (hostname capability) from peer %s",
+			  __func__, peer->host);
+		return -1;
+	}
 
 	len = stream_getc(s);
+	if (!len) {
+		flog_warn(EC_BGP_CAPABILITY_INVALID_DATA,
+			  "%s: Received empty hostname from peer %s", __func__, peer->host);
+		return -1;
+	}
+
 	if (stream_get_getp(s) + len > end) {
 		flog_warn(
 			EC_BGP_CAPABILITY_INVALID_DATA,
@@ -835,23 +846,23 @@ static int bgp_capability_hostname(struct peer *peer,
 		stream_get(str, s, BGP_MAX_HOSTNAME);
 		stream_forward_getp(s, len - BGP_MAX_HOSTNAME);
 		len = BGP_MAX_HOSTNAME; /* to set the '\0' below */
-	} else if (len)
+	} else {
 		stream_get(str, s, len);
-
-	if (len) {
-		str[len] = '\0';
-
-		XFREE(MTYPE_BGP_PEER_HOST, peer->hostname);
-		XFREE(MTYPE_BGP_PEER_HOST, peer->domainname);
-
-		peer->hostname = XSTRDUP(MTYPE_BGP_PEER_HOST, str);
 	}
+
+	str[len] = '\0';
+
+	XFREE(MTYPE_BGP_PEER_HOST, peer->hostname);
+	XFREE(MTYPE_BGP_PEER_HOST, peer->domainname);
+
+	peer->hostname = XSTRDUP(MTYPE_BGP_PEER_HOST, str);
 
 	if (stream_get_getp(s) + 1 > end) {
 		flog_warn(
 			EC_BGP_CAPABILITY_INVALID_DATA,
 			"%s: Received invalid domain name len (hostname capability) from peer %s",
 			__func__, peer->host);
+		XFREE(MTYPE_BGP_PEER_HOST, peer->hostname);
 		return -1;
 	}
 
@@ -861,6 +872,7 @@ static int bgp_capability_hostname(struct peer *peer,
 			EC_BGP_CAPABILITY_INVALID_DATA,
 			"%s: Received runt domain name (hostname capability) from peer %s",
 			__func__, peer->host);
+		XFREE(MTYPE_BGP_PEER_HOST, peer->hostname);
 		return -1;
 	}
 
@@ -878,6 +890,8 @@ static int bgp_capability_hostname(struct peer *peer,
 
 		peer->domainname = XSTRDUP(MTYPE_BGP_PEER_HOST, str);
 	}
+
+	SET_FLAG(peer->cap, PEER_CAP_HOSTNAME_RCV);
 
 	if (bgp_debug_neighbor_events(peer)) {
 		zlog_debug("%s received hostname %s, domainname %s", peer->host,
