@@ -420,6 +420,7 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 			We depends on the neighbor create events to update the nh->neigh_invalid 
 			*/
 			if(nh->type == STATIC_IPV6_GATEWAY_IFNAME ){
+				nh->neigh_invalid = true;
 				static_zebra_neighbor_get(nh->nh_vrf_id, ipaddr,ifp);
 			}
 		}
