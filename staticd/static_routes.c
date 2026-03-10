@@ -412,8 +412,16 @@ struct static_nexthop *static_add_nexthop(struct static_path *pn,
 	case STATIC_IPV4_GATEWAY_IFNAME:
 	case STATIC_IPV6_GATEWAY_IFNAME:
 		ifp = if_lookup_by_name(ifname, nh->nh_vrf_id);
-		if (ifp && ifp->ifindex != IFINDEX_INTERNAL)
+		if (ifp && ifp->ifindex != IFINDEX_INTERNAL){
 			nh->ifindex = ifp->ifindex;
+			/* if ifp->ifindex == IFINDEX_INTERNAL, we won't check neighbor status;
+			We depends on the neighbor create events to update the nh->neigh_invalid 
+			*/
+			if(nh->type == STATIC_IPV6_GATEWAY_IFNAME ){
+				nh->neigh_invalid = true;
+				static_zebra_neighbor_get(nh->nh_vrf_id, ipaddr,ifp);
+			}
+		}
 		else
 			zlog_warn(
 				"Static Route using %s interface not installed because the interface does not exist in specified vrf",

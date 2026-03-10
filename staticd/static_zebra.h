@@ -45,6 +45,7 @@ extern void static_zebra_stop(void);
 extern void static_zebra_vrf_register(struct vrf *vrf);
 extern void static_zebra_vrf_unregister(struct vrf *vrf);
 extern int static_zebra_nh_update(struct static_nexthop *nh);
+extern int static_zebra_neighbor_get(vrf_id_t vrf_id, struct ipaddr *ip,struct interface *ifp);
 
 #ifdef __cplusplus
 }

@@ -3769,6 +3769,103 @@ stream_failure:
 	return;
 }
 
+/*
+  * Handle ZEBRA_NHRP_NEIGH_GET - neighbor status query request from client.
+  *
+  * Complete notification flow (client -> zebra -> kernel -> zebra -> client):
+  *
+  *   1. Client (e.g., staticd) sends ZEBRA_NHRP_NEIGH_GET request:
+  *      - static_zebra_neighbor_get() sends request to zebra
+  *
+  *   2. zebra receives request in this function (zebra_neigh_get):
+  *      - Decodes the request to get IP and interface
+  *
+  *   3. zebra queries kernel via netlink:
+  *      - netlink_get_neighbor_state() sends RTM_GETNEIGH to kernel
+  *      - Kernel responds with neighbor info (or nothing if not exists)
+  *
+  *   4. zebra actively sends response to requesting client:
+  *      - Creates stream with ZEBRA_NHRP_NEIGH_GET cmd and neighbor status
+  *      - Calls zserv_send_message(client, s) to send response
+  *      - If neighbor exists: sends actual state from kernel
+  *      - If neighbor doesn't exist: sends NUD_FAILED state
+  *      - This ensures client receives response even if neighbor doesn't exist
+  *
+  *   5. Client receives response:
+  *      - zclient receives the ZEBRA_NHRP_NEIGH_GET response via Unix socket
+  *      - Client's static_neighbor_notify() callback is invoked (not static_neighbor_operation)
+  *      - Client processes the neighbor status and updates routes
+  *
+  * Note: Unlike passive kernel notifications (ZEBRA_NHRP_NEIGH_ADDED/REMOVED handled by
+  * static_neighbor_operation()), this function actively sends ZEBRA_NHRP_NEIGH_GET response
+  * only to the requesting client, ensuring they can differentiate query responses from
+  * unsolicited kernel notifications.
+  */
+ static inline void zebra_neigh_get(ZAPI_HANDLER_ARGS)
+ {
+ 	struct zapi_neigh_ip api = {};
+ 	struct interface *ifp;
+ 	struct stream *s;
+ 	union sockunion ip;
+ 	int ret;
+ 	int ndm_state = NUD_FAILED;
+
+ 	/* Decode the neighbor IP get request */
+ 	ret = zclient_neigh_ip_decode(msg, &api);
+ 	if (ret < 0) {
+ 		zlog_warn("%s: Failed to decode neighbor get request", __func__);
+ 		return;
+ 	}
+
+ 	/* Find interface */
+ 	ifp = if_lookup_by_index(api.index, zvrf_id(zvrf));
+ 	if (!ifp) {
+ 		zlog_warn("%s: Interface index %u not found in VRF %u",
+			  __func__, api.index, zvrf_id(zvrf));
+ 		return;
+ 	}
+
+ 	if (IS_ZEBRA_DEBUG_PACKET)
+ 		zlog_debug("%s: Received neighbor get request for %pIA on %s",
+			  __func__, &api.ip_in, ifp->name);
+
+	/*
+	 * Query kernel for specific neighbor status via netlink.
+	 * netlink_get_neighbor_state() sends RTM_GETNEIGH and parses response.
+	 * If neighbor exists, its state will be returned. If not found, state is NUD_FAILED.
+	 *
+	 * Note: This is different from netlink_neigh_read_specific_ip() which relies on
+	 * passive kernel notifications via zsend_neighbor_notify() to registered clients.
+	 */
+ 	extern int netlink_get_neighbor_state(const struct ipaddr *ip,
+					       struct interface *vlan_if,
+					       int *ndm_state);
+
+ 	/* Query kernel and get neighbor state */
+ 	ret = netlink_get_neighbor_state(&api.ip_in, ifp, &ndm_state);
+
+ 	/* Actively send response to the requesting client */
+ 	sockunion_family(&ip) = ipaddr_family(&api.ip_in);
+ 	//afi = family2afi(sockunion_family(&ip));
+ 	memcpy((char *)sockunion_get_addr(&ip), &api.ip_in.ip.addr,
+ 	       family2addrsize(sockunion_family(&ip)));
+
+ 	s = stream_new(ZEBRA_MAX_PACKET_SIZ);
+ 	zclient_create_header(s, ZEBRA_NHRP_NEIGH_GET, ifp->vrf->vrf_id);
+ 	stream_putc(s, sockunion_family(&ip));
+ 	stream_write(s, sockunion_get_addr(&ip), sockunion_get_addrlen(&ip));
+ 	stream_putc(s, AF_UNSPEC);
+ 	stream_putl(s, ifp->ifindex);
+ 	stream_putl(s, ndm_state);
+
+ 	stream_putw_at(s, 0, stream_get_endp(s));
+ 	zserv_send_message(client, s);
+
+ 	if (IS_ZEBRA_DEBUG_PACKET)
+ 		zlog_debug("%s: Sent neighbor get response for %pIA on %s, state %u",
+			  __func__, &api.ip_in, ifp->name, ndm_state);
+ }
+
 static inline void zebra_gre_get(ZAPI_HANDLER_ARGS)
 {
 	struct stream *s;
@@ -4139,6 +4236,7 @@ void (*const zserv_handlers[])(ZAPI_HANDLER_ARGS) = {
 	[ZEBRA_NEIGH_IP_DEL] = zebra_neigh_ip_del,
 	[ZEBRA_NHRP_NEIGH_REGISTER] = zebra_neigh_register,
 	[ZEBRA_NHRP_NEIGH_UNREGISTER] = zebra_neigh_unregister,
+	[ZEBRA_NHRP_NEIGH_GET] = zebra_neigh_get,
 	[ZEBRA_CONFIGURE_ARP] = zebra_configure_arp,
 	[ZEBRA_GRE_GET] = zebra_gre_get,
 	[ZEBRA_GRE_SOURCE_SET] = zebra_gre_source_set

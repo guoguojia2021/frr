@@ -4332,6 +4332,77 @@ static int netlink_request_specific_neigh_in_vlan(struct zebra_ns *zns,
 	return netlink_request(&zns->netlink_cmd, &req);
 }
 
+/*
+  * Global variable to store the result of neighbor query.
+  * Used by netlink_neigh_table_query to pass the state back to the caller.
+  */
+ static int query_result_state = NUD_FAILED;
+
+ /*
+  * Callback for netlink_parse_info when processing neighbor query.
+  * Extracts neighbor state from kernel response.
+  */
+ static int netlink_neigh_table_query(struct nlmsghdr *h, ns_id_t ns_id,
+				      int startup)
+ {
+ 	if (h->nlmsg_type == RTM_NEWNEIGH) {
+ 		struct ndmsg *ndm = NLMSG_DATA(h);
+ 		if (ndm)
+ 			query_result_state = ndm->ndm_state;
+ 	}
+ 	return 0;
+ }
+
+ /*
+  * Query kernel for specific neighbor status and return the state.
+  * Unlike netlink_neigh_read_specific_ip(), this function returns the
+  * neighbor state directly without triggering notifications to clients.
+  *
+  * Returns:
+  *   0 if query completed successfully
+  *   -1 if query failed
+  *
+  * The ndm_state parameter is set to:
+  *   - The actual neighbor state if neighbor exists in kernel
+  *   - NUD_FAILED if neighbor does not exist
+  */
+ int netlink_get_neighbor_state(const struct ipaddr *ip,
+				struct interface *vlan_if,
+				int *ndm_state)
+ {
+ 	int ret;
+ 	struct zebra_ns *zns;
+ 	struct zebra_vrf *zvrf = vlan_if->vrf->info;
+ 	struct zebra_dplane_info dp_info;
+
+ 	zns = zvrf->zns;
+ 	query_result_state = NUD_FAILED;
+ 	*ndm_state = NUD_FAILED;
+
+ 	if (IS_ZEBRA_DEBUG_KERNEL)
+ 		zlog_debug("%s: neigh query IF %s(%u) IP %pIA vrf %s(%u)",
+			   __func__, vlan_if->name, vlan_if->ifindex, ip,
+			   vlan_if->vrf->name, vlan_if->vrf->vrf_id);
+
+ 	zebra_dplane_info_from_zns(&dp_info, zns, true);
+
+ 	ret = netlink_request_specific_neigh_in_vlan(zns, RTM_GETNEIGH, ip,
+						    vlan_if->ifindex);
+ 	if (ret < 0)
+ 		return ret;
+
+ 	/* Parse kernel response */
+ 	ret = netlink_parse_info(netlink_neigh_table_query, &zns->netlink_cmd,
+				 &dp_info, 1, false);
+
+ 	*ndm_state = query_result_state;
+
+ 	if (IS_ZEBRA_DEBUG_KERNEL)
+ 		zlog_debug("%s: neighbor state result: %u", __func__, *ndm_state);
+
+ 	return ret;
+ }
+
 int netlink_neigh_read_specific_ip(const struct ipaddr *ip,
 				   struct interface *vlan_if)
 {
