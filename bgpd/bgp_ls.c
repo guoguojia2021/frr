@@ -690,6 +690,31 @@ done:
  *
  * @return true on success, false on failure
  */
+/*
+ * Timer callback: retry link-state sync request periodically until cancelled.
+ * This handles race conditions where ISIS may not be ready when BGP first
+ * registers (e.g., ISIS not started yet, or mpls-te export not configured).
+ */
+static int bgp_ls_sync_retry_timer(struct thread *thread)
+{
+	struct bgp *bgp = THREAD_ARG(thread);
+
+	if (!bgp || !bgp->ls_info || !bgp->ls_info->registered_ls_db)
+		return 0;
+
+	if (ls_request_sync(zclient) != 0)
+		zlog_warn("BGP-LS: Failed to request Link State sync (retry)");
+	else if (BGP_DEBUG(zebra, ZEBRA) || BGP_DEBUG(linkstate, LINKSTATE))
+		zlog_debug("BGP-LS: Sent Link State sync request (retry)");
+
+	/* Re-arm timer for next retry */
+	thread_add_timer(bm->master, bgp_ls_sync_retry_timer, bgp,
+			 BGP_LS_SYNC_RETRY_INTERVAL,
+			 &bgp->ls_info->t_ls_sync);
+
+	return 0;
+}
+
 bool bgp_ls_register(struct bgp *bgp)
 {
 	/* Already registered */
@@ -701,9 +726,14 @@ bool bgp_ls_register(struct bgp *bgp)
 		return false;
 	}
 
-	/* Request initial TED with SYNC message */
-    if (ls_request_sync(zclient) != 0)
-        zlog_warn("BGP-LS: Failed to request Link State sync");
+	/* Request initial TED synchronization from IGP */
+	if (ls_request_sync(zclient) != 0)
+		zlog_warn("BGP-LS: Failed to request initial Link State sync");
+
+	/* Start periodic retry timer to handle race conditions */
+	thread_add_timer(bm->master, bgp_ls_sync_retry_timer, bgp,
+			 BGP_LS_SYNC_RETRY_INTERVAL,
+			 &bgp->ls_info->t_ls_sync);
 
 	bgp->ls_info->registered_ls_db = true;
 
@@ -722,6 +752,9 @@ bool bgp_ls_unregister(struct bgp *bgp)
 	/* Not registered */
 	if (!bgp_ls_is_registered(bgp))
 		return true;
+
+	/* Cancel sync retry timer */
+	THREAD_OFF(bgp->ls_info->t_ls_sync);
 
 	if (ls_unregister(zclient, false) != 0) {
 		zlog_err("BGP-LS: Failed to unregister from Link State database");

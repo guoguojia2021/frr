@@ -11,6 +11,10 @@
 #include "bgpd/bgp_ls_nlri.h"
 
 extern struct zclient *zclient;
+
+/* Timeout in seconds between link-state sync retry requests */
+#define BGP_LS_SYNC_RETRY_INTERVAL 5
+
 struct bgp_ls {
 	/* Back-pointer to parent BGP instance */
 	struct bgp *bgp;
@@ -29,6 +33,9 @@ struct bgp_ls {
 
 	/* Link-state database registration status */
 	bool registered_ls_db;
+
+	/* Link-state sync retry timer */
+	struct thread *t_ls_sync;
 };
 
 /* Function prototypes */
