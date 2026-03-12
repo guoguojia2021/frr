@@ -701,6 +701,10 @@ bool bgp_ls_register(struct bgp *bgp)
 		return false;
 	}
 
+	/* Request initial TED with SYNC message */
+    if (ls_request_sync(zclient) != 0)
+        zlog_warn("BGP-LS: Failed to request Link State sync");
+
 	bgp->ls_info->registered_ls_db = true;
 
 	zlog_info("BGP-LS: Registered with Link State database for BGP instance %s",
