@@ -475,7 +475,7 @@ int bgp_ls_update(struct bgp *bgp, struct bgp_ls_nlri *nlri, struct bgp_ls_attr 
 	dest->ls_nlri = ls_nlri;
 
 	/* Make default attribute. */
-	bgp_attr_default_set(&attr, BGP_ORIGIN_INCOMPLETE);
+	bgp_attr_default_set(&attr, BGP_ORIGIN_IGP);
 
 	attr_new = bgp_attr_intern(&attr);
 
