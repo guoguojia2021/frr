@@ -928,6 +928,7 @@ int bgp_ls_process_vertex(struct bgp *bgp, struct ls_vertex *vertex, uint8_t eve
 	}
 
 	switch (event) {
+	case LS_MSG_EVENT_SYNC:
 	case LS_MSG_EVENT_ADD:
 	case LS_MSG_EVENT_UPDATE:
 		return bgp_ls_originate_node(bgp, protocol_id, router_id, router_id_len, area_id,
@@ -1021,6 +1022,7 @@ int bgp_ls_process_edge(struct bgp *bgp, struct ls_edge *edge, uint8_t event)
 	}
 
 	switch (event) {
+	case LS_MSG_EVENT_SYNC:
 	case LS_MSG_EVENT_ADD:
 	case LS_MSG_EVENT_UPDATE:
 		return bgp_ls_originate_link(bgp, protocol_id, local_router_id,
@@ -1083,6 +1085,7 @@ int bgp_ls_process_subnet(struct bgp *bgp, struct ls_subnet *subnet, uint8_t eve
 	}
 
 	switch (event) {
+	case LS_MSG_EVENT_SYNC:
 	case LS_MSG_EVENT_ADD:
 	case LS_MSG_EVENT_UPDATE:
 		return bgp_ls_originate_prefix(bgp, protocol_id, router_id, router_id_len,
