@@ -593,17 +593,22 @@ void zebra_nhg_segment_depends(struct nhg_hash_entry *nhe,
 
 /* Init an nhe, for use in a hash lookup for example */
 void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
-		    const struct nexthop *nh)
+		    struct nexthop *nh)
 {
 	memset(nhe, 0, sizeof(struct nhg_hash_entry));
 	nhe->vrf_id = VRF_DEFAULT;
 	nhe->type = ZEBRA_ROUTE_NHG;
 	nhe->afi = AFI_UNSPEC;
+	struct nexthop *nexthop = NULL;
+	struct zebra_sr_policy *policy = NULL;
 
 	/* There are some special rules that apply to groups representing
 	 * a single nexthop.
 	 */
-	if (nh && (nh->next == NULL)) {
+	if (nh == NULL)
+		return;
+
+	if (nh->next == NULL) {
 		switch (nh->type) {
 		case NEXTHOP_TYPE_IFINDEX:
 		case NEXTHOP_TYPE_BLACKHOLE:
@@ -627,15 +632,19 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
 			nhe->afi = AFI_IP6;
 			break;
+
+		default:
+			break;
 		}
 	}
 
-	if (nh && (nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST || nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)) {
+	if ((nh->type == NEXTHOP_TYPE_IPV4_SEGMENTLIST || nh->type == NEXTHOP_TYPE_IPV6_SEGMENTLIST)) {
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
 	}
 
-	if (nh && nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
+	if (nh->nh_srv6 && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_SRV6_RVIP))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
 
 	/*
@@ -643,8 +652,32 @@ void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
 	 * so ifindex=0. Skip kernel nexthop installation since hardware
 	 * supports this redirect directly.
 	 */
-	if (nh && CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT))
+	if (CHECK_FLAG(nh->alibgp_flags, NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_KERNEL_BYPASS);
+
+	for (nexthop = nh; nexthop; nexthop = nexthop->next) {
+		switch(nexthop->type) {
+		case NEXTHOP_TYPE_IFINDEX:
+		case NEXTHOP_TYPE_IPV4:
+		case NEXTHOP_TYPE_IPV4_IFINDEX:
+		case NEXTHOP_TYPE_IPV6:
+		case NEXTHOP_TYPE_IPV6_IFINDEX:
+		case NEXTHOP_TYPE_BLACKHOLE:
+			break;
+		case NEXTHOP_TYPE_IPV4_SEGMENTLIST:
+		case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
+			policy = zebra_sr_policy_match_by_nexthop(nexthop);
+			if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
+				if (CHECK_FLAG(policy->flags, ZEBRA_SR_POLICY_FLAG_COLOR_ONLY))
+					SET_FLAG(nexthop->flags, NEXTHOP_FLAG_COLOR_ONLY);
+				else
+					UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
+				}
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 struct nhg_hash_entry *zebra_nhg_alloc(void)
@@ -1005,6 +1038,7 @@ struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop
 
 	struct prefix endpoint = {0};
 	struct zebra_sr_policy *policy = NULL;
+	afi_t afi = AFI_UNSPEC;
 
 	if (nexthop == NULL)
 		return NULL;
@@ -1017,6 +1051,7 @@ struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop
 		endpoint.family = AF_INET;
 		endpoint.prefixlen = IPV4_MAX_BITLEN;
 		endpoint.u.prefix4 = nexthop->gate.ipv4;
+		afi = AFI_IP;
 		break;
 
 	case NEXTHOP_TYPE_IPV6_SEGMENTLIST:
@@ -1030,6 +1065,7 @@ struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop
 			endpoint.prefixlen = IPV6_MAX_BITLEN;
 			endpoint.u.prefix6 = nexthop->gate.ipv6;
 		}
+		afi = AFI_IP6;
 		break;
 	default:
 		flog_err(EC_LIB_DEVELOPMENT,
@@ -1037,18 +1073,9 @@ struct zebra_sr_policy *zebra_sr_policy_match_by_nexthop(struct nexthop *nexthop
 		return NULL;
 	}
 
-	if (nexthop->srte_color_flag == 0)
-		policy = zebra_sr_policy_lookup_by_prefix(&endpoint, nexthop->srte_color);
-	else if (nexthop->srte_color_flag == 1 || nexthop->srte_color_flag == 3)
-		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color);
-	else if (nexthop->srte_color_flag == 2) {
-		struct prefix endpoint = {0};
-		endpoint.family = AF_INET6;
-		policy = zebra_sr_policy_match_by_prefix(&endpoint, nexthop->srte_color);
-	}
-	if (policy && policy->status == ZEBRA_SR_POLICY_UP) {
+	policy = zebra_find_sr_policy_by_flag(&endpoint, afi, nexthop->srte_color, nexthop->srte_color_flag);
+	if (policy && policy->status == ZEBRA_SR_POLICY_UP)
 		return policy;
-	}
 	else
 		return NULL;
 }
@@ -1166,12 +1193,13 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 	zebra_nhg_segdepends_init(newnhe);
 	zebra_nhg_segdependents_init(newnhe);
 	nh = newnhe->nhg.nexthop;
-	if (CHECK_FLAG(newnhe->flags, NEXTHOP_GROUP_COLOR_ONLY))
-		color_only = true;
 	if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_ACTIVE))
 		SET_FLAG(newnhe->flags, NEXTHOP_GROUP_VALID);
 
 	if (nh->next == NULL && newnhe->id < ZEBRA_NHG_PROTO_LOWER) {
+		color_only = false;
+		if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_COLOR_ONLY))
+			color_only = true;
 		if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_RECURSIVE)) {
 			/* Single recursive nexthop */
 			handle_recursive_segdepend(&newnhe->nhg_segdepends,
@@ -1183,9 +1211,12 @@ static bool zebra_nhe_seg_find(struct nhg_hash_entry **nhe, /* return value */
 		/* Proto-owned are groups by default */
 		/* List of nexthops */
 		for (nh = lookup->nhg.nexthop; nh; nh = nh->next) {
+			color_only = false;
 			if (IS_ZEBRA_DEBUG_NHG_DETAIL)
 				zlog_debug("%s: depends NH %pNHv 0x%x",
 					   __func__, nh, nh->flags);
+			if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_COLOR_ONLY))
+				color_only = true;
 			if (CHECK_FLAG(nh->flags, NEXTHOP_FLAG_RECURSIVE))
 				segdepends_find_add(&newnhe->nhg_segdepends, nh, afi,
 						newnhe->type, from_dplane, pic, color_only);
@@ -3412,8 +3443,12 @@ static int nexthop_seg_active(struct nexthop *nexthop, struct nhg_hash_entry *nh
 
 			resolved = 0;
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST);
+
 			if (CHECK_FLAG(policy->flags, ZEBRA_SR_POLICY_FLAG_COLOR_ONLY))
-				SET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
+				SET_FLAG(nexthop->flags, NEXTHOP_FLAG_COLOR_ONLY);
+			else
+				UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
+
 			for (path_num = 0; path_num < policy->srv6_segment_list.path_num; path_num++) {
 				SET_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE);
 				if (CHECK_FLAG(policy->srv6_segment_list.sidlists[path_num].flags, SRV6_SID_LIST_HIDDEN)
@@ -3717,6 +3752,7 @@ static uint32_t nexthop_list_active_update(struct route_node *rn,
 
 	/* Init recursive nh mtu */
 	re->nexthop_mtu = 0;
+	SET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
 
 	/* Process nexthops one-by-one */
 	for ( ; nexthop; nexthop = nexthop->next) {
@@ -3731,6 +3767,10 @@ static uint32_t nexthop_list_active_update(struct route_node *rn,
 		/* Include the containing nhe for primary nexthops: if there's
 		 * recursive resolution, we capture the backup info also.
 		 */
+		if (nexthop->type != NEXTHOP_TYPE_IPV4_SEGMENTLIST
+			&& nexthop->type != NEXTHOP_TYPE_IPV6_SEGMENTLIST)
+			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
+
 		new_active =
 			nexthop_active_check(rn, re, nexthop,
 					     (is_backup ? NULL : nhe));

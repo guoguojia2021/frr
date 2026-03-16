@@ -102,6 +102,7 @@ struct nexthop {
 #define NEXTHOP_FLAG_IS_BACKUP    (1 << 9)
 #define NEXTHOP_FLAG_IS_HIDDEN    (1 << 10)
 #define NEXTHOP_FLAG_SRV6_BSID    (1 << 11)
+#define NEXTHOP_FLAG_COLOR_ONLY	  (1 << 12) /* Nexthop is only used for SR-TE policy color matching, not for forwarding */
 
 #define NEXTHOP_IS_ACTIVE(flags)                                               \
 	(CHECK_FLAG(flags, NEXTHOP_FLAG_ACTIVE)                                \

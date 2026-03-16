@@ -1789,6 +1789,12 @@ static void show_nexthop_group_out(struct vty *vty, struct nhg_hash_entry *nhe,
 			else
 				vty_out(vty, ", Installed");
 		}
+		if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY)) {
+			if (json)
+				json_object_boolean_true_add(json, "colorOnly");
+			else
+				vty_out(vty, ", Color-Only");
+		}
 		if (!json)
 			vty_out(vty, "\n");
 	}

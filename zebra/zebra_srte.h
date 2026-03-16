@@ -121,7 +121,7 @@ extern void zebra_bsid_route_del(struct zebra_sr_policy *policy,
 						struct zapi_sr_policy *zp,
 						enum seg6local_action_t act,
 						struct seg6local_context *ctx);
-
+extern struct zebra_sr_policy *zebra_find_sr_policy_by_flag(struct prefix *p, afi_t afi, uint32_t color, uint8_t color_flag);
 #ifdef __cplusplus
 }
 #endif

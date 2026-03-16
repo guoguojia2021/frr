@@ -1494,6 +1494,30 @@ void zebra_binding_sid_route_del(struct zebra_sr_policy *policy, struct zapi_sr_
 	zebra_bsid_route_del(policy, zp, ZEBRA_SEG6_LOCAL_ACTION_END_B6_ENCAP, &ctx);
 }
 
+/* Helper function to find SR policy based on the given prefix, color and flag */
+struct zebra_sr_policy *zebra_find_sr_policy_by_flag(struct prefix *p, afi_t afi, uint32_t color, uint8_t color_flag)
+{
+	struct zebra_sr_policy *policy = NULL;
+
+	if (color_flag == ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH) {
+		policy = zebra_sr_policy_lookup_by_prefix(p, color);
+		if (!policy || policy->status != ZEBRA_SR_POLICY_UP)
+			policy = NULL;
+	}
+	else if (color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH)
+		policy = zebra_sr_policy_match_by_prefix(p, color);
+	else if (color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH) {
+		struct prefix endpoint = {0};
+		if (afi == AFI_IP)
+			endpoint.family = AF_INET;
+		else if (afi == AFI_IP6)
+			endpoint.family = AF_INET6;
+
+		policy = zebra_sr_policy_match_by_prefix(&endpoint, color);
+	}
+
+	return policy;
+}
 
 void zebra_srte_init(void)
 {

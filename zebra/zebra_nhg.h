@@ -253,7 +253,7 @@ void zebra_nhg_hash_free(void *p);
  * variant also.
  */
 void zebra_nhe_init(struct nhg_hash_entry *nhe, afi_t afi,
-		    const struct nexthop *nh);
+		    struct nexthop *nh);
 
 /*
  * Shallow copy of 'orig', into new/allocated nhe.

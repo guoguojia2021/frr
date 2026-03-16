@@ -1022,34 +1022,8 @@ void zebra_evaluate_rnh_by_srte(afi_t afi,
 	struct zebra_sr_policy *backup_policy = NULL;
 	struct route_node *nrn = rnh->node;
 
-	if (rnh->srte_color_flag == ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH) {
-		policy = zebra_sr_policy_lookup_by_prefix(&nrn->p, rnh->srte_color);
-		if (!policy || policy->status != ZEBRA_SR_POLICY_UP)
-			policy = NULL;
-	}
-	else if (rnh->srte_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH)
-		policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_color);
-	else if (rnh->srte_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH) {
-		struct prefix endpoint = {0};
-		endpoint.family = AF_INET6;
-		policy = zebra_sr_policy_match_by_prefix(&endpoint, rnh->srte_color);
-	}
-
-	if (rnh->srte_backup_color != 0) {
-		if (rnh->srte_backup_color_flag == ZEBRA_NHT_TYPE_SRTE_EXTRA_MATCH) {
-			backup_policy = zebra_sr_policy_lookup_by_prefix(&nrn->p, rnh->srte_backup_color);
-			if (!backup_policy || backup_policy->status != ZEBRA_SR_POLICY_UP)
-				backup_policy = NULL;
-		}
-		else if (rnh->srte_backup_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_DEFAULT_MATCH)
-			backup_policy = zebra_sr_policy_match_by_prefix(&nrn->p, rnh->srte_backup_color);
-		else if (rnh->srte_backup_color_flag == ZEBRA_NHT_TYPE_SRTE_VIA_NULL_MATCH) {
-			struct prefix endpoint = {0};
-			endpoint.family = AF_INET6;
-			backup_policy = zebra_sr_policy_match_by_prefix(&endpoint, rnh->srte_backup_color);
-		}
-	}
-
+	policy = zebra_find_sr_policy_by_flag(&nrn->p, afi, rnh->srte_color, rnh->srte_color_flag);
+	backup_policy = zebra_find_sr_policy_by_flag(&nrn->p, afi, rnh->srte_backup_color, rnh->srte_backup_color_flag);
 	/* If the entry cannot be resolved and that is also the existing state,
 	 * there is nothing further to do.
 	 */
