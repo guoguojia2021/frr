@@ -206,7 +206,7 @@ void isis_link_params_update(struct isis_circuit *circuit,
 	ext = circuit->ext;
 
 	/* Fulfill Extended subTLVs from interface link parameters */
-	if (HAS_LINK_PARAMS(ifp) || circuit->area->advertise_link_attributes) {
+	if (HAS_LINK_PARAMS(ifp)) {
 		/* STD_TE metrics */
 		if (IS_PARAM_SET(ifp->link_params, LP_ADM_GRP)) {
 			ext->adm_group = ifp->link_params->admin_grp;
