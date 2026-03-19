@@ -277,7 +277,6 @@ int bgp_ls_attr_cmp(const struct bgp_ls_attr *attr1, const struct bgp_ls_attr *a
 	if (attr1->present_tlvs != attr2->present_tlvs)
 		return attr1->present_tlvs - attr2->present_tlvs;
 
-	/* Node Attributes */
 	if (BGP_LS_TLV_CHECK(attr1->present_tlvs, BGP_LS_ATTR_NODE_FLAGS_BIT)) {
 		if (attr1->node_flags != attr2->node_flags)
 			return attr1->node_flags - attr2->node_flags;
@@ -297,19 +296,6 @@ int bgp_ls_attr_cmp(const struct bgp_ls_attr *attr1, const struct bgp_ls_attr *a
 			return ret;
 	}
 
-	if (BGP_LS_TLV_CHECK(attr1->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_BIT)) {
-		ret = IPV4_ADDR_CMP(&attr1->ipv4_router_id, &attr2->ipv4_router_id);
-		if (ret != 0)
-			return ret;
-	}
-
-	if (BGP_LS_TLV_CHECK(attr1->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_BIT)) {
-		ret = IPV6_ADDR_CMP(&attr1->ipv6_router_id, &attr2->ipv6_router_id);
-		if (ret != 0)
-			return ret;
-	}
-
-	/* Link Attributes */
 	if (BGP_LS_TLV_CHECK(attr1->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT)) {
 		ret = IPV4_ADDR_CMP(&attr1->ipv4_router_id_local, &attr2->ipv4_router_id_local);
 		if (ret != 0)
@@ -399,7 +385,6 @@ int bgp_ls_attr_cmp(const struct bgp_ls_attr *attr1, const struct bgp_ls_attr *a
 			return ret;
 	}
 
-	/* Prefix Attributes */
 	if (BGP_LS_TLV_CHECK(attr1->present_tlvs, BGP_LS_ATTR_IGP_FLAGS_BIT)) {
 		if (attr1->igp_flags != attr2->igp_flags)
 			return attr1->igp_flags - attr2->igp_flags;
@@ -437,7 +422,6 @@ int bgp_ls_attr_cmp(const struct bgp_ls_attr *attr1, const struct bgp_ls_attr *a
 			return ret;
 	}
 
-	/* Common Attributes - Opaque Data */
 	if (attr1->opaque_len != attr2->opaque_len)
 		return attr1->opaque_len - attr2->opaque_len;
 	if (attr1->opaque_len > 0) {
@@ -446,7 +430,6 @@ int bgp_ls_attr_cmp(const struct bgp_ls_attr *attr1, const struct bgp_ls_attr *a
 			return ret;
 	}
 
-	/* Multi-Topology IDs (shared by node attributes) */
 	if (attr1->mt_id_count != attr2->mt_id_count)
 		return attr1->mt_id_count - attr2->mt_id_count;
 	for (int i = 0; i < attr1->mt_id_count; i++) {
@@ -1017,6 +1000,26 @@ const char *bgp_ls_ospf_route_type_str(enum bgp_ls_ospf_route_type route_type)
 	return "Unknown";
 }
 
+const char *bgp_ls_ospf_route_type_str_json(enum bgp_ls_ospf_route_type route_type)
+{
+	switch (route_type) {
+	case BGP_LS_OSPF_RT_INTRA_AREA:
+		return "intraArea";
+	case BGP_LS_OSPF_RT_INTER_AREA:
+		return "interArea";
+	case BGP_LS_OSPF_RT_EXTERNAL_1:
+		return "externalType1";
+	case BGP_LS_OSPF_RT_EXTERNAL_2:
+		return "externalType2";
+	case BGP_LS_OSPF_RT_NSSA_1:
+		return "nssaType1";
+	case BGP_LS_OSPF_RT_NSSA_2:
+		return "nssaType2";
+	}
+
+	return "Unknown";
+}
+
 /*
  * ===========================================================================
  * Hash Key Functions
@@ -1156,7 +1159,6 @@ unsigned int bgp_ls_attr_hash_key(const struct bgp_ls_attr *attr)
 	key = jhash_1word((uint32_t)(attr->present_tlvs >> 32), key);
 	key = jhash_1word((uint32_t)attr->present_tlvs, key);
 
-	/* Node Attributes */
 	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_NODE_FLAGS_BIT))
 		key = jhash_1word(attr->node_flags, key);
 
@@ -1166,13 +1168,6 @@ unsigned int bgp_ls_attr_hash_key(const struct bgp_ls_attr *attr)
 	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_ISIS_AREA_BIT))
 		key = jhash(attr->isis_area_id, attr->isis_area_id_len, key);
 
-	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_BIT))
-		key = jhash_1word(attr->ipv4_router_id.s_addr, key);
-
-	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_BIT))
-		key = jhash(&attr->ipv6_router_id, sizeof(struct in6_addr), key);
-
-	/* Link Attributes */
 	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT))
 		key = jhash_1word(attr->ipv4_router_id_local.s_addr, key);
 
@@ -1225,7 +1220,6 @@ unsigned int bgp_ls_attr_hash_key(const struct bgp_ls_attr *attr)
 	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_LINK_NAME_BIT))
 		key = jhash(attr->link_name, strlen(attr->link_name), key);
 
-	/* Prefix Attributes */
 	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IGP_FLAGS_BIT))
 		key = jhash_1word(attr->igp_flags, key);
 
@@ -1249,11 +1243,9 @@ unsigned int bgp_ls_attr_hash_key(const struct bgp_ls_attr *attr)
 		key = jhash(&attr->ospf_fwd_addr6, sizeof(struct in6_addr), key);
 	}
 
-	/* Common Attributes - Opaque Data */
 	if (attr->opaque_len > 0)
 		key = jhash(attr->opaque_data, attr->opaque_len, key);
 
-	/* Multi-Topology IDs */
 	for (int i = 0; i < attr->mt_id_count; i++)
 		key = jhash_1word(attr->mt_id[i], key);
 
@@ -1274,7 +1266,6 @@ int bgp_ls_nlri_hash_cmp(const struct bgp_ls_nlri *n1, const struct bgp_ls_nlri 
 {
 	return bgp_ls_nlri_cmp(n1, n2);
 }
-
 
 /*
  * Hash table comparison function for BGP-LS attributes
@@ -1487,6 +1478,19 @@ static inline int stream_put_tlv(struct stream *s, uint16_t type, uint16_t lengt
 			return -1;
 		stream_put(s, value, length);
 	}
+
+	return 0;
+}
+
+static inline int stream_putf_tlv(struct stream *s, uint16_t type, const float value)
+{
+	if (stream_put_tlv_hdr(s, type, 4) < 0)
+		return -1;
+
+	if (STREAM_WRITEABLE(s) < 4)
+		return -1;
+
+	stream_putf(s, value);
 
 	return 0;
 }
@@ -1964,25 +1968,20 @@ int bgp_ls_encode_nlri(struct stream *s, const struct bgp_ls_nlri *nlri)
 int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 {
 	size_t start_pos;
-	uint32_t present;
 
 	if (!s || !attr)
 		return -1;
 
 	start_pos = stream_get_endp(s);
-	present = attr->present_tlvs;
-
-
-	/* Node attributes */
 
 	/* Node Flag Bits (TLV 1024) */
-	if (present & (1 << BGP_LS_ATTR_NODE_FLAGS_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_NODE_FLAGS_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_NODE_FLAG_BITS, 1, &attr->node_flags) < 0)
 			return -1;
 	}
 
 	/* Node Name (TLV 1026) */
-	if (present & (1 << BGP_LS_ATTR_NODE_NAME_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_NODE_NAME_BIT)) {
 		if (attr->node_name) {
 			uint16_t len = strlen(attr->node_name);
 
@@ -1992,7 +1991,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* IS-IS Area Identifier (TLV 1027) */
-	if (present & (1 << BGP_LS_ATTR_ISIS_AREA_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_ISIS_AREA_BIT)) {
 		if (attr->isis_area_id && attr->isis_area_id_len > 0) {
 			if (stream_put_tlv(s, BGP_LS_ATTR_ISIS_AREA_ID, attr->isis_area_id_len,
 					   attr->isis_area_id) < 0)
@@ -2000,51 +1999,36 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 		}
 	}
 
-	/* IPv4 Router-ID (TLV 1028) */
-	if (present & (1 << BGP_LS_ATTR_IPV4_ROUTER_ID_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_IPV4_ROUTER_ID, 4, &attr->ipv4_router_id) < 0)
-			return -1;
-	}
-
-	/* IPv6 Router-ID (TLV 1029) */
-	if (present & (1 << BGP_LS_ATTR_IPV6_ROUTER_ID_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_IPV6_ROUTER_ID, 16, &attr->ipv6_router_id) < 0)
-			return -1;
-	}
-
-
-	/* Link attributes */
-
 	/* IPv4 Router-ID of Local Node (TLV 1028) */
-	if (present & (1 << BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL, 4,
 				   &attr->ipv4_router_id_local) < 0)
 			return -1;
 	}
 
 	/* IPv6 Router-ID of Local Node (TLV 1029) */
-	if (present & (1 << BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL, 16,
 				   &attr->ipv6_router_id_local) < 0)
 			return -1;
 	}
 
 	/* IPv4 Router-ID of Remote Node (TLV 1030) */
-	if (present & (1 << BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE, 4,
 				   &attr->ipv4_router_id_remote) < 0)
 			return -1;
 	}
 
 	/* IPv6 Router-ID of Remote Node (TLV 1031) */
-	if (present & (1 << BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE, 16,
 				   &attr->ipv6_router_id_remote) < 0)
 			return -1;
 	}
 
 	/* Administrative Group (TLV 1088) */
-	if (present & (1 << BGP_LS_ATTR_ADMIN_GROUP_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_ADMIN_GROUP_BIT)) {
 		uint32_t admin_group_be = htonl(attr->admin_group);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_ADMIN_GROUP, 4, &admin_group_be) < 0)
@@ -2052,30 +2036,30 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Maximum Link Bandwidth (TLV 1089) - IEEE 754 floating point */
-	if (present & (1 << BGP_LS_ATTR_MAX_LINK_BW_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_MAX_LINK_BW, 4, &attr->max_link_bw) < 0)
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_MAX_LINK_BW_BIT)) {
+		if (stream_putf_tlv(s, BGP_LS_ATTR_MAX_LINK_BW, attr->max_link_bw) < 0)
 			return -1;
 	}
 
 	/* Maximum Reservable Bandwidth (TLV 1090) */
-	if (present & (1 << BGP_LS_ATTR_MAX_RESV_BW_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_MAX_RESV_BW, 4, &attr->max_resv_bw) < 0)
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_MAX_RESV_BW_BIT)) {
+		if (stream_putf_tlv(s, BGP_LS_ATTR_MAX_RESV_BW, attr->max_resv_bw) < 0)
 			return -1;
 	}
 
 	/* Unreserved Bandwidth (TLV 1091) - 8 priority levels */
-	if (present & (1 << BGP_LS_ATTR_UNRESV_BW_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_UNRESV_BW_BIT)) {
 		if (stream_put_tlv_hdr(s, BGP_LS_ATTR_UNRESV_BW, 32) < 0)
 			return -1;
 		for (int i = 0; i < BGP_LS_MAX_UNRESV_BW; i++) {
 			if (STREAM_WRITEABLE(s) < 4)
 				return -1;
-			stream_put(s, &attr->unreserved_bw[i], 4);
+			stream_putf(s, attr->unreserved_bw[i]);
 		}
 	}
 
 	/* TE Default Metric (TLV 1092) */
-	if (present & (1 << BGP_LS_ATTR_TE_METRIC_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_TE_METRIC_BIT)) {
 		uint32_t te_metric_be = htonl(attr->te_metric);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_TE_DEFAULT_METRIC, 4, &te_metric_be) < 0)
@@ -2083,7 +2067,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Link Protection Type (TLV 1093) */
-	if (present & (1 << BGP_LS_ATTR_LINK_PROTECTION_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_LINK_PROTECTION_BIT)) {
 		uint16_t protection_be = htons(attr->link_protection);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_LINK_PROTECTION_TYPE, 2, &protection_be) < 0)
@@ -2091,14 +2075,14 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* MPLS Protocol Mask (TLV 1094) */
-	if (present & (1 << BGP_LS_ATTR_MPLS_PROTOCOL_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_MPLS_PROTOCOL_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_MPLS_PROTOCOL_MASK, 1,
 				   &attr->mpls_protocol_mask) < 0)
 			return -1;
 	}
 
 	/* IGP Metric (TLV 1095) - Variable length 1-3 bytes */
-	if (present & (1 << BGP_LS_ATTR_IGP_METRIC_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IGP_METRIC_BIT)) {
 		uint8_t metric_buf[3];
 		uint8_t len = attr->igp_metric_len;
 
@@ -2120,7 +2104,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Shared Risk Link Group (TLV 1096) */
-	if (present & (1 << BGP_LS_ATTR_SRLG_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_SRLG_BIT)) {
 		if (attr->srlg_values && attr->srlg_count > 0) {
 			uint16_t srlg_len = attr->srlg_count * 4;
 
@@ -2137,7 +2121,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Link Name (TLV 1098) */
-	if (present & (1 << BGP_LS_ATTR_LINK_NAME_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_LINK_NAME_BIT)) {
 		if (attr->link_name) {
 			uint16_t len = strlen(attr->link_name);
 
@@ -2147,7 +2131,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Extended Admin Group (TLV 1173) */
-	if (present & (1 << BGP_LS_ATTR_EXT_ADMIN_GROUP_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_EXT_ADMIN_GROUP_BIT)) {
 		size_t nb_words = admin_group_nb_words(&attr->ext_admin_group);
 
 		if (nb_words > 0) {
@@ -2169,7 +2153,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Unidirectional Link Delay (TLV 1114) */
-	if (present & (1 << BGP_LS_ATTR_DELAY_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_DELAY_BIT)) {
 		uint32_t delay_be = htonl(attr->delay);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_LINK_DELAY, 4, &delay_be) < 0)
@@ -2177,7 +2161,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Min/Max Unidirectional Link Delay (TLV 1115) */
-	if (present & (1 << BGP_LS_ATTR_MIN_MAX_DELAY_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_MIN_MAX_DELAY_BIT)) {
 		uint32_t min_delay_be = htonl(attr->min_delay);
 		uint32_t max_delay_be = htonl(attr->max_delay);
 
@@ -2188,7 +2172,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Unidirectional Delay Variation (TLV 1116) */
-	if (present & (1 << BGP_LS_ATTR_JITTER_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_JITTER_BIT)) {
 		uint32_t jitter_be = htonl(attr->jitter);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_DELAY_VARIATION, 4, &jitter_be) <
@@ -2197,7 +2181,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Unidirectional Packet Loss (TLV 1117) */
-	if (present & (1 << BGP_LS_ATTR_PKT_LOSS_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_PKT_LOSS_BIT)) {
 		uint32_t pkt_loss_be = htonl(attr->pkt_loss);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_LINK_LOSS, 4, &pkt_loss_be) < 0)
@@ -2205,37 +2189,34 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Unidirectional Residual Bandwidth (TLV 1118) */
-	if (present & (1 << BGP_LS_ATTR_RESIDUAL_BW_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_RESIDUAL_BANDWIDTH, 4,
-				   &attr->residual_bw) < 0)
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_RESIDUAL_BW_BIT)) {
+		if (stream_putf_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_RESIDUAL_BANDWIDTH,
+				    attr->residual_bw) < 0)
 			return -1;
 	}
 
 	/* Unidirectional Available Bandwidth (TLV 1119) */
-	if (present & (1 << BGP_LS_ATTR_AVAILABLE_BW_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_AVAILABLE_BANDWIDTH, 4,
-				   &attr->available_bw) < 0)
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_AVAILABLE_BW_BIT)) {
+		if (stream_putf_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_AVAILABLE_BANDWIDTH,
+				    attr->available_bw) < 0)
 			return -1;
 	}
 
 	/* Unidirectional Utilized Bandwidth (TLV 1120) */
-	if (present & (1 << BGP_LS_ATTR_UTILIZED_BW_BIT)) {
-		if (stream_put_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_UTILIZED_BANDWIDTH, 4,
-				   &attr->utilized_bw) < 0)
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_UTILIZED_BW_BIT)) {
+		if (stream_putf_tlv(s, BGP_LS_ATTR_UNIDIRECTIONAL_UTILIZED_BANDWIDTH,
+				    attr->utilized_bw) < 0)
 			return -1;
 	}
 
-
-	/* Prefix attributes */
-
 	/* IGP Flags (TLV 1152) */
-	if (present & (1 << BGP_LS_ATTR_IGP_FLAGS_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_IGP_FLAGS_BIT)) {
 		if (stream_put_tlv(s, BGP_LS_ATTR_IGP_FLAGS, 1, &attr->igp_flags) < 0)
 			return -1;
 	}
 
 	/* Route Tags (TLV 1153) */
-	if (present & (1 << BGP_LS_ATTR_ROUTE_TAG_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_ROUTE_TAG_BIT)) {
 		if (attr->route_tags && attr->route_tag_count > 0) {
 			uint16_t tag_len = attr->route_tag_count * 4;
 
@@ -2252,7 +2233,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Extended Tags (TLV 1154) */
-	if (present & (1 << BGP_LS_ATTR_EXTENDED_TAG_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_EXTENDED_TAG_BIT)) {
 		if (attr->extended_tags && attr->extended_tag_count > 0) {
 			uint16_t tag_len = attr->extended_tag_count * 8;
 
@@ -2269,7 +2250,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* Prefix Metric (TLV 1155) */
-	if (present & (1 << BGP_LS_ATTR_PREFIX_METRIC_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_PREFIX_METRIC_BIT)) {
 		uint32_t metric_be = htonl(attr->prefix_metric);
 
 		if (stream_put_tlv(s, BGP_LS_ATTR_PREFIX_METRIC, 4, &metric_be) < 0)
@@ -2277,7 +2258,7 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 	}
 
 	/* OSPF Forwarding Address (TLV 1156) - IPv4 or IPv6 */
-	if (present & (1 << BGP_LS_ATTR_OSPF_FWD_ADDR_BIT)) {
+	if (BGP_LS_TLV_CHECK(attr->present_tlvs, BGP_LS_ATTR_OSPF_FWD_ADDR_BIT)) {
 		/* Check which address family is present */
 		if (attr->ospf_fwd_addr.s_addr != 0) {
 			/* IPv4 forwarding address */
@@ -2294,7 +2275,6 @@ int bgp_ls_encode_attr(struct stream *s, const struct bgp_ls_attr *attr)
 
 	return stream_get_endp(s) - start_pos;
 }
-
 
 /*
  * ===========================================================================
@@ -2419,7 +2399,7 @@ int bgp_ls_decode_node_descriptor(struct stream *s, struct bgp_ls_node_descripto
 			break;
 
 		case BGP_LS_TLV_IGP_ROUTER_ID:
-			/* Variable length: 4, 6, 7, or 8 bytes */
+			/* Variable length: 4 to 16 bytes */
 			if (sub_len < BGP_LS_IGP_ROUTER_ID_MIN_SIZE ||
 			    sub_len > BGP_LS_IGP_ROUTER_ID_MAX_SIZE) {
 				flog_warn(EC_BGP_LS_PACKET,
@@ -3113,7 +3093,7 @@ static int parse_node_flags(struct stream *s, uint16_t length, struct bgp_ls_att
 	}
 
 	attr->node_flags = stream_getc(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_NODE_FLAGS_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_NODE_FLAGS_BIT);
 
 	/* Skip any extra bytes */
 	if (length > 1)
@@ -3135,7 +3115,7 @@ static int parse_node_name(struct stream *s, uint16_t length, struct bgp_ls_attr
 	attr->node_name = XCALLOC(MTYPE_BGP_LS_ATTR, length + 1);
 	stream_get(attr->node_name, s, length);
 	attr->node_name[length] = '\0';
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_NODE_NAME_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_NODE_NAME_BIT);
 
 	return 0;
 }
@@ -3155,43 +3135,7 @@ static int parse_isis_area_id(struct stream *s, uint16_t length, struct bgp_ls_a
 	attr->isis_area_id = XCALLOC(MTYPE_BGP_LS_ATTR, length);
 	stream_get(attr->isis_area_id, s, length);
 	attr->isis_area_id_len = length;
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_ISIS_AREA_BIT);
-
-	return 0;
-}
-
-/*
- * Parse IPv4 Router-ID TLV (TLV 1028)
- * RFC 9552 Section 5.3.1.5
- */
-static int parse_ipv4_router_id(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
-{
-	if (length != 4) {
-		flog_warn(EC_BGP_UPDATE_RCV, "BGP-LS: Invalid IPv4 Router-ID length (%u bytes)",
-			  length);
-		return -1;
-	}
-
-	stream_get(&attr->ipv4_router_id, s, 4);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_IPV4_ROUTER_ID_BIT);
-
-	return 0;
-}
-
-/*
- * Parse IPv6 Router-ID TLV (TLV 1029)
- * RFC 9552 Section 5.3.1.4
- */
-static int parse_ipv6_router_id(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
-{
-	if (length != 16) {
-		flog_warn(EC_BGP_UPDATE_RCV, "BGP-LS: Invalid IPv6 Router-ID length (%u bytes)",
-			  length);
-		return -1;
-	}
-
-	stream_get(&attr->ipv6_router_id, s, 16);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_IPV6_ROUTER_ID_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_ISIS_AREA_BIT);
 
 	return 0;
 }
@@ -3209,7 +3153,7 @@ static int parse_admin_group(struct stream *s, uint16_t length, struct bgp_ls_at
 	}
 
 	attr->admin_group = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_ADMIN_GROUP_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_ADMIN_GROUP_BIT);
 
 	return 0;
 }
@@ -3231,7 +3175,7 @@ static int parse_max_link_bw(struct stream *s, uint16_t length, struct bgp_ls_at
 	/* Read as 32-bit IEEE floating point */
 	bw_bits = stream_getl(s);
 	memcpy(&attr->max_link_bw, &bw_bits, 4);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_MAX_LINK_BW_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_MAX_LINK_BW_BIT);
 
 	return 0;
 }
@@ -3252,7 +3196,7 @@ static int parse_max_resv_bw(struct stream *s, uint16_t length, struct bgp_ls_at
 
 	bw_bits = stream_getl(s);
 	memcpy(&attr->max_resv_bw, &bw_bits, 4);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_MAX_RESV_BW_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_MAX_RESV_BW_BIT);
 
 	return 0;
 }
@@ -3276,7 +3220,7 @@ static int parse_unresv_bw(struct stream *s, uint16_t length, struct bgp_ls_attr
 		bw_bits = stream_getl(s);
 		memcpy(&attr->unreserved_bw[i], &bw_bits, 4);
 	}
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_UNRESV_BW_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_UNRESV_BW_BIT);
 
 	return 0;
 }
@@ -3293,7 +3237,7 @@ static int parse_te_metric(struct stream *s, uint16_t length, struct bgp_ls_attr
 	}
 
 	attr->te_metric = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_TE_METRIC_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_TE_METRIC_BIT);
 
 	return 0;
 }
@@ -3314,7 +3258,7 @@ static int parse_igp_metric(struct stream *s, uint16_t length, struct bgp_ls_att
 	for (int i = 0; i < length; i++)
 		attr->igp_metric = (attr->igp_metric << 8) | stream_getc(s);
 	attr->igp_metric_len = length;
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_IGP_METRIC_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_IGP_METRIC_BIT);
 
 	return 0;
 }
@@ -3325,7 +3269,7 @@ static int parse_igp_metric(struct stream *s, uint16_t length, struct bgp_ls_att
  */
 static int parse_srlg(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
 {
-	uint8_t count;
+	uint16_t count;
 	int i;
 
 	if (length % 4 != 0) {
@@ -3344,7 +3288,7 @@ static int parse_srlg(struct stream *s, uint16_t length, struct bgp_ls_attr *att
 	for (i = 0; i < count; i++)
 		attr->srlg_values[i] = stream_getl(s);
 	attr->srlg_count = count;
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_SRLG_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_SRLG_BIT);
 
 	return 0;
 }
@@ -3361,7 +3305,7 @@ static int parse_link_name(struct stream *s, uint16_t length, struct bgp_ls_attr
 	attr->link_name = XCALLOC(MTYPE_BGP_LS_ATTR, length + 1);
 	stream_get(attr->link_name, s, length);
 	attr->link_name[length] = '\0';
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_LINK_NAME_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_LINK_NAME_BIT);
 
 	return 0;
 }
@@ -3388,7 +3332,7 @@ static int parse_ext_admin_group(struct stream *s, uint16_t length, struct bgp_l
 		admin_group_bulk_set(&attr->ext_admin_group, word, i);
 	}
 
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_EXT_ADMIN_GROUP_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_EXT_ADMIN_GROUP_BIT);
 
 	return 0;
 }
@@ -3405,7 +3349,7 @@ static int parse_link_delay(struct stream *s, uint16_t length, struct bgp_ls_att
 	}
 
 	attr->delay = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_DELAY_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_DELAY_BIT);
 
 	return 0;
 }
@@ -3423,7 +3367,7 @@ static int parse_min_max_delay(struct stream *s, uint16_t length, struct bgp_ls_
 
 	attr->min_delay = stream_getl(s);
 	attr->max_delay = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_MIN_MAX_DELAY_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_MIN_MAX_DELAY_BIT);
 
 	return 0;
 }
@@ -3440,7 +3384,7 @@ static int parse_link_jitter(struct stream *s, uint16_t length, struct bgp_ls_at
 	}
 
 	attr->jitter = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_JITTER_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_JITTER_BIT);
 
 	return 0;
 }
@@ -3457,7 +3401,7 @@ static int parse_packet_loss(struct stream *s, uint16_t length, struct bgp_ls_at
 	}
 
 	attr->pkt_loss = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_PKT_LOSS_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_PKT_LOSS_BIT);
 
 	return 0;
 }
@@ -3474,7 +3418,7 @@ static int parse_residual_bw(struct stream *s, uint16_t length, struct bgp_ls_at
 	}
 
 	stream_get(&attr->residual_bw, s, 4);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_RESIDUAL_BW_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_RESIDUAL_BW_BIT);
 
 	return 0;
 }
@@ -3491,7 +3435,7 @@ static int parse_available_bw(struct stream *s, uint16_t length, struct bgp_ls_a
 	}
 
 	stream_get(&attr->available_bw, s, 4);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_AVAILABLE_BW_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_AVAILABLE_BW_BIT);
 
 	return 0;
 }
@@ -3508,7 +3452,7 @@ static int parse_utilized_bw(struct stream *s, uint16_t length, struct bgp_ls_at
 	}
 
 	stream_get(&attr->utilized_bw, s, 4);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_UTILIZED_BW_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_UTILIZED_BW_BIT);
 
 	return 0;
 }
@@ -3525,7 +3469,7 @@ static int parse_igp_flags(struct stream *s, uint16_t length, struct bgp_ls_attr
 	}
 
 	attr->igp_flags = stream_getc(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_IGP_FLAGS_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_IGP_FLAGS_BIT);
 
 	if (length > 1)
 		stream_forward_getp(s, length - 1);
@@ -3539,7 +3483,7 @@ static int parse_igp_flags(struct stream *s, uint16_t length, struct bgp_ls_attr
  */
 static int parse_route_tag(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
 {
-	uint8_t count;
+	uint16_t count;
 	int i;
 
 	if (length % 4 != 0) {
@@ -3558,7 +3502,7 @@ static int parse_route_tag(struct stream *s, uint16_t length, struct bgp_ls_attr
 	for (i = 0; i < count; i++)
 		attr->route_tags[i] = stream_getl(s);
 	attr->route_tag_count = count;
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_ROUTE_TAG_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_ROUTE_TAG_BIT);
 
 	return 0;
 }
@@ -3576,7 +3520,7 @@ static int parse_prefix_metric(struct stream *s, uint16_t length, struct bgp_ls_
 	}
 
 	attr->prefix_metric = stream_getl(s);
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_PREFIX_METRIC_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_PREFIX_METRIC_BIT);
 
 	return 0;
 }
@@ -3599,7 +3543,120 @@ static int parse_ospf_fwd_addr(struct stream *s, uint16_t length, struct bgp_ls_
 		return -1;
 	}
 
-	attr->present_tlvs |= (1 << BGP_LS_ATTR_OSPF_FWD_ADDR_BIT);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_OSPF_FWD_ADDR_BIT);
+	return 0;
+}
+
+/* Parse IPv4 Router-ID of Local Node (TLV 1028) */
+static int parse_ipv4_router_id_local(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	if (length != 4) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid IPv4 Router-ID Local length (%u bytes)", length);
+		return -1;
+	}
+
+	stream_get(&attr->ipv4_router_id_local, s, 4);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT);
+	return 0;
+}
+
+/* Parse IPv6 Router-ID of Local Node (TLV 1029) */
+static int parse_ipv6_router_id_local(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	if (length != 16) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid IPv6 Router-ID Local length (%u bytes)", length);
+		return -1;
+	}
+
+	stream_get(&attr->ipv6_router_id_local, s, 16);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL_BIT);
+	return 0;
+}
+
+/* Parse IPv4 Router-ID of Remote Node (TLV 1030) */
+static int parse_ipv4_router_id_remote(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	if (length != 4) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid IPv4 Router-ID Remote length (%u bytes)", length);
+		return -1;
+	}
+
+	stream_get(&attr->ipv4_router_id_remote, s, 4);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE_BIT);
+	return 0;
+}
+
+/* Parse IPv6 Router-ID of Remote Node (TLV 1031) */
+static int parse_ipv6_router_id_remote(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	if (length != 16) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid IPv6 Router-ID Remote length (%u bytes)", length);
+		return -1;
+	}
+
+	stream_get(&attr->ipv6_router_id_remote, s, 16);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE_BIT);
+	return 0;
+}
+
+/* Parse Link Protection Type (TLV 1093) */
+static int parse_link_protection(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	if (length != 2) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid Link Protection Type length (%u bytes)", length);
+		return -1;
+	}
+
+	attr->link_protection = stream_getw(s);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_LINK_PROTECTION_BIT);
+	return 0;
+}
+
+/* Parse MPLS Protocol Mask (TLV 1094) */
+static int parse_mpls_protocol_mask(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	if (length != 1) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid MPLS Protocol Mask length (%u bytes)", length);
+		return -1;
+	}
+
+	attr->mpls_protocol_mask = stream_getc(s);
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_MPLS_PROTOCOL_BIT);
+	return 0;
+}
+
+/* Parse Extended Tags (TLV 1154) */
+static int parse_extended_tag(struct stream *s, uint16_t length, struct bgp_ls_attr *attr)
+{
+	uint16_t count;
+
+	if (length % 8 != 0) {
+		flog_warn(EC_BGP_UPDATE_RCV,
+			  "BGP-LS: Invalid Extended Tag length (%u bytes, must be multiple of 8)",
+			  length);
+		return -1;
+	}
+
+	count = length / 8;
+	if (count > BGP_LS_MAX_ROUTE_TAGS) {
+		flog_warn(EC_BGP_UPDATE_RCV, "BGP-LS: Too many Extended Tags (%u, max %u)", count,
+			  BGP_LS_MAX_ROUTE_TAGS);
+		return -1;
+	}
+
+	attr->extended_tags = XCALLOC(MTYPE_BGP_LS_ATTR, count * sizeof(uint64_t));
+	attr->extended_tag_count = count;
+
+	for (uint16_t i = 0; i < count; i++)
+		attr->extended_tags[i] = stream_getq(s);
+
+	BGP_LS_TLV_SET(attr->present_tlvs, BGP_LS_ATTR_EXTENDED_TAG_BIT);
 	return 0;
 }
 
@@ -3638,13 +3695,23 @@ int bgp_ls_parse_attr(struct stream *s, uint16_t total_length, struct bgp_ls_att
 				return -1;
 			break;
 
-		case BGP_LS_ATTR_IPV4_ROUTER_ID:
-			if (parse_ipv4_router_id(s, length, attr) < 0)
+		case BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL:
+			if (parse_ipv4_router_id_local(s, length, attr) < 0)
 				return -1;
 			break;
 
-		case BGP_LS_ATTR_IPV6_ROUTER_ID:
-			if (parse_ipv6_router_id(s, length, attr) < 0)
+		case BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL:
+			if (parse_ipv6_router_id_local(s, length, attr) < 0)
+				return -1;
+			break;
+
+		case BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE:
+			if (parse_ipv4_router_id_remote(s, length, attr) < 0)
+				return -1;
+			break;
+
+		case BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE:
+			if (parse_ipv6_router_id_remote(s, length, attr) < 0)
 				return -1;
 			break;
 
@@ -3670,6 +3737,16 @@ int bgp_ls_parse_attr(struct stream *s, uint16_t total_length, struct bgp_ls_att
 
 		case BGP_LS_ATTR_TE_DEFAULT_METRIC:
 			if (parse_te_metric(s, length, attr) < 0)
+				return -1;
+			break;
+
+		case BGP_LS_ATTR_LINK_PROTECTION_TYPE:
+			if (parse_link_protection(s, length, attr) < 0)
+				return -1;
+			break;
+
+		case BGP_LS_ATTR_MPLS_PROTOCOL_MASK:
+			if (parse_mpls_protocol_mask(s, length, attr) < 0)
 				return -1;
 			break;
 
@@ -3738,6 +3815,11 @@ int bgp_ls_parse_attr(struct stream *s, uint16_t total_length, struct bgp_ls_att
 				return -1;
 			break;
 
+		case BGP_LS_ATTR_EXTENDED_TAG:
+			if (parse_extended_tag(s, length, attr) < 0)
+				return -1;
+			break;
+
 		case BGP_LS_ATTR_PREFIX_METRIC:
 			if (parse_prefix_metric(s, length, attr) < 0)
 				return -1;
@@ -3790,182 +3872,156 @@ void bgp_ls_attr_display(struct vty *vty, struct bgp_ls_attr *ls_attr)
 	/* Node Name */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_NODE_NAME_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Node Name: %s", ls_attr->node_name ? ls_attr->node_name : "(null)");
-		col += 11 + (ls_attr->node_name ? strlen(ls_attr->node_name) : 6);
+		col += vty_out(vty, "Node Name: %s",
+			       ls_attr->node_name ? ls_attr->node_name : "(null)");
 	}
 
 	/* Local TE Router-ID (IPv4) */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Local TE Router-ID: %pI4", &ls_attr->ipv4_router_id_local);
-		col += 35;
+		col += vty_out(vty, "Local TE Router-ID: %pI4", &ls_attr->ipv4_router_id_local);
 	}
 
 	/* Local TE Router-ID (IPv6) */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Local TE Router-ID: %pI6", &ls_attr->ipv6_router_id_local);
-		col += 60;
+		col += vty_out(vty, "Local TE Router-ID: %pI6", &ls_attr->ipv6_router_id_local);
 	}
 
 	/* Link bandwidth */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_MAX_LINK_BW_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Maximum Link BW (kbits/sec): %.0f", ls_attr->max_link_bw / 1000.0);
-		col += 35;
+		col += vty_out(vty, "Maximum Link BW (kbits/sec): %.0f",
+			       ls_attr->max_link_bw / 1000.0);
 	}
 
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_MAX_RESV_BW_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Maximum Reserv Link BW (kbits/sec): %.0f",
-			ls_attr->max_resv_bw / 1000.0);
-		col += 42;
+		col += vty_out(vty, "Maximum Reserv Link BW (kbits/sec): %.0f",
+			       ls_attr->max_resv_bw / 1000.0);
 	}
 
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_UNRESV_BW_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Maximum Unreserv Link BW (kbits/sec):");
+		col += vty_out(vty, "Maximum Unreserv Link BW (kbits/sec):");
 		for (int j = 0; j < 8; j++)
-			vty_out(vty, " %.0f", ls_attr->unreserved_bw[j] / 1000.0);
-		col += 34 + (8 * 12);
+			col += vty_out(vty, " %.0f", ls_attr->unreserved_bw[j] / 1000.0);
 	}
 
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_IGP_METRIC_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "metric: %u", ls_attr->igp_metric);
-		col += 15;
+		col += vty_out(vty, "metric: %u", ls_attr->igp_metric);
 	}
 
 	/* TE Default Metric */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_TE_METRIC_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "TE Default Metric: %u", ls_attr->te_metric);
-		col += 25;
+		col += vty_out(vty, "TE Default Metric: %u", ls_attr->te_metric);
 	}
 
 	/* Administrative Group */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_ADMIN_GROUP_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Administrative Group: 0x%08x", ls_attr->admin_group);
-		col += 25;
+		col += vty_out(vty, "Administrative Group: 0x%08x", ls_attr->admin_group);
 	}
 
 	/* Link Protection Type */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_LINK_PROTECTION_BIT)) {
 		CHECK_WRAP();
 		vty_out(vty, "Link Protection Type: 0x%04x", ls_attr->link_protection);
-		col += 35;
 	}
 
 	/* MPLS Protocol Mask */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_MPLS_PROTOCOL_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "MPLS Protocol Mask: 0x%02x", ls_attr->mpls_protocol_mask);
-		col += 28;
+		col += vty_out(vty, "MPLS Protocol Mask: 0x%02x", ls_attr->mpls_protocol_mask);
 	}
 
 	/* SRLG */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_SRLG_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "SRLG:");
+		col += vty_out(vty, "SRLG:");
 		col += 5;
-		for (int j = 0; j < ls_attr->srlg_count; j++) {
-			vty_out(vty, " %u", ls_attr->srlg_values[j]);
-			col += 10;
-		}
+		for (int j = 0; j < ls_attr->srlg_count; j++)
+			col += vty_out(vty, " %u", ls_attr->srlg_values[j]);
 	}
 
 	/* Link Name */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_LINK_NAME_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Link Name: %s", ls_attr->link_name);
-		col += 12 + strlen(ls_attr->link_name);
+		col += vty_out(vty, "Link Name: %s", ls_attr->link_name);
 	}
 
 	/* Performance Metrics - Link Delay */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_DELAY_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Link Delay: %u us", ls_attr->delay);
-		col += 25;
+		col += vty_out(vty, "Link Delay: %u us", ls_attr->delay);
 	}
 
 	/* Min/Max Delay */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_MIN_MAX_DELAY_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Min Delay: %u us Max Delay: %u us", ls_attr->min_delay,
-			ls_attr->max_delay);
-		col += 45;
+		col += vty_out(vty, "Min Delay: %u us Max Delay: %u us", ls_attr->min_delay,
+			       ls_attr->max_delay);
 	}
 
 	/* Delay Variation */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_JITTER_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Delay Variation: %u us", ls_attr->jitter);
-		col += 30;
+		col += vty_out(vty, "Delay Variation: %u us", ls_attr->jitter);
 	}
 
 	/* Packet Loss */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_PKT_LOSS_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Packet Loss: %u", ls_attr->pkt_loss);
-		col += 20;
+		col += vty_out(vty, "Packet Loss: %u", ls_attr->pkt_loss);
 	}
 
 	/* Residual Bandwidth */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_RESIDUAL_BW_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Residual BW (kbits/sec): %.0f", ls_attr->residual_bw / 1000.0);
-		col += 35;
+		col += vty_out(vty, "Residual BW (kbits/sec): %.0f", ls_attr->residual_bw / 1000.0);
 	}
 
 	/* Available Bandwidth */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_AVAILABLE_BW_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Available BW (kbits/sec): %.0f", ls_attr->available_bw / 1000.0);
-		col += 40;
+		col += vty_out(vty, "Available BW (kbits/sec): %.0f",
+			       ls_attr->available_bw / 1000.0);
 	}
 
 	/* Utilized Bandwidth */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_UTILIZED_BW_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Utilized BW (kbits/sec): %.0f", ls_attr->utilized_bw / 1000.0);
-		col += 38;
+		col += vty_out(vty, "Utilized BW (kbits/sec): %.0f", ls_attr->utilized_bw / 1000.0);
 	}
 
 	/* IGP Flags (for prefixes) */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_IGP_FLAGS_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "IGP flags: 0x%02x", ls_attr->igp_flags);
-		col += 20;
+		col += vty_out(vty, "IGP flags: 0x%02x", ls_attr->igp_flags);
 	}
 
 	/* Route Tags */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_ROUTE_TAG_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Route tag:");
-		col += 10;
-		for (int j = 0; j < ls_attr->route_tag_count; j++) {
-			vty_out(vty, " %u", ls_attr->route_tags[j]);
-			col += 10;
-		}
+		col += vty_out(vty, "Route tag:");
+		for (int j = 0; j < ls_attr->route_tag_count; j++)
+			col += vty_out(vty, " %u", ls_attr->route_tags[j]);
 	}
 
 	/* Extended Tags */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_EXTENDED_TAG_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Extended tag:");
-		col += 14;
-		for (int j = 0; j < ls_attr->extended_tag_count; j++) {
-			vty_out(vty, " %" PRIu64, ls_attr->extended_tags[j]);
-			col += 20;
-		}
+		col += vty_out(vty, "Extended tag:");
+		for (int j = 0; j < ls_attr->extended_tag_count; j++)
+			col += vty_out(vty, " %" PRIu64, ls_attr->extended_tags[j]);
 	}
 
 	/* Prefix Metric */
 	if (BGP_LS_TLV_CHECK(ls_attr->present_tlvs, BGP_LS_ATTR_PREFIX_METRIC_BIT)) {
 		CHECK_WRAP();
-		vty_out(vty, "Metric: %u", ls_attr->prefix_metric);
-		col += 15;
+		col += vty_out(vty, "Metric: %u", ls_attr->prefix_metric);
 	}
 
 	/* OSPF Forwarding Address (IPv4) */

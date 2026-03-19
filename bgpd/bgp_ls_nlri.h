@@ -109,17 +109,19 @@ enum bgp_ls_ospf_route_type {
  */
 
 enum bgp_ls_attr_tlv {
-	/* Node Attribute TLVs (RFC 9552 Section 4.3) */
+	/* Node Attribute TLVs (RFC 9552 Section 5.3.1) */
 	BGP_LS_ATTR_NODE_FLAG_BITS = 1024,  /* Node Flag Bits */
 	BGP_LS_ATTR_NODE_NAME = 1026,	    /* Node Name */
 	BGP_LS_ATTR_ISIS_AREA_ID = 1027,    /* IS-IS Area Identifier */
-	BGP_LS_ATTR_IPV4_ROUTER_ID = 1028,  /* IPv4 Router-ID of Local Node */
-	BGP_LS_ATTR_IPV6_ROUTER_ID = 1029,  /* IPv6 Router-ID of Local Node */
+
+	/* Node Attribute TLVs (RFC 9085 Section 2.1) */
 	BGP_LS_ATTR_SR_CAPABILITIES = 1034, /* SR Capabilities */
 	BGP_LS_ATTR_SR_ALGORITHM = 1035,    /* SR Algorithm */
 	BGP_LS_ATTR_SR_LOCAL_BLOCK = 1036,  /* SR Local Block */
 	BGP_LS_ATTR_SRMS_PREFERENCE = 1037, /* SRMS Preference */
-	BGP_LS_ATTR_NODE_MSD = 1050,	    /* Node MSD */
+
+	/* Node Attribute TLVs (RFC 8814) */
+	BGP_LS_ATTR_NODE_MSD = 266,         /* Node MSD */
 
 	/* Link Attribute TLVs (RFC 9552 Section 4.3) */
 	BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL = 1028,      /* IPv4 Router-ID of Local Node */
@@ -176,9 +178,9 @@ enum bgp_ls_attr_tlv {
  * TLV Presence Bitmask Macros
  * Used to track which optional TLVs are present in descriptors
  */
-#define BGP_LS_TLV_SET(bitmap, bit)   ((bitmap) |= (1U << (bit)))
-#define BGP_LS_TLV_CHECK(bitmap, bit) ((bitmap) & (1U << (bit)))
-#define BGP_LS_TLV_UNSET(bitmap, bit) ((bitmap) &= ~(1U << (bit)))
+#define BGP_LS_TLV_SET(bitmap, bit)   ((bitmap) |= (1ULL << (bit)))
+#define BGP_LS_TLV_CHECK(bitmap, bit) ((bitmap) & (1ULL << (bit)))
+#define BGP_LS_TLV_UNSET(bitmap, bit) ((bitmap) &= ~(1ULL << (bit)))
 #define BGP_LS_TLV_RESET(bitmap)      ((bitmap) = 0)
 
 /* Bit positions for Node Descriptor TLVs */
@@ -255,54 +257,46 @@ enum bgp_ls_attr_tlv {
 /*
  * Bit positions for attribute presence bitmasks
  */
-
-/* Node Attribute Bits */
 #define BGP_LS_ATTR_NODE_FLAGS_BIT	0
 #define BGP_LS_ATTR_NODE_NAME_BIT	1
 #define BGP_LS_ATTR_ISIS_AREA_BIT	2
-#define BGP_LS_ATTR_IPV4_ROUTER_ID_BIT	3
-#define BGP_LS_ATTR_IPV6_ROUTER_ID_BIT	4
-#define BGP_LS_ATTR_SR_CAPABILITIES_BIT 5
-#define BGP_LS_ATTR_SR_ALGORITHM_BIT	6
-#define BGP_LS_ATTR_SR_LOCAL_BLOCK_BIT	7
-#define BGP_LS_ATTR_NODE_MSD_BIT	8
-
-/* Link Attribute Bits */
-#define BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT  0
-#define BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL_BIT  1
-#define BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE_BIT 2
-#define BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE_BIT 3
-#define BGP_LS_ATTR_ADMIN_GROUP_BIT	      4
-#define BGP_LS_ATTR_MAX_LINK_BW_BIT	      5
-#define BGP_LS_ATTR_MAX_RESV_BW_BIT	      6
-#define BGP_LS_ATTR_UNRESV_BW_BIT	      7
-#define BGP_LS_ATTR_TE_METRIC_BIT	      8
-#define BGP_LS_ATTR_LINK_PROTECTION_BIT	      9
-#define BGP_LS_ATTR_MPLS_PROTOCOL_BIT	      10
-#define BGP_LS_ATTR_IGP_METRIC_BIT	      11
-#define BGP_LS_ATTR_SRLG_BIT		      12
-#define BGP_LS_ATTR_LINK_NAME_BIT	      13
-#define BGP_LS_ATTR_ADJ_SID_BIT		      14
-#define BGP_LS_ATTR_LINK_MSD_BIT	      15
-#define BGP_LS_ATTR_EXT_ADMIN_GROUP_BIT	      16
-#define BGP_LS_ATTR_DELAY_BIT		      17
-#define BGP_LS_ATTR_MIN_MAX_DELAY_BIT	      18
-#define BGP_LS_ATTR_JITTER_BIT		      19
-#define BGP_LS_ATTR_PKT_LOSS_BIT	      20
-#define BGP_LS_ATTR_RESIDUAL_BW_BIT	      21
-#define BGP_LS_ATTR_AVAILABLE_BW_BIT	      22
-#define BGP_LS_ATTR_UTILIZED_BW_BIT	      23
-
-/* Prefix Attribute Bits */
-#define BGP_LS_ATTR_IGP_FLAGS_BIT     0
-#define BGP_LS_ATTR_ROUTE_TAG_BIT     1
-#define BGP_LS_ATTR_EXTENDED_TAG_BIT  2
-#define BGP_LS_ATTR_PREFIX_METRIC_BIT 3
-#define BGP_LS_ATTR_OSPF_FWD_ADDR_BIT 4
-#define BGP_LS_ATTR_PREFIX_SID_BIT    5
-#define BGP_LS_ATTR_RANGE_BIT	      6
-#define BGP_LS_ATTR_SID_LABEL_BIT     7
-#define BGP_LS_ATTR_SRV6_LOCATOR_BIT  8
+#define BGP_LS_ATTR_SR_CAPABILITIES_BIT 3
+#define BGP_LS_ATTR_SR_ALGORITHM_BIT	4
+#define BGP_LS_ATTR_SR_LOCAL_BLOCK_BIT	5
+#define BGP_LS_ATTR_NODE_MSD_BIT	6
+#define BGP_LS_ATTR_IPV4_ROUTER_ID_LOCAL_BIT  7
+#define BGP_LS_ATTR_IPV6_ROUTER_ID_LOCAL_BIT  8
+#define BGP_LS_ATTR_IPV4_ROUTER_ID_REMOTE_BIT 9
+#define BGP_LS_ATTR_IPV6_ROUTER_ID_REMOTE_BIT 10
+#define BGP_LS_ATTR_ADMIN_GROUP_BIT	      11
+#define BGP_LS_ATTR_MAX_LINK_BW_BIT	      12
+#define BGP_LS_ATTR_MAX_RESV_BW_BIT	      13
+#define BGP_LS_ATTR_UNRESV_BW_BIT	      14
+#define BGP_LS_ATTR_TE_METRIC_BIT	      15
+#define BGP_LS_ATTR_LINK_PROTECTION_BIT	      16
+#define BGP_LS_ATTR_MPLS_PROTOCOL_BIT	      17
+#define BGP_LS_ATTR_IGP_METRIC_BIT	      18
+#define BGP_LS_ATTR_SRLG_BIT		      19
+#define BGP_LS_ATTR_LINK_NAME_BIT	      20
+#define BGP_LS_ATTR_ADJ_SID_BIT		      21
+#define BGP_LS_ATTR_LINK_MSD_BIT	      22
+#define BGP_LS_ATTR_EXT_ADMIN_GROUP_BIT	      23
+#define BGP_LS_ATTR_DELAY_BIT		      24
+#define BGP_LS_ATTR_MIN_MAX_DELAY_BIT	      25
+#define BGP_LS_ATTR_JITTER_BIT		      26
+#define BGP_LS_ATTR_PKT_LOSS_BIT	      27
+#define BGP_LS_ATTR_RESIDUAL_BW_BIT	      28
+#define BGP_LS_ATTR_AVAILABLE_BW_BIT	      29
+#define BGP_LS_ATTR_UTILIZED_BW_BIT	      30
+#define BGP_LS_ATTR_IGP_FLAGS_BIT     31
+#define BGP_LS_ATTR_ROUTE_TAG_BIT     32
+#define BGP_LS_ATTR_EXTENDED_TAG_BIT  33
+#define BGP_LS_ATTR_PREFIX_METRIC_BIT 34
+#define BGP_LS_ATTR_OSPF_FWD_ADDR_BIT 35
+#define BGP_LS_ATTR_PREFIX_SID_BIT    36
+#define BGP_LS_ATTR_RANGE_BIT	      37
+#define BGP_LS_ATTR_SID_LABEL_BIT     38
+#define BGP_LS_ATTR_SRV6_LOCATOR_BIT  39
 
 /*
  * Node Flag Bits (TLV 1024)
@@ -343,8 +337,8 @@ struct bgp_ls_node_descriptor {
 	as_t asn;		   /* Autonomous System Number */
 	uint32_t bgp_ls_id;	   /* BGP-LS Identifier (deprecated) */
 	uint32_t ospf_area_id;	   /* OSPF Area ID */
-	uint8_t igp_router_id_len; /* Length of IGP Router ID (4 or 8 bytes) */
-	uint8_t igp_router_id[8];  /* IGP Router ID (ISIS or OSPF) */
+	uint8_t igp_router_id_len; /* Length of IGP Router ID (4-16 bytes) */
+	uint8_t igp_router_id[BGP_LS_IGP_ROUTER_ID_MAX_SIZE]; /* IGP Router ID (ISIS, OSPF, Direct, or Static configuration) */
 };
 
 /*
@@ -510,21 +504,6 @@ PREDECL_HASH(bgp_ls_attr_hash);
 struct bgp_ls_attr {
 	uint64_t present_tlvs; /* Bitmask of present TLVs */
 
-
-	/*
-	 * Attributes common to multiple NLRI types
-	 */
-
-	/* Opaque Node Attribute (TLV 1025/1097/1157) */
-	uint16_t opaque_len;
-	uint8_t *opaque_data;
-
-
-	/*
-	 * Node Attributes (Type 29 TLVs for Node NLRI)
-	 * RFC 9552 Section 4.3.1
-	 */
-
 	/* Node Flag Bits (TLV 1024) */
 	uint8_t node_flags;
 
@@ -535,21 +514,9 @@ struct bgp_ls_attr {
 	uint8_t isis_area_id_len;
 	uint8_t *isis_area_id;
 
-	/* IPv4 Router-ID (TLV 1028) */
-	struct in_addr ipv4_router_id;
-
-	/* IPv6 Router-ID (TLV 1029) */
-	struct in6_addr ipv6_router_id;
-
 	/* Multi-Topology IDs (multiple TLVs, same as descriptor) */
 	uint8_t mt_id_count;
 	uint16_t *mt_id;
-
-
-	/*
-	 * Link Attributes (Type 29 TLVs for Link NLRI)
-	 * RFC 9552 Section 4.3.2
-	 */
 
 	/* IPv4/IPv6 Router-IDs (TLVs 1028-1031) */
 	struct in_addr ipv4_router_id_local;
@@ -583,7 +550,7 @@ struct bgp_ls_attr {
 	uint32_t igp_metric;
 
 	/* Shared Risk Link Group (TLV 1096) */
-	uint8_t srlg_count;
+	uint16_t srlg_count;
 	uint32_t *srlg_values;
 
 	/* Link Name (TLV 1098) */
@@ -614,17 +581,11 @@ struct bgp_ls_attr {
 	/* Unidirectional Utilized Bandwidth (TLV 1120) */
 	float utilized_bw;
 
-
-	/*
-	 * Prefix Attributes (Type 29 TLVs for Prefix NLRI)
-	 * RFC 9552 Section 4.3.4
-	 */
-
 	/* IGP Flags (TLV 1152) */
 	uint8_t igp_flags;
 
 	/* Route Tags (TLV 1153) */
-	uint8_t route_tag_count;
+	uint16_t route_tag_count;
 	uint32_t *route_tags;
 
 	/* Extended Tags (TLV 1154) */
@@ -637,6 +598,10 @@ struct bgp_ls_attr {
 	/* OSPF Forwarding Address (TLV 1156) */
 	struct in_addr ospf_fwd_addr;	/* IPv4 */
 	struct in6_addr ospf_fwd_addr6; /* IPv6 */
+
+	/* Opaque Node Attribute (TLV 1025/1097/1157) */
+	uint16_t opaque_len;
+	uint8_t *opaque_data;
 
 	unsigned long refcnt; /* Reference count */
 
@@ -681,6 +646,9 @@ extern const char *bgp_ls_link_descriptor_tlv_str(enum bgp_ls_link_descriptor_tl
 extern const char *bgp_ls_prefix_descriptor_tlv_str(enum bgp_ls_prefix_descriptor_tlv tlv_type);
 extern const char *bgp_ls_ospf_route_type_str(enum bgp_ls_ospf_route_type route_type);
 
+/* Json conversion helpers */
+extern const char *bgp_ls_ospf_route_type_str_json(enum bgp_ls_ospf_route_type route_type);
+
 /*
  * ===========================================================================
  * Hash Table Management
@@ -698,6 +666,7 @@ extern int bgp_ls_attr_hash_cmp(const struct bgp_ls_attr *a1, const struct bgp_l
 DECLARE_HASH(bgp_ls_nlri_hash, struct bgp_ls_nlri, hash_item, bgp_ls_nlri_hash_cmp,
 	     bgp_ls_nlri_hash_key);
 
+/* Declare the typesafe hash table */
 DECLARE_HASH(bgp_ls_attr_hash, struct bgp_ls_attr, hash_item, bgp_ls_attr_hash_cmp,
 	     bgp_ls_attr_hash_key);
 
