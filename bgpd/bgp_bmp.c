@@ -54,6 +54,12 @@
 #include "bgpd/bgp_trace.h"
 #include "bgpd/bgp_network.h"
 #include "bgpd/bgp_debug.h"
+#include "bgpd/bgp_aspath.h"
+#include "bgpd/bgp_community.h"
+#include "bgpd/bgp_lcommunity.h"
+#include "bgpd/bgp_ecommunity.h"
+#include "bgpd/bgp_label.h"
+#include "bgpd/bgp_ls_nlri.h"
 
 static void bmp_close(struct bmp *bmp);
 static struct bmp_bgp *bmp_bgp_find(struct bgp *bgp);
@@ -1162,6 +1168,311 @@ static void bmp_eor(struct bmp *bmp, afi_t afi, safi_t safi, uint8_t flags, stru
 	stream_free(s);
 }
 
+/*
+ * BMP-specific attribute encoding function.
+ * Unlike bgp_packet_attribute(), this function does NOT depend on peer
+ * capabilities or configuration. It encodes the raw attributes from
+ * struct attr directly into wire-format for Adj-RIB-In reporting.
+ */
+static bgp_size_t bmp_packet_attribute(struct stream *s, struct attr *attr,
+				       afi_t afi, safi_t safi)
+{
+	size_t cp;
+	size_t aspath_sizep;
+
+	/* Remember current pointer. */
+	cp = stream_get_endp(s);
+
+	/* 1. Origin attribute. */
+	stream_putc(s, BGP_ATTR_FLAG_TRANS);
+	stream_putc(s, BGP_ATTR_ORIGIN);
+	stream_putc(s, 1);
+	stream_putc(s, attr->origin);
+
+	/* 2. AS_PATH attribute - encode original aspath with 32-bit ASNs */
+	stream_putc(s, BGP_ATTR_FLAG_TRANS | BGP_ATTR_FLAG_EXTLEN);
+	stream_putc(s, BGP_ATTR_AS_PATH);
+	aspath_sizep = stream_get_endp(s);
+	stream_putw(s, 0);
+	stream_putw_at(s, aspath_sizep, aspath_put(s, attr->aspath, 1));
+
+	/* 3. NEXT_HOP attribute - only for IPv4 unicast */
+	if (afi == AFI_IP && safi == SAFI_UNICAST &&
+	    (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP))) {
+		stream_putc(s, BGP_ATTR_FLAG_TRANS);
+		stream_putc(s, BGP_ATTR_NEXT_HOP);
+		stream_putc(s, 4);
+		stream_put_ipv4(s, attr->nexthop.s_addr);
+	}
+
+	/* 4. MED attribute - encode directly without maxmed/adv_lprio checks */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC)) {
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
+		stream_putc(s, BGP_ATTR_MULTI_EXIT_DISC);
+		stream_putc(s, 4);
+		stream_putl(s, attr->med);
+	}
+
+	/* 5. LOCAL_PREF attribute - encode directly without peer->sort check */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LOCAL_PREF)) {
+		stream_putc(s, BGP_ATTR_FLAG_TRANS);
+		stream_putc(s, BGP_ATTR_LOCAL_PREF);
+		stream_putc(s, 4);
+		stream_putl(s, attr->local_pref);
+	}
+
+	/* 6. ATOMIC_AGGREGATE attribute */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ATOMIC_AGGREGATE)) {
+		stream_putc(s, BGP_ATTR_FLAG_TRANS);
+		stream_putc(s, BGP_ATTR_ATOMIC_AGGREGATE);
+		stream_putc(s, 0);
+	}
+
+	/* 7. AGGREGATOR attribute - assume 32-bit AS (8 bytes) */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AGGREGATOR)) {
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS);
+		stream_putc(s, BGP_ATTR_AGGREGATOR);
+		stream_putc(s, 8);
+		stream_putl(s, attr->aggregator_as);
+		stream_put_ipv4(s, attr->aggregator_addr.s_addr);
+	}
+
+	/* 8. Community attribute - skip PEER_FLAG_SEND_COMMUNITY check */
+	if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_COMMUNITIES)) &&
+	    attr->community) {
+		if (attr->community->size * 4 > 255) {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS |
+				       BGP_ATTR_FLAG_EXTLEN);
+			stream_putc(s, BGP_ATTR_COMMUNITIES);
+			stream_putw(s, attr->community->size * 4);
+		} else {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS);
+			stream_putc(s, BGP_ATTR_COMMUNITIES);
+			stream_putc(s, attr->community->size * 4);
+		}
+		stream_put(s, attr->community->val, attr->community->size * 4);
+	}
+
+	/* 9. Large Community attribute - skip PEER_FLAG_SEND_LARGE_COMMUNITY */
+	if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_LARGE_COMMUNITIES)) &&
+	    attr->lcommunity) {
+		if (lcom_length(attr->lcommunity) > 255) {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS |
+				       BGP_ATTR_FLAG_EXTLEN);
+			stream_putc(s, BGP_ATTR_LARGE_COMMUNITIES);
+			stream_putw(s, lcom_length(attr->lcommunity));
+		} else {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS);
+			stream_putc(s, BGP_ATTR_LARGE_COMMUNITIES);
+			stream_putc(s, lcom_length(attr->lcommunity));
+		}
+		stream_put(s, attr->lcommunity->val,
+			   lcom_length(attr->lcommunity));
+	}
+
+	/* 10. Extended Community - encode ALL (no non-transitive filtering) */
+	if ((attr->flag & ATTR_FLAG_BIT(BGP_ATTR_EXT_COMMUNITIES)) &&
+	    attr->ecommunity) {
+		if (attr->ecommunity->size * 8 > 255) {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS |
+				       BGP_ATTR_FLAG_EXTLEN);
+			stream_putc(s, BGP_ATTR_EXT_COMMUNITIES);
+			stream_putw(s, attr->ecommunity->size * 8);
+		} else {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS);
+			stream_putc(s, BGP_ATTR_EXT_COMMUNITIES);
+			stream_putc(s, attr->ecommunity->size * 8);
+		}
+		stream_put(s, attr->ecommunity->val,
+			   attr->ecommunity->size * 8);
+	}
+
+	/* 11. Originator-ID - encode directly without from->remote_id override */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_ORIGINATOR_ID)) {
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
+		stream_putc(s, BGP_ATTR_ORIGINATOR_ID);
+		stream_putc(s, 4);
+		stream_put_in_addr(s, &attr->originator_id);
+	}
+
+	/* 12. Cluster-List - encode original without prepending local ID */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST)) {
+		struct cluster_list *cluster = bgp_attr_get_cluster(attr);
+
+		if (cluster) {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
+			stream_putc(s, BGP_ATTR_CLUSTER_LIST);
+			stream_putc(s, cluster->length);
+			stream_put(s, cluster->list, cluster->length);
+		}
+	}
+
+	/* 13. PMSI Tunnel attribute */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_PMSI_TUNNEL)) {
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS);
+		stream_putc(s, BGP_ATTR_PMSI_TUNNEL);
+		stream_putc(s, 9);
+		stream_putc(s, 0); /* Flags */
+		stream_putc(s, bgp_attr_get_pmsi_tnl_type(attr));
+		stream_put(s, &(attr->label), BGP_LABEL_BYTES);
+		stream_put_ipv4(s, attr->nexthop.s_addr);
+	}
+
+	/* 14. Label Index (PREFIX_SID) for SAFI_LABELED_UNICAST */
+	if (safi == SAFI_LABELED_UNICAST &&
+	    attr->label_index != BGP_INVALID_LABEL_INDEX) {
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS);
+		stream_putc(s, BGP_ATTR_PREFIX_SID);
+		stream_putc(s, 10);
+		stream_putc(s, BGP_PREFIX_SID_LABEL_INDEX);
+		stream_putw(s, BGP_PREFIX_SID_LABEL_INDEX_LENGTH);
+		stream_putc(s, 0); /* reserved */
+		stream_putw(s, 0); /* flags */
+		stream_putl(s, attr->label_index);
+	}
+
+	/* 15. SRv6 Service Information for SAFI_MPLS_VPN */
+	if ((afi == AFI_IP || afi == AFI_IP6) && safi == SAFI_MPLS_VPN) {
+		if (attr->srv6_l3vpn) {
+			uint8_t subtlv_len =
+				BGP_PREFIX_SID_SRV6_L3_SERVICE_SID_STRUCTURE_LENGTH +
+				BGP_ATTR_MIN_LEN +
+				BGP_PREFIX_SID_SRV6_L3_SERVICE_SID_INFO_LENGTH;
+			uint8_t tlv_len = subtlv_len + BGP_ATTR_MIN_LEN + 1;
+			uint8_t attr_len = tlv_len + BGP_ATTR_MIN_LEN;
+
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS);
+			stream_putc(s, BGP_ATTR_PREFIX_SID);
+			stream_putc(s, attr_len);
+			stream_putc(s, BGP_PREFIX_SID_SRV6_L3_SERVICE);
+			stream_putw(s, tlv_len);
+			stream_putc(s, 0); /* reserved */
+			stream_putc(s, BGP_PREFIX_SID_SRV6_L3_SERVICE_SID_INFO);
+			stream_putw(s, subtlv_len);
+			stream_putc(s, 0); /* reserved */
+			stream_put(s, &attr->srv6_l3vpn->sid,
+				   sizeof(attr->srv6_l3vpn->sid));
+			stream_putc(s, 0);      /* sid_flags */
+			stream_putw(s, 0xffff); /* endpoint */
+			stream_putc(s, 0);      /* reserved */
+			stream_putc(s, BGP_PREFIX_SID_SRV6_L3_SERVICE_SID_STRUCTURE);
+			stream_putw(s, BGP_PREFIX_SID_SRV6_L3_SERVICE_SID_STRUCTURE_LENGTH);
+			stream_putc(s, attr->srv6_l3vpn->loc_block_len);
+			stream_putc(s, attr->srv6_l3vpn->loc_node_len);
+			stream_putc(s, attr->srv6_l3vpn->func_len);
+			stream_putc(s, attr->srv6_l3vpn->arg_len);
+			stream_putc(s, attr->srv6_l3vpn->transposition_len);
+			stream_putc(s, attr->srv6_l3vpn->transposition_offset);
+		} else if (attr->srv6_vpn) {
+			stream_putc(s, BGP_ATTR_FLAG_OPTIONAL |
+				       BGP_ATTR_FLAG_TRANS);
+			stream_putc(s, BGP_ATTR_PREFIX_SID);
+			stream_putc(s, 22);
+			stream_putc(s, BGP_PREFIX_SID_VPN_SID);
+			stream_putw(s, 0x13);
+			stream_putc(s, 0x00); /* reserved */
+			stream_putc(s, 0x01); /* sid_type */
+			stream_putc(s, 0x00); /* sid_flags */
+			stream_put(s, &attr->srv6_vpn->sid,
+				   sizeof(attr->srv6_vpn->sid));
+		}
+	}
+
+	/* 16. Tunnel Encap attribute */
+	if (((afi == AFI_IP || afi == AFI_IP6) &&
+	     (safi == SAFI_ENCAP || safi == SAFI_MPLS_VPN)) ||
+	    (afi == AFI_L2VPN && safi == SAFI_EVPN)) {
+		struct bgp_attr_encap_subtlv *subtlvs = attr->encap_subtlvs;
+
+		if (attr->encap_tunneltype &&
+		    attr->encap_tunneltype != BGP_ENCAP_TYPE_MPLS &&
+		    subtlvs) {
+			struct bgp_attr_encap_subtlv *st;
+			unsigned int attrlenfield = 2 + 2; /* outer T + L */
+			unsigned int attrhdrlen = 1 + 1;   /* subTLV T + L */
+
+			for (st = subtlvs; st; st = st->next)
+				attrlenfield += (attrhdrlen + st->length);
+
+			if (attrlenfield <= 0xffff) {
+				if (attrlenfield > 0xff) {
+					stream_putc(s, BGP_ATTR_FLAG_TRANS |
+						       BGP_ATTR_FLAG_OPTIONAL |
+						       BGP_ATTR_FLAG_EXTLEN);
+					stream_putc(s, BGP_ATTR_ENCAP);
+					stream_putw(s, attrlenfield & 0xffff);
+				} else {
+					stream_putc(s, BGP_ATTR_FLAG_TRANS |
+						       BGP_ATTR_FLAG_OPTIONAL);
+					stream_putc(s, BGP_ATTR_ENCAP);
+					stream_putc(s, attrlenfield & 0xff);
+				}
+
+				/* outer T+L */
+				stream_putw(s, attr->encap_tunneltype);
+				stream_putw(s, attrlenfield - 4);
+
+				/* write each sub-tlv */
+				for (st = subtlvs; st; st = st->next) {
+					stream_putc(s, st->type);
+					stream_putc(s, st->length);
+					stream_put(s, st->value, st->length);
+				}
+			}
+		}
+	}
+
+	/* 17. BGP-LS Attribute */
+	if (afi == AFI_BGP_LS && safi == SAFI_BGP_LS && attr->ls_attr) {
+		size_t attr_start, len_pos, attr_len;
+		int ret;
+
+		attr_start = stream_get_endp(s);
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
+		stream_putc(s, BGP_ATTR_LINK_STATE);
+		len_pos = stream_get_endp(s);
+		stream_putc(s, 0); /* Placeholder for length */
+
+		ret = bgp_ls_encode_attr(s, attr->ls_attr);
+
+		if (ret < 0) {
+			/* Encoding failed - rollback */
+			stream_set_endp(s, attr_start);
+		} else {
+			attr_len = stream_get_endp(s) - len_pos - 1;
+			stream_putc_at(s, len_pos, attr_len);
+		}
+	}
+
+	/* 18. AIGP attribute - skip AIGP_TRANSMIT_ALLOWED check */
+	if (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_AIGP)) {
+		uint8_t aigp_attr_len = BGP_AIGP_TLV_METRIC_LEN;
+
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL);
+		stream_putc(s, BGP_ATTR_AIGP);
+		stream_putc(s, aigp_attr_len);
+		stream_putc(s, BGP_AIGP_TLV_METRIC);
+		stream_putw(s, BGP_AIGP_TLV_METRIC_LEN);
+		stream_putq(s, attr->aigp_metric);
+	}
+
+	/* 19. Unknown transit attributes */
+	struct transit *transit = bgp_attr_get_transit(attr);
+
+	if (transit)
+		stream_put(s, transit->val, transit->length);
+
+	/* Return total size of encoded attributes */
+	return stream_get_endp(s) - cp;
+}
+
 static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 				 struct peer *peer, struct attr *attr,
 				 afi_t afi, safi_t safi, int addpath_encode, uint32_t addpath_rx_id,
@@ -1185,9 +1496,7 @@ static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 	stream_putw(s, 0);
 
 	/* 5: Encode all the attributes, except MP_REACH_NLRI attr. */
-	total_attr_len =
-		bgp_packet_attribute(NULL, peer, s, attr, &vecarr, NULL, afi,
-				     safi, peer, NULL, NULL, 0, 0, 0, NULL);
+	total_attr_len = bmp_packet_attribute(s, attr, afi, safi);
 
 	/* space check? */
 
