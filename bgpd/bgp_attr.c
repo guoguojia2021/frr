@@ -4168,7 +4168,23 @@ size_t bgp_packet_mpattr_prefix_size(afi_t afi, safi_t safi,
 		size = ((struct prefix_fs *)p)->prefix.prefixlen;
 		break;
 	case SAFI_BGP_LS:
-		size = 0;
+		/*
+		* BGP-LS NLRI size per RFC 9552:
+		*
+		* Minimum sizes (no optional attributes):
+		* - Node NLRI:   17-29 bytes (depends on IGP Router ID length)
+		* - Link NLRI:   50-70 bytes (with basic descriptors)
+		* - Prefix NLRI: 35-50 bytes (IPv4 typical)
+		*
+		* Typical sizes (common deployments):
+		* - Node NLRI:   37 bytes (IS-IS with all descriptors)
+		* - Link NLRI:   101 bytes (with IPv4/IPv6 addresses)
+		* - Prefix NLRI: 61 bytes (IPv4 with MT-IDs)
+		*
+		* Use conservative estimate to avoid packet overflow.
+		* The actual size is calculated during encoding in bgp_ls_encode_nlri().
+		*/
+		size = BGP_LS_NLRI_TYPICAL_SIZE;
 		break;
 	}
 
