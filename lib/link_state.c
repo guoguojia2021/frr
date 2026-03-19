@@ -1777,7 +1777,7 @@ struct ls_vertex *ls_msg2vertex(struct ls_ted *ted, struct ls_message *msg,
 
 	switch (msg->event) {
 	case LS_MSG_EVENT_SYNC:
-		vertex = ls_vertex_add(ted, node);
+		vertex = ls_vertex_update(ted, node);
 		if (vertex)
 			vertex->status = SYNC;
 		break;
@@ -1817,7 +1817,7 @@ struct ls_edge *ls_msg2edge(struct ls_ted *ted, struct ls_message *msg,
 
 	switch (msg->event) {
 	case LS_MSG_EVENT_SYNC:
-		edge = ls_edge_add(ted, attr);
+		edge = ls_edge_update(ted, attr);
 		if (edge)
 			edge->status = SYNC;
 		break;
@@ -1856,7 +1856,7 @@ struct ls_subnet *ls_msg2subnet(struct ls_ted *ted, struct ls_message *msg,
 
 	switch (msg->event) {
 	case LS_MSG_EVENT_SYNC:
-		subnet = ls_subnet_add(ted, pref);
+		subnet = ls_subnet_update(ted, pref);
 		if (subnet)
 			subnet->status = SYNC;
 		break;
