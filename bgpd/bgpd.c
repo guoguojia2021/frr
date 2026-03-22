@@ -76,9 +76,8 @@
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_advertise.h"
 #include "bgpd/bgp_network.h"
-#include "bgpd/bgp_vty.h"
-#include "bgpd/bgp_ls.h"
 #include "bgpd/bgp_mpath.h"
+#include "bgpd/bgp_vty.h"
 #include "bgpd/bgp_nht.h"
 #include "bgpd/bgp_updgrp.h"
 #include "bgpd/bgp_bfd.h"
@@ -94,6 +93,9 @@
 #include "bgpd/bgp_evpn_private.h"
 #include "bgpd/bgp_evpn_mh.h"
 #include "bgpd/bgp_mac.h"
+#include "bgpd/bgp_trace.h"
+#include "bgpd/bgp_ls.h"
+#include "bgpd/bgp_ls_ted.h"
 
 DEFINE_MTYPE_STATIC(BGPD, PEER_TX_SHUTDOWN_MSG, "Peer shutdown message (TX)");
 DEFINE_MTYPE_STATIC(BGPD, BGP_EVPN_INFO, "BGP EVPN instance information");
@@ -2640,6 +2642,8 @@ int peer_deactivate(struct peer *peer, afi_t afi, safi_t safi)
 		}
 
 		if (last_peer) {
+			bgp_ls_withdraw_ted(bgp);
+
 			if (!bgp_ls_unregister(bgp)) {
 				zlog_err("BGP-LS: Failed to unregister from link-state database for instance %s",
 					 bgp->name_pretty);
