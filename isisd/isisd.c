@@ -3322,8 +3322,8 @@ void isis_area_overload_bit_set(struct isis_area *area, bool overload_bit)
 			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
 				/* Get metric values from configuration and set to circuit */
 				isis_circuit_metric_config_get_and_set(circuit, area);
-			lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
 		}
+		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
 		return;
 	}
 	if (overload_bit) {
@@ -3396,6 +3396,99 @@ void isis_area_advertise_high_metrics_set(struct isis_area *area,
             /* Get metric values from configuration and set to circuit */
             isis_circuit_metric_config_get_and_set(circuit, area);
     }
+}
+
+/*
+ * Timer callback to clear ipv6-topology overload after startup period.
+ */
+int isis_area_ipv6_topology_overload_on_start_timer(struct thread *thread)
+{
+    	struct isis_area *area = THREAD_ARG(thread);
+    	assert(area);
+
+	struct isis_area_mt_setting *setting;
+	setting = area_get_mt_setting(area, ISIS_MT_IPV6_UNICAST);
+	assert(setting);
+
+	setting->t_overload_on_startup_timer = NULL;
+	setting->overload_advertise_high_metrics = false;
+
+	isis_area_ipv6_topology_overload_set(area, false);
+
+	return 0;
+}
+
+/*
+ * Set overload for ipv6-unicast topology, with optional startup timer and
+ * advertise-high-metrics support.
+ */
+void isis_area_ipv6_topology_overload_set(struct isis_area *area, bool overload_bit)
+{
+	struct isis_area_mt_setting *setting;
+	struct listnode *node;
+	struct isis_circuit *circuit;
+	char new_overload_bit = overload_bit ? LSPBIT_OL : 0;
+
+	setting = area_get_mt_setting(area, ISIS_MT_IPV6_UNICAST);
+
+	// ipv6-unicast disabled, recover overload config
+	if (!setting->enabled) {
+		if(!area->advertise_high_metrics && !area->overload_advertise_high_metrics) {
+	    		for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				/* Get metric values from configuration and set to circuit */
+				isis_circuit_metric_config_get_and_set(circuit, area);
+		}
+		if (setting->t_overload_on_startup_timer) {
+			THREAD_OFF(setting->t_overload_on_startup_timer);
+			setting->t_overload_on_startup_timer = NULL;
+		}
+		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
+		return;
+	}
+
+	setting->overload = new_overload_bit;
+	if (device_startup == false && setting->overload_on_startup_time > 0) {
+		setting->overload = 0;
+	    	if(!area->advertise_high_metrics && !area->overload_advertise_high_metrics) {
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				/* Get metric values from configuration and set to circuit */
+				isis_circuit_metric_config_get_and_set(circuit, area);
+	    	}
+		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
+		return;
+	}
+	if (overload_bit) {
+		if (setting->overload_advertise_high_metrics) {
+			/* Set maximum metric value for all circuits */
+			isis_area_circuit_max_metric_set(area);
+		}else if (!area->advertise_high_metrics && !area->overload_advertise_high_metrics) {
+			struct listnode *node;
+			struct isis_circuit *circuit;
+
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				isis_circuit_metric_config_get_and_set(circuit, area);
+		}
+		if (setting->overload_on_startup_time == 0) {
+			if (setting->t_overload_on_startup_timer) {
+				THREAD_OFF(setting->t_overload_on_startup_timer);
+				setting->t_overload_on_startup_timer = NULL;
+			}
+		}
+	} else {
+		if (setting->t_overload_on_startup_timer) {
+			THREAD_OFF(setting->t_overload_on_startup_timer);
+			setting->t_overload_on_startup_timer = NULL;
+		}
+		if (!area->advertise_high_metrics && !area->overload_advertise_high_metrics) {
+			struct listnode *node;
+			struct isis_circuit *circuit;
+
+			for (ALL_LIST_ELEMENTS_RO(area->circuit_list, node, circuit))
+				isis_circuit_metric_config_get_and_set(circuit, area);
+		}
+	}
+
+	lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 1);
 }
 
 /*

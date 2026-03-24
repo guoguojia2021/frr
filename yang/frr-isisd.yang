@@ -1536,10 +1536,27 @@ module frr-isisd {
           presence "Present if a separate IPv6-unicast topology is configured for this area.";
           description
             "IPv6 unicast topology.";
-          leaf overload {
-            type boolean;
-            default "false";
-          }
+            leaf overload {
+              type boolean;
+              default "false";
+              description
+                "If true, set overload bit for IPv6 unicast topology.";
+            }
+            leaf overload-on-startup {
+              type uint32 {
+                range "0..86400";
+              }
+              units "seconds";
+              default "0";
+              description
+                "The duration the overload bit should be set on startup for IPv6 unicast topology.";
+            }
+            leaf overload-advertise-high-metrics {
+              type boolean;
+              default "false";
+              description
+                "Advertise high metric value on all interfaces for IPv6 unicast topology during overload.";
+            }
         }
 
         container ipv6-multicast {

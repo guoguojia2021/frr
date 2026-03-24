@@ -60,11 +60,15 @@
 #define ISIS_MT_INFO_FIELDS uint16_t mtid;
 
 struct list;
+struct thread;
 
 struct isis_area_mt_setting {
 	ISIS_MT_INFO_FIELDS
 	bool enabled;
 	bool overload;
+	bool overload_advertise_high_metrics;
+	uint32_t overload_on_startup_time;
+	struct thread *t_overload_on_startup_timer;
 };
 
 struct isis_circuit_mt_setting {

@@ -504,12 +504,26 @@ const struct frr_yang_module_info frr_isisd_info = {
 				.cli_show = cli_show_isis_mt_ipv6_unicast,
 				.create = isis_instance_multi_topology_ipv6_unicast_create,
 				.destroy = isis_instance_multi_topology_ipv6_unicast_destroy,
+				.apply_finish = isis_instance_multi_topology_ipv6_unicast_apply_finish,
 			},
 		},
 		{
 			.xpath = "/frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload",
 			.cbs = {
 				.modify = isis_instance_multi_topology_ipv6_unicast_overload_modify,
+
+			},
+		},
+		{
+			.xpath = "/frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload-on-startup",
+			.cbs = {
+				.modify = isis_instance_multi_topology_ipv6_unicast_overload_on_startup_modify,
+			},
+		},
+		{
+			.xpath = "/frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload-advertise-high-metrics",
+			.cbs = {
+				.modify = isis_instance_multi_topology_ipv6_unicast_overload_advertise_high_metrics_modify,
 			},
 		},
 		{

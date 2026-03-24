@@ -171,6 +171,12 @@ int isis_instance_multi_topology_ipv6_unicast_destroy(
 	struct nb_cb_destroy_args *args);
 int isis_instance_multi_topology_ipv6_unicast_overload_modify(
 	struct nb_cb_modify_args *args);
+int isis_instance_multi_topology_ipv6_unicast_overload_on_startup_modify(
+	struct nb_cb_modify_args *args);
+int isis_instance_multi_topology_ipv6_unicast_overload_advertise_high_metrics_modify(
+	struct nb_cb_modify_args *args);
+void isis_instance_multi_topology_ipv6_unicast_apply_finish(
+	struct nb_cb_apply_finish_args *args);
 int isis_instance_multi_topology_ipv6_multicast_create(
 	struct nb_cb_create_args *args);
 int isis_instance_multi_topology_ipv6_multicast_destroy(

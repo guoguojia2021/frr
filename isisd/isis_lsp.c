@@ -1377,6 +1377,17 @@ int lsp_generate(struct isis_area *area, int level)
 					 area, area->overload_on_startup_time,
 					 &area->t_overload_on_startup_timer);
 		}
+		/* Handle ipv6-unicast topology startup overload */
+		struct isis_area_mt_setting *mt6 =
+			area_lookup_mt_setting(area, ISIS_MT_IPV6_UNICAST);
+		if (mt6 && mt6->overload_on_startup_time > 0 && mt6->enabled) {
+			isis_area_ipv6_topology_overload_set(area, true);
+			thread_add_timer(master,
+					 isis_area_ipv6_topology_overload_on_start_timer,
+					 area,
+					 mt6->overload_on_startup_time,
+					 &mt6->t_overload_on_startup_timer);
+		}
 		device_startup = false;
 	}
 

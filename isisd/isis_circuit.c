@@ -104,6 +104,19 @@ static void isis_area_circuit_set_high_metric(struct isis_area *area,
 		}
 	}
 
+	/* Check if advertise-high-metrics enabled in ipv6-unicast topology */
+	struct isis_area_mt_setting *mt6 =
+		area_lookup_mt_setting(area, ISIS_MT_IPV6_UNICAST);
+	if (circuit->ipv6_router && mt6 && mt6->enabled && mt6->overload_advertise_high_metrics) {
+		/* When overload_advertise_high_metrics is set, apply high metric either:
+		 * 1. When overload_on_startup_time is 0 (immediate overload)
+		 * 2. When overload startup timer is still running */
+		if (mt6->overload_on_startup_time == 0
+		    || mt6->t_overload_on_startup_timer) {
+			should_set_high_metric = true;
+		}
+	}
+
 	/* Apply high metric if required */
 	if (should_set_high_metric) {
 		circuit->metric[0] = metric;
@@ -1522,6 +1535,7 @@ void isis_circuit_af_set(struct isis_circuit *circuit, bool ip_router,
 		area->ipv6_circuits += ipv6_router - old_ipv6r;
 
 		if (ip_router || ipv6_router)
+			isis_area_circuit_set_high_metric(area, circuit);
 			lsp_regenerate_schedule(area, circuit->is_type, 0);
 	}
 }

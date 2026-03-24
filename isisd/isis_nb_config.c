@@ -1444,6 +1444,40 @@ static int isis_multi_topology_common(enum nb_event event,
 	return NB_OK;
 }
 
+/*
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast
+ */
+static int isis_multi_topology_ipv6_unicast_destroy(enum nb_event event,
+				      const struct lyd_node *dnode,
+				      char *errmsg, size_t errmsg_len, bool create)
+{
+	struct isis_area *area;
+	struct isis_area_mt_setting *setting;
+	uint16_t mtid = isis_str2mtid("ipv6-unicast");
+
+	switch (event) {
+	case NB_EV_VALIDATE:
+		if (mtid == (uint16_t)-1) {
+			snprintf(errmsg, errmsg_len, "Unknown topology %s",
+				 "ipv6-unicast");
+			return NB_ERR_VALIDATION;
+		}
+		break;
+	case NB_EV_PREPARE:
+	case NB_EV_ABORT:
+		break;
+	case NB_EV_APPLY:
+		area = nb_running_get_entry(dnode, NULL, true);
+		setting = area_get_mt_setting(area, mtid);
+		setting->enabled = create;
+		isis_area_ipv6_topology_overload_set(area, false);
+		lsp_regenerate_schedule(area, IS_LEVEL_1 | IS_LEVEL_2, 0);
+		break;
+	}
+
+	return NB_OK;
+}
+
 static int isis_multi_topology_overload_common(enum nb_event event,
 					       const struct lyd_node *dnode,
 					       const char *topology)
@@ -1534,9 +1568,33 @@ int isis_instance_multi_topology_ipv6_unicast_create(
 int isis_instance_multi_topology_ipv6_unicast_destroy(
 	struct nb_cb_destroy_args *args)
 {
-	return isis_multi_topology_common(args->event, args->dnode,
-					  args->errmsg, args->errmsg_len,
-					  "ipv6-unicast", false);
+	return isis_multi_topology_ipv6_unicast_destroy(args->event, args->dnode,
+					  args->errmsg, args->errmsg_len,false);
+}
+
+/*
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast
+ */
+void isis_instance_multi_topology_ipv6_unicast_apply_finish(
+	struct nb_cb_apply_finish_args *args)
+{
+	struct isis_area *area;
+	struct isis_area_mt_setting *setting;
+	bool overload;
+	uint32_t overload_on_startup_time;
+	bool advertise_high_metrics;
+
+	area = nb_running_get_entry(args->dnode, NULL, true);
+	setting = area_get_mt_setting(area, ISIS_MT_IPV6_UNICAST);
+
+	overload = yang_dnode_get_bool(args->dnode, "overload");
+	overload_on_startup_time = yang_dnode_get_uint32(args->dnode, "overload-on-startup");
+	advertise_high_metrics = yang_dnode_get_bool(args->dnode, "overload-advertise-high-metrics");
+
+	setting->overload_on_startup_time = overload_on_startup_time;
+	setting->overload_advertise_high_metrics = advertise_high_metrics;
+
+	isis_area_ipv6_topology_overload_set(area, overload);
 }
 
 /*
@@ -1545,9 +1603,27 @@ int isis_instance_multi_topology_ipv6_unicast_destroy(
 int isis_instance_multi_topology_ipv6_unicast_overload_modify(
 	struct nb_cb_modify_args *args)
 {
-	return isis_multi_topology_overload_common(args->event, args->dnode,
-						   "ipv6-unicast");
+	return NB_OK;
 }
+
+/*
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast/on-startup
+ */
+int isis_instance_multi_topology_ipv6_unicast_overload_on_startup_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
+/*
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload-advertise-high-metrics
+ */
+int isis_instance_multi_topology_ipv6_unicast_overload_advertise_high_metrics_modify(
+	struct nb_cb_modify_args *args)
+{
+	return NB_OK;
+}
+
 
 /*
  * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-multicast

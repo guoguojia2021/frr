@@ -314,6 +314,9 @@ void isis_area_overload_bit_set(struct isis_area *area, bool overload_bit);
 
 void isis_area_advertise_high_metrics_set(struct isis_area *area,
 					  bool advertise_high_metrics);
+void isis_area_ipv6_topology_overload_set(struct isis_area *area, bool overload_bit);
+
+int isis_area_ipv6_topology_overload_on_start_timer(struct thread *thread);
 void isis_area_attached_bit_send_set(struct isis_area *area, bool attached_bit);
 void isis_area_attached_bit_receive_set(struct isis_area *area,
 					bool attached_bit);

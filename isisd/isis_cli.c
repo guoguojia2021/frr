@@ -1632,13 +1632,12 @@ int cli_cmp_isis_redistribute_table(const struct lyd_node *dnode1,
  */
 DEFPY_YANG(
 	isis_topology, isis_topology_cmd,
-	"[no] topology <standard|ipv4-unicast|ipv4-mgmt|ipv6-unicast|ipv4-multicast|ipv6-multicast|ipv6-mgmt|ipv6-dstsrc>$topology [overload]$overload",
+	"[no] topology <standard|ipv4-unicast|ipv4-mgmt|ipv4-multicast|ipv6-multicast|ipv6-mgmt|ipv6-dstsrc>$topology [overload]$overload",
 	NO_STR
 	"Configure IS-IS topologies\n"
 	"standard topology\n"
 	"IPv4 unicast topology\n"
 	"IPv4 management topology\n"
-	"IPv6 unicast topology\n"
 	"IPv4 multicast topology\n"
 	"IPv6 multicast topology\n"
 	"IPv6 management topology\n"
@@ -1678,6 +1677,118 @@ DEFPY_YANG(
 	return nb_cli_apply_changes(vty, "%s", base_xpath);
 }
 
+/*
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload-advertise-high-metrics
+ * XPath: /frr-isisd:isis/instance/multi-topology/ipv6-unicast/overload-on-startup
+ */
+DEFPY_YANG(isis_ipv6_unicast_topology_set_overload_bit_advertise_high_metrics_onstartup,
+	   isis_ipv6_unicast_topology_set_overload_bit_advertise_high_metrics_onstartup_cmd,
+	   "topology ipv6-unicast overload advertise-high-metrics on-startup (0-86400)$val",
+	   "Configure IS-IS topologies\n"
+	   "IPv6 unicast topology\n"
+	   "Set overload bit to avoid any transit traffic\n"
+	   "Set overload high metric value on all interfaces\n"
+	   "Set overload bit on startup\n"
+	   "Set overload time in seconds\n")
+{
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload",
+			      NB_OP_MODIFY, "true");
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload-advertise-high-metrics",
+			      NB_OP_MODIFY, "true");
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload-on-startup",
+			      NB_OP_MODIFY, val_str);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(isis_ipv6_unicast_topology_set_overload_bit_on_startup,
+	   isis_ipv6_unicast_topology_set_overload_bit_on_startup_cmd,
+	   "topology ipv6-unicast overload on-startup (0-86400)$val",
+	   "Configure IS-IS topologies\n"
+	   "IPv6 unicast topology\n"
+	   "Set overload bit to avoid any transit traffic\n"
+	   "Set overload bit on startup\n"
+	   "Set overload time in seconds\n")
+{
+
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload",
+			      NB_OP_MODIFY, "true");
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload-advertise-high-metrics",
+			      NB_OP_MODIFY, "false");
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload-on-startup",
+			      NB_OP_MODIFY, val_str);
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+
+DEFPY_YANG(isis_ipv6_unicast_topology_set_overload_bit_advertise_high_metrics,
+	   isis_ipv6_unicast_topology_set_overload_bit_advertise_high_metrics_cmd,
+	   "topology ipv6-unicast overload advertise-high-metrics",
+	   "Configure IS-IS topologies\n"
+	   "IPv6 unicast topology\n"
+	   "Set overload bit to avoid any transit traffic\n"
+	   "Set overload high metric value on all interfaces\n")
+{
+
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload",
+			      NB_OP_MODIFY, "true");
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload-advertise-high-metrics",
+			      NB_OP_MODIFY, "true");
+	nb_cli_enqueue_change(vty,
+			      "./multi-topology/ipv6-unicast/overload-on-startup",
+			      NB_OP_MODIFY, "0");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(isis_ipv6_unicast_topology,
+	   isis_ipv6_unicast_topology_cmd,
+	   "[no] topology ipv6-unicast",
+	   NO_STR
+	   "Configure IS-IS topologies\n"
+	   "IPv6 unicast topology\n")
+{
+	if (no)
+		nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast", NB_OP_DESTROY, NULL);
+	else{
+		nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast", NB_OP_CREATE, NULL);
+		nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast/overload", NB_OP_MODIFY, "false");
+		nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast/overload-advertise-high-metrics", NB_OP_MODIFY, "false");
+		nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast/overload-on-startup", NB_OP_MODIFY, "0");
+	}
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+DEFPY_YANG(isis_ipv6_unicast_topology_set_overload_bit,
+	   isis_ipv6_unicast_topology_set_overload_bit_cmd,
+	   "[no] topology ipv6-unicast overload",
+	   NO_STR
+	   "Configure IS-IS topologies\n"
+	   "IPv6 unicast topology\n"
+	   "Set overload bit to avoid any transit traffic\n")
+{
+
+	nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast/overload", NB_OP_MODIFY,
+			      no ? "false" : "true");
+
+	nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast/overload-advertise-high-metrics", NB_OP_MODIFY, "false");
+
+	nb_cli_enqueue_change(vty, "./multi-topology/ipv6-unicast/overload-on-startup", NB_OP_MODIFY, "0");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
 void cli_show_isis_mt_ipv4_multicast(struct vty *vty,
 				     const struct lyd_node *dnode,
 				     bool show_defaults)
@@ -1702,8 +1813,16 @@ void cli_show_isis_mt_ipv6_unicast(struct vty *vty,
 				   bool show_defaults)
 {
 	vty_out(vty, " topology ipv6-unicast");
-	if (yang_dnode_get_bool(dnode, "overload"))
+	if (yang_dnode_exists(dnode, "overload")
+	    && yang_dnode_get_bool(dnode, "overload"))
 		vty_out(vty, " overload");
+	if (yang_dnode_exists(dnode, "overload-advertise-high-metrics")
+	    && yang_dnode_get_bool(dnode, "overload-advertise-high-metrics"))
+		vty_out(vty, " advertise-high-metrics");
+	if (yang_dnode_exists(dnode, "overload-on-startup")
+	    && yang_dnode_get_uint32(dnode, "overload-on-startup") > 0)
+		vty_out(vty, " on-startup %s",
+			yang_dnode_get_string(dnode, "overload-on-startup"));
 	vty_out(vty, "\n");
 }
 
@@ -3466,6 +3585,11 @@ void isis_cli_init(void)
 	install_element(ISIS_NODE, &isis_redistribute_table_cmd);
 
 	install_element(ISIS_NODE, &isis_topology_cmd);
+	install_element(ISIS_NODE, &isis_ipv6_unicast_topology_cmd);
+	install_element(ISIS_NODE, &isis_ipv6_unicast_topology_set_overload_bit_advertise_high_metrics_onstartup_cmd);
+	install_element(ISIS_NODE, &isis_ipv6_unicast_topology_set_overload_bit_on_startup_cmd);
+	install_element(ISIS_NODE, &isis_ipv6_unicast_topology_set_overload_bit_advertise_high_metrics_cmd);
+	install_element(ISIS_NODE, &isis_ipv6_unicast_topology_set_overload_bit_cmd);
 
 	install_element(ISIS_NODE, &isis_sr_enable_cmd);
 	install_element(ISIS_NODE, &no_isis_sr_enable_cmd);
