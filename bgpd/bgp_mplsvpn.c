@@ -1854,6 +1854,7 @@ void vrf_leak_from_vrf_withdraw_all(struct bgp *to_vrf, /* to */
 			if (!bpi->extra)
 				continue;
 			if (bpi->extra->vrfleak
+				&& !is_pi_family_vpn(bpi->extra->vrfleak->parent)
 				&& (struct bgp *)bpi->extra->vrfleak->bgp_orig == from_vrf) {
 				/* delete route */
 				if (debug)
@@ -2447,7 +2448,6 @@ static void vpn_policy_routemap_update(struct bgp *bgp, const char *rmap_name)
                 bgp_vrf = bgp_lookup_by_name(tmpVrfRed->vrfname);
                 if (bgp_vrf)
                 {
-                    vrf_leak_from_vrf_withdraw_all(bgp, bgp_vrf, afi);
                     tmpVrfRed->rmap.map = rmap;
                     vrf_leak_from_vrf_update_all(bgp, bgp_vrf, afi);
                 }
