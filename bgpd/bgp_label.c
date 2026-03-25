@@ -394,7 +394,6 @@ int bgp_nlri_parse_label(struct peer *peer, struct attr *attr,
 					BGP_NOTIFY_UPDATE_INVAL_NETWORK);
 			return BGP_NLRI_PARSE_ERROR_LABEL_LENGTH;
 		}
-		p.prefixlen = prefixlen - BSIZE(llen);
 
 		/* There needs to be at least one label */
 		if (prefixlen < 24) {
@@ -405,6 +404,8 @@ int bgp_nlri_parse_label(struct peer *peer, struct attr *attr,
 					BGP_NOTIFY_UPDATE_INVAL_NETWORK);
 			return BGP_NLRI_PARSE_ERROR_LABEL_LENGTH;
 		}
+
+		p.prefixlen = prefixlen - BSIZE(llen);
 
 		if ((afi == AFI_IP && p.prefixlen > IPV4_MAX_BITLEN)
 		    || (afi == AFI_IP6 && p.prefixlen > IPV6_MAX_BITLEN))
