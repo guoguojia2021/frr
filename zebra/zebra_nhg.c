@@ -4459,6 +4459,7 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 		if (status == ZEBRA_DPLANE_REQUEST_SUCCESS) {
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_VALID);
 			SET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
+			UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
 
 			if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_SEGMENTLIST))
 				zebra_nhg_seg_handle_install(nhe);
@@ -4481,6 +4482,7 @@ void zebra_nhg_dplane_result(struct zebra_dplane_ctx *ctx)
 				EC_ZEBRA_DP_INSTALL_FAIL,
 				"Failed to install Nexthop ID (%pNG)into the kernel",
 				nhe);
+			SET_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM);
 		}
 		break;
 
