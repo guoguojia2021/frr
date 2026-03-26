@@ -1158,7 +1158,7 @@ int bgp_ls_process_message(struct bgp *bgp, struct ls_message *msg)
 		if (BGP_DEBUG(zebra, ZEBRA) || BGP_DEBUG(linkstate, LINKSTATE))
 			zlog_debug("%s: Link edge", __func__);
 
-		if (msg->event == LS_MSG_EVENT_ADD || msg->event == LS_MSG_EVENT_UPDATE) {
+		if (msg->event == LS_MSG_EVENT_ADD || msg->event == LS_MSG_EVENT_UPDATE || msg->event == LS_MSG_EVENT_SYNC) {
 			/* Search for the reverse edge and link both directions. */
 			reverse_edge = ls_find_edge_by_destination(bgp->ls_info->ted,
 								   edge->attributes);
@@ -1202,7 +1202,7 @@ int bgp_ls_process_message(struct bgp *bgp, struct ls_message *msg)
 			 * destination.
 			 */
 			if (reverse_edge &&
-			    (msg->event == LS_MSG_EVENT_ADD || reverse_edge_dst_updated)) {
+			    (msg->event == LS_MSG_EVENT_ADD || msg->event == LS_MSG_EVENT_SYNC || reverse_edge_dst_updated)) {
 				uint8_t reverse_event = msg->event;
 
 				if (msg->event == LS_MSG_EVENT_UPDATE && reverse_edge_dst_updated)
