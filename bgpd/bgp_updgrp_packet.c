@@ -1047,18 +1047,6 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 
 	union sockunion withdraw_peer;
 	memset(&withdraw_peer, 0, sizeof(withdraw_peer));
-	/*only old_adv adv->pathi is not NULL*/
-	if(adv && adv->pathi){
-		is_old_adv = true;
-		if (adv->pathi->peer->connection->su.sa.sa_family == AF_INET){
-			withdraw_peer.sa.sa_family = AF_INET;
-			memcpy(&withdraw_peer.sin.sin_addr, &(adv->withdraw_baa->attr->from.sin.sin_addr),4);
-		}
-		else if(adv->pathi->peer->connection->su.sa.sa_family == AF_INET6){
-			withdraw_peer.sa.sa_family = AF_INET6;
-			memcpy(&withdraw_peer.sin6.sin6_addr, &(adv->withdraw_baa->attr->from.sin6.sin6_addr),16);
-		}
-	}
 
 	while (adv) {
 		const struct prefix *dest_p;
@@ -1071,11 +1059,32 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		UNSET_FLAG(adv->flags, ADV_IN_QUEUE);
 		wait_addpath_tx_id = adv->wait_addpath_tx_id;
 		if (wait_addpath_tx_id != IDALLOC_INVALID) {
-			wait_adj = adj_lookup(adv->dest, subgrp,wait_addpath_tx_id);
+			wait_adj = adj_lookup(adv->dest, subgrp, wait_addpath_tx_id);
 			if ((wait_adj) && (wait_adj->adv) && (CHECK_FLAG(wait_adj->adv->flags, ADV_IN_QUEUE))) {
 				bgp_adv_fifo_del(&subgrp->sync->withdraw, adv);
 				bgp_adv_fifo_add_tail(&tmp_withdraw, adv);
+				/* Fix: update adv to next queue head before continue,
+				 * otherwise the loop will spin on the same stale pointer */
+				adv = bgp_adv_fifo_first(&subgrp->sync->withdraw);
 				continue;
+			}
+		}
+
+		/* Determine per-adv whether this is an old_adv withdraw and
+		 * update withdraw_peer accordingly, so that each adv carries
+		 * the correct target peer even after skipping entries above */
+		is_old_adv = false;
+		memset(&withdraw_peer, 0, sizeof(withdraw_peer));
+		if (adv->pathi) {
+			is_old_adv = true;
+			if (adv->pathi->peer->connection->su.sa.sa_family == AF_INET) {
+				withdraw_peer.sa.sa_family = AF_INET;
+				memcpy(&withdraw_peer.sin.sin_addr,
+				       &(adv->withdraw_baa->attr->from.sin.sin_addr), 4);
+			} else if (adv->pathi->peer->connection->su.sa.sa_family == AF_INET6) {
+				withdraw_peer.sa.sa_family = AF_INET6;
+				memcpy(&withdraw_peer.sin6.sin6_addr,
+				       &(adv->withdraw_baa->attr->from.sin6.sin6_addr), 16);
 			}
 		}
 
@@ -1091,6 +1100,7 @@ struct bpacket *subgroup_withdraw_packet(struct update_subgroup *subgrp)
 		if (stream_empty(s)) {
 			bgp_packet_set_marker(s, BGP_MSG_UPDATE);
 			stream_putw(s, 0); /* unfeasible routes length */
+			first_time = 1;
 		} else
 			first_time = 0;
 

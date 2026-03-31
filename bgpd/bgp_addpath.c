@@ -317,13 +317,9 @@ void bgp_addpath_type_changed(struct bgp *bgp)
 	safi_t safi;
 	struct listnode *node, *nnode;
 	struct peer *peer;
-	int peer_count[AFI_MAX][SAFI_MAX][BGP_ADDPATH_MAX];
 	enum bgp_addpath_strat type;
 
 	FOREACH_AFI_SAFI(afi, safi) {
-		for (type=0; type<BGP_ADDPATH_MAX; type++) {
-			peer_count[afi][safi][type] = 0;
-		}
 		bgp->tx_addpath.total_peercount[afi][safi] = 0;
 	}
 
@@ -331,12 +327,11 @@ void bgp_addpath_type_changed(struct bgp *bgp)
 		FOREACH_AFI_SAFI(afi, safi) {
 			type = peer->addpath_type[afi][safi];
 			if (type != BGP_ADDPATH_NONE) {
-				peer_count[afi][safi][type] += 1;
 				bgp->tx_addpath.total_peercount[afi][safi] += 1;
 			}
 		}
 	}
-
+#if 0
 	FOREACH_AFI_SAFI(afi, safi) {
 		for (type=0; type<BGP_ADDPATH_MAX; type++) {
 			int old = bgp->tx_addpath.peercount[afi][safi][type];
@@ -352,6 +347,7 @@ void bgp_addpath_type_changed(struct bgp *bgp)
 			}
 		}
 	}
+#endif
 }
 
 /*
@@ -379,7 +375,7 @@ void bgp_addpath_set_peer_type(struct peer *peer, afi_t afi, safi_t safi,
 
 	peer->addpath_type[afi][safi] = addpath_type;
 
-	//bgp_addpath_type_changed(bgp);
+	bgp_addpath_type_changed(bgp);
 
 	if (addpath_type != BGP_ADDPATH_NONE) {
 		if (bgp_addpath_dmed_required(addpath_type)) {
