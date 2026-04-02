@@ -484,6 +484,10 @@ int bgp_ls_update(struct bgp *bgp, struct bgp_ls_nlri *nlri, struct bgp_ls_attr 
 	/* Make default attribute. */
 	bgp_attr_default_set(&attr, BGP_ORIGIN_IGP);
 
+	/* Attach BGP-LS attributes if provided */
+	if (ls_attr)
+		attr.ls_attr = ls_attr;
+
 	attr_new = bgp_attr_intern(&attr);
 
 	for (bpi = bgp_dest_get_bgp_path_info(dest); bpi; bpi = bpi->next)
