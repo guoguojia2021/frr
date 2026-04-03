@@ -4110,6 +4110,7 @@ void bgp_instance_down(struct bgp *bgp)
 
 	/* Cleanup registered nexthops (flags) */
 	bgp_cleanup_nexthops(bgp);
+	bgp_cleanup_condition_track(bgp);
 
 	bgp_zebra_instance_deregister(bgp);
 

@@ -71,7 +71,7 @@ extern void bgp_delete_connected_nexthop(afi_t afi, struct peer *peer);
  * pertaining to this VRF. This is invoked upon VRF deletion.
  */
 extern void bgp_cleanup_nexthops(struct bgp *bgp);
-
+extern void bgp_cleanup_condition_track(struct bgp *bgp);
 /*
  * Add or remove the tracking of the bgp_path_info that
  * uses this nexthop

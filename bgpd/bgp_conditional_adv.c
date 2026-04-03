@@ -392,20 +392,24 @@ void bgp_trackroute_adv_enable(struct peer *peer, afi_t afi, safi_t safi, struct
         bnc = bnc_new(tree, &filter->advmap.condition_route, 0, 0, 0, 0);
         bnc->bgp = bgp;
         bnc->ifindex = 0;
-        char buf[PREFIX2STR_BUFFER];
+		if (BGP_DEBUG(cond_adv, COND_ADV)) {
+			char buf[PREFIX2STR_BUFFER];
 
-        zlog_debug("Allocated bnc %s(%u)(%s) peer %p --track route",
-               bnc_str(bnc, buf, PREFIX2STR_BUFFER),
-               bnc->srte_color, bnc->bgp->name_pretty,
-               peer);
+			zlog_debug("Allocated bnc %s(%u)(%s) peer %p --track route",
+				bnc_str(bnc, buf, PREFIX2STR_BUFFER),
+				bnc->srte_color, bnc->bgp->name_pretty,
+				peer);
+		}
     } else {
-        char buf[PREFIX2STR_BUFFER];
+		if (BGP_DEBUG(cond_adv, COND_ADV)) {
+			char buf[PREFIX2STR_BUFFER];
 
-        zlog_debug(
-            "Found existing bnc %s(%s) flags 0x%x #peers %d peer %p ---trace route",
-            bnc_str(bnc, buf, PREFIX2STR_BUFFER),
-            bnc->bgp->name_pretty, bnc->flags, 
-            bnc->peerfilters_count, peer);
+			zlog_debug(
+				"Found existing bnc %s(%s) flags 0x%x #peers %d peer %p ---trace route",
+				bnc_str(bnc, buf, PREFIX2STR_BUFFER),
+				bnc->bgp->name_pretty, bnc->flags,
+				bnc->peerfilters_count, peer);
+		}
     }
     SET_FLAG(bnc->flags, BGP_CONDITION_TRACK_ROUTE);
 
@@ -434,11 +438,16 @@ void bgp_trackroute_adv_disable(struct peer *peer, afi_t afi, safi_t safi, struc
      * and advertise/withdraw routes only when there is a change in BGP
      * table w.r.t conditional routes
      */
+	bgp_cond_adv_debug("%s: peer %s for %s, --track route.",
+			   __func__, peer->host,
+			   get_afi_safi_str(afi, safi, false));
     peer->advmap_config_change[afi][safi] = true;
 
     tree = &bgp->condition_track_table[afi];
     bnc = bnc_find(tree, &filter->advmap.condition_route, 0, 0, 0, 0);
     if (!bnc) {
+		bgp_cond_adv_debug("%s: bnc not found for %s", __func__,
+				   get_afi_safi_str(afi, safi, false));
         return;
     } 
 

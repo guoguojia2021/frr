@@ -648,8 +648,8 @@ static void bgp_process_cond_nexthop_update(struct bgp_nexthop_cache *bnc,
 		char bnc_buf[BNC_FLAG_DUMP_SIZE];
 
 		zlog_debug(
-			"%s(%u): Rcvd cond NH update %pFX(flag:%d, color:%u) - metric %d/%d #nhops %d/%d flags %s",
-			bnc->bgp->name_pretty, bnc->bgp->vrf_id, &nhr->prefix,
+			"%s(%u): Bnc(%pFX resolved %pFx) Rcvd cond NH update %pFX(flag:%d, color:%u) - metric %d/%d #nhops %d/%d flags %s",
+			bnc->bgp->name_pretty, bnc->bgp->vrf_id, &bnc->prefix, &bnc->resolve_prefix, &nhr->prefix,
 			bnc->srte_color, bnc->srte_color_flag, nhr->metric, bnc->metric,
 			nhr->nexthop_num, bnc->nexthop_num,
 			bgp_nexthop_dump_bnc_flags(bnc, bnc_buf,
@@ -844,14 +844,19 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	if (!bnc_nhc) {
 		if (BGP_DEBUG(nht, NHT))
 			zlog_debug(
-				"parse nexthop update(%pFX(%u)(%s)): bnc info not found for nexthop cache",
-				&nhr.prefix, nhr.srte_color, bgp->name_pretty);
+				"match(%pFX) parse nexthop update(%pFX(%u)(%s)): bnc info not found for nexthop cache",
+				&match, &nhr.prefix, nhr.srte_color, bgp->name_pretty);
 	} else
 		bgp_process_nexthop_update(bnc_nhc, &nhr, false);
 
 	tree = &bgp->condition_track_table[afi];
 	bnc_cond = bnc_find(tree, &match, nhr.srte_color, nhr.srte_color_flag, nhr.srte_backup_color, nhr.srte_backup_color_flag);
-	if (bnc_cond) {
+	if (!bnc_cond) {
+		if (BGP_DEBUG(nht, NHT))
+			zlog_debug(
+				"match(%pFX) parse nexthop update(%pFX(%u)(%s)): bnc info not found for condition track",
+				&match, &nhr.prefix, nhr.srte_color, bgp->name_pretty);
+	} else {
 		bgp_process_cond_nexthop_update(bnc_cond, &nhr);
 	}
 
@@ -860,8 +865,8 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 	if (!bnc_import) {
 		if (BGP_DEBUG(nht, NHT))
 			zlog_debug(
-				"parse nexthop update(%pFX(%u)(%s)): bnc info not found for import check",
-				&nhr.prefix, nhr.srte_color, bgp->name_pretty);
+				"match(%pFX) parse nexthop update(%pFX(%u)(%s)): bnc info not found for import check",
+				&match, &nhr.prefix, nhr.srte_color, bgp->name_pretty);
 	} else {
 		bgp_process_nexthop_update(bnc_import, &nhr, true);
 	}
@@ -913,7 +918,19 @@ void bgp_cleanup_nexthops(struct bgp *bgp)
 		}
 	}
 }
+void bgp_cleanup_condition_track(struct bgp *bgp)
+{
+	for (afi_t afi = AFI_IP; afi < AFI_MAX; afi++) {
+		struct bgp_nexthop_cache *bnc;
 
+		frr_each (bgp_nexthop_cache, &bgp->condition_track_table[afi],
+			  bnc) {
+			/* Clear relevant flags. */
+			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_VALID);
+			UNSET_FLAG(bnc->flags, BGP_NEXTHOP_REGISTERED);
+		}
+	}
+}
 /**
  * make_prefix - make a prefix structure from the path (essentially
  * path's node.
