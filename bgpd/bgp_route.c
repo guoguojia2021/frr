@@ -11065,6 +11065,7 @@ void route_vty_out(struct vty *vty, const struct prefix *p,
 	json_object *json_nexthop_global = NULL;
 	json_object *json_nexthop_ll = NULL;
 	json_object *json_ext_community = NULL;
+	json_object *json_ls_attr = NULL;
 	char vrf_id_str[VRF_NAMSIZ] = {0};
 	bool nexthop_self =
 		CHECK_FLAG(path->flags, BGP_PATH_ANNC_NH_SELF) ? true : false;
@@ -11518,9 +11519,20 @@ void route_vty_out(struct vty *vty, const struct prefix *p,
 					       json_nexthops);
 		}
 
+		/* Include BGP-LS link attributes in list view JSON output */
+		if (safi == SAFI_BGP_LS && attr->ls_attr) {
+			json_ls_attr = bgp_ls_attr_to_json(attr->ls_attr);
+			json_object_object_add(json_path, "linkStateAttrs",
+					       json_ls_attr);
+		}
+
 		json_object_array_add(json_paths, json_path);
 	} else {
 		vty_out(vty, "\n");
+
+		/* Include BGP-LS link attributes in list view text output */
+		if (safi == SAFI_BGP_LS && attr->ls_attr)
+			bgp_ls_attr_display(vty, attr->ls_attr);
 
 		if (safi == SAFI_EVPN) {
 			if (bgp_evpn_is_esi_valid(&attr->esi)) {
