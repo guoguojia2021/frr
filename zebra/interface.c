@@ -52,6 +52,7 @@
 #include "zebra/zebra_vxlan.h"
 #include "zebra/zebra_errors.h"
 #include "zebra/zebra_evpn_mh.h"
+#include "zebra/zebra_trace.h"
 
 DEFINE_MTYPE_STATIC(ZEBRA, ZINFO, "Zebra Interface Information");
 
@@ -1028,6 +1029,10 @@ void if_up(struct interface *ifp)
 	zif->up_count++;
 	frr_timestamp(2, zif->up_last, sizeof(zif->up_last));
 
+	frrtrace(4, frr_zebra, zebra_if_up,
+		 ifp->vrf->vrf_id, ifp->name,
+		 (uint32_t)ifp->ifindex, (uint32_t)ifp->flags);
+
 	/* Notify the protocol daemons. */
 	if (ifp->ptm_enable && (ifp->ptm_status == ZEBRA_PTM_STATUS_DOWN)) {
 		flog_warn(EC_ZEBRA_PTM_NOT_READY,
@@ -1092,6 +1097,10 @@ void if_down(struct interface *ifp)
 	zif = ifp->info;
 	zif->down_count++;
 	frr_timestamp(2, zif->down_last, sizeof(zif->down_last));
+
+	frrtrace(4, frr_zebra, zebra_if_down,
+		 ifp->vrf->vrf_id, ifp->name,
+		 (uint32_t)ifp->ifindex, (uint32_t)ifp->flags);
 
 	if_down_nhg_dependents(ifp);
 

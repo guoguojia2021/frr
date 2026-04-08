@@ -30,6 +30,7 @@ pathd_libpath_a_SOURCES = \
 	pathd/path_nb_config.c \
 	pathd/path_nb_state.c \
 	pathd/path_ted.c \
+	pathd/path_trace.c \
 	pathd/path_zebra.c \
 	pathd/pathd.c \
 	pathd/path_sbfd.c \
@@ -56,6 +57,7 @@ noinst_HEADERS += \
 	pathd/path_pcep_config.h \
 	pathd/path_pcep_pcc.h \
 	pathd/path_ted.h \
+	pathd/path_trace.h \
 	pathd/path_zebra.h \
 	pathd/pathd.h \
 	pathd/path_sbfd.h \
@@ -68,7 +70,7 @@ pathd_pathd_SOURCES = \
 nodist_pathd_pathd_SOURCES = \
 	yang/frr-pathd.yang.c \
 	# end
-pathd_pathd_LDADD = pathd/libpath.a lib/libfrr.la -lm -ldl $(LIBCAP)
+pathd_pathd_LDADD = pathd/libpath.a lib/libfrr.la -lm -ldl $(LIBCAP) $(UST_LIBS)
 
 pathd_pathd_pcep_la_SOURCES = \
 	pathd/path_pcep.c \

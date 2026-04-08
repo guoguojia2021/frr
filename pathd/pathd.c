@@ -31,6 +31,7 @@
 #include "pathd/path_ted.h"
 #include "pathd/path_sbfd.h"
 #include "pathd/path_db.h"
+#include "pathd/path_trace.h"
 
 #define HOOK_DELAY 3
 
@@ -623,6 +624,9 @@ static int srte_policy_select_candidate_group(struct srte_policy *policy)
 {
 	struct srte_candidate_group *cpath_group;
 	bool select_bast = false;
+	char endpoint[46];
+
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
 	RB_FOREACH_REVERSE (cpath_group, srte_candidate_group_head,
 			    &policy->candidate_groups) {
@@ -634,12 +638,26 @@ static int srte_policy_select_candidate_group(struct srte_policy *policy)
 				SET_FLAG(cpath_group->flags, F_CPATH_GROUP_BEST);
 				policy->best_candidate_group = cpath_group;
 				select_bast = true;
+				frrtrace(6, frr_pathd, cpath_group_select,
+					 policy->color, endpoint,
+					 cpath_group->preference, "UP",
+					 cpath_group->up_cpath_num, "BEST");
 			}
 			else {
 				SET_FLAG(cpath_group->flags, F_CPATH_GROUP_BACKUP);
 				policy->backup_candidate_group = cpath_group;
+				frrtrace(6, frr_pathd, cpath_group_select,
+					 policy->color, endpoint,
+					 cpath_group->preference, "UP",
+					 cpath_group->up_cpath_num, "BACKUP");
 				return 0;
 			}
+		} else {
+			frrtrace(6, frr_pathd, cpath_group_select,
+				 policy->color, endpoint,
+				 cpath_group->preference,
+				 cpath_group->status == SRTE_DETECT_DOWN ? "DOWN" : "NONE",
+				 cpath_group->up_cpath_num, "SKIP");
 		}
 	}
 
@@ -857,6 +875,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 	char endpoint[46];
 	bool state_changed = false;
 	enum srte_policy_status status = policy->status;
+	const char *action __attribute__((unused));
 
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 
@@ -888,13 +907,23 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 		}
 
 		if (policy->best_candidate_group == NULL) {
+			action = "delete_policy";
 			path_zebra_delete_srv6_policy(policy);
 		}
 		else {
+			action = "add_policy";
 			path_zebra_add_srv6_policy(policy);
 			reset_candidate_group_state_changed(policy->best_candidate_group);
 			reset_candidate_group_state_changed(policy->backup_candidate_group);
 		}
+
+		frrtrace(7, frr_pathd, cpath_election,
+			 policy->color, endpoint,
+			 old_best_cpath_group ? old_best_cpath_group->preference : 0,
+			 policy->best_candidate_group ? policy->best_candidate_group->preference : 0,
+			 old_backup_cpath_group ? old_backup_cpath_group->preference : 0,
+			 policy->backup_candidate_group ? policy->backup_candidate_group->preference : 0,
+			 action);
 	} else if (policy->best_candidate_group) {
 		/* The best candidate path did not change, but some of its
 		 * attributes or its segment list may have changed.
@@ -902,6 +931,7 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 		state_changed = srv6_policy_state_changed(policy);
 		if (state_changed) {
+			action = "update_policy";
 			if (IS_PATHD_DEBUG_SRV6) {
 				zlog_debug("SR-TE(%s, %u): best cpg:%u flags 0x%x changed.",
 					endpoint, policy->color,
@@ -912,6 +942,14 @@ void srv6_choose_best_cpath_group(struct srte_policy *policy)
 
 			reset_candidate_group_state_changed(policy->best_candidate_group);
 			reset_candidate_group_state_changed(policy->backup_candidate_group);
+
+			frrtrace(7, frr_pathd, cpath_election,
+				 policy->color, endpoint,
+				 old_best_cpath_group ? old_best_cpath_group->preference : 0,
+				 policy->best_candidate_group ? policy->best_candidate_group->preference : 0,
+				 old_backup_cpath_group ? old_backup_cpath_group->preference : 0,
+				 policy->backup_candidate_group ? policy->backup_candidate_group->preference : 0,
+				 action);
 		}
 		else
 		{
@@ -937,8 +975,13 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 	char endpoint[46];
 	enum srte_policy_status status = policy->status;
 	bool is_bfd_active = policy->bfd_config != NULL;
+	const char *old_status_str __attribute__((unused));
+	const char *new_status_str __attribute__((unused));
 
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
+
+	old_status_str = (status == SRTE_POLICY_STATUS_UP) ? "UP" :
+			  (status == SRTE_POLICY_STATUS_DOWN) ? "DOWN" : "UNKNOWN";
 
 	RB_FOREACH_SAFE (cpath_group, srte_candidate_group_head, &policy->candidate_groups, safe_cg) 
 	{
@@ -989,6 +1032,12 @@ void srv6_refresh_policy_state(struct srte_policy *policy)
 		policy->updatetime = monotime(NULL);
 		redis_Db_Policy_SetEntry(policy);
 	}
+
+	new_status_str = (policy->status == SRTE_POLICY_STATUS_UP) ? "UP" :
+			  (policy->status == SRTE_POLICY_STATUS_DOWN) ? "DOWN" : "UNKNOWN";
+	frrtrace(5, frr_pathd, policy_refresh_state,
+		 policy->color, endpoint, old_status_str,
+		 new_status_str, policy->up_cpath_group_num);
 }
 
 void srv6_policy_apply_changes(struct srte_policy *policy)
@@ -1000,6 +1049,11 @@ void srv6_policy_apply_changes(struct srte_policy *policy)
 	RB_FOREACH_SAFE (candidate, srte_candidate_head, &policy->candidate_paths, safe) {
 		if (CHECK_FLAG(candidate->flags, F_CANDIDATE_HIDDEN))
 			continue;
+
+		frrtrace(5, frr_pathd, policy_apply_changes,
+			 policy->color, endpoint,
+			 candidate->name, candidate->policy_bfd_ops,
+			 candidate->flags);
 
 		if (candidate->policy_bfd_ops || candidate->flags) {
 			SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);
@@ -1116,6 +1170,15 @@ struct srte_candidate *srte_candidate_add(struct srte_policy *policy,
 	RB_INSERT(srte_candidate_head, &policy->candidate_paths, candidate);
 	srte_candidate_add_group(policy, candidate);
 
+	{
+		char ep[46];
+		prefix2str(&policy->endpoint, ep, sizeof(ep));
+		frrtrace(6, frr_pathd, cpath_add,
+			 policy->color, ep, preference, name,
+			 srte_origin2str(origin),
+			 originator ? originator : "");
+	}
+
 	return candidate;
 }
 
@@ -1173,6 +1236,14 @@ void srte_candidate_add_group(struct srte_policy *policy,
     candidate->group = cpath_group;
 	RB_INSERT(srte_candidate_pref_head, &cpath_group->candidate_paths, candidate);
 
+	{
+		char ep[46];
+		prefix2str(&policy->endpoint, ep, sizeof(ep));
+		frrtrace(5, frr_pathd, cpath_add_group,
+			 policy->color, ep, candidate->preference,
+			 candidate->name, cpath_group->preference);
+	}
+
 	return;
 }
 
@@ -1190,6 +1261,14 @@ void srte_candidate_del(struct srte_candidate *candidate)
 {
 	struct srte_policy *srte_policy = candidate->policy;
 	struct srte_candidate_group *cpath_group;
+
+	{
+		char ep[46];
+		prefix2str(&srte_policy->endpoint, ep, sizeof(ep));
+		frrtrace(4, frr_pathd, cpath_del,
+			 srte_policy->color, ep,
+			 candidate->preference, candidate->name);
+	}
 
 	RB_REMOVE(srte_candidate_head, &srte_policy->candidate_paths,
 		  candidate);
@@ -2119,6 +2198,13 @@ static void cpath_status_down_handle(struct srte_candidate *candidate)
 void cpath_status_refresh(struct srte_candidate *candidate, enum detection_status sta)
 {
 	enum detection_status status = candidate->status;
+	char ep[46];
+
+	prefix2str(&candidate->policy->endpoint, ep, sizeof(ep));
+	frrtrace(6, frr_pathd, cpath_status_refresh,
+		 candidate->policy->color, ep,
+		 candidate->name, candidate->preference,
+		 cpath_status_str(status), cpath_status_str(sta));
 
 	switch (sta)
 	{

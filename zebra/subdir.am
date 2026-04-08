@@ -123,6 +123,7 @@ zebra_libzebra_a_SOURCES = \
 	zebra/zserv.c \
 	zebra/zebra_db.c \
 	zebra/zebra_common.c \
+	zebra/zebra_trace.c \
 	# end
 
 clippy_scan += \
@@ -196,6 +197,7 @@ noinst_HEADERS += \
 	zebra/zserv.h \
 	zebra/zebra_db.h \
 	zebra/zebra_common.h \
+	zebra/zebra_trace.h \
 	zebra/nf_netlink.h \
 	# end
 

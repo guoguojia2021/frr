@@ -80,6 +80,7 @@
 #include "zebra/zebra_vxlan.h"
 #include "zebra/zebra_errors.h"
 #include "zebra/zebra_evpn_mh.h"
+#include "zebra/zebra_trace.h"
 
 #ifndef AF_MPLS
 #define AF_MPLS 28
@@ -903,6 +904,16 @@ static int netlink_route_change_read_unicast(struct nlmsghdr *h, ns_id_t ns_id,
 					: "",
 			vrf_id_to_name(vrf_id), vrf_id, table, metric,
 			distance);
+	}
+
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(&p, pfx_buf, sizeof(pfx_buf));
+		frrtrace(6, frr_zebra, zebra_netlink_route_change,
+			 vrf_id, pfx_buf,
+			 nl_rtproto_to_str(rtm->rtm_protocol),
+			 (uint32_t)metric, (uint32_t)distance,
+			 (h->nlmsg_type == RTM_NEWROUTE));
 	}
 
 	afi_t afi = AFI_IP;
@@ -3207,6 +3218,10 @@ int netlink_nexthop_change(struct nlmsghdr *h, ns_id_t ns_id, int startup)
 		zlog_debug("%s ID (%u) %s NS %u",
 			   nl_msg_type_to_str(h->nlmsg_type), id,
 			   nl_family_to_str(family), ns_id);
+
+	frrtrace(4, frr_zebra, zebra_netlink_nexthop_change,
+		 vrf_id, id, nl_family_to_str(family),
+		 (h->nlmsg_type == RTM_NEWNEXTHOP));
 
 
 	if (h->nlmsg_type == RTM_NEWNEXTHOP) {

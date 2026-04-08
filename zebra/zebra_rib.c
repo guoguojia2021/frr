@@ -61,6 +61,7 @@
 #include "zebra/zebra_script.h"
 #include "zebra/zebra_srte.h"
 #include "zebra/zebra_db.h"
+#include "zebra/zebra_trace.h"
 #include "lib/srv6.h"
 
 DEFINE_MGROUP(ZEBRA, "zebra");
@@ -601,6 +602,15 @@ void rib_install_kernel(struct route_node *rn, struct route_entry *re,
 
 	srcdest_rnode_prefixes(rn, &p, &src_p);
 
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(p, pfx_buf, sizeof(pfx_buf));
+		frrtrace(4, frr_zebra, zebra_rib_install_kernel,
+			 re->vrf_id, pfx_buf,
+			 zebra_route_string(re->type),
+			 (old != NULL));
+	}
+
 	if (info->safi != SAFI_UNICAST) {
 		for (ALL_NEXTHOPS(re->nhe->nhg, nexthop))
 			SET_FLAG(nexthop->flags, NEXTHOP_FLAG_FIB);
@@ -702,6 +712,16 @@ void rib_uninstall_kernel(struct route_node *rn, struct route_entry *re)
 	struct nexthop *nexthop;
 	struct rib_table_info *info = srcdest_rnode_table_info(rn);
 	struct zebra_vrf *zvrf = vrf_info_lookup(re->vrf_id);
+
+	{
+		const struct prefix *p, *src_p;
+		char pfx_buf[PREFIX_STRLEN];
+		srcdest_rnode_prefixes(rn, &p, &src_p);
+		prefix2str(p, pfx_buf, sizeof(pfx_buf));
+		frrtrace(3, frr_zebra, zebra_rib_uninstall_kernel,
+			 re->vrf_id, pfx_buf,
+			 zebra_route_string(re->type));
+	}
 
 	if (info->safi != SAFI_UNICAST) {
 		UNSET_FLAG(re->status, ROUTE_ENTRY_INSTALLED);

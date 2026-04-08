@@ -232,6 +232,8 @@ TRACEPOINT_EVENT(
 	TP_FIELDS(
 		ctf_string(prefix, bgp_dest_get_prefix_str(dest))
 		ctf_integer(unsigned int, count, bgp_dest_get_lock_count(dest))
+		ctf_string(afi, afi2str(bgp_dest_table(dest)->afi))
+		ctf_string(safi, safi2str(bgp_dest_table(dest)->safi))
 	)
 )
 TRACEPOINT_LOGLEVEL(frr_bgp, bgp_dest_lock, TRACE_INFO)
@@ -243,6 +245,8 @@ TRACEPOINT_EVENT(
 	TP_FIELDS(
 		ctf_string(prefix, bgp_dest_get_prefix_str(dest))
 		ctf_integer(unsigned int, count, bgp_dest_get_lock_count(dest))
+		ctf_string(afi, afi2str(bgp_dest_table(dest)->afi))
+		ctf_string(safi, safi2str(bgp_dest_table(dest)->safi))
 	)
 )
 TRACEPOINT_LOGLEVEL(frr_bgp, bgp_dest_unlock, TRACE_INFO)
@@ -475,6 +479,126 @@ TRACEPOINT_EVENT(
 	)
 )
 TRACEPOINT_LOGLEVEL(frr_bgp, evpn_local_l3vni_del_zrecv, TRACE_INFO)
+/*
+ * BGP receives interface up from zebra.
+ * Traces: bgp_ifp_up() -> bgp收到zebra接口UP通知
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_intf_up,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, ifname),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(ifname, ifname)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_intf_up, TRACE_INFO)
+
+/*
+ * BGP receives interface down from zebra.
+ * Traces: bgp_ifp_down() -> bgp收到zebra接口DOWN通知
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_intf_down,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, ifname),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(ifname, ifname)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_intf_down, TRACE_INFO)
+
+/*
+ * BGP receives interface address add from zebra.
+ * Traces: bgp_interface_address_add() -> bgp收到zebra接口地址添加通知
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_addr_add,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, ifname,
+		const char *, addr),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(ifname, ifname)
+		ctf_string(addr, addr)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_addr_add, TRACE_INFO)
+
+/*
+ * BGP receives interface address delete from zebra.
+ * Traces: bgp_interface_address_delete() -> bgp收到zebra接口地址删除通知
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_addr_del,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, ifname,
+		const char *, addr),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(ifname, ifname)
+		ctf_string(addr, addr)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_addr_del, TRACE_INFO)
+
+/*
+ * BGP receives nexthop update from zebra.
+ * Traces: bgp_parse_nexthop_update() -> bgp收到zebra下一跳更新消息
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_nh_update,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, prefix,
+		uint32_t, nh_num, uint32_t, metric,
+		uint32_t, srte_color),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(prefix, prefix)
+		ctf_integer(uint32_t, nh_num, nh_num)
+		ctf_integer(uint32_t, metric, metric)
+		ctf_integer(uint32_t, srte_color, srte_color)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_nh_update, TRACE_INFO)
+
+/*
+ * BGP announces route to zebra.
+ * Traces: bgp_zebra_announce() -> bgp下发路由到zebra
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_route_announce,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, prefix,
+		uint32_t, nh_count, uint32_t, distance,
+		uint32_t, metric, bool, is_add),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(prefix, prefix)
+		ctf_integer(uint32_t, nh_count, nh_count)
+		ctf_integer(uint32_t, distance, distance)
+		ctf_integer(uint32_t, metric, metric)
+		ctf_integer(uint8_t, is_add, is_add)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_route_announce, TRACE_INFO)
+
+/*
+ * BGP withdraws route from zebra.
+ * Traces: bgp_zebra_withdraw() -> bgp从zebra撤销路由
+ */
+TRACEPOINT_EVENT(
+	frr_bgp,
+	bgp_zebra_route_withdraw,
+	TP_ARGS(vrf_id_t, vrf_id, const char *, prefix),
+	TP_FIELDS(
+		ctf_integer(vrf_id_t, vrf_id, vrf_id)
+		ctf_string(prefix, prefix)
+	)
+)
+TRACEPOINT_LOGLEVEL(frr_bgp, bgp_zebra_route_withdraw, TRACE_INFO)
+
 /* clang-format on */
 
 #include <lttng/tracepoint-event.h>

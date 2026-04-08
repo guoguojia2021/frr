@@ -40,6 +40,7 @@
 #include "pathd/path_db.h"
 #include "pathd/path_debug.h"
 #include "pathd/path_sbfd.h"
+#include "pathd/path_trace.h"
 
 static int path_zebra_opaque_msg_handler(ZAPI_CALLBACK_ARGS);
 
@@ -204,9 +205,14 @@ static int path_zebra_sr_policy_notify_status(ZAPI_CALLBACK_ARGS)
 	struct zapi_sr_policy zapi_sr_policy;
 	struct srte_policy *policy;
 	struct srte_candidate *best_candidate_path;
+	char ep[46];
 
 	if (zapi_sr_policy_notify_status_decode(zclient->ibuf, &zapi_sr_policy))
 		return -1;
+
+	prefix2str(&zapi_sr_policy.endpoint, ep, sizeof(ep));
+	frrtrace(3, frr_pathd, zebra_sr_policy_notify_status,
+		 zapi_sr_policy.color, ep, zapi_sr_policy.status);
 
 	policy = srte_policy_find(zapi_sr_policy.color,
 				  &zapi_sr_policy.endpoint);
@@ -267,6 +273,7 @@ void path_zebra_add_sr_policy(struct srte_policy *policy,
 {
 	struct zapi_sr_policy zp = {};
 	struct srte_segment_entry *segment;
+	char ep[46];
 
 	zp.color = policy->color;
 	zp.endpoint = policy->endpoint;
@@ -279,6 +286,11 @@ void path_zebra_add_sr_policy(struct srte_policy *policy,
 			segment->sid_value;
 	policy->status = SRTE_POLICY_STATUS_GOING_UP;
 
+	prefix2str(&policy->endpoint, ep, sizeof(ep));
+	frrtrace(5, frr_pathd, zebra_add_sr_policy,
+		 policy->color, ep, policy->name,
+		 policy->binding_sid, zp.segment_list.label_num);
+
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SR_POLICY_SET, &zp);
 }
 
@@ -290,6 +302,7 @@ void path_zebra_add_sr_policy(struct srte_policy *policy,
 void path_zebra_delete_sr_policy(struct srte_policy *policy)
 {
 	struct zapi_sr_policy zp = {};
+	char ep[46];
 
 	zp.color = policy->color;
 	zp.endpoint = policy->endpoint;
@@ -298,6 +311,10 @@ void path_zebra_delete_sr_policy(struct srte_policy *policy)
 	zp.segment_list.local_label = policy->binding_sid;
 	zp.segment_list.label_num = 0;
 	policy->status = SRTE_POLICY_STATUS_DOWN;
+
+	prefix2str(&policy->endpoint, ep, sizeof(ep));
+	frrtrace(4, frr_pathd, zebra_delete_sr_policy,
+		 policy->color, ep, policy->name, policy->binding_sid);
 
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SR_POLICY_DELETE, &zp);
 }
@@ -352,6 +369,12 @@ void path_zebra_encode_srv6_policy(struct srte_policy *policy,
 						candidate->name, candidate->segment_list->name,
 						candidate->bfd_name, candidate->my_discriminator);
 			}
+			frrtrace(8, frr_pathd, zebra_encode_srv6_cpath,
+				 zp->color, endpoint,
+				 candidate_group->preference, candidate->name,
+				 candidate->segment_list->name, candidate->weight,
+				 candidate->my_discriminator,
+				 zp->srv6_tunnel.sidlists[cpath_count - 1].flags);
 		}
 	}
 	zp->srv6_tunnel.path_num = cpath_count;
@@ -406,6 +429,11 @@ void path_zebra_add_srv6_policy(struct srte_policy *policy)
 			loc?"valid" : "invalid");
 	}
 #ifndef ZEBRA_UNIT_TESTING
+	frrtrace(6, frr_pathd, zebra_add_srv6_policy,
+		 zp.color, endpoint, zp.name[0] ? zp.name : "-",
+		 zp.srv6_tunnel.path_num,
+		 policy->binding_v6_sid.ipa_type == IPADDR_NONE ? "-" : binding_sid,
+		 policy->binding_sid_valid);
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_SET, &zp);
 #endif
 }
@@ -452,6 +480,8 @@ void path_zebra_delete_srv6_policy(struct srte_policy *policy)
 			policy->binding_v6_sid.ipa_type==IPADDR_NONE ? "-" : binding_sid,
 			loc?"valid" : "invalid");
 	}
+	frrtrace(3, frr_pathd, zebra_delete_srv6_policy,
+		 zp.color, endpoint, zp.name[0] ? zp.name : "-");
 #ifndef ZEBRA_UNIT_TESTING
 	(void)zebra_send_sr_policy(zclient, ZEBRA_SRV6_POLICY_DELETE, &zp);
 #endif

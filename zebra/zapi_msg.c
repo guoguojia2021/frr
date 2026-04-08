@@ -61,6 +61,7 @@
 #include "zebra/zebra_opaque.h"
 #include "zebra/zebra_srte.h"
 #include "zebra/zebra_srv6.h"
+#include "zebra/zebra_trace.h"
 
 DEFINE_MTYPE_STATIC(ZEBRA, OPAQUE, "Opaque Data");
 
@@ -1283,6 +1284,14 @@ void zread_rnh_register(ZAPI_HANDLER_ARGS)
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_IMPORT_CHECK);
 		if (CHECK_FLAG(flags, NEXTHOP_REGISTER_FLAG_TRACKROUTE))
 			SET_FLAG(rnh_type_flag, ZEBRA_NHT_TYPE_TRACK_MATCH);
+		{
+			char pfx_buf[PREFIX_STRLEN];
+			prefix2str(&p, pfx_buf, sizeof(pfx_buf));
+			frrtrace(4, frr_zebra, zebra_nht_register,
+				 zvrf_id(zvrf), pfx_buf,
+				 zebra_route_string(client->proto), true);
+		}
+
 		rnh = zebra_add_rnh(&p, zvrf_id(zvrf), &exist, srte_color, srte_color_flag, srte_backup_color, srte_backup_color_flag, rnh_type_flag);
 		if (!rnh)
 			return;
@@ -2185,6 +2194,15 @@ void zread_route_add(ZAPI_HANDLER_ARGS)
 			   __func__, vrf_id, api.tableid, &api.prefix,
 			   (int)api.message, api.flags);
 
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(&api.prefix, pfx_buf, sizeof(pfx_buf));
+		frrtrace(6, frr_zebra, zebra_route_recv_add,
+			 vrf_id, pfx_buf,
+			 zebra_route_string(client->proto),
+			 api.nexthop_num, api.distance, api.metric);
+	}
+
 	/* Allocate new route. */
 	re = XCALLOC(MTYPE_RE, sizeof(struct route_entry));
 	re->type = api.type;
@@ -2371,6 +2389,14 @@ void zread_route_del(ZAPI_HANDLER_ARGS)
 		zlog_debug("%s: p=(%u:%u)%pFX, msg flags=0x%x, flags=0x%x",
 			   __func__, zvrf_id(zvrf), table_id, &api.prefix,
 			   (int)api.message, api.flags);
+
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(&api.prefix, pfx_buf, sizeof(pfx_buf));
+		frrtrace(3, frr_zebra, zebra_route_recv_del,
+			 zvrf_id(zvrf), pfx_buf,
+			 zebra_route_string(client->proto));
+	}
 
 	rib_delete(afi, api.safi, zvrf_id(zvrf), api.type, api.instance,
 		   api.flags, &api.prefix, src_p, NULL, 0, table_id, api.metric,

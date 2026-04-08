@@ -50,6 +50,7 @@
 #include "zebra/interface.h"
 #include "zebra/zebra_errors.h"
 #include "zebra/zebra_srte.h"
+#include "zebra/zebra_trace.h"
 
 DEFINE_MTYPE_STATIC(ZEBRA, RNH, "Nexthop tracking object");
 
@@ -1499,6 +1500,16 @@ int zebra_send_rnh_update(struct rnh *rnh, struct zserv *client,
 	stream_putw_at(s, 0, stream_get_endp(s));
 
 	client->nh_last_upd_time = monotime(NULL);
+
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(&rn->p, pfx_buf, sizeof(pfx_buf));
+		frrtrace(5, frr_zebra, zebra_nht_send_update,
+			 vrf_id, pfx_buf,
+			 zebra_route_string(client->proto),
+			 (uint32_t)num,
+			 re ? re->metric : 0);
+	}
 
 	if (IS_ZEBRA_DEBUG_NHT_DETAILED)
 	{

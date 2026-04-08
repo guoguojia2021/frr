@@ -243,6 +243,9 @@ static int bgp_ifp_up(struct interface *ifp)
 
 	bgp_mac_add_mac_entry(ifp);
 
+	frrtrace(2, frr_bgp, bgp_zebra_intf_up,
+		 ifp->vrf->vrf_id, ifp->name);
+
 	if (BGP_DEBUG(zebra, ZEBRA))
 		zlog_debug("Rx Intf up VRF %u IF %s", ifp->vrf->vrf_id, ifp->name);
 	
@@ -275,6 +278,9 @@ static int bgp_ifp_down(struct interface *ifp)
 	bgp = ifp->vrf->info;
 
 	bgp_mac_del_mac_entry(ifp);
+
+	frrtrace(2, frr_bgp, bgp_zebra_intf_down,
+		 ifp->vrf->vrf_id, ifp->name);
 
 	if (BGP_DEBUG(zebra, ZEBRA))
 		zlog_debug("Rx Intf down VRF %u IF %s", ifp->vrf->vrf_id,
@@ -323,6 +329,13 @@ static int bgp_interface_address_add(ZAPI_CALLBACK_ARGS)
 	if (ifc == NULL)
 		return 0;
 
+	{
+		char addr_buf[PREFIX_STRLEN];
+		prefix2str(ifc->address, addr_buf, sizeof(addr_buf));
+		frrtrace(3, frr_bgp, bgp_zebra_addr_add,
+			 vrf_id, ifc->ifp->name, addr_buf);
+	}
+
 	if (bgp_debug_zebra(ifc->address))
 		zlog_debug("Rx Intf address add VRF %u IF %s addr %pFX", vrf_id,
 			   ifc->ifp->name, ifc->address);
@@ -356,6 +369,13 @@ static int bgp_interface_address_delete(ZAPI_CALLBACK_ARGS)
 
 	if (ifc == NULL)
 		return 0;
+
+	{
+		char addr_buf[PREFIX_STRLEN];
+		prefix2str(ifc->address, addr_buf, sizeof(addr_buf));
+		frrtrace(3, frr_bgp, bgp_zebra_addr_del,
+			 vrf_id, ifc->ifp->name, addr_buf);
+	}
 
 	if (bgp_debug_zebra(ifc->address))
 		zlog_debug("Rx Intf address del VRF %u IF %s addr %pFX", vrf_id,
@@ -1738,6 +1758,14 @@ void bgp_zebra_announce(struct bgp_dest *dest, const struct prefix *p,
 		zlog_debug("%s: %pFX: announcing to zebra (recursion %sset)",
 			   __func__, p, (recursion_flag ? "" : "NOT "));
 	}
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(p, pfx_buf, sizeof(pfx_buf));
+		frrtrace(6, frr_bgp, bgp_zebra_route_announce,
+			 bgp->vrf_id, pfx_buf, api.nexthop_num,
+			 api.distance, api.metric, is_add);
+	}
+
 	zclient_route_send(is_add ? ZEBRA_ROUTE_ADD : ZEBRA_ROUTE_DELETE,
 			   zclient, &api);
 }
@@ -1832,6 +1860,13 @@ void bgp_zebra_withdraw(const struct prefix *p, struct bgp_path_info *info,
 	/* If the route's source is EVPN, flag as such. */
 	if (is_route_parent_evpn(info))
 		SET_FLAG(api.flags, ZEBRA_FLAG_EVPN_ROUTE);
+
+	{
+		char pfx_buf[PREFIX_STRLEN];
+		prefix2str(p, pfx_buf, sizeof(pfx_buf));
+		frrtrace(2, frr_bgp, bgp_zebra_route_withdraw,
+			 bgp->vrf_id, pfx_buf);
+	}
 
 	if (bgp_debug_zebra(p))
 		zlog_debug("Tx route delete VRF %u %pFX", bgp->vrf_id,

@@ -75,6 +75,7 @@
 #include "zebra/zebra_evpn_mh.h"
 #include "zebra/zebra_l2.h"
 #include "zebra/zebra_db.h"
+#include "zebra/zebra_trace.h"
 
 extern struct zebra_privs_t zserv_privs;
 
@@ -1405,6 +1406,18 @@ int netlink_interface_addr(struct nlmsghdr *h, ns_id_t ns_id, int startup)
 	if (tb[IFA_RT_PRIORITY])
 		metric = *(uint32_t *)RTA_DATA(tb[IFA_RT_PRIORITY]);
 
+	{
+		char addr_buf[INET6_ADDRSTRLEN];
+		if (addr)
+			inet_ntop(ifa->ifa_family, addr, addr_buf, sizeof(addr_buf));
+		else
+			snprintf(addr_buf, sizeof(addr_buf), "(null)");
+		frrtrace(5, frr_zebra, zebra_netlink_addr_change,
+			 ns_id, ifp->name, addr_buf,
+			 (uint32_t)ifa->ifa_prefixlen,
+			 (h->nlmsg_type == RTM_NEWADDR));
+	}
+
 	/* Register interface address to the interface. */
 	if (ifa->ifa_family == AF_INET) {
 		if (ifa->ifa_prefixlen > IPV4_MAX_BITLEN) {
@@ -1757,6 +1770,11 @@ int netlink_link_change(struct nlmsghdr *h, ns_id_t ns_id, int startup)
 			zlog_debug("%s: invalid intf name", __func__);
 		return -1;
 	}
+
+	frrtrace(5, frr_zebra, zebra_netlink_link_change,
+		 ns_id, name, (uint32_t)ifi->ifi_index,
+		 (uint32_t)ifi->ifi_flags,
+		 (h->nlmsg_type == RTM_NEWLINK));
 
 	if (tb[IFLA_LINKINFO]) {
 		netlink_parse_rtattr_nested(linkinfo, IFLA_INFO_MAX,

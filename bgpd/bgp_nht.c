@@ -47,6 +47,7 @@
 #include "bgpd/bgp_evpn.h"
 #include "bgpd/bgp_rd.h"
 #include "bgpd/bgp_conditional_adv.h"
+#include "bgpd/bgp_trace.h"
 
 extern struct zclient *zclient;
 
@@ -839,6 +840,14 @@ void bgp_parse_nexthop_update(int command, vrf_id_t vrf_id)
 
 	afi = family2afi(match.family);
 	tree = &bgp->nexthop_cache_table[afi];
+
+	{
+		char match_buf[PREFIX_STRLEN];
+		prefix2str(&match, match_buf, sizeof(match_buf));
+		frrtrace(5, frr_bgp, bgp_zebra_nh_update,
+			 vrf_id, match_buf, nhr.nexthop_num,
+			 nhr.metric, nhr.srte_color);
+	}
 
 	bnc_nhc = bnc_find(tree, &match, nhr.srte_color, nhr.srte_color_flag, nhr.srte_backup_color, nhr.srte_backup_color_flag);
 	if (!bnc_nhc) {

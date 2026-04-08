@@ -32,6 +32,7 @@
 #include "pathd/path_nb.h"
 #include "pathd/path_sbfd.h"
 #include "lib/northbound_cli.h"
+#include "pathd/path_trace.h"
 
 #ifndef VTYSH_EXTRACT_PL
 #include "pathd/path_sbfd_clippy.c"
@@ -52,6 +53,7 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 	uint32_t cpath_up_count = 0;
 	uint32_t policy_up_count = 0;
 	char endpoint[46];
+	const char *policy_status_str __attribute__((unused));
 
     policy = sbfd_event->policy;
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
@@ -79,6 +81,11 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 							endpoint, policy->color, candidate->name, cpath_status_str(candidate->status), cpath_status_str(status),
 							candidate->preference, policy->bfd_config != NULL);
 				}
+				frrtrace(6, frr_pathd, sbfd_refresh_policy_state,
+					 policy->color, endpoint,
+					 candidate->name,
+					 cpath_status_str(candidate->status),
+					 cpath_status_str(status), "");
 				cpath_status_refresh(candidate, status);
 				candidate->my_discriminator = sbfd_event->my_discriminator;
 				SET_FLAG(candidate->group->flags, F_CPATH_GROUP_STATE_CHANGE);
@@ -112,6 +119,11 @@ static void sbfd_refresh_policy_state(struct srte_sbfd_event *sbfd_event, enum d
 		policy->status = SRTE_POLICY_STATUS_DOWN;
 		policy->up_cpath_group_num = 0;
 	}
+
+	policy_status_str = (policy->status == SRTE_POLICY_STATUS_UP) ? "UP" : "DOWN";
+	frrtrace(6, frr_pathd, sbfd_refresh_policy_state,
+		 policy->color, endpoint, "(policy)",
+		 "", policy_status_str, policy_status_str);
 }
 
 static void sbfd_refresh_policy_group_state(struct srte_candidate_group * group)
@@ -219,9 +231,15 @@ static int sbfd_status_event(struct thread *thread)
 	enum bfd_session_state state;
 	struct srte_sbfd_event *sbfd_event;
 	int ret;
+	char endpoint[46];
 
 	sbfd_event = THREAD_ARG(thread);
 	state = THREAD_VAL(thread);
+
+	prefix2str(&sbfd_event->policy->endpoint, endpoint, sizeof(endpoint));
+	frrtrace(4, frr_pathd, sbfd_status_event,
+		 sbfd_event->segl->name, sbfd_event->policy->color,
+		 endpoint, bfd_get_status_str(state));
 
 	ret = sbfd_status_event_action(sbfd_event, state);
 
@@ -240,6 +258,7 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 	struct srte_policy *policy = NULL;
 	struct srte_sbfd_event *sbfd_event;
 	struct prefix endpoint;
+	char endpoint_str[46];
 	memset(&endpoint, 0, sizeof(struct ipaddr));
 
 	if (IS_PATHD_DEBUG_SBFD) {
@@ -260,6 +279,13 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 		zlog_err("sbfd can't find the policy.");
 		return;
 	}
+
+	prefix2str(&endpoint, endpoint_str, sizeof(endpoint_str));
+	frrtrace(6, frr_pathd, sbfd_seglist_status_update,
+		 segl->name, policy->color, endpoint_str,
+		 bfd_get_status_str(bss->previous_state),
+		 bfd_get_status_str(bss->state),
+		 bsp->args.sbfd_my_discr);
 
 	sbfd_event = XCALLOC(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sizeof(struct srte_sbfd_event));
     sbfd_event->segl = segl;
@@ -286,6 +312,13 @@ void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *po
 	struct srte_segment_entry *s_entry;
 	uint32_t seg_num = 0;
 	struct in6_addr seglist[16];
+	char endpoint[46];
+
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	frrtrace(5, frr_pathd, sbfd_config_apply,
+		 segl->name, policy->color, endpoint,
+		 policy->bfd_config ? policy->bfd_config->is_echo : 0,
+		 policy->bfd_config ? policy->bfd_config->remote_disc : 0);
 
 	/* Create new session and assign callback. */
 	struct srte_sbfd_session * sbs;
@@ -359,6 +392,11 @@ void sr_config_sbfd_remove(struct srte_segment_list *segl, struct srte_policy *p
 {
 	/* Create new session and assign callback. */
 	struct srte_sbfd_session * sbs;
+	char endpoint[46];
+
+	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
+	frrtrace(3, frr_pathd, sbfd_config_remove,
+		 segl->name, policy->color, endpoint);
 
 	sbs =  srte_sbfd_session_find(segl, policy->color, &policy->endpoint);
  	if (sbs == NULL)
@@ -904,6 +942,9 @@ static int policy_sbfd_state_change(char *bfd_name, int state, uint32_t my_discr
 	struct srte_candidate *candidate;
 	enum detection_status new_status = (state == BFD_STATUS_UP?SRTE_DETECT_UP: SRTE_DETECT_DOWN);
 	struct srte_candidate_bfd_group* group = NULL;
+
+	frrtrace(3, frr_pathd, policy_bfd_state_change,
+		 bfd_name, my_discr, bfd_get_status_str(state));
 
 	zlog_warn( "bfd:%s(%u) update state to:%s", bfd_name, my_discr, bfd_get_status_str(state));
 	group = srte_candidate_bfd_group_find(bfd_name);
