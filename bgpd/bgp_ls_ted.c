@@ -264,21 +264,34 @@ int bgp_ls_populate_prefix_attr(struct ls_prefix *ls_prefix, struct bgp_ls_attr 
 
 static bool bgp_ls_link_valid(struct ls_edge *edge)
 {
-	if ((CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ID) &&
-	     CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ID)))
-		return true;
+	bool have_any = false;
 
-	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR) &&
-	    CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR))
-		return true;
+	/* Link Local/Remote Identifiers: both must be present if either is */
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ID)) {
+		if (!CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ID))
+			return false;
+		have_any = true;
+	}
 
-	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR6) &&
-	    CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR6) &&
-	    !IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.local6) &&
-	    !IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.remote6))
-		return true;
+	/* IPv4: if local address exists, neighbor address must too */
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR)) {
+		if (!CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR))
+			return false;
+		have_any = true;
+	}
 
-	return false;
+	/* IPv6: if local address exists, neighbor address must too (and non-link-local) */
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR6)) {
+		if (!CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR6))
+			return false;
+		if (IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.local6) ||
+		    IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.remote6))
+			return false;
+		have_any = true;
+	}
+
+	/* At least one complete pair must exist */
+	return have_any;
 }
 
 /*
@@ -860,6 +873,7 @@ int bgp_ls_withdraw_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *router
 
 	/* Set Prefix Descriptor */
 	nlri.nlri_data.prefix.prefix_desc.prefix = *prefix;
+	apply_mask(&nlri.nlri_data.prefix.prefix_desc.prefix);
 	BGP_LS_TLV_SET(nlri.nlri_data.prefix.prefix_desc.present_tlvs,
 		       BGP_LS_PREFIX_DESC_IP_REACH_BIT);
 
@@ -1142,6 +1156,28 @@ int bgp_ls_process_message(struct bgp *bgp, struct ls_message *msg)
 		if (BGP_DEBUG(zebra, ZEBRA) || BGP_DEBUG(linkstate, LINKSTATE))
 			zlog_debug("%s: Node vertex key=%" PRIu64, __func__, vertex->key);
 
+		if (msg->event == LS_MSG_EVENT_DELETE) {
+			/*
+			 * Before destroying the vertex, withdraw all Link NLRIs
+			 * that reference it (both outgoing and incoming edges).
+			 * Once the vertex is gone, edge->source or edge->destination
+			 * becomes NULL and we can no longer build the NLRI to withdraw.
+			 */
+			struct ls_edge *e;
+			struct listnode *lnode;
+
+			for (ALL_LIST_ELEMENTS_RO(vertex->outgoing_edges, lnode, e))
+				bgp_ls_process_edge(bgp, e, LS_MSG_EVENT_DELETE);
+			for (ALL_LIST_ELEMENTS_RO(vertex->incoming_edges, lnode, e))
+				bgp_ls_process_edge(bgp, e, LS_MSG_EVENT_DELETE);
+
+			/* Also withdraw Prefix NLRIs attached to this vertex */
+			struct ls_subnet *s;
+
+			for (ALL_LIST_ELEMENTS_RO(vertex->prefixes, lnode, s))
+				bgp_ls_process_subnet(bgp, s, LS_MSG_EVENT_DELETE);
+		}
+
 		bgp_ls_process_vertex(bgp, vertex, msg->event);
 
 		if (msg->event == LS_MSG_EVENT_DELETE)
@@ -1150,6 +1186,13 @@ int bgp_ls_process_message(struct bgp *bgp, struct ls_message *msg)
 		break;
 
 	case LS_MSG_TYPE_ATTRIBUTES:
+		if (msg->event == LS_MSG_EVENT_UPDATE) {
+			struct ls_edge *old_edge;
+			old_edge = ls_find_edge_by_source(bgp->ls_info->ted,
+							  msg->data.attr);
+			if (old_edge)
+				bgp_ls_process_edge(bgp, old_edge, LS_MSG_EVENT_DELETE);
+		}
 		edge = ls_msg2edge(bgp->ls_info->ted, msg, false);
 		if (!edge) {
 			zlog_err("%s: Failed to convert message to edge", __func__);
