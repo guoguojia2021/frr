@@ -264,34 +264,21 @@ int bgp_ls_populate_prefix_attr(struct ls_prefix *ls_prefix, struct bgp_ls_attr 
 
 static bool bgp_ls_link_valid(struct ls_edge *edge)
 {
-	bool have_any = false;
+	if ((CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ID) &&
+	     CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ID)))
+		return true;
 
-	/* Link Local/Remote Identifiers: both must be present if either is */
-	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ID)) {
-		if (!CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ID))
-			return false;
-		have_any = true;
-	}
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR) &&
+	    CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR))
+		return true;
 
-	/* IPv4: if local address exists, neighbor address must too */
-	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR)) {
-		if (!CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR))
-			return false;
-		have_any = true;
-	}
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR6) &&
+	    CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR6) &&
+	    !IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.local6) &&
+	    !IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.remote6))
+		return true;
 
-	/* IPv6: if local address exists, neighbor address must too (and non-link-local) */
-	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR6)) {
-		if (!CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR6))
-			return false;
-		if (IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.local6) ||
-		    IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.remote6))
-			return false;
-		have_any = true;
-	}
-
-	/* At least one complete pair must exist */
-	return have_any;
+	return false;
 }
 
 /*
