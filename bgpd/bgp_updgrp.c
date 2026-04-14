@@ -363,7 +363,7 @@ static unsigned int updgrp_hash_key_make(const void *p)
 	key = 0;
 
 	key = jhash_1word(peer->sort, key); /* EBGP or IBGP */
-	key = jhash_1word((peer->flags & PEER_UPDGRP_FLAGS), key);
+	key = jhash_1word((uint32_t)(peer->flags & PEER_UPDGRP_FLAGS), key);
 	key = jhash_1word((flags & PEER_UPDGRP_AF_FLAGS), key);
 	key = jhash_1word((uint32_t)peer->addpath_type[afi][safi], key);
 	key = jhash_1word((peer->cap & PEER_UPDGRP_CAP_FLAGS), key);
@@ -459,7 +459,7 @@ static unsigned int updgrp_hash_key_make(const void *p)
 	/* Neighbors configured with the AIGP attribute are put in a separate
 	 * update group from other neighbors.
 	 */
-	key = jhash_1word((peer->flags & PEER_FLAG_AIGP), key);
+	key = jhash_1word(!!CHECK_FLAG(peer->flags, PEER_FLAG_AIGP), key);
 
 	if (bgp_debug_neighbor_events(peer)) {
 		zlog_debug(
