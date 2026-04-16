@@ -1534,9 +1534,13 @@ void isis_circuit_af_set(struct isis_circuit *circuit, bool ip_router,
 		area->ip_circuits += ip_router - old_ipr;
 		area->ipv6_circuits += ipv6_router - old_ipv6r;
 
+		/* Re-evaluate MPLS-TE neighbor addresses */
+		if (IS_MPLS_TE(area->mta))
+			isis_mpls_te_circuit_ip_update(circuit);
+
 		if (ip_router || ipv6_router)
 			isis_area_circuit_set_high_metric(area, circuit);
-			lsp_regenerate_schedule(area, circuit->is_type, 0);
+		lsp_regenerate_schedule(area, circuit->is_type, 0);
 	}
 }
 

@@ -66,7 +66,7 @@
 
 DEFINE_MTYPE_STATIC(ISISD, ISIS_MPLS_TE,    "ISIS MPLS_TE parameters");
 
-static void isis_mpls_te_circuit_ip_update(struct isis_circuit *circuit);
+void isis_mpls_te_circuit_ip_update(struct isis_circuit *circuit);
 
 /*------------------------------------------------------------------------*
  * Followings are control functions for MPLS-TE parameters management.
@@ -469,7 +469,7 @@ static int isis_mpls_te_adj_ip_disabled(struct isis_adjacency *adj, int family,
 	return ret;
 }
 
-static void isis_mpls_te_circuit_ip_update(struct isis_circuit *circuit)
+void isis_mpls_te_circuit_ip_update(struct isis_circuit *circuit)
 {
 	struct isis_adjacency *adj;
 
@@ -1525,7 +1525,7 @@ static void show_ext_sub(struct vty *vty, char *name,
 				    PREFIX2STR_BUFFER));
 	if (IS_SUBTLV(ext, EXT_NEIGH_ADDR6))
 		sbuf_push(&buf, 4, "Remote Interface IPv6 Address(es): %s\n",
-			  inet_ntop(AF_INET6, &ext->local_addr6, ibuf,
+			  inet_ntop(AF_INET6, &ext->neigh_addr6, ibuf,
 				    PREFIX2STR_BUFFER));
 	if (IS_SUBTLV(ext, EXT_MAX_BW))
 		sbuf_push(&buf, 4, "Maximum Bandwidth: %g (Bytes/sec)\n",

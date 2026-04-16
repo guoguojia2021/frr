@@ -171,6 +171,7 @@ void isis_delete_adj(void *arg)
 	XFREE(MTYPE_ISIS_ADJACENCY_INFO, adj->ipv4_addresses);
 	XFREE(MTYPE_ISIS_ADJACENCY_INFO, adj->ll_ipv6_addrs);
 	XFREE(MTYPE_ISIS_ADJACENCY_INFO, adj->global_ipv6_addrs);
+	adj->global_ipv6_count = 0;
 	adj_mt_finish(adj);
 	list_delete(&adj->adj_sids);
 

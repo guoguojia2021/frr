@@ -674,7 +674,7 @@ void lspid_print(uint8_t *lsp_id, char *dest, size_t dest_len, char dynhost,
 		 char frag, struct isis *isis)
 {
 	struct isis_dynhn *dyn = NULL;
-	char id[SYSID_STRLEN];
+	char id[256];
 
 	if (dynhost)
 		dyn = dynhn_find_by_id(isis, lsp_id);
@@ -682,9 +682,9 @@ void lspid_print(uint8_t *lsp_id, char *dest, size_t dest_len, char dynhost,
 		dyn = NULL;
 
 	if (dyn)
-		snprintf(id, sizeof(id), "%.14s", dyn->hostname);
+		snprintf(id, sizeof(id), "%s", dyn->hostname);
 	else if (!memcmp(isis->sysid, lsp_id, ISIS_SYS_ID_LEN) && dynhost)
-		snprintf(id, sizeof(id), "%.14s", cmd_hostname_get());
+		snprintf(id, sizeof(id), "%s", cmd_hostname_get());
 	else
 		snprintfrr(id, sizeof(id), "%pSY", lsp_id);
 
