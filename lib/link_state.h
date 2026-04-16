@@ -241,6 +241,7 @@ struct ls_prefix {
 	uint8_t flags;			/* Flag for parameters validity */
 	struct ls_node_id adv;		/* Adv. Router of this Link State */
 	struct prefix pref;		/* IPv4 or IPv6 prefix */
+	uint16_t mt_id;			/* Multi-Topology ID (0=IPv4 default, 2=IPv6 unicast) */
 	uint8_t igp_flag;		/* IGP Flags associated to the prefix */
 	uint32_t route_tag;		/* IGP Route Tag */
 	uint64_t extended_tag;		/* IGP Extended Route Tag */

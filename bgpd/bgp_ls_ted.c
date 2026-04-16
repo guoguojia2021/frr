@@ -728,6 +728,7 @@ int bgp_ls_originate_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *route
 {
 	struct bgp_ls_nlri nlri;
 	struct bgp_ls_attr *ls_attr = NULL;
+	uint16_t *mt_id_val = NULL;
 	int ret;
 
 	if (!bgp || !router_id || !prefix)
@@ -787,11 +788,27 @@ int bgp_ls_originate_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *route
 	BGP_LS_TLV_SET(nlri.nlri_data.prefix.prefix_desc.present_tlvs,
 		       BGP_LS_PREFIX_DESC_IP_REACH_BIT);
 
+	/*
+	 * Set Multi-Topology ID in the Prefix Descriptor (TLV 263).
+	 * Per RFC 9552 §5.2.3.2, MT-ID 0 (default/IPv4-unicast topology)
+	 * MUST be omitted; only non-zero MT-IDs (e.g. 2 for IPv6-unicast)
+	 * are encoded on the wire.
+	 */
+	if (subnet->ls_pref->mt_id != 0) {
+		mt_id_val = XCALLOC(MTYPE_BGP_LS_ATTR, sizeof(uint16_t));
+		*mt_id_val = subnet->ls_pref->mt_id;
+		nlri.nlri_data.prefix.prefix_desc.mt_id = mt_id_val;
+		nlri.nlri_data.prefix.prefix_desc.mt_id_count = 1;
+		BGP_LS_TLV_SET(nlri.nlri_data.prefix.prefix_desc.present_tlvs,
+			       BGP_LS_PREFIX_DESC_MT_ID_BIT);
+	}
+
 	/* Populate BGP-LS attributes from Link State subnet */
 	ls_attr = bgp_ls_attr_alloc();
 	if (bgp_ls_populate_prefix_attr(subnet->ls_pref, ls_attr) < 0) {
 		zlog_warn("BGP-LS: Failed to populate Prefix attributes");
 		bgp_ls_attr_free(ls_attr);
+		XFREE(MTYPE_BGP_LS_ATTR, nlri.nlri_data.prefix.prefix_desc.mt_id);
 		return -1;
 	}
 
@@ -800,6 +817,7 @@ int bgp_ls_originate_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *route
 	if (ret < 0) {
 		flog_err(EC_BGP_LS_PACKET, "BGP-LS: Failed to originate Prefix NLRI");
 		bgp_ls_attr_free(ls_attr);
+		XFREE(MTYPE_BGP_LS_ATTR, nlri.nlri_data.prefix.prefix_desc.mt_id);
 		return -1;
 	}
 
@@ -808,6 +826,7 @@ int bgp_ls_originate_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *route
 			   protocol_id);
 
 	bgp_ls_attr_free(ls_attr);
+	XFREE(MTYPE_BGP_LS_ATTR, nlri.nlri_data.prefix.prefix_desc.mt_id);
 
 	return 0;
 }
@@ -818,6 +837,7 @@ int bgp_ls_withdraw_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *router
 			   struct ls_subnet *subnet)
 {
 	struct bgp_ls_nlri nlri;
+	uint16_t *mt_id_val = NULL;
 	int ret;
 
 	if (!bgp || !router_id || !prefix)
@@ -877,16 +897,29 @@ int bgp_ls_withdraw_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *router
 	BGP_LS_TLV_SET(nlri.nlri_data.prefix.prefix_desc.present_tlvs,
 		       BGP_LS_PREFIX_DESC_IP_REACH_BIT);
 
+	/* Mirror MT-ID so the hash lookup matches the interned NLRI */
+	if (subnet->ls_pref->mt_id != 0) {
+		mt_id_val = XCALLOC(MTYPE_BGP_LS_ATTR, sizeof(uint16_t));
+		*mt_id_val = subnet->ls_pref->mt_id;
+		nlri.nlri_data.prefix.prefix_desc.mt_id = mt_id_val;
+		nlri.nlri_data.prefix.prefix_desc.mt_id_count = 1;
+		BGP_LS_TLV_SET(nlri.nlri_data.prefix.prefix_desc.present_tlvs,
+			       BGP_LS_PREFIX_DESC_MT_ID_BIT);
+	}
+
 	/* Withdraw from RIB */
 	ret = bgp_ls_withdraw(bgp, &nlri);
 	if (ret < 0) {
 		flog_err(EC_BGP_LS_PACKET, "BGP-LS: Failed to withdraw Prefix NLRI");
+		XFREE(MTYPE_BGP_LS_ATTR, nlri.nlri_data.prefix.prefix_desc.mt_id);
 		return -1;
 	}
 
 	if (BGP_DEBUG(linkstate, LINKSTATE))
 		zlog_debug("BGP-LS: Withdrawn Prefix NLRI %pFX for protocol %u", prefix,
 			   protocol_id);
+
+	XFREE(MTYPE_BGP_LS_ATTR, nlri.nlri_data.prefix.prefix_desc.mt_id);
 
 	return 0;
 }

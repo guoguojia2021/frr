@@ -117,6 +117,7 @@ struct isis_te_args {
 	struct ls_ted *ted;
 	struct ls_vertex *vertex;
 	bool export;
+	uint16_t mt_id; /* MT-ID for current ip_reach iteration (0 or 2) */
 };
 
 enum lsp_event { LSP_UNKNOWN, LSP_ADD, LSP_UPD, LSP_DEL, LSP_INC, LSP_TICK };

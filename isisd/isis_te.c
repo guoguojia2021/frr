@@ -1113,6 +1113,9 @@ static int lsp_to_subnet_cb(const struct prefix *prefix, uint32_t metric,
 	te_debug("   |- %s Subnet from prefix %pFX",
 		 subnet->status == NEW ? "Create" : "Found", &p);
 
+	/* Record the MT-ID so BGP-LS can place it in the Prefix Descriptor */
+	ls_pref->mt_id = args->mt_id;
+
 	/* Update Metric */
 	if (!CHECK_FLAG(ls_pref->flags, LS_PREF_METRIC)
 	    || (ls_pref->metric != metric)) {
@@ -1224,10 +1227,13 @@ static void isis_te_parse_lsp(struct mpls_te_area *mta, struct isis_lsp *lsp)
 				  &args);
 
 	/* Process all Extended IP (v4 & v6) in LSP (all fragments) */
+	args.mt_id = ISIS_MT_IPV4_UNICAST;
 	isis_lsp_iterate_ip_reach(lsp, AF_INET, ISIS_MT_IPV4_UNICAST,
 				  lsp_to_subnet_cb, &args);
+	args.mt_id = ISIS_MT_IPV6_UNICAST;
 	isis_lsp_iterate_ip_reach(lsp, AF_INET6, ISIS_MT_IPV6_UNICAST,
 				  lsp_to_subnet_cb, &args);
+	args.mt_id = ISIS_MT_IPV4_UNICAST;
 	isis_lsp_iterate_ip_reach(lsp, AF_INET6, ISIS_MT_IPV4_UNICAST,
 				  lsp_to_subnet_cb, &args);
 
