@@ -235,6 +235,7 @@ struct ls_attributes {
 #define LS_PREF_EXTENDED_TAG	0x04
 #define LS_PREF_METRIC		0x08
 #define LS_PREF_SR		0x10
+#define LS_PREF_MT_ID		0x20
 
 /* Link State Prefix */
 struct ls_prefix {

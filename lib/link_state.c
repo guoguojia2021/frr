@@ -1358,6 +1358,8 @@ static struct ls_prefix *ls_parse_prefix(struct stream *s)
 		STREAM_GETC(s, ls_pref->sr.sid_flag);
 		STREAM_GETC(s, ls_pref->sr.algo);
 	}
+	if (CHECK_FLAG(ls_pref->flags, LS_PREF_MT_ID))
+		STREAM_GETW(s, ls_pref->mt_id);
 
 	return ls_pref;
 
@@ -1580,6 +1582,8 @@ static int ls_format_prefix(struct stream *s, struct ls_prefix *ls_pref)
 		stream_putc(s, ls_pref->sr.sid_flag);
 		stream_putc(s, ls_pref->sr.algo);
 	}
+	if (CHECK_FLAG(ls_pref->flags, LS_PREF_MT_ID))
+		stream_putw(s, ls_pref->mt_id);
 
 	return 0;
 }

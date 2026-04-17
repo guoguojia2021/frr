@@ -794,7 +794,7 @@ int bgp_ls_originate_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *route
 	 * MUST be omitted; only non-zero MT-IDs (e.g. 2 for IPv6-unicast)
 	 * are encoded on the wire.
 	 */
-	if (subnet->ls_pref->mt_id != 0) {
+	if (CHECK_FLAG(subnet->ls_pref->flags, LS_PREF_MT_ID)) {
 		mt_id_val = XCALLOC(MTYPE_BGP_LS_ATTR, sizeof(uint16_t));
 		*mt_id_val = subnet->ls_pref->mt_id;
 		nlri.nlri_data.prefix.prefix_desc.mt_id = mt_id_val;
@@ -898,7 +898,7 @@ int bgp_ls_withdraw_prefix(struct bgp *bgp, uint8_t protocol_id, uint8_t *router
 		       BGP_LS_PREFIX_DESC_IP_REACH_BIT);
 
 	/* Mirror MT-ID so the hash lookup matches the interned NLRI */
-	if (subnet->ls_pref->mt_id != 0) {
+	if (CHECK_FLAG(subnet->ls_pref->flags, LS_PREF_MT_ID)) {
 		mt_id_val = XCALLOC(MTYPE_BGP_LS_ATTR, sizeof(uint16_t));
 		*mt_id_val = subnet->ls_pref->mt_id;
 		nlri.nlri_data.prefix.prefix_desc.mt_id = mt_id_val;
