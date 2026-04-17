@@ -834,7 +834,7 @@ int isis_circuit_up(struct isis_circuit *circuit)
 
 	circuit->last_uptime = time(NULL);
 
-	if ((circuit->area->mta && circuit->area->mta->status) || circuit->area->advertise_link_attributes)
+	if (circuit->area->mta && circuit->area->mta->status)
 		isis_link_params_update(circuit, circuit->interface);
 
 	isis_if_ldp_sync_enable(circuit);

@@ -221,7 +221,6 @@ struct isis_area {
 	struct isis_sr_db srdb;
 	int ipv6_circuits;
 	bool purge_originator;
-	bool advertise_link_attributes;
 	/* SPF prefix priorities. */
 	struct spf_prefix_priority_acl
 		spf_prefix_priorities[SPF_PREFIX_PRIO_MAX];
@@ -348,8 +347,6 @@ void isis_restart_write_overload_time(struct isis_area *isis_area,
 uint32_t isis_restart_read_overload_time(struct isis_area *isis_area);
 void config_end_lsp_generate(struct isis_area *area);
 
-void isis_area_advertise_link_attributes_set(struct isis_area *area,
-					  bool advertise_link_attributes);
 /* YANG paths */
 #define ISIS_INSTANCE	"/frr-isisd:isis/instance"
 #define ISIS_SR		"/frr-isisd:isis/instance/segment-routing"

@@ -190,11 +190,9 @@ void isis_link_params_update(struct isis_circuit *circuit,
 	struct isis_ext_subtlvs *ext;
 
 	/* Check if TE is enable or not */
-	if (!circuit->area)
+	if (!circuit->area || !IS_MPLS_TE(circuit->area->mta))
 		return;
 
-	if (!circuit->area->advertise_link_attributes && !IS_MPLS_TE(circuit->area->mta))
-		return;
 	/* Sanity Check */
 	if (ifp == NULL)
 		return;

@@ -1106,12 +1106,7 @@ module frr-isisd {
         description
           "If true, identify as L1/L2 router for inter-area traffic.";
       }
-      leaf advertise-link-attributes {
-        type boolean;
-        default "false";
-        description
-          "If true, enables the IS-IS process to advertise link attribute TLVs in LSPs.";
-      }
+
       container overload {
         description
           "Overload bit configuration.";

@@ -44,7 +44,6 @@ int isis_instance_overload_advertise_high_metrics_modify(struct nb_cb_modify_arg
 int isis_instance_advertise_high_metrics_modify(struct nb_cb_modify_args *args);
 int isis_instance_metric_style_modify(struct nb_cb_modify_args *args);
 int isis_instance_purge_originator_modify(struct nb_cb_modify_args *args);
-int isis_instance_advertise_link_attributes_modify(struct nb_cb_modify_args *args);
 int isis_instance_lsp_mtu_modify(struct nb_cb_modify_args *args);
 int isis_instance_advertise_passive_only_modify(struct nb_cb_modify_args *args);
 int isis_instance_lsp_refresh_interval_level_1_modify(
@@ -494,9 +493,6 @@ void cli_show_isis_spf_prefix_priority(struct vty *vty,
 				       bool show_defaults);
 void cli_show_isis_purge_origin(struct vty *vty, const struct lyd_node *dnode,
 				bool show_defaults);
-void cli_show_advertise_link_attributes(struct vty *vty,
-				     const struct lyd_node *dnode,
-				     bool show_defaults);
 void cli_show_isis_mpls_te(struct vty *vty, const struct lyd_node *dnode,
 			   bool show_defaults);
 void cli_show_isis_mpls_te_router_addr(struct vty *vty,

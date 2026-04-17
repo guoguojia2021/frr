@@ -127,13 +127,6 @@ const struct frr_yang_module_info frr_isisd_info = {
 			},
 		},
 		{
-			.xpath = "/frr-isisd:isis/instance/advertise-link-attributes",
-			.cbs = {
-				.cli_show = cli_show_advertise_link_attributes,
-				.modify = isis_instance_advertise_link_attributes_modify,
-			}
-		},
-		{
 			.xpath = "/frr-isisd:isis/instance/lsp/mtu",
 			.cbs = {
 				.cli_show = cli_show_isis_lsp_mtu,
