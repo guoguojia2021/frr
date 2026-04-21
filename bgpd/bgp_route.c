@@ -519,6 +519,28 @@ void bgp_path_info_restore(struct bgp_dest *dest, struct bgp_path_info *pi)
 		SET_FLAG(pi->flags, BGP_PATH_VALID);
 }
 
+/*
+ * Check whether any other path_info in the same dest (prefix) that belongs
+ * to the same peer-group is already counted.  Used to implement per-group
+ * prefix de-duplication: the same prefix is counted only once per group.
+ */
+static bool bgp_group_dest_has_counted_peer(struct bgp_dest *dest,
+					   struct bgp_path_info *exclude_pi,
+					   struct peer_group *group)
+{
+	struct bgp_path_info *tmp;
+
+	for (tmp = bgp_dest_get_bgp_path_info(dest); tmp; tmp = tmp->next) {
+		if (tmp == exclude_pi)
+			continue;
+		if (!CHECK_FLAG(tmp->flags, BGP_PATH_COUNTED))
+			continue;
+		if (tmp->peer && tmp->peer->group && tmp->peer->group == group)
+			return true;
+	}
+	return false;
+}
+
 /* Adjust pcount as required */
 static void bgp_pcount_adjust(struct bgp_dest *dest, struct bgp_path_info *pi)
 {
@@ -540,17 +562,32 @@ static void bgp_pcount_adjust(struct bgp_dest *dest, struct bgp_path_info *pi)
 		/* slight hack, but more robust against errors. */
 		if (pi->peer->pcount[table->afi][table->safi]) {
 			pi->peer->pcount[table->afi][table->safi]--;
-            if (pi->peer->group && CHECK_FLAG(pi->peer->group->conf->sflags, PEER_STATUS_GROUP))
-                pi->peer->group->pcount[table->afi][table->safi]--;
-        } else
+			/*
+			 * Decrement group pcount only when no other counted path
+			 * for the same prefix belongs to this group (de-dup).
+			 */
+			if (pi->peer->group
+			    && CHECK_FLAG(pi->peer->group->conf->sflags,
+					 PEER_STATUS_GROUP)
+			    && !bgp_group_dest_has_counted_peer(
+					dest, pi, pi->peer->group))
+				pi->peer->group->pcount[table->afi][table->safi]--;
+		} else
 			flog_err(EC_LIB_DEVELOPMENT,
 				 "Asked to decrement 0 prefix count for peer");
 	} else if (BGP_PATH_COUNTABLE(pi)
 		   && !CHECK_FLAG(pi->flags, BGP_PATH_COUNTED)) {
 		SET_FLAG(pi->flags, BGP_PATH_COUNTED);
 		pi->peer->pcount[table->afi][table->safi]++;
-        if (pi->peer->group && CHECK_FLAG(pi->peer->group->conf->sflags, PEER_STATUS_GROUP))
-            pi->peer->group->pcount[table->afi][table->safi]++;
+		/*
+		 * Increment group pcount only when no other counted path for
+		 * the same prefix already belongs to this group (de-dup).
+		 */
+		if (pi->peer->group
+		    && CHECK_FLAG(pi->peer->group->conf->sflags,
+				 PEER_STATUS_GROUP)
+		    && !bgp_group_dest_has_counted_peer(dest, pi, pi->peer->group))
+			pi->peer->group->pcount[table->afi][table->safi]++;
 	}
 }
 
