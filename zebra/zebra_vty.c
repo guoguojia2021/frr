@@ -486,9 +486,12 @@ static void show_nexthop_detail_helper(struct vty *vty,
 		break;
 
 	case NEXTHOP_TYPE_IFINDEX:
-		vty_out(vty, " directly connected, %s",
-			ifindex2ifname(nexthop->ifindex,
-				       nexthop->vrf_id));
+		if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT))
+			vty_out(vty, " directly connected, %s", VRF_DEFAULT_NAME);
+		else
+			vty_out(vty, " directly connected, %s",
+				ifindex2ifname(nexthop->ifindex,
+					       nexthop->vrf_id));
 		break;
 	case NEXTHOP_TYPE_BLACKHOLE:
 		vty_out(vty, " unreachable");
@@ -878,6 +881,10 @@ static void show_route_nexthop_helper(struct vty *vty,
 		if (re && nexthop->nh_srv6
 			&& CHECK_FLAG(re->flags, ZEBRA_FLAG_LOCAL_SID_ROUTE)) {
 			vty_out(vty, " is directly connected, %s", nexthop->nh_srv6->seg6local_ctx.vrfName);
+			break;
+		}
+		if (CHECK_FLAG(nexthop->alibgp_flags, NEXTHOP_FLAG_VRF_REDIRECT_DEFAULT)) {
+			vty_out(vty, " is directly connected, %s", VRF_DEFAULT_NAME);
 			break;
 		}
 		vty_out(vty, " is directly connected, %s",
