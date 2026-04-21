@@ -245,6 +245,8 @@ int ls_attributes_same(struct ls_attributes *l1, struct ls_attributes *l2)
 		return 0;
 	if (CHECK_FLAG(l1->flags, LS_ATTR_METRIC) && (l1->metric != l2->metric))
 		return 0;
+	if (CHECK_FLAG(l1->flags, LS_ATTR_MT_ID) && (l1->mt_id != l2->mt_id))
+		return 0;
 	if (CHECK_FLAG(l1->flags, LS_ATTR_TE_METRIC)
 	    && (l1->standard.te_metric != l2->standard.te_metric))
 		return 0;
@@ -698,33 +700,35 @@ static struct ls_edge_key get_edge_key(struct ls_attributes *attr, bool dst)
 
 	std = &attr->standard;
 
+	/* Set MT-ID in the key for multi-topology support */
+	if (CHECK_FLAG(attr->flags, LS_ATTR_MT_ID))
+		key.mt_id = attr->mt_id;
+
 	if (dst) {
+		/* Key is the IPv4/v6 remote address or remote identifier */
 		if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR)) {
-			/* Key is the IPv4 remote address */
 			key.family = AF_INET;
 			IPV4_ADDR_COPY(&key.k.addr, &std->remote);
 		} else if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR6)) {
-			/* or the IPv6 remote address */
 			key.family = AF_INET6;
 			IPV6_ADDR_COPY(&key.k.addr6, &std->remote6);
 		} else if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ID)) {
-			/* or Remote identifier if IP addr. are not defined */
+			/* Remote identifier: swap local/remote for dst key */
 			key.family = AF_LOCAL;
 			key.k.link_id =
 				(((uint64_t)std->remote_id) & 0xffffffff) |
 				((uint64_t)std->local_id << 32);
 		}
 	} else {
+		/* Key is the IPv4/v6 local address or local identifier */
 		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR)) {
-			/* Key is the IPv4 local address */
 			key.family = AF_INET;
 			IPV4_ADDR_COPY(&key.k.addr, &std->local);
 		} else if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR6)) {
-			/* or the 64 bits LSB of IPv6 local address */
 			key.family = AF_INET6;
 			IPV6_ADDR_COPY(&key.k.addr6, &std->local6);
 		} else if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ID)) {
-			/* or Remote identifier if IP addr. are not defined */
+			/* Local identifier */
 			key.family = AF_LOCAL;
 			key.k.link_id =
 				(((uint64_t)std->local_id) & 0xffffffff) |
@@ -794,15 +798,40 @@ struct ls_edge *ls_find_edge_by_destination(struct ls_ted *ted,
 					    struct ls_attributes *attributes)
 {
 	struct ls_edge edge = {};
+	struct ls_edge *result;
 
 	if (attributes == NULL)
 		return NULL;
 
+	/* First, try standard lookup with primary key */
 	edge.key = get_edge_key(attributes, true);
 	if (edge.key.family == AF_UNSPEC)
 		return NULL;
 
-	return edges_find(&ted->edges, &edge);
+	result = edges_find(&ted->edges, &edge);
+	if (result)
+		return result;
+
+	/*
+	 * If not found and the edge has IPv6 address, traverse all edges
+	 * to find one with matching IPv6 local address (which is the remote
+	 * address of this edge).
+	 * This handles the case where the reverse edge uses IPv4 as key but
+	 * has IPv6 address in its attributes.
+	 */
+	if (CHECK_FLAG(attributes->flags, LS_ATTR_NEIGH_ADDR6)) {
+		struct ls_edge *e;
+
+		frr_each (edges, &ted->edges, e) {
+			if (CHECK_FLAG(e->attributes->flags, LS_ATTR_LOCAL_ADDR6) &&
+			    IN6_ARE_ADDR_EQUAL(&e->attributes->standard.local6,
+						&attributes->standard.remote6)) {
+				return e;
+			}
+		}
+	}
+
+	return NULL;
 }
 
 struct ls_edge *ls_edge_update(struct ls_ted *ted,
@@ -881,6 +910,7 @@ struct ls_subnet *ls_subnet_add(struct ls_ted *ted,
 	struct ls_vertex *vertex;
 	struct ls_node *node;
 	const struct in_addr inaddr_any = {.s_addr = INADDR_ANY};
+	uint16_t mt_id = 0;
 
 	if (ls_pref == NULL)
 		return NULL;
@@ -890,6 +920,12 @@ struct ls_subnet *ls_subnet_add(struct ls_ted *ted,
 	new->key = ls_pref->pref;
 	new->status = NEW;
 	new->type = SUBNET;
+	new->adv = ls_pref->adv;
+
+	/* Get MT-ID from ls_pref if available */
+	if (CHECK_FLAG(ls_pref->flags, LS_PREF_MT_ID))
+		mt_id = ls_pref->mt_id;
+	new->mt_id = mt_id;
 
 	/* Find Vertex */
 	vertex = ls_find_vertex_by_id(ted, ls_pref->adv);
@@ -910,11 +946,16 @@ struct ls_subnet *ls_subnet_add(struct ls_ted *ted,
 struct ls_subnet *ls_subnet_update(struct ls_ted *ted, struct ls_prefix *pref)
 {
 	struct ls_subnet *old;
+	uint16_t mt_id = 0;
 
 	if (pref == NULL)
 		return NULL;
 
-	old = ls_find_subnet(ted, &pref->pref);
+	/* Get MT-ID from pref if available */
+	if (CHECK_FLAG(pref->flags, LS_PREF_MT_ID))
+		mt_id = pref->mt_id;
+
+	old = ls_find_subnet(ted, &pref->pref, mt_id, pref->adv);
 	if (old) {
 		if (!ls_prefix_same(old->ls_pref, pref)) {
 			ls_prefix_del(old->ls_pref);
@@ -970,7 +1011,9 @@ void ls_subnet_del_all(struct ls_ted *ted, struct ls_subnet *subnet)
 }
 
 struct ls_subnet *ls_find_subnet(struct ls_ted *ted,
-				 const struct prefix *prefix)
+				 const struct prefix *prefix,
+				 uint16_t mt_id,
+				 struct ls_node_id adv)
 {
 	struct ls_subnet subnet = {};
 
@@ -978,7 +1021,25 @@ struct ls_subnet *ls_find_subnet(struct ls_ted *ted,
 		return NULL;
 
 	prefix_copy(&subnet.key, prefix);
+	subnet.mt_id = mt_id;
+	subnet.adv = adv;
 	return subnets_find(&ted->subnets, &subnet);
+}
+
+struct ls_subnet *ls_find_subnet_by_prefix(struct ls_ted *ted,
+					   const struct prefix *prefix)
+{
+	struct ls_subnet *subnet;
+
+	if (!ted || !prefix)
+		return NULL;
+
+	frr_each (subnets, &ted->subnets, subnet) {
+		if (prefix_same(&subnet->key, prefix))
+			return subnet;
+	}
+
+	return NULL;
 }
 
 /**
@@ -1229,6 +1290,8 @@ static struct ls_attributes *ls_parse_attributes(struct stream *s)
 	}
 	if (CHECK_FLAG(attr->flags, LS_ATTR_METRIC))
 		STREAM_GETL(s, attr->metric);
+	if (CHECK_FLAG(attr->flags, LS_ATTR_MT_ID))
+		STREAM_GETW(s, attr->mt_id);
 	if (CHECK_FLAG(attr->flags, LS_ATTR_TE_METRIC))
 		STREAM_GETL(s, attr->standard.te_metric);
 	if (CHECK_FLAG(attr->flags, LS_ATTR_ADM_GRP))
@@ -1466,6 +1529,8 @@ static int ls_format_attributes(struct stream *s, struct ls_attributes *attr)
 	}
 	if (CHECK_FLAG(attr->flags, LS_ATTR_METRIC))
 		stream_putl(s, attr->metric);
+	if (CHECK_FLAG(attr->flags, LS_ATTR_MT_ID))
+		stream_putw(s, attr->mt_id);
 	if (CHECK_FLAG(attr->flags, LS_ATTR_TE_METRIC))
 		stream_putl(s, attr->standard.te_metric);
 	if (CHECK_FLAG(attr->flags, LS_ATTR_ADM_GRP))
@@ -1866,8 +1931,12 @@ struct ls_subnet *ls_msg2subnet(struct ls_ted *ted, struct ls_message *msg,
 		if (subnet)
 			subnet->status = UPDATE;
 		break;
-	case LS_MSG_EVENT_DELETE:
-		subnet = ls_find_subnet(ted, &pref->pref);
+	case LS_MSG_EVENT_DELETE: {
+		uint16_t mt_id = 0;
+
+		if (CHECK_FLAG(pref->flags, LS_PREF_MT_ID))
+			mt_id = pref->mt_id;
+		subnet = ls_find_subnet(ted, &pref->pref, mt_id, pref->adv);
 		if (subnet) {
 			if (delete) {
 				ls_subnet_del_all(ted, subnet);
@@ -1876,6 +1945,7 @@ struct ls_subnet *ls_msg2subnet(struct ls_ted *ted, struct ls_message *msg,
 				subnet->status = DELETE;
 		}
 		break;
+	}
 	default:
 		subnet = NULL;
 		break;

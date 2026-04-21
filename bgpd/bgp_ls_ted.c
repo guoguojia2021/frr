@@ -559,6 +559,16 @@ int bgp_ls_originate_link(struct bgp *bgp, uint8_t protocol_id, uint8_t *local_r
 			       BGP_LS_LINK_DESC_REMOTE_AS_BIT);
 	}
 
+	/* Multi-Topology ID (TLV 263) */
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_MT_ID)) {
+		nlri.nlri_data.link.link_desc.mt_id_count = 1;
+		nlri.nlri_data.link.link_desc.mt_id = XCALLOC(MTYPE_BGP_LS_NLRI,
+							      sizeof(uint16_t));
+		nlri.nlri_data.link.link_desc.mt_id[0] = edge->attributes->mt_id;
+		BGP_LS_TLV_SET(nlri.nlri_data.link.link_desc.present_tlvs,
+			       BGP_LS_LINK_DESC_MT_ID_BIT);
+	}
+
 	/* Populate BGP-LS attributes from Link State edge */
 	ls_attr = bgp_ls_attr_alloc();
 	if (bgp_ls_populate_link_attr(edge->attributes, ls_attr) < 0) {
@@ -569,6 +579,10 @@ int bgp_ls_originate_link(struct bgp *bgp, uint8_t protocol_id, uint8_t *local_r
 
 	/* Install in RIB */
 	ret = bgp_ls_update(bgp, &nlri, ls_attr);
+
+	/* Free MT-ID memory if allocated */
+	XFREE(MTYPE_BGP_LS_NLRI, nlri.nlri_data.link.link_desc.mt_id);
+
 	if (ret < 0) {
 		flog_err(EC_BGP_LS_PACKET, "BGP-LS: Failed to originate Link NLRI");
 		bgp_ls_attr_free(ls_attr);
@@ -702,8 +716,22 @@ int bgp_ls_withdraw_link(struct bgp *bgp, uint8_t protocol_id, uint8_t *local_ro
 			       BGP_LS_LINK_DESC_REMOTE_AS_BIT);
 	}
 
+	/* Multi-Topology ID (TLV 263) */
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_MT_ID)) {
+		nlri.nlri_data.link.link_desc.mt_id_count = 1;
+		nlri.nlri_data.link.link_desc.mt_id = XCALLOC(MTYPE_BGP_LS_NLRI,
+							      sizeof(uint16_t));
+		nlri.nlri_data.link.link_desc.mt_id[0] = edge->attributes->mt_id;
+		BGP_LS_TLV_SET(nlri.nlri_data.link.link_desc.present_tlvs,
+			       BGP_LS_LINK_DESC_MT_ID_BIT);
+	}
+
 	/* Withdraw from RIB */
 	ret = bgp_ls_withdraw(bgp, &nlri);
+
+	/* Free MT-ID memory if allocated */
+	XFREE(MTYPE_BGP_LS_NLRI, nlri.nlri_data.link.link_desc.mt_id);
+
 	if (ret < 0) {
 		flog_err(EC_BGP_LS_PACKET, "BGP-LS: Failed to withdraw Link NLRI");
 		return -1;

@@ -11,7 +11,7 @@
 #include "bgpd/bgp_errors.h"
 #include "bgpd/bgp_debug.h"
 
-DEFINE_MTYPE_STATIC(BGPD, BGP_LS_NLRI, "BGP-LS NLRI");
+DEFINE_MTYPE(BGPD, BGP_LS_NLRI, "BGP-LS NLRI");
 DEFINE_MTYPE(BGPD, BGP_LS_ATTR, "BGP-LS Attribute");
 
 /*

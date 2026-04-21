@@ -675,7 +675,7 @@ static struct ls_edge *get_edge(struct ls_ted *ted, struct ls_attributes *attr)
 {
 	struct ls_edge *edge;
 	struct ls_standard *std;
-	struct ls_edge_key key;
+	struct ls_edge_key key = {.family = AF_UNSPEC, .mt_id = 0};
 
 	/* Check parameters */
 	if (!ted || !attr)
@@ -683,7 +683,11 @@ static struct ls_edge *get_edge(struct ls_ted *ted, struct ls_attributes *attr)
 
 	std = &attr->standard;
 
-	/* Compute keys in function of local address (IPv4/v6) or identifier */
+	/*
+	 * Compute keys in function of local address (IPv4/v6) or identifier.
+	 * MT-ID is included in the key when set to distinguish edges from
+	 * different topologies.
+	 */
 	if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR)) {
 		key.family = AF_INET;
 		IPV4_ADDR_COPY(&key.k.addr, &std->local);
@@ -697,6 +701,10 @@ static struct ls_edge *get_edge(struct ls_ted *ted, struct ls_attributes *attr)
 	} else {
 		key.family = AF_UNSPEC;
 	}
+
+	/* Set MT-ID in key if present in attributes */
+	if (CHECK_FLAG(attr->flags, LS_ATTR_MT_ID))
+		key.mt_id = attr->mt_id;
 
 	/* Stop here if we don't got a valid key */
 	if (key.family == AF_UNSPEC)
@@ -943,6 +951,16 @@ static int lsp_to_edge_cb(const uint8_t *id, uint32_t metric, bool old_metric,
 	attr->metric = metric;
 	SET_FLAG(attr->flags, LS_ATTR_METRIC);
 
+	/*
+	 * Set Multi-Topology ID for non-default topologies (MT-ID != 0).
+	 * This ensures IPv4 and IPv6 topologies create separate edges,
+	 * each with their own MT-ID identifier.
+	 */
+	if (args->mt_id != 0) {
+		attr->mt_id = args->mt_id;
+		SET_FLAG(attr->flags, LS_ATTR_MT_ID);
+	}
+
 	/* Get corresponding Edge from Link State Data Base */
 	edge = get_edge(args->ted, attr);
 	/*
@@ -1097,11 +1115,16 @@ static int lsp_to_subnet_cb(const struct prefix *prefix, uint32_t metric,
 		te_debug("   |- Adjust prefix %pFX with local address to: %pFX",
 			 prefix, &p);
 
-	/* Search existing Subnet in TED ... */
-	subnet = ls_find_subnet(args->ted, &p);
+	/* Search existing Subnet in TED by prefix, MT-ID and Advertising Router ... */
+	subnet = ls_find_subnet(args->ted, &p, args->mt_id, vertex->node->adv);
 	/* ... and create a new Subnet if not found */
 	if (!subnet) {
 		ls_pref = ls_prefix_new(vertex->node->adv, &p);
+		/* Set MT-ID in ls_pref so ls_subnet_add can use it */
+		if (args->mt_id != 0) {
+			ls_pref->mt_id = args->mt_id;
+			SET_FLAG(ls_pref->flags, LS_PREF_MT_ID);
+		}
 		subnet = ls_subnet_add(args->ted, ls_pref);
 		if (!subnet)
 			return LSP_ITER_CONTINUE;
@@ -1226,9 +1249,11 @@ static void isis_te_parse_lsp(struct mpls_te_area *mta, struct isis_lsp *lsp)
 	args.ted = ted;
 	args.vertex = vertex;
 	args.export = mta->export;
+	args.mt_id = ISIS_MT_IPV4_UNICAST;
 	isis_lsp_iterate_is_reach(lsp, ISIS_MT_IPV4_UNICAST, lsp_to_edge_cb,
 				  &args);
 
+	args.mt_id = ISIS_MT_IPV6_UNICAST;
 	isis_lsp_iterate_is_reach(lsp, ISIS_MT_IPV6_UNICAST, lsp_to_edge_cb,
 				  &args);
 
@@ -1848,45 +1873,41 @@ static int show_ted(struct vty *vty, struct cmd_token *argv[], int argc,
 
 	} else if (argv_find(argv, argc, "subnet", &idx)) {
 		/* Show Subnet */
-		if (argv_find(argv, argc, "A.B.C.D/M", &idx)) {
+		if (argv_find(argv, argc, "A.B.C.D/M", &idx) ||
+		    argv_find(argv, argc, "X:X::X:X/M", &idx)) {
 			if (!str2prefix(argv[idx]->arg, &pref)) {
 				vty_out(vty, "Invalid prefix format %s\n",
 					argv[idx]->arg);
 				return CMD_WARNING_CONFIG_FAILED;
 			}
-			/* Get the Subnet from the Link State Database */
-			subnet = ls_find_subnet(ted, &pref);
-			if (!subnet) {
-				vty_out(vty, "No subnet found for ID %pFX\n",
-					&pref);
-				return CMD_WARNING;
-			}
-		} else if (argv_find(argv, argc, "X:X::X:X/M", &idx)) {
-			if (!str2prefix(argv[idx]->arg, &pref)) {
-				vty_out(vty, "Invalid prefix format %s\n",
-					argv[idx]->arg);
-				return CMD_WARNING_CONFIG_FAILED;
-			}
-			/* Get the Subnet from the Link State Database */
-			subnet = ls_find_subnet(ted, &pref);
-			if (!subnet) {
-				vty_out(vty, "No subnet found for ID %pFX\n",
-					&pref);
-				return CMD_WARNING;
-			}
-		} else
-			subnet = NULL;
+			/* Show all subnets matching this prefix (may have
+			 * multiple entries with different mt_id or adv) */
+			int found = 0;
 
-		if (subnet)
-			ls_show_subnet(subnet, vty, json, detail);
-		else
-			ls_show_subnets(ted, vty, json, detail);
+			frr_each (subnets, &ted->subnets, subnet) {
+				if (prefix_same(&subnet->key, &pref)) {
+					ls_show_subnet(subnet, vty, json,
+						       detail);
+					found++;
+				}
+			}
+			if (!found) {
+				vty_out(vty, "No subnet found for ID %pFX\n",
+					&pref);
+				return CMD_WARNING;
+			}
+			goto show_ted_done;
+		}
+
+		/* No prefix specified: show all subnets */
+		ls_show_subnets(ted, vty, json, detail);
 
 	} else {
 		/* Show the complete TED */
 		ls_show_ted(ted, vty, json, detail);
 	}
 
+show_ted_done:
 	if (uj)
 		vty_json(vty, json);
 

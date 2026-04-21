@@ -269,6 +269,18 @@ static void format_link_desc(char **p, size_t *remain, struct bgp_ls_link_descri
 		*remain -= len;
 	}
 
+	/* Multi-Topology ID (TLV 263) - only display if MT-ID is non-zero */
+	if (BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_MT_ID_BIT)) {
+		for (uint8_t i = 0; i < link_desc->mt_id_count; i++) {
+			if (link_desc->mt_id[i] != 0) {
+				len = snprintfrr(*p, *remain, "[t0x%04x]",
+						 link_desc->mt_id[i]);
+				*p += len;
+				*remain -= len;
+			}
+		}
+	}
+
 	len = snprintfrr(*p, *remain, "]");
 	*p += len;
 	*remain -= len;
@@ -362,22 +374,43 @@ void bgp_ls_nlri_format(struct bgp_ls_nlri *nlri, char *buf, size_t buf_len)
 		format_link_desc(&p, &remain, &nlri->nlri_data.link.link_desc);
 	} else if (nlri->nlri_type == BGP_LS_NLRI_TYPE_IPV4_PREFIX ||
 		   nlri->nlri_type == BGP_LS_NLRI_TYPE_IPV6_PREFIX) {
+		struct bgp_ls_prefix_descriptor *prefix_desc;
+
 		format_node_desc(&p, &remain, &nlri->nlri_data.prefix.local_node, "N");
 
+		prefix_desc = &nlri->nlri_data.prefix.prefix_desc;
+
 		/* Format prefix */
-		len = snprintfrr(p, remain, "[P[p");
+		len = snprintfrr(p, remain, "[P[");
+		p += len;
+		remain -= len;
+
+		/* Multi-Topology ID (TLV 263) - only display if MT-ID is non-zero */
+		if (BGP_LS_TLV_CHECK(prefix_desc->present_tlvs,
+				     BGP_LS_PREFIX_DESC_MT_ID_BIT)) {
+			for (uint8_t i = 0; i < prefix_desc->mt_id_count; i++) {
+				if (prefix_desc->mt_id[i] != 0) {
+					len = snprintfrr(p, remain, "[t0x%04x]",
+							 prefix_desc->mt_id[i]);
+					p += len;
+					remain -= len;
+				}
+			}
+		}
+
+		len = snprintfrr(p, remain, "p");
 		p += len;
 		remain -= len;
 
 		if (nlri->nlri_type == BGP_LS_NLRI_TYPE_IPV4_PREFIX) {
-			inet_ntop(AF_INET, &nlri->nlri_data.prefix.prefix_desc.prefix.u.prefix4,
+			inet_ntop(AF_INET, &prefix_desc->prefix.u.prefix4,
 				  tmp, sizeof(tmp));
 		} else {
-			inet_ntop(AF_INET6, &nlri->nlri_data.prefix.prefix_desc.prefix.u.prefix6,
+			inet_ntop(AF_INET6, &prefix_desc->prefix.u.prefix6,
 				  tmp, sizeof(tmp));
 		}
 		len = snprintfrr(p, remain, "%s/%u", tmp,
-				 nlri->nlri_data.prefix.prefix_desc.prefix.prefixlen);
+				 prefix_desc->prefix.prefixlen);
 		p += len;
 		remain -= len;
 

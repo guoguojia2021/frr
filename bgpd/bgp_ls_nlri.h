@@ -13,6 +13,7 @@
 #include "bgpd/bgpd.h"
 
 /* Memory types */
+DECLARE_MTYPE(BGP_LS_NLRI);
 DECLARE_MTYPE(BGP_LS_ATTR);
 
 /*

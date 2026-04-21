@@ -168,6 +168,7 @@ struct ls_node {
 #define LS_ATTR_AVA_BW		0x00100000U
 #define LS_ATTR_RSV_BW		0x00200000U
 #define LS_ATTR_USE_BW		0x00400000U
+#define LS_ATTR_MT_ID		0x00800000U
 #define LS_ATTR_ADJ_SID		0x01000000U
 #define LS_ATTR_BCK_ADJ_SID	0x02000000U
 #define LS_ATTR_ADJ_SID6	0x04000000U
@@ -183,6 +184,7 @@ struct ls_attributes {
 	struct ls_node_id adv;		/* Adv. Router of this Link State */
 	char name[MAX_NAME_LENGTH];	/* Name of the Edge. Could be null */
 	uint32_t metric;		/* IGP standard metric */
+	uint16_t mt_id;			/* Multi-Topology ID (0=IPv4 default, 2=IPv6 unicast) */
 	struct ls_standard {		/* Standard TE metrics */
 		uint32_t te_metric;		/* Traffic Engineering metric */
 		uint32_t admin_group;		/* Administrative Group */
@@ -405,6 +407,7 @@ struct ls_vertex {
 /* Link State Edge Key structure */
 struct ls_edge_key {
 	uint8_t family;
+	uint16_t mt_id;		/* Multi-Topology ID (0 = default/not applicable) */
 	union {
 		struct in_addr addr;
 		struct in6_addr addr6;
@@ -430,7 +433,9 @@ struct ls_subnet {
 	enum ls_type type;		/* Link State Type */
 	enum ls_status status;		/* Status of the Subnet in the TED */
 	struct subnets_item entry;	/* Entry in RB tree */
-	struct prefix key;		/* Unique Key identifier */
+	struct prefix key;		/* Unique Key identifier: IP prefix */
+	uint16_t mt_id;			/* Multi-Topology ID (0=IPv4 default, 2=IPv6) */
+	struct ls_node_id adv;		/* Advertising Router (Node ID) */
 	struct ls_prefix *ls_pref;	/* Link State Prefix */
 	struct ls_vertex *vertex;	/* Back pointer to the Vertex owner */
 };
@@ -446,29 +451,45 @@ DECLARE_RBTREE_UNIQ(vertices, struct ls_vertex, entry, vertex_cmp);
 macro_inline int edge_cmp(const struct ls_edge *edge1,
 			  const struct ls_edge *edge2)
 {
+	int ret;
+
 	if (edge1->key.family != edge2->key.family)
 		return numcmp(edge1->key.family, edge2->key.family);
 
 	switch (edge1->key.family) {
 	case AF_INET:
-		return memcmp(&edge1->key.k.addr, &edge2->key.k.addr, 4);
+		ret = memcmp(&edge1->key.k.addr, &edge2->key.k.addr, 4);
+		break;
 	case AF_INET6:
-		return memcmp(&edge1->key.k.addr6, &edge2->key.k.addr6, 16);
+		ret = memcmp(&edge1->key.k.addr6, &edge2->key.k.addr6, 16);
+		break;
 	case AF_LOCAL:
-		return numcmp(edge1->key.k.link_id, edge2->key.k.link_id);
+		ret = numcmp(edge1->key.k.link_id, edge2->key.k.link_id);
+		break;
 	default:
-		return 0;
+		ret = 0;
 	}
+
+	if (ret != 0)
+		return ret;
+
+	/* Compare MT-ID for multi-topology support */
+	return numcmp(edge1->key.mt_id, edge2->key.mt_id);
 }
 DECLARE_RBTREE_UNIQ(edges, struct ls_edge, entry, edge_cmp);
 
 /*
- * Prefix comparison are done to the host part so, 10.0.0.1/24
- * and 10.0.0.2/24 are considered different
+ * Subnet comparison: prefix + mt_id + advertising router (adv).
+ * Per RFC 9552, the Prefix NLRI key includes the Local Node Descriptor
+ * (advertising router) and the Prefix Descriptor (prefix + MT-ID).
+ * All three dimensions are therefore required to uniquely identify a subnet.
  */
 macro_inline int subnet_cmp(const struct ls_subnet *a,
 			    const struct ls_subnet *b)
 {
+	int ret;
+
+	/* 1. Compare prefix (family, prefixlen, address) */
 	if (a->key.family != b->key.family)
 		return numcmp(a->key.family, b->key.family);
 
@@ -476,9 +497,34 @@ macro_inline int subnet_cmp(const struct ls_subnet *a,
 		return numcmp(a->key.prefixlen, b->key.prefixlen);
 
 	if (a->key.family == AF_INET)
-		return memcmp(&a->key.u.val, &b->key.u.val, 4);
+		ret = memcmp(&a->key.u.val, &b->key.u.val, 4);
+	else
+		ret = memcmp(&a->key.u.val, &b->key.u.val, 16);
 
-	return memcmp(&a->key.u.val, &b->key.u.val, 16);
+	if (ret != 0)
+		return ret;
+
+	/* 2. Compare MT-ID */
+	if (a->mt_id != b->mt_id)
+		return numcmp(a->mt_id, b->mt_id);
+
+	/* 3. Compare advertising router (origin + id) */
+	if (a->adv.origin != b->adv.origin)
+		return numcmp(a->adv.origin, b->adv.origin);
+
+	if (a->adv.origin == ISIS_L1 || a->adv.origin == ISIS_L2) {
+		ret = memcmp(a->adv.id.iso.sys_id, b->adv.id.iso.sys_id,
+			     ISO_SYS_ID_LEN);
+		if (ret != 0)
+			return ret;
+		return numcmp(a->adv.id.iso.level, b->adv.id.iso.level);
+	}
+
+	/* OSPFv2 / DIRECT / STATIC: compare IPv4 addr + area_id */
+	ret = memcmp(&a->adv.id.ip.addr, &b->adv.id.ip.addr, 4);
+	if (ret != 0)
+		return ret;
+	return memcmp(&a->adv.id.ip.area_id, &b->adv.id.ip.area_id, 4);
 }
 DECLARE_RBTREE_UNIQ(subnets, struct ls_subnet, entry, subnet_cmp);
 
@@ -743,15 +789,34 @@ extern void ls_subnet_del(struct ls_ted *ted, struct ls_subnet *subnet);
 extern void ls_subnet_del_all(struct ls_ted *ted, struct ls_subnet *subnet);
 
 /**
- * Find Subnet in the Link State Data Base by prefix.
+ * Find Subnet in the Link State Data Base by prefix, MT-ID and advertising
+ * router (exact match on all three dimensions per RFC 9552).
  *
  * @param ted		Link State Data Base
- * @param prefix	Link State Prefix
+ * @param prefix	IP prefix (key dimension 1)
+ * @param mt_id		Multi-Topology ID (key dimension 2; 0 for default)
+ * @param adv		Advertising router Node ID (key dimension 3)
  *
  * @return		Subnet if found, NULL otherwise
  */
 extern struct ls_subnet *ls_find_subnet(struct ls_ted *ted,
-					const struct prefix *prefix);
+					const struct prefix *prefix,
+					uint16_t mt_id,
+					struct ls_node_id adv);
+
+/**
+ * Find the first Subnet in the Link State Data Base that matches the given
+ * prefix, regardless of MT-ID or advertising router.  This is a linear scan
+ * and is intended only for VTY show commands and other non-critical look-ups
+ * where the caller does not know the full key.
+ *
+ * @param ted		Link State Data Base
+ * @param prefix	IP prefix to search for
+ *
+ * @return		First matching Subnet, or NULL if none found
+ */
+extern struct ls_subnet *ls_find_subnet_by_prefix(struct ls_ted *ted,
+						  const struct prefix *prefix);
 
 /**
  * Create a new Link State Data Base.

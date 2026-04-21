@@ -1802,8 +1802,8 @@ static void ospf_te_update_subnet(struct ls_ted *ted, struct ls_vertex *vertex,
 	struct ls_subnet *subnet;
 	struct ls_prefix *ls_pref;
 
-	/* Search if there is a Subnet for this prefix */
-	subnet = ls_find_subnet(ted, p);
+	/* Search if there is a Subnet for this prefix (MT-ID=0 for OSPF) */
+	subnet = ls_find_subnet(ted, p, 0, vertex->node->adv);
 
 	/* If found a Subnet, check if it is attached to this Vertex */
 	if (subnet) {
@@ -1847,16 +1847,17 @@ static void ospf_te_update_subnet(struct ls_ted *ted, struct ls_vertex *vertex,
  * @param ted	Links State Database
  * @param addr	IPv4 address
  */
-static void ospf_te_delete_subnet(struct ls_ted *ted, struct in_addr addr)
+static void ospf_te_delete_subnet(struct ls_ted *ted, struct in_addr addr,
+				   struct ls_node_id adv)
 {
 	struct prefix p;
 	struct ls_subnet *subnet;
 
-	/* Search subnet that correspond to the address/32 as prefix */
+	/* Search subnet that correspond to the address/32 as prefix (MT-ID=0 for OSPF) */
 	p.family = AF_INET;
 	p.prefixlen = IPV4_MAX_BITLEN;
 	p.u.prefix4 = addr;
-	subnet = ls_find_subnet(ted, &p);
+	subnet = ls_find_subnet(ted, &p, 0, adv);
 
 	/* Remove subnet if found */
 	if (subnet) {
@@ -2410,7 +2411,7 @@ static int ospf_te_delete_te(struct ls_ted *ted, struct ospf_lsa *lsa)
 			ls_vertex_del_all(ted, edge->destination);
 		}
 
-		ospf_te_delete_subnet(ted, attr->standard.local);
+		ospf_te_delete_subnet(ted, attr->standard.local, attr->adv);
 
 		edge->status = DELETE;
 		ospf_te_export(LS_MSG_TYPE_ATTRIBUTES, edge);
@@ -2437,7 +2438,7 @@ static int ospf_te_delete_te(struct ls_ted *ted, struct ospf_lsa *lsa)
 		edge->status = SYNC;
 	} else {
 		/* Remove completely the Edge if Segment Routing is not set */
-		ospf_te_delete_subnet(ted, attr->standard.local);
+		ospf_te_delete_subnet(ted, attr->standard.local, attr->adv);
 		edge->status = DELETE;
 		ospf_te_export(LS_MSG_TYPE_ATTRIBUTES, edge);
 		ls_edge_del_all(ted, edge);
@@ -2637,18 +2638,18 @@ static int ospf_te_parse_ext_pref(struct ls_ted *ted, struct ospf_lsa *lsa)
 	struct ext_subtlv_prefix_sid *pref_sid;
 	uint32_t label;
 
-	/* Get corresponding Subnet from Link State Data Base */
+	/* Get corresponding Subnet from Link State Data Base (MT-ID=0 for OSPF) */
 	ext = (struct ext_tlv_prefix *)TLV_HDR_TOP(lsa->data);
 	pref.family = AF_INET;
 	pref.prefixlen = ext->pref_length;
 	pref.u.prefix4 = ext->address;
-	subnet = ls_find_subnet(ted, &pref);
+	lnid.origin = OSPFv2;
+	lnid.id.ip.addr = lsa->data->adv_router;
+	lnid.id.ip.area_id = lsa->area->area_id;
+	subnet = ls_find_subnet(ted, &pref, 0, lnid);
 
 	/* Create new Link State Prefix if not found */
 	if (!subnet) {
-		lnid.origin = OSPFv2;
-		lnid.id.ip.addr = lsa->data->adv_router;
-		lnid.id.ip.area_id = lsa->area->area_id;
 		ls_pref = ls_prefix_new(lnid, &pref);
 		/* and add it to the TED */
 		subnet = ls_subnet_add(ted, ls_pref);
@@ -2705,17 +2706,21 @@ static int ospf_te_parse_ext_pref(struct ls_ted *ted, struct ospf_lsa *lsa)
  */
 static int ospf_te_delete_ext_pref(struct ls_ted *ted, struct ospf_lsa *lsa)
 {
+	struct ls_node_id lnid;
 	struct ls_subnet *subnet;
 	struct ls_prefix *ls_pref;
 	struct prefix pref;
 	struct ext_tlv_prefix *ext;
 
-	/* Get corresponding Subnet from Link State Data Base */
+	/* Get corresponding Subnet from Link State Data Base (MT-ID=0 for OSPF) */
 	ext = (struct ext_tlv_prefix *)TLV_HDR_TOP(lsa->data);
 	pref.family = AF_INET;
 	pref.prefixlen = ext->pref_length;
 	pref.u.prefix4 = ext->address;
-	subnet = ls_find_subnet(ted, &pref);
+	lnid.origin = OSPFv2;
+	lnid.id.ip.addr = lsa->data->adv_router;
+	lnid.id.ip.area_id = lsa->area->area_id;
+	subnet = ls_find_subnet(ted, &pref, 0, lnid);
 
 	/* Check if there is a corresponding subnet */
 	if (!subnet)
@@ -4418,7 +4423,7 @@ DEFUN (show_ip_ospf_mpls_te_db,
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 			/* Get the Subnet from the Link State Database */
-			subnet = ls_find_subnet(OspfMplsTE.ted, &pref);
+			subnet = ls_find_subnet_by_prefix(OspfMplsTE.ted, &pref);
 			if (!subnet) {
 				vty_out(vty, "No subnet found for ID %pFX\n",
 					&pref);
