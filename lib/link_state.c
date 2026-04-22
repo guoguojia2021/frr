@@ -2704,6 +2704,7 @@ static void ls_show_subnet_vty(struct ls_subnet *subnet, struct vty *vty,
 	ls_node_id_to_text(pref->adv, buf, INET6_BUFSIZ);
 	sbuf_push(&sbuf, 0, "\tAdv. Vertex: %s", buf);
 	sbuf_push(&sbuf, 0, "\tMetric: %d", pref->metric);
+	sbuf_push(&sbuf, 0, "\tMT-ID: %d", subnet->mt_id);
 	sbuf_push(&sbuf, 0, "\tStatus: %s\n", status2txt[subnet->status]);
 
 	if (!verbose)

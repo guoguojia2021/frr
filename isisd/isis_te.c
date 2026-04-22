@@ -1134,17 +1134,6 @@ static int lsp_to_subnet_cb(const struct prefix *prefix, uint32_t metric,
 	te_debug("   |- %s Subnet from prefix %pFX",
 		 subnet->status == NEW ? "Create" : "Found", &p);
 
-	/* Record the MT-ID so BGP-LS can place it in the Prefix Descriptor */
-	if (args->mt_id != 0) {
-		if (!CHECK_FLAG(ls_pref->flags, LS_PREF_MT_ID)
-		    || ls_pref->mt_id != args->mt_id) {
-			ls_pref->mt_id = args->mt_id;
-			SET_FLAG(ls_pref->flags, LS_PREF_MT_ID);
-			if (subnet->status != NEW)
-				subnet->status = UPDATE;
-		}
-	}
-
 	/* Update Metric */
 	if (!CHECK_FLAG(ls_pref->flags, LS_PREF_METRIC)
 	    || (ls_pref->metric != metric)) {
