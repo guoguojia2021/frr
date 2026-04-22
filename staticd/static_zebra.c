@@ -201,10 +201,8 @@ static_nexthop_is_local(vrf_id_t vrfid, struct prefix *addr, int family)
 static void static_gateway_update_nh(struct static_path *pn,
 				     struct static_nexthop *nh, bool add)
 {
-	if (nh->neigh_invalid == add){
-		nh->neigh_invalid = !add;
-		static_install_path(pn);
-	}
+	nh->neigh_invalid = !add;
+	static_install_path(pn);
 }
 
 
@@ -262,8 +260,9 @@ static int static_neighbor_operation(ZAPI_CALLBACK_ARGS)
 			frr_each(static_path_list, &si->path_list, pn) {
 				frr_each(static_nexthop_list,
 					  &pn->nexthop_list, nh) {
-						if(nh->type == STATIC_IPV6_GATEWAY_IFNAME)
-							if (memcmp(&addr.sin6.sin6_addr, &nh->addr.ipv6, 16) == 0)
+						if ((nh->type == STATIC_IPV6_GATEWAY_IFNAME) 
+ 								&& (memcmp(&addr.sin6.sin6_addr, &nh->addr.ipv6, 16) == 0)
+								&& (strncmp(ifp->name, nh->ifname, INTERFACE_NAMSIZ) == 0))
 					        		static_gateway_update_nh(pn, nh, add);
 				}
 			}
@@ -800,6 +799,66 @@ extern void static_zebra_route_add(struct static_path *pn, bool install, bool se
 			   zclient, &api);
 }
 
+ /*
+  * Send a request to zebra to get neighbor status.
+  * This function is called when staticd needs to query the current
+  * status of a neighbor entry from the kernel via zebra.
+  *
+  * Notification flow:
+  *   1. staticd calls static_zebra_neighbor_get() to request neighbor status
+  *   2. Function sends ZEBRA_NHRP_NEIGH_GET message to zebra
+  *   3. zebra receives request in zebra_neigh_get()
+  *   4. zebra queries kernel via netlink interface
+  *   5. zebra actively sends ZEBRA_NHRP_NEIGH_GET response to requesting client via zserv_send_message
+  *   6. staticd receives response and static_neighbor_operation(cmd= ZEBRA_NHRP_NEIGH_GET) is called
+  *
+  * Note: zebra actively sends response to the requesting client using zserv_send_message,
+  * with cmd set to ZEBRA_NHRP_NEIGH_GET. This ensures staticd receives a response
+  * even when the queried neighbor does not exist in the kernel (ndm_state = NUD_FAILED).
+  *
+  * Parameters:
+  *   vrf_id - VRF identifier
+  *   ip - IP address of the neighbor to query
+  *   ifp - Interface where the neighbor is expected
+  *
+  * Returns:
+  *   0 on success, -1 on failure
+  */
+ int static_zebra_neighbor_get(vrf_id_t vrf_id, struct ipaddr *ip,
+	struct interface *ifp)
+{
+	struct stream *s;
+	union sockunion addr = {};
+
+	if (!zclient || zclient->sock < 0)
+		return -1;
+
+	if (!ifp)
+		return -1;
+
+	s = zclient->obuf;
+	stream_reset(s);
+
+	/* Set sockunion family and address */
+	sockunion_family(&addr) = ipaddr_family(ip);
+	memcpy((uint8_t *)sockunion_get_addr(&addr), &ip->ip.addr,
+	family2addrsize(ipaddr_family(ip)));
+
+	/* Encode the neighbor get request */
+	zclient_neigh_ip_encode(s, ZEBRA_NHRP_NEIGH_GET, &addr, NULL, ifp,
+	ZEBRA_NEIGH_STATE_FAILED);
+
+	stream_putw_at(s, 0, stream_get_endp(s));
+
+	if (zclient_send_message(zclient) == ZCLIENT_SEND_FAILURE) {
+		zlog_warn("%s: Failure to send neighbor get request to zebra",
+		__func__);
+		return -1;
+	}
+
+	return 0;
+}
+
 static zclient_handler *const static_handlers[] = {
 	[ZEBRA_INTERFACE_ADDRESS_ADD] = interface_address_add,
 	[ZEBRA_INTERFACE_ADDRESS_DELETE] = interface_address_delete,
@@ -807,6 +866,7 @@ static zclient_handler *const static_handlers[] = {
 	[ZEBRA_NEXTHOP_UPDATE] = static_zebra_nexthop_update,
 	[ZEBRA_NHRP_NEIGH_ADDED] = static_neighbor_operation,
 	[ZEBRA_NHRP_NEIGH_REMOVED] = static_neighbor_operation,
+	[ZEBRA_NHRP_NEIGH_GET]     = static_neighbor_operation,
 };
 
 void static_zebra_init(void)

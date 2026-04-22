@@ -1321,50 +1321,12 @@ static void bgp_update_delay_begin(struct bgp *bgp)
 		      sizeof(bgp->update_delay_begin_time));
 }
 
-static void bgp_advertise_delay_onstartup_peer_end(struct peer *peer)
-{
-	afi_t afi;
-	safi_t safi;
-	struct peer_af *paf = NULL;
-
-	frr_timestamp(3, peer->advertise_delay_onstartup_start_time,
-			 sizeof(peer->advertise_delay_onstartup_start_time));
-
-	FOREACH_AFI_SAFI (afi, safi) {
-
-		if (!peer->afc_nego[afi][safi])
-			continue;
-
-		if (BGP_DEBUG(update, UPDATE_OUT))
-			zlog_debug("%s: advertise delay onstartup time end %s for %s, send the all route update.",
-				__func__, peer->host, get_afi_safi_str(afi, safi, false));
-
-		paf = peer_af_find(peer, afi, safi);
-		if (paf && paf->subgroup)
-			SET_FLAG(paf->subgroup->sflags, SUBGRP_STATUS_FORCE_UPDATES);
-
-		update_group_adjust_peer(paf);
-		bgp_announce_route(peer, afi, safi, true);
-	}
-
-	frr_timestamp(3, peer->advertise_delay_onstartup_end_time,
-			 sizeof(peer->advertise_delay_onstartup_end_time));
-
-}
-
 static void bgp_advertise_delay_onstartup_end(struct bgp *bgp)
 {
-	struct listnode *node, *nnode;
-	struct peer *peer;
-
 	zlog_notice( "%s: %s: advertise delay onstartup timer end and advertise route start time.\n",
 			__func__, bgp->name_pretty);
 
-	for (ALL_LIST_ELEMENTS(bgp->peer, node, nnode, peer)) {
-		if (!peer_established(peer->connection))
-			continue;
-		bgp_advertise_delay_onstartup_peer_end(peer);
-	}
+	update_group_announce(bgp);
 	zlog_notice( "%s: %s: advertise delay onstartup timer end and advertise route end time.\n",
 			__func__, bgp->name_pretty);
 }
