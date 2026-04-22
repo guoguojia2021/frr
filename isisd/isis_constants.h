@@ -29,7 +29,14 @@
 
 #define MAX_NARROW_LINK_METRIC        63
 #define MAX_NARROW_PATH_METRIC        1023
-#define MAX_WIDE_LINK_METRIC          0x00FFFFFF  /* RFC4444 */
+/*
+ * Per RFC 5305 §3.1, the wide metric value 0xFFFFFF (16777215) represents
+ * "infinity" i.e. the link is unreachable.  The maximum *usable* metric is
+ * therefore 0xFFFFFE (16777214).  Both Cisco and H3C use 0xFFFFFE as the
+ * maximum configurable value so that an operator can never accidentally set
+ * a link metric to infinity.  We align with this behaviour.
+ */
+#define MAX_WIDE_LINK_METRIC          0x00FFFFFE
 #define MAX_WIDE_PATH_METRIC          0xFE000000  /* RFC3787 */
 #define ISO_SAP                       0xFE
 #define INTRADOMAIN_ROUTEING_SELECTOR 0

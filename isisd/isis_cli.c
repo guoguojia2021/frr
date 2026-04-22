@@ -1362,7 +1362,7 @@ void cli_show_isis_mpls_te_export(struct vty *vty, const struct lyd_node *dnode,
  * XPath: /frr-isisd:isis/instance/default-information-originate
  */
 DEFPY_YANG(isis_default_originate, isis_default_originate_cmd,
-      "[no] default-information originate <ipv4|ipv6>$ip <level-1|level-2>$level [always]$always [{metric (0-16777215)$metric|route-map RMAP_NAME$rmap}]",
+      "[no] default-information originate <ipv4|ipv6>$ip <level-1|level-2>$level [always]$always [{metric (0-16777214)$metric|route-map RMAP_NAME$rmap}]",
       NO_STR
       "Control distribution of default information\n"
       "Distribute a default route\n"
@@ -1442,7 +1442,7 @@ void cli_show_isis_def_origin_ipv6(struct vty *vty,
 DEFPY_YANG(isis_redistribute, isis_redistribute_cmd,
       "[no] redistribute <ipv4$ip " PROTO_IP_REDIST_STR "$proto|ipv6$ip "
       PROTO_IP6_REDIST_STR "$proto> <level-1|level-2>$level"
-      "[{metric (0-16777215)|route-map RMAP_NAME$route_map}]",
+      "[{metric (0-16777214)|route-map RMAP_NAME$route_map}]",
       NO_STR REDIST_STR
       "Redistribute IPv4 routes\n"
       PROTO_IP_REDIST_HELP
@@ -1476,7 +1476,7 @@ DEFPY_YANG(isis_redistribute, isis_redistribute_cmd,
  */
 DEFPY_YANG(isis_redistribute_table, isis_redistribute_table_cmd,
 	   "[no] redistribute <ipv4|ipv6>$ip table (1-65535)$table"
-	   "<level-1|level-2>$level [{metric (0-16777215)|route-map WORD}]",
+	   "<level-1|level-2>$level [{metric (0-16777214)|route-map WORD}]",
 	   NO_STR REDIST_STR "Redistribute IPv4 routes\n"
 			     "Redistribute IPv6 routes\n"
 			     "Non-main Kernel Routing Table\n"
@@ -2372,7 +2372,7 @@ void cli_show_ip_isis_password(struct vty *vty, const struct lyd_node *dnode,
  * XPath: /frr-interface:lib/interface/frr-isisd:isis/metric
  */
 DEFPY_YANG(isis_metric, isis_metric_cmd,
-      "isis metric [level-1|level-2]$level (0-16777215)$met",
+      "isis metric [level-1|level-2]$level (0-16777214)$met",
       "IS-IS routing protocol\n"
       "Set default metric for circuit\n"
       "Specify metric for level-1 routing\n"
@@ -2390,7 +2390,7 @@ DEFPY_YANG(isis_metric, isis_metric_cmd,
 }
 
 DEFPY_YANG(no_isis_metric, no_isis_metric_cmd,
-      "no isis metric [level-1|level-2]$level [(0-16777215)]",
+      "no isis metric [level-1|level-2]$level [(0-16777214)]",
       NO_STR
       "IS-IS routing protocol\n"
       "Set default metric for circuit\n"
@@ -3183,7 +3183,7 @@ DEFPY(isis_remote_lfa, isis_remote_lfa_cmd,
  * /frr-interface:lib/interface/frr-isisd:isis/fast-reroute/level-{1,2}/remote-lfa/maximum-metric
  */
 DEFPY(isis_remote_lfa_max_metric, isis_remote_lfa_max_metric_cmd,
-      "[no] isis fast-reroute remote-lfa maximum-metric (1-16777215)$metric [level-1|level-2]$level",
+      "[no] isis fast-reroute remote-lfa maximum-metric (1-16777214)$metric [level-1|level-2]$level",
       NO_STR
       "IS-IS routing protocol\n"
       "Interface IP Fast-reroute configuration\n"

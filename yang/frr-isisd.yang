@@ -289,7 +289,7 @@ module frr-isisd {
 
     leaf metric {
       type uint32 {
-        range "0..16777215";
+        range "0..16777214";
       }
       default "0";
       description
@@ -488,7 +488,7 @@ module frr-isisd {
       }
       leaf maximum-metric {
         type uint32 {
-          range "1..16777215";
+          range "1..16777214";
         }
         description
           "Limit remote LFA node selection within the metric.";
@@ -703,7 +703,7 @@ module frr-isisd {
         "Default metric for this IS-IS circuit.";
       leaf level-1 {
         type uint32 {
-          range "0..16777215";
+          range "0..16777214";
         }
         must ". < 64 or /frr-isisd:isis/instance[area-tag = current()/../../area-tag]/metric-style = 'wide'";
         default "10";
@@ -713,7 +713,7 @@ module frr-isisd {
 
       leaf level-2 {
         type uint32 {
-          range "0..16777215";
+          range "0..16777214";
         }
         must ". < 64 or /frr-isisd:isis/instance[area-tag = current()/../../area-tag]/metric-style = 'wide'";
         default "10";

@@ -829,7 +829,7 @@ DEFUN (no_isis_passwd,
 
 DEFUN (isis_metric,
        isis_metric_cmd,
-       PROTO_NAME " metric (0-16777215)",
+       PROTO_NAME " metric (0-16777214)",
        PROTO_HELP
        "Set default metric for circuit\n"
        "Default metric value\n")
@@ -855,7 +855,7 @@ DEFUN (isis_metric,
 	if (circuit->area && circuit->area->newmetric == 1
 	    && met > MAX_WIDE_LINK_METRIC) {
 		vty_out(vty,
-			"Invalid metric %d - should be <0-16777215> when wide metric type enabled\n",
+			"Invalid metric %d - should be <0-16777214> when wide metric type enabled\n",
 			met);
 		return CMD_WARNING_CONFIG_FAILED;
 	}
@@ -869,7 +869,7 @@ DEFUN (isis_metric,
 
 DEFUN (no_isis_metric,
        no_isis_metric_cmd,
-       "no " PROTO_NAME " metric [(0-16777215)]",
+       "no " PROTO_NAME " metric [(0-16777214)]",
        NO_STR
        PROTO_HELP
        "Set default metric for circuit\n"
