@@ -2152,6 +2152,8 @@ int isis_instance_mpls_te_export_modify(struct nb_cb_modify_args *args)
 	} else {
 		if (IS_DEBUG_EVENTS)
 			zlog_debug("MPLS-TE: Disable Link State export");
+		/* Flush all TED entries to remove BGP-LS routes */
+		isis_te_flush_ted(area);
 		if (isis_zebra_ls_register(false) != 0)
 			zlog_warn("Unable to register Link State");
 	}

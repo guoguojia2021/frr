@@ -135,6 +135,13 @@ void isis_mpls_te_disable(struct isis_area *area)
 	if (!area->mta)
 		return;
 
+	/* If export is enabled, flush TED to remove BGP-LS routes first */
+	if (IS_EXPORT_TE(area->mta)) {
+		isis_te_flush_ted(area);
+		isis_zebra_ls_register(false);
+		area->mta->export = false;
+	}
+
 	area->mta->status = disable;
 
 	/* Remove Link State Database */
@@ -562,6 +569,53 @@ static int isis_te_export(uint8_t type, void *link_state)
 	}
 
 	return rc;
+}
+
+/**
+ * Flush all Link State TED entries by sending DELETE messages to consumer
+ * daemons through ZAPI Link State Opaque Message. This is used when
+ * mpls-te export or mpls-te on is being disabled, to notify BGP-LS to
+ * withdraw all routes derived from this TED.
+ *
+ * @param area	ISIS area whose TED entries should be flushed
+ */
+void isis_te_flush_ted(struct isis_area *area)
+{
+	struct mpls_te_area *mta = area->mta;
+	struct ls_ted *ted;
+	struct ls_vertex *vertex;
+	struct ls_edge *edge;
+	struct ls_subnet *subnet;
+	struct ls_message msg = {};
+
+	if (!mta || !mta->ted)
+		return;
+
+	ted = mta->ted;
+
+	te_debug("ISIS-TE(%s): Flushing TED to remove BGP-LS routes",
+		 area->area_tag);
+
+	/* Send DELETE for all Subnets (Prefixes) first */
+	frr_each (subnets, &ted->subnets, subnet) {
+		ls_subnet2msg(&msg, subnet);
+		msg.event = LS_MSG_EVENT_DELETE;
+		ls_send_msg(zclient, &msg, NULL);
+	}
+
+	/* Then send DELETE for all Edges (Links) */
+	frr_each (edges, &ted->edges, edge) {
+		ls_edge2msg(&msg, edge);
+		msg.event = LS_MSG_EVENT_DELETE;
+		ls_send_msg(zclient, &msg, NULL);
+	}
+
+	/* Finally send DELETE for all Vertices (Nodes) */
+	frr_each (vertices, &ted->vertices, vertex) {
+		ls_vertex2msg(&msg, vertex);
+		msg.event = LS_MSG_EVENT_DELETE;
+		ls_send_msg(zclient, &msg, NULL);
+	}
 }
 
 /**

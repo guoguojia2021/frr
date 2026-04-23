@@ -133,5 +133,6 @@ void isis_mpls_te_circuit_ip_update(struct isis_circuit *circuit);
 void isis_te_lsp_event(struct isis_lsp *lsp, enum lsp_event event);
 int isis_te_sync_ted(struct zapi_opaque_reg_info dst);
 void isis_te_init_ted(struct isis_area *area);
+void isis_te_flush_ted(struct isis_area *area);
 
 #endif /* _ZEBRA_ISIS_MPLS_TE_H */
