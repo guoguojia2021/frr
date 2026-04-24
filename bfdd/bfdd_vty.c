@@ -1574,6 +1574,66 @@ static void sbfd_reflector_write_config(struct vty *vty)
     sbfd_discr_iterate(_sbfd_reflector_write_config, vty);
 }
 
+/*
+ * BFD mock commands for testing: simulate BFD session up/down
+ * without affecting the physical link. Useful for verifying
+ * protocol convergence behavior (e.g. IS-IS strict BFD mode).
+ *
+ * WARNING: This command is intended for testing ONLY.
+ * Do NOT use in production environments as it forcefully
+ * manipulates BFD session state bypassing normal protocol logic.
+ *
+ * Usage:
+ *   test bfd mock peer <A.B.C.D|X:X::X:X> [{local-address <A.B.C.D|X:X::X:X>|interface IFNAME|vrf NAME}] <up|down>
+ */
+DEFPY_HIDDEN(bfd_mock_peer_state, bfd_mock_peer_state_cmd,
+      "test bfd mock peer <A.B.C.D|X:X::X:X>$peer [{local-address <A.B.C.D|X:X::X:X>$local|interface IFNAME$ifname|vrf NAME$vrfname}] <up|down>$state",
+      "Test commands\n"
+      "Bidirectional Forwarding Detection\n"
+      "Mock BFD session state for testing\n"
+      "BFD peer\n"
+      PEER_IPV4_STR
+      PEER_IPV6_STR
+      LOCAL_STR
+      LOCAL_IPV4_STR
+      LOCAL_IPV6_STR
+      INTERFACE_STR
+      LOCAL_INTF_STR
+      VRF_CMD_HELP_STR
+      "Force BFD session to UP state\n"
+      "Force BFD session to DOWN state\n")
+{
+	struct bfd_session *bs;
+
+	bs = _find_peer_or_error(vty, argc, argv, NULL, peer_str, local_str,
+				 ifname, vrfname);
+	if (bs == NULL)
+		return CMD_WARNING_CONFIG_FAILED;
+
+	if (strmatch(state, "down")) {
+		if (bs->ses_state != PTM_BFD_UP) {
+			vty_out(vty, "%% BFD peer is not UP (current state: %s)\n",
+				state_list[bs->ses_state].str);
+			return CMD_WARNING;
+		}
+		zlog_warn("BFD: mock BFD session DOWN for peer %s (testing)",
+			  bs_to_string(bs));
+		ptm_bfd_sess_dn(bs, BD_ADMIN_DOWN);
+		vty_out(vty, "BFD peer %s forced to DOWN state\n", peer_str);
+	} else {
+		if (bs->ses_state == PTM_BFD_UP) {
+			vty_out(vty, "%% BFD peer is already UP\n");
+			return CMD_WARNING;
+		}
+		zlog_warn("BFD: mock BFD session UP for peer %s (testing)",
+			  bs_to_string(bs));
+		ptm_bfd_sess_up(bs);
+		vty_out(vty, "BFD peer %s forced to UP state\n", peer_str);
+	}
+
+	return CMD_SUCCESS;
+}
+
 static int bfdd_write_config(struct vty *vty)
 {
 	struct lyd_node *dnode;
@@ -1629,6 +1689,9 @@ void bfdd_vty_init(void)
 	install_element(ENABLE_NODE, &bfd_debug_zebra_cmd);
 	install_element(ENABLE_NODE, &bfd_debug_network_cmd);
 	install_element(ENABLE_NODE, &bfd_enable_frc_cmd);
+
+	/* BFD mock commands for testing session state */
+	install_element(ENABLE_NODE, &bfd_mock_peer_state_cmd);
 
 	install_element(CONFIG_NODE, &bfd_debug_distributed_cmd);
 	install_element(CONFIG_NODE, &bfd_debug_peer_cmd);

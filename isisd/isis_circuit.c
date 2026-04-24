@@ -223,6 +223,7 @@ struct isis_circuit *isis_circuit_new(struct interface *ifp, const char *tag)
 	}
 #endif /* ifndef FABRICD */
 
+	circuit->bfd_config.mode = ISIS_BFD_MODE_DISABLED;
 	circuit->bfd_config.detection_multiplier = BFD_DEF_DETECT_MULT;
 	circuit->bfd_config.min_rx = BFD_DEF_MIN_RX;
 	circuit->bfd_config.min_tx = BFD_DEF_MIN_TX;
@@ -1501,8 +1502,34 @@ static int isis_interface_config_write(struct vty *vty)
 					circuit->passwd.passwd);
 				write++;
 			}
-			if (circuit->bfd_config.enabled) {
-				vty_out(vty, " " PROTO_NAME " bfd\n");
+			if (circuit->bfd_config.mode != ISIS_BFD_MODE_DISABLED) {
+				bool has_custom_params =
+					(circuit->bfd_config.detection_multiplier != BFD_DEF_DETECT_MULT ||
+					 circuit->bfd_config.min_tx != BFD_DEF_MIN_TX ||
+					 circuit->bfd_config.min_rx != BFD_DEF_MIN_RX);
+
+				if (circuit->bfd_config.mode == ISIS_BFD_MODE_STRICT) {
+					if (has_custom_params)
+						vty_out(vty,
+							" " PROTO_NAME " bfd strict-mode %u %u %u\n",
+							circuit->bfd_config.detection_multiplier,
+							circuit->bfd_config.min_rx,
+							circuit->bfd_config.min_tx);
+					else
+						vty_out(vty, " " PROTO_NAME " bfd strict-mode\n");
+				} else {
+					if (has_custom_params)
+						vty_out(vty,
+							" " PROTO_NAME " bfd %u %u %u\n",
+							circuit->bfd_config.detection_multiplier,
+							circuit->bfd_config.min_rx,
+							circuit->bfd_config.min_tx);
+					else
+						vty_out(vty, " " PROTO_NAME " bfd\n");
+				}
+				if (circuit->bfd_config.profile)
+					vty_out(vty, " " PROTO_NAME " bfd profile %s\n",
+						circuit->bfd_config.profile);
 				write++;
 			}
 			write += hook_call(isis_circuit_config_write,

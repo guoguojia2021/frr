@@ -266,8 +266,8 @@ int isis_recv_pdu_bcast(struct isis_circuit *circuit, uint8_t *ssnpa)
 				bytesread, safe_strerror(errno));
 		}
 		if (s_addr.sll_ifindex != (int)circuit->interface->ifindex) {
-			zlog_warn(
-				"packet is received on multiple interfaces: socket interface %d, circuit interface %d, packet type %u",
+			zlog_debug(
+				"interface index mismatch: socket interface %d, circuit interface %d, packet type %u",
 				s_addr.sll_ifindex, circuit->interface->ifindex,
 				s_addr.sll_pkttype);
 		}

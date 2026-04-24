@@ -48,6 +48,7 @@
 #include "isisd/isis_mt.h"
 #include "isisd/isis_tlvs.h"
 #include "isisd/fabricd.h"
+#include "isisd/isis_bfd.h"
 #include "isisd/isis_nb.h"
 
 DEFINE_MTYPE_STATIC(ISISD, ISIS_ADJACENCY, "ISIS adjacency");
@@ -248,6 +249,7 @@ void isis_adj_process_threeway(struct isis_adjacency *adj,
 			       enum isis_adj_usage adj_usage)
 {
 	enum isis_threeway_state next_tw_state = ISIS_THREEWAY_DOWN;
+	struct isis_circuit *circuit = adj->circuit;
 
 	if (tw_adj && !adj->circuit->disable_threeway_adj) {
 		if (tw_adj->state == ISIS_THREEWAY_DOWN) {
@@ -282,10 +284,39 @@ void isis_adj_process_threeway(struct isis_adjacency *adj,
 		return;
 	}
 
+	/* RFC 6213/RFC 9355: BFD strict mode handling
+	 * In strict BFD mode, start the BFD session as early as
+	 * possible (before the adjacency UP check) so that BFD
+	 * can begin establishing. Then check whether BFD session
+	 * is UP before allowing the adjacency to transition.
+	 */
+	isis_bfd_adj_establish(adj);
+
+	if (isis_bfd_adj_blocked(adj)) {
+		const char *bfd_reason = "";
+		if (!adj->bfd_session)
+			bfd_reason = "BFD session not yet created";
+		else if (bfd_sess_status(adj->bfd_session) != BSS_UP)
+			bfd_reason = "BFD session not UP";
+		else if (adj->bfd_strict_blocked)
+			bfd_reason = "BFD strict-blocked after session down";
+		if (IS_DEBUG_BFD)
+			zlog_debug(
+				"ISIS-Adj (%s): Strict BFD mode blocking adjacency UP for neighbor %s (%s)",
+				circuit->area->area_tag, isis_adj_name(adj),
+				bfd_reason);
+		return;
+	}
+
 	if (next_tw_state == ISIS_THREEWAY_UP) {
 		if (adj->adj_state != ISIS_ADJ_UP) {
 			isis_adj_state_change(&adj, ISIS_ADJ_UP, NULL);
 			adj->adj_usage = adj_usage;
+
+			if (adj->bfd_negotiated_mode == ISIS_BFD_MODE_STRICT && IS_DEBUG_BFD)
+				zlog_debug("ISIS-Adj (%s): Adjacency UP with neighbor %s after strict BFD session established",
+					  circuit->area->area_tag,
+					  isis_adj_name(adj));
 		}
 	}
 
@@ -856,8 +887,12 @@ void isis_adj_print_vty(struct isis_adjacency *adj, struct vty *vty,
 				vty_out(vty, "      %s\n", buf);
 			}
 		}
-		if (adj->circuit && adj->circuit->bfd_config.enabled) {
-			vty_out(vty, "    BFD is %s%s\n",
+		if (adj->circuit && adj->bfd_negotiated_mode != ISIS_BFD_MODE_DISABLED) {
+			const char *mode_str = "";
+			if (adj->bfd_negotiated_mode == ISIS_BFD_MODE_STRICT)
+				mode_str = " (strict-mode)";
+			vty_out(vty, "    BFD%s is %s%s\n",
+				mode_str,
 				adj->bfd_session ? "active, status "
 						 : "configured",
 				!adj->bfd_session

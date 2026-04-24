@@ -2810,7 +2810,7 @@ void lib_interface_isis_bfd_monitoring_apply_finish(
 	struct isis_circuit *circuit;
 
 	circuit = nb_running_get_entry(args->dnode, NULL, true);
-	if (!circuit->bfd_config.enabled) {
+	if (circuit->bfd_config.mode == ISIS_BFD_MODE_DISABLED) {
 		circuit->bfd_config.detection_multiplier = BFD_DEF_DETECT_MULT;
 		circuit->bfd_config.min_tx = BFD_DEF_MIN_TX;
 		circuit->bfd_config.min_rx = BFD_DEF_MIN_RX;
@@ -2819,18 +2819,31 @@ void lib_interface_isis_bfd_monitoring_apply_finish(
 }
 
 /*
- * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/enabled
+ * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/mode
  */
-int lib_interface_isis_bfd_monitoring_enabled_modify(
+int lib_interface_isis_bfd_monitoring_mode_modify(
 	struct nb_cb_modify_args *args)
 {
 	struct isis_circuit *circuit;
+	const char *mode_str;
 
 	if (args->event != NB_EV_APPLY)
 		return NB_OK;
 
 	circuit = nb_running_get_entry(args->dnode, NULL, true);
-	circuit->bfd_config.enabled = yang_dnode_get_bool(args->dnode, NULL);
+	mode_str = yang_dnode_get_string(args->dnode, NULL);
+
+	if (strcmp(mode_str, "disabled") == 0)
+		circuit->bfd_config.mode = ISIS_BFD_MODE_DISABLED;
+	else if (strcmp(mode_str, "standard") == 0)
+		circuit->bfd_config.mode = ISIS_BFD_MODE_STANDARD;
+	else if (strcmp(mode_str, "strict") == 0)
+		circuit->bfd_config.mode = ISIS_BFD_MODE_STRICT;
+	else {
+		flog_err(EC_LIB_DEVELOPMENT, "%s: unknown BFD monitoring mode '%s'",
+			 __func__, mode_str);
+		return NB_ERR_VALIDATION;
+	}
 
 	return NB_OK;
 }

@@ -4678,6 +4678,11 @@ struct isis_tlvs *isis_copy_tlvs(struct isis_tlvs *tlvs)
 
 	rv->spine_leaf = copy_tlv_spine_leaf(tlvs->spine_leaf);
 
+	rv->bfd_enabled_ipv4 = tlvs->bfd_enabled_ipv4;
+	rv->bfd_enabled_ipv6 = tlvs->bfd_enabled_ipv6;
+	rv->bfd_strict_ipv4 = tlvs->bfd_strict_ipv4;
+	rv->bfd_strict_ipv6 = tlvs->bfd_strict_ipv6;
+
 	return rv;
 }
 
@@ -5039,6 +5044,51 @@ static int pack_tlvs(struct isis_tlvs *tlvs, struct stream *stream,
 			copy_tlv_spine_leaf(tlvs->spine_leaf);
 	}
 
+	/* Pack BFD-enabled TLV if set (RFC 6213/RFC 9355)
+	 * TLV format: Type(1) + Length(1) + [MTID(2) + NLPID(1) + Flags(1)] per entry
+	 * Each entry is 4 bytes. Flags bit 0 = Strict mode (S bit).
+	 */
+	if (tlvs->bfd_enabled_ipv4 || tlvs->bfd_enabled_ipv6) {
+		uint8_t entry_count = 0;
+		uint8_t length = 0;
+
+		if (tlvs->bfd_enabled_ipv4)
+			entry_count++;
+		if (tlvs->bfd_enabled_ipv6)
+			entry_count++;
+
+		length = entry_count * 4;
+
+		if (STREAM_WRITEABLE(stream) < (size_t)(2 + length))
+			return 1;
+
+		stream_putc(stream, ISIS_TLV_BFD_ENABLED);
+		stream_putc(stream, length);
+
+		/* Add IPv4 entry (NLPID = 0xCC) */
+		if (tlvs->bfd_enabled_ipv4) {
+			stream_putw(stream, 0);    /* MTID = 0 (standard topology) */
+			stream_putc(stream, 0xCC); /* NLPID = IPv4 */
+			/* Flags: bit 0 = Strict mode */
+			stream_putc(stream, tlvs->bfd_strict_ipv4 ? 0x01 : 0x00);
+		}
+
+		/* Add IPv6 entry (NLPID = 0x8E) */
+		if (tlvs->bfd_enabled_ipv6) {
+			stream_putw(stream, 0);    /* MTID = 0 (standard topology) */
+			stream_putc(stream, 0x8E); /* NLPID = IPv6 */
+			/* Flags: bit 0 = Strict mode */
+			stream_putc(stream, tlvs->bfd_strict_ipv6 ? 0x01 : 0x00);
+		}
+
+		if (fragment_tlvs) {
+			fragment_tlvs->bfd_enabled_ipv4 = tlvs->bfd_enabled_ipv4;
+			fragment_tlvs->bfd_enabled_ipv6 = tlvs->bfd_enabled_ipv6;
+			fragment_tlvs->bfd_strict_ipv4 = tlvs->bfd_strict_ipv4;
+			fragment_tlvs->bfd_strict_ipv6 = tlvs->bfd_strict_ipv6;
+		}
+	}
+
 	for (size_t pack_idx = 0; pack_idx < array_size(pack_order);
 	     pack_idx++) {
 		rv = handle_pack_entry(&pack_order[pack_idx], tlvs, stream,
@@ -5247,6 +5297,60 @@ TLV_OPS(te_router_id_ipv6, "TLV 140 IPv6 TE Router ID");
 TLV_OPS(spine_leaf, "TLV 150 Spine Leaf Extensions");
 ITEM_TLV_OPS(mt_router_info, "TLV 229 MT Router Information");
 TLV_OPS(threeway_adj, "TLV 240 P2P Three-Way Adjacency");
+
+/* BFD-enabled TLV unpack function (RFC 6213/RFC 9355) */
+static int unpack_tlv_bfd_enabled(enum isis_tlv_context context,
+				  uint8_t tlv_type, uint8_t tlv_len,
+				  struct stream *s, struct sbuf *log,
+				  void *dest, int indent)
+{
+	struct isis_tlvs *tlvs = dest;
+
+	sbuf_push(log, indent, "Unpacking BFD-enabled TLV...\n");
+
+	/* RFC 6213: Each entry is 3 bytes (MTID(2) + NLPID(1))
+	 * RFC 9355 extension: Each entry is 4 bytes (MTID(2) + NLPID(1) + Flags(1))
+	 * Accept both formats for interoperability.
+	 */
+	if (tlv_len == 0 || (tlv_len % 3 != 0 && tlv_len % 4 != 0)) {
+		sbuf_push(log, indent, "WARNING: Invalid BFD-enabled TLV length\n");
+		stream_forward_getp(s, tlv_len);
+		return 0;
+	}
+
+	uint8_t entry_size = (tlv_len % 4 == 0) ? 4 : 3;
+	uint8_t entries = tlv_len / entry_size;
+	for (uint8_t i = 0; i < entries; i++) {
+		uint16_t mtid = stream_getw(s);
+		uint8_t nlpid = stream_getc(s);
+		uint8_t flags = 0;
+
+		if (entry_size == 4)
+			flags = stream_getc(s);
+
+		bool strict = (flags & 0x01) != 0;
+
+		sbuf_push(log, indent + 2,
+			  "BFD-enabled entry: MTID %u, NLPID 0x%02X, Strict %s\n",
+			  mtid, nlpid, strict ? "yes" : "no");
+
+		/* NLPID 0xCC = IPv4, 0x8E = IPv6 */
+		if (nlpid == 0xCC) {
+			tlvs->bfd_enabled_ipv4 = true;
+			if (strict)
+				tlvs->bfd_strict_ipv4 = true;
+		} else if (nlpid == 0x8E) {
+			tlvs->bfd_enabled_ipv6 = true;
+			if (strict)
+				tlvs->bfd_strict_ipv6 = true;
+		}
+	}
+
+	return 0;
+}
+
+TLV_OPS(bfd_enabled, "TLV 148 BFD-Enabled");
+
 ITEM_TLV_OPS(ipv6_address, "TLV 232 IPv6 Interface Address");
 ITEM_TLV_OPS(global_ipv6_address, "TLV 233 Global IPv6 Interface Address");
 ITEM_TLV_OPS(ipv6_reach, "TLV 236 IPv6 Reachability");
@@ -5282,6 +5386,7 @@ static const struct tlv_ops *const tlv_table[ISIS_CONTEXT_MAX][ISIS_TLV_MAX] = {
 		[ISIS_TLV_MT_IPV6_REACH] = &tlv_ipv6_reach_ops,
 		[ISIS_TLV_THREE_WAY_ADJ] = &tlv_threeway_adj_ops,
 		[ISIS_TLV_ROUTER_CAPABILITY] = &tlv_router_cap_ops,
+		[ISIS_TLV_BFD_ENABLED] = &tlv_bfd_enabled_ops,
 	},
 	[ISIS_CONTEXT_SUBTLV_NE_REACH] = {},
 	[ISIS_CONTEXT_SUBTLV_IP_REACH] = {
@@ -5776,6 +5881,52 @@ void isis_tlvs_to_adj(struct isis_tlvs *tlvs, struct isis_adjacency *adj,
 	tlvs_ipv4_addresses_to_adj(tlvs, adj, changed);
 	tlvs_ipv6_addresses_to_adj(tlvs, adj, changed);
 	tlvs_global_ipv6_addresses_to_adj(tlvs, adj, changed);
+
+	/* Handle BFD-enabled TLV for RFC 6213/RFC 9355
+	 * Auto-negotiation rules:
+	 * - Neighbor has no BFD TLV → bfd_enabled_received = false
+	 *   (local strict does not block, adjacency can come up)
+	 * - Neighbor has BFD TLV without S bit → bfd_enabled_received = true,
+	 *   bfd_strict_received = false
+	 * - Neighbor has BFD TLV with S bit → bfd_enabled_received = true,
+	 *   bfd_strict_received = true
+	 *
+	 * If either side is strict, the negotiated mode is strict.
+	 */
+	bool bfd_enabled_received = tlvs->bfd_enabled_ipv4 || tlvs->bfd_enabled_ipv6;
+	bool bfd_strict_received = tlvs->bfd_strict_ipv4 || tlvs->bfd_strict_ipv6;
+
+	if (bfd_enabled_received != adj->bfd_enabled_received) {
+		adj->bfd_enabled_received = bfd_enabled_received;
+		*changed = true;
+	}
+	if (bfd_strict_received != adj->bfd_strict_received) {
+		adj->bfd_strict_received = bfd_strict_received;
+		*changed = true;
+	}
+
+	/* Compute negotiated BFD mode:
+	 * - If local is strict OR neighbor signals strict → strict
+	 * - If local is standard AND neighbor has BFD enabled → standard
+	 * - Otherwise → disabled (no BFD negotiation)
+	 */
+	enum isis_bfd_mode old_negotiated = adj->bfd_negotiated_mode;
+	enum isis_bfd_mode new_negotiated = ISIS_BFD_MODE_DISABLED;
+
+	if (adj->circuit->bfd_config.mode == ISIS_BFD_MODE_STRICT
+	    || bfd_strict_received) {
+		/* Either side strict → negotiated as strict */
+		if (bfd_enabled_received)
+			new_negotiated = ISIS_BFD_MODE_STRICT;
+	} else if (adj->circuit->bfd_config.mode == ISIS_BFD_MODE_STANDARD
+		   && bfd_enabled_received) {
+		new_negotiated = ISIS_BFD_MODE_STANDARD;
+	}
+
+	if (old_negotiated != new_negotiated) {
+		adj->bfd_negotiated_mode = new_negotiated;
+		*changed = true;
+	}
 }
 
 bool isis_tlvs_own_snpa_found(struct isis_tlvs *tlvs, uint8_t *snpa)
@@ -6054,6 +6205,17 @@ isis_tlvs_lookup_mt_router_info(struct isis_tlvs *tlvs, uint16_t mtid)
 	}
 
 	return NULL;
+}
+
+void isis_tlvs_set_bfd_enabled(struct isis_tlvs *tlvs, bool ipv4, bool ipv6,
+			       bool strict_ipv4, bool strict_ipv6)
+{
+	if (!tlvs)
+		return;
+	tlvs->bfd_enabled_ipv4 = ipv4;
+	tlvs->bfd_enabled_ipv6 = ipv6;
+	tlvs->bfd_strict_ipv4 = strict_ipv4;
+	tlvs->bfd_strict_ipv6 = strict_ipv6;
 }
 
 void isis_tlvs_set_purge_originator(struct isis_tlvs *tlvs,

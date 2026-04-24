@@ -319,10 +319,10 @@ DEFUN (isis_bfd,
 	if (!circuit)
 		return CMD_ERR_NO_MATCH;
 
-	if (circuit->bfd_config.enabled)
+	if (circuit->bfd_config.mode != ISIS_BFD_MODE_DISABLED)
 		return CMD_SUCCESS;
 
-	circuit->bfd_config.enabled = true;
+	circuit->bfd_config.mode = ISIS_BFD_MODE_STANDARD;
 	isis_bfd_circuit_cmd(circuit);
 
 	return CMD_SUCCESS;
@@ -341,10 +341,31 @@ DEFUN (no_isis_bfd,
 	if (!circuit)
 		return CMD_ERR_NO_MATCH;
 
-	if (!circuit->bfd_config.enabled)
+	if (circuit->bfd_config.mode == ISIS_BFD_MODE_DISABLED)
 		return CMD_SUCCESS;
 
-	circuit->bfd_config.enabled = false;
+	circuit->bfd_config.mode = ISIS_BFD_MODE_DISABLED;
+	isis_bfd_circuit_cmd(circuit);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (isis_bfd_strict_mode,
+       isis_bfd_strict_mode_cmd,
+       PROTO_NAME " bfd strict-mode",
+       PROTO_HELP
+       "Enable BFD support\n"
+       "Enable BFD strict mode per RFC 6213/RFC 9355\n")
+{
+	struct isis_circuit *circuit = isis_circuit_lookup(vty);
+
+	if (!circuit)
+		return CMD_ERR_NO_MATCH;
+
+	if (circuit->bfd_config.mode == ISIS_BFD_MODE_STRICT)
+		return CMD_SUCCESS;
+
+	circuit->bfd_config.mode = ISIS_BFD_MODE_STRICT;
 	isis_bfd_circuit_cmd(circuit);
 
 	return CMD_SUCCESS;
@@ -1101,6 +1122,7 @@ void isis_vty_daemon_init(void)
 	install_element(INTERFACE_NODE, &no_ip_router_isis_cmd);
 	install_element(INTERFACE_NODE, &isis_bfd_cmd);
 	install_element(INTERFACE_NODE, &no_isis_bfd_cmd);
+	install_element(INTERFACE_NODE, &isis_bfd_strict_mode_cmd);
 
 	install_element(ROUTER_NODE, &set_overload_bit_cmd);
 	install_element(ROUTER_NODE, &no_set_overload_bit_cmd);

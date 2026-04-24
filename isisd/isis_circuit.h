@@ -85,6 +85,15 @@ enum isis_hello_padding {
 	ISIS_HELLO_PADDING_DURING_ADJACENCY_FORMATION
 };
 
+/*
+ * BFD mode types - mutually exclusive
+ */
+enum isis_bfd_mode {
+	ISIS_BFD_MODE_DISABLED,   /* BFD not enabled */
+	ISIS_BFD_MODE_STANDARD,   /* Standard BFD mode */
+	ISIS_BFD_MODE_STRICT,     /* Strict BFD mode (RFC 6213/RFC 9355) */
+};
+
 struct isis_circuit {
 	enum isis_circuit_state state;
 	uint8_t circuit_id;	  /* l1/l2 bcast CircuitID */
@@ -155,7 +164,7 @@ struct isis_circuit {
 	uint8_t flags;
 	bool disable_threeway_adj;
 	struct {
-		bool enabled;
+		enum isis_bfd_mode mode;  /* BFD mode: disabled/standard/strict */
 		char *profile;
 		/** Detection multiplier. */
 		uint8_t detection_multiplier;

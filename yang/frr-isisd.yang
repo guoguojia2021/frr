@@ -559,11 +559,28 @@ module frr-isisd {
     }
 
     container bfd-monitoring {
-      leaf enabled {
-        type boolean;
-        default "false";
+      leaf mode {
+        type enumeration {
+          enum "disabled" {
+            description "BFD is not enabled";
+            value 0;
+          }
+          enum "standard" {
+            description "Standard BFD mode";
+            value 1;
+          }
+          enum "strict" {
+            description "Strict BFD mode (RFC 6213/RFC 9355) - BFD-enabled TLV is advertised and adjacency is blocked when BFD session is down";
+            value 2;
+          }
+        }
+        default "disabled";
         description
-          "Monitor IS-IS peers on this circuit.";
+          "BFD mode for this circuit. Standard and strict modes are mutually exclusive.
+           Standard mode: BFD monitors the adjacency but does not advertise BFD-enabled TLV.
+           Strict mode: BFD-enabled TLV (RFC 6213) is advertised in Hello packets. When both
+           ends use strict mode, if BFD session goes down, adjacency will not be re-established
+           until BFD comes back up, preventing traffic blackholes.";
       }
       leaf profile {
         type string;

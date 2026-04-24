@@ -242,7 +242,7 @@ int lib_interface_isis_ipv6_routing_modify(struct nb_cb_modify_args *args);
 int lib_interface_isis_circuit_type_modify(struct nb_cb_modify_args *args);
 void lib_interface_isis_bfd_monitoring_apply_finish(
 	struct nb_cb_apply_finish_args *args);
-int lib_interface_isis_bfd_monitoring_enabled_modify(
+int lib_interface_isis_bfd_monitoring_mode_modify(
 	struct nb_cb_modify_args *args);
 int lib_interface_isis_bfd_monitoring_multiplier_modify(
 	struct nb_cb_modify_args *args);

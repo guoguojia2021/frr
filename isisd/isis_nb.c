@@ -817,9 +817,9 @@ const struct frr_yang_module_info frr_isisd_info = {
 			}
 		},
 		{
-			.xpath = "/frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/enabled",
+			.xpath = "/frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring/mode",
 			.cbs = {
-				.modify = lib_interface_isis_bfd_monitoring_enabled_modify,
+				.modify = lib_interface_isis_bfd_monitoring_mode_modify,
 			}
 		},
 		{

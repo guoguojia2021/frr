@@ -242,7 +242,7 @@ DEFPY_YANG(isis_bfd,
       isis_bfd_cmd,
       "[no] isis bfd",
       NO_STR PROTO_HELP
-      "Enable BFD support\n")
+      "Enable standard BFD support\n")
 {
 	const struct lyd_node *dnode;
 
@@ -253,8 +253,67 @@ DEFPY_YANG(isis_bfd,
 		return CMD_SUCCESS;
 	}
 
-	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/enabled",
-			      NB_OP_MODIFY, no ? "false" : "true");
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/mode",
+			      NB_OP_MODIFY, no ? "disabled" : "standard");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+/*
+ * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring
+ */
+DEFPY_YANG(isis_bfd_strict_mode,
+      isis_bfd_strict_mode_cmd,
+      "[no] isis bfd strict-mode",
+      NO_STR PROTO_HELP
+      "Enable BFD support\n"
+      "Enable BFD strict mode per RFC 6213/RFC 9355\n")
+{
+	const struct lyd_node *dnode;
+
+	dnode = yang_dnode_getf(vty->candidate_config->dnode,
+				"%s/frr-isisd:isis", VTY_CURR_XPATH);
+	if (dnode == NULL) {
+		vty_out(vty, "ISIS is not enabled on this circuit\n");
+		return CMD_SUCCESS;
+	}
+
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/mode",
+			      NB_OP_MODIFY, no ? "disabled" : "strict");
+
+	return nb_cli_apply_changes(vty, NULL);
+}
+
+/*
+ * XPath: /frr-interface:lib/interface/frr-isisd:isis/bfd-monitoring
+ */
+DEFPY_YANG(isis_bfd_strict_mode_param,
+      isis_bfd_strict_mode_param_cmd,
+      "[no] isis bfd strict-mode (2-255)$mul (50-60000)$rx (50-60000)$tx",
+      NO_STR PROTO_HELP
+      "Enable BFD support\n"
+      "Enable BFD strict mode per RFC 6213/RFC 9355\n"
+      "Detect Multiplier\n"
+      "Required min receive interval\n"
+      "Desired min transmit interval\n")
+{
+	const struct lyd_node *dnode;
+
+	dnode = yang_dnode_getf(vty->candidate_config->dnode,
+				"%s/frr-isisd:isis", VTY_CURR_XPATH);
+	if (dnode == NULL) {
+		vty_out(vty, "ISIS is not enabled on this circuit\n");
+		return CMD_SUCCESS;
+	}
+
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/mode",
+			      NB_OP_MODIFY, no ? "disabled" : "strict");
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/detection-multiplier",
+			      NB_OP_MODIFY, mul_str);
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/required-receive-interval",
+			      NB_OP_MODIFY, rx_str);
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/desired-transmission-interval",
+			      NB_OP_MODIFY, tx_str);
 
 	return nb_cli_apply_changes(vty, NULL);
 }
@@ -266,7 +325,7 @@ DEFPY_YANG(isis_bfd_param,
       isis_bfd_param_cmd,
       "[no] isis bfd (2-255)$mul (50-60000)$rx (50-60000)$tx",
       NO_STR PROTO_HELP
-      "Enable BFD support\n"
+      "Enable standard BFD support\n"
        "Detect Multiplier\n"
        "Required min receive interval\n"
        "Desired min transmit interval\n")
@@ -280,8 +339,8 @@ DEFPY_YANG(isis_bfd_param,
 		return CMD_SUCCESS;
 	}
 
-	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/enabled",
-			      NB_OP_MODIFY, no ? "false" : "true");
+	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/mode",
+			      NB_OP_MODIFY, no ? "disabled" : "standard");
 	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/detection-multiplier",
 			      NB_OP_MODIFY, mul_str);
 	nb_cli_enqueue_change(vty, "./frr-isisd:isis/bfd-monitoring/required-receive-interval",
@@ -329,21 +388,32 @@ void cli_show_ip_isis_bfd_monitoring(struct vty *vty,
 				     const struct lyd_node *dnode,
 				     bool show_defaults)
 {
-	if (!yang_dnode_get_bool(dnode, "enabled")) {
+	const char *mode = yang_dnode_get_string(dnode, "mode");
+	uint8_t detection_multiplier = yang_dnode_get_uint8(dnode, "detection-multiplier");
+	uint32_t desired_tx = yang_dnode_get_uint32(dnode, "desired-transmission-interval");
+	uint32_t required_rx = yang_dnode_get_uint32(dnode, "required-receive-interval");
+	bool has_custom_params = (detection_multiplier != BFD_DEF_DETECT_MULT ||
+				   desired_tx != BFD_DEF_MIN_TX ||
+				   required_rx != BFD_DEF_MIN_RX);
+
+	if (strcmp(mode, "disabled") == 0) {
 		if (show_defaults)
 			vty_out(vty, " no isis bfd\n");
-	} else {
-		vty_out(vty, " isis bfd");
-		uint8_t detection_multiplier = yang_dnode_get_uint8(dnode, "detection-multiplier");
-		uint32_t desired_tx = yang_dnode_get_uint32(dnode, "desired-transmission-interval");
-		uint32_t required_rx = yang_dnode_get_uint32(dnode, "required-receive-interval");
-
-		if (detection_multiplier != BFD_DEF_DETECT_MULT || desired_tx != BFD_DEF_MIN_TX || required_rx != BFD_DEF_MIN_RX) {
-			vty_out(vty, " %u", detection_multiplier);
-			vty_out(vty, " %u", required_rx);
-			vty_out(vty, " %u", desired_tx);
+	} else if (strcmp(mode, "strict") == 0) {
+		if (has_custom_params) {
+			vty_out(vty, " isis bfd strict-mode %u %u %u\n",
+				detection_multiplier, required_rx, desired_tx);
+		} else {
+			vty_out(vty, " isis bfd strict-mode\n");
 		}
-		vty_out(vty, "\n");
+	} else {
+		/* standard mode */
+		if (has_custom_params) {
+			vty_out(vty, " isis bfd %u %u %u\n",
+				detection_multiplier, required_rx, desired_tx);
+		} else {
+			vty_out(vty, " isis bfd\n");
+		}
 	}
 	if (yang_dnode_exists(dnode, "profile"))
 		vty_out(vty, " isis bfd profile %s\n",
@@ -3500,6 +3570,8 @@ void isis_cli_init(void)
 	install_element(INTERFACE_NODE, &isis_bfd_cmd);
 	install_element(INTERFACE_NODE, &isis_bfd_param_cmd);
 	install_element(INTERFACE_NODE, &isis_bfd_profile_cmd);
+	install_element(INTERFACE_NODE, &isis_bfd_strict_mode_cmd);
+	install_element(INTERFACE_NODE, &isis_bfd_strict_mode_param_cmd);
 
 	install_element(ISIS_NODE, &net_cmd);
 
