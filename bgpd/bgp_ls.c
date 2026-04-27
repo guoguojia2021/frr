@@ -228,6 +228,20 @@ static void format_node_desc(char **p, size_t *remain, struct bgp_ls_node_descri
 static void format_link_desc(char **p, size_t *remain, struct bgp_ls_link_descriptor *link_desc)
 {
 	int len;
+	bool has_descriptor = false;
+
+	/* Check if any link descriptor is present */
+	if (BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_LINK_ID_BIT) ||
+	    BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_IPV4_INTF_BIT) ||
+	    BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_IPV4_NEIGH_BIT) ||
+	    BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_IPV6_INTF_BIT) ||
+	    BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_IPV6_NEIGH_BIT) ||
+	    BGP_LS_TLV_CHECK(link_desc->present_tlvs, BGP_LS_LINK_DESC_MT_ID_BIT))
+		has_descriptor = true;
+
+	/* Skip [L] entirely when no link descriptors are present */
+	if (!has_descriptor)
+		return;
 
 	len = snprintfrr(*p, *remain, "[L");
 	*p += len;

@@ -42,7 +42,7 @@
 #include "iso.h"
 
 /* Link State Memory allocation */
-DEFINE_MTYPE_STATIC(LIB, LS_DB, "Link State Database");
+DEFINE_MTYPE(LIB, LS_DB, "Link State Database");
 
 /**
  *  Link State Node management functions
@@ -232,8 +232,15 @@ int ls_attributes_same(struct ls_attributes *l1, struct ls_attributes *l2)
 	if (l1 == l2)
 		return 1;
 
-	/* Then, verify Flags and Origin */
+	/* Then, verify Flags, node_only, and Origin */
 	if (l1->flags != l2->flags)
+		return 0;
+
+	if (l1->node_only != l2->node_only)
+		return 0;
+
+	if (l1->node_only && (l1->src_node_key != l2->src_node_key ||
+			       l1->dst_node_key != l2->dst_node_key))
 		return 0;
 
 	if (!ls_node_id_same(l1->adv, l2->adv))
@@ -658,7 +665,7 @@ void ls_vertex_clean(struct ls_ted *ted, struct ls_vertex *vertex,
  * @param ted	Link State Data Base
  * @param edge	Link State Edge to be attached
  */
-static void ls_edge_connect_to(struct ls_ted *ted, struct ls_edge *edge)
+void ls_edge_connect_to(struct ls_ted *ted, struct ls_edge *edge)
 {
 	struct ls_vertex *vertex = NULL;
 	struct ls_node *node;
@@ -692,8 +699,10 @@ static void ls_edge_connect_to(struct ls_ted *ted, struct ls_edge *edge)
 
 static struct ls_edge_key get_edge_key(struct ls_attributes *attr, bool dst)
 {
-	struct ls_edge_key key = {.family = AF_UNSPEC};
+	struct ls_edge_key key = {.family = LS_KEY_INVALID};
 	struct ls_standard *std;
+	bool has_local_addr = false;
+	bool has_remote_addr = false;
 
 	if (!attr)
 		return key;
@@ -705,35 +714,72 @@ static struct ls_edge_key get_edge_key(struct ls_attributes *attr, bool dst)
 		key.mt_id = attr->mt_id;
 
 	if (dst) {
-		/* Key is the IPv4/v6 remote address or remote identifier */
+		/* Destination key: swap local/remote for finding reverse edge */
 		if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR)) {
-			key.family = AF_INET;
-			IPV4_ADDR_COPY(&key.k.addr, &std->remote);
-		} else if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR6)) {
-			key.family = AF_INET6;
-			IPV6_ADDR_COPY(&key.k.addr6, &std->remote6);
-		} else if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ID)) {
-			/* Remote identifier: swap local/remote for dst key */
-			key.family = AF_LOCAL;
-			key.k.link_id =
-				(((uint64_t)std->remote_id) & 0xffffffff) |
-				((uint64_t)std->local_id << 32);
+			key.local_addr = std->remote;
+			has_local_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR6)) {
+			key.local_addr6 = std->remote6;
+			has_local_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR)) {
+			key.remote_addr = std->local;
+			has_remote_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR6)) {
+			key.remote_addr6 = std->local6;
+			has_remote_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ID)) {
+			/* Swap local/remote for dst key */
+			key.link_id =
+				(((uint64_t)std->remote_id) << 32) |
+				((uint64_t)std->local_id & 0xffffffff);
 		}
 	} else {
-		/* Key is the IPv4/v6 local address or local identifier */
+		/* Source key: use local addresses as-is */
 		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR)) {
-			key.family = AF_INET;
-			IPV4_ADDR_COPY(&key.k.addr, &std->local);
-		} else if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR6)) {
-			key.family = AF_INET6;
-			IPV6_ADDR_COPY(&key.k.addr6, &std->local6);
-		} else if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ID)) {
-			/* Local identifier */
-			key.family = AF_LOCAL;
-			key.k.link_id =
-				(((uint64_t)std->local_id) & 0xffffffff) |
-				((uint64_t)std->remote_id << 32);
+			key.local_addr = std->local;
+			has_local_addr = true;
 		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ADDR6)) {
+			key.local_addr6 = std->local6;
+			has_local_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR)) {
+			key.remote_addr = std->remote;
+			has_remote_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ADDR6)) {
+			key.remote_addr6 = std->remote6;
+			has_remote_addr = true;
+		}
+		if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ID)|| CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ID)) {
+			key.link_id =
+				(((uint64_t)std->local_id) << 32) |
+				((uint64_t)std->remote_id & 0xffffffff);
+		}
+	}
+
+	/* Determine family based on what identifiers are available */
+	if (has_local_addr || has_remote_addr)
+		key.family = AF_UNSPEC;
+	else if (CHECK_FLAG(attr->flags, LS_ATTR_LOCAL_ID)|| CHECK_FLAG(attr->flags, LS_ATTR_NEIGH_ID))
+		key.family = AF_LOCAL;
+	else if (attr->node_only) {
+		/* Node-only edge: key from src/dst node key hashes.
+		 * When dst=true, swap src/dst to match reverse edge.
+		 */
+		if (dst)
+			key.link_id =
+				(((uint64_t)attr->dst_node_key) << 32) |
+				((uint64_t)attr->src_node_key & 0xffffffff);
+		else
+			key.link_id =
+				(((uint64_t)attr->src_node_key) << 32) |
+				((uint64_t)attr->dst_node_key & 0xffffffff);
+		key.family = AF_KEY_NODE;
 	}
 
 	return key;
@@ -749,7 +795,7 @@ struct ls_edge *ls_edge_add(struct ls_ted *ted,
 		return NULL;
 
 	key = get_edge_key(attributes, false);
-	if (key.family == AF_UNSPEC)
+	if (key.family == LS_KEY_INVALID)
 		return NULL;
 
 	/* Create Edge and add it to the TED */
@@ -772,7 +818,7 @@ struct ls_edge *ls_find_edge_by_key(struct ls_ted *ted,
 {
 	struct ls_edge edge = {};
 
-	if (key.family == AF_UNSPEC)
+	if (key.family == LS_KEY_INVALID)
 		return NULL;
 
 	edge.key = key;
@@ -788,7 +834,7 @@ struct ls_edge *ls_find_edge_by_source(struct ls_ted *ted,
 		return NULL;
 
 	edge.key = get_edge_key(attributes, false);
-	if (edge.key.family == AF_UNSPEC)
+	if (edge.key.family == LS_KEY_INVALID)
 		return NULL;
 
 	return edges_find(&ted->edges, &edge);
@@ -803,33 +849,14 @@ struct ls_edge *ls_find_edge_by_destination(struct ls_ted *ted,
 	if (attributes == NULL)
 		return NULL;
 
-	/* First, try standard lookup with primary key */
+	/* First, try standard lookup with destination key */
 	edge.key = get_edge_key(attributes, true);
-	if (edge.key.family == AF_UNSPEC)
+	if (edge.key.family == LS_KEY_INVALID)
 		return NULL;
 
 	result = edges_find(&ted->edges, &edge);
 	if (result)
 		return result;
-
-	/*
-	 * If not found and the edge has IPv6 address, traverse all edges
-	 * to find one with matching IPv6 local address (which is the remote
-	 * address of this edge).
-	 * This handles the case where the reverse edge uses IPv4 as key but
-	 * has IPv6 address in its attributes.
-	 */
-	if (CHECK_FLAG(attributes->flags, LS_ATTR_NEIGH_ADDR6)) {
-		struct ls_edge *e;
-
-		frr_each (edges, &ted->edges, e) {
-			if (CHECK_FLAG(e->attributes->flags, LS_ATTR_LOCAL_ADDR6) &&
-			    IN6_ARE_ADDR_EQUAL(&e->attributes->standard.local6,
-						&attributes->standard.remote6)) {
-				return e;
-			}
-		}
-	}
 
 	return NULL;
 }
@@ -1284,6 +1311,17 @@ static struct ls_attributes *ls_parse_attributes(struct stream *s)
 
 	STREAM_GET(&attr->adv, s, sizeof(struct ls_node_id));
 	STREAM_GETL(s, attr->flags);
+	/* Read node_only flag */
+	{
+		uint8_t node_only_val;
+		STREAM_GETC(s, node_only_val);
+		attr->node_only = node_only_val ? true : false;
+	}
+	/* For node_only edges, read src/dst node key hashes */
+	if (attr->node_only) {
+		STREAM_GETL(s, attr->src_node_key);
+		STREAM_GETL(s, attr->dst_node_key);
+	}
 	if (CHECK_FLAG(attr->flags, LS_ATTR_NAME)) {
 		STREAM_GETC(s, len);
 		STREAM_GET(attr->name, s, len);
@@ -1521,6 +1559,13 @@ static int ls_format_attributes(struct stream *s, struct ls_attributes *attr)
 
 	/* Push Flags & Origin then LS attributes if there are present */
 	stream_putl(s, attr->flags);
+	/* Push node_only flag for node-pair-only edges */
+	stream_putc(s, attr->node_only ? 1 : 0);
+	/* For node_only edges, also serialize src/dst node key hashes */
+	if (attr->node_only) {
+		stream_putl(s, attr->src_node_key);
+		stream_putl(s, attr->dst_node_key);
+	}
 	if (CHECK_FLAG(attr->flags, LS_ATTR_NAME)) {
 		len = strlen(attr->name);
 		stream_putc(s, len + 1);
@@ -2290,14 +2335,21 @@ static const char *edge_key_to_text(struct ls_edge_key key)
 	cur_buf = (cur_buf + 1) % FORMAT_BUF_COUNT;
 
 	switch (key.family) {
-	case AF_INET:
-		snprintfrr(rv, INET6_BUFSIZ, "%pI4", &key.k.addr);
-		break;
-	case AF_INET6:
-		snprintfrr(rv, INET6_BUFSIZ, "%pI6", &key.k.addr6);
-		break;
 	case AF_LOCAL:
-		snprintfrr(rv, INET6_BUFSIZ, "%" PRIu64, key.k.link_id);
+		snprintfrr(rv, INET6_BUFSIZ, "%" PRIu64, key.link_id);
+		break;
+	case AF_KEY_NODE:
+		snprintfrr(rv, INET6_BUFSIZ, "node:%" PRIu64, key.link_id);
+		break;
+	case AF_UNSPEC:
+		if (!IPV4_NET0(key.local_addr.s_addr))
+			snprintfrr(rv, INET6_BUFSIZ, "%pI4",
+				   &key.local_addr);
+		else if (!IN6_IS_ADDR_UNSPECIFIED(&key.local_addr6))
+			snprintfrr(rv, INET6_BUFSIZ, "%pI6",
+				   &key.local_addr6);
+		else
+			snprintfrr(rv, INET6_BUFSIZ, "addr");
 		break;
 	default:
 		snprintfrr(rv, INET6_BUFSIZ, "(Unknown)");

@@ -291,6 +291,20 @@ static bool bgp_ls_link_valid(struct ls_edge *edge)
 	    !IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.remote6))
 		return true;
 
+
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR6) &&
+	    !CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR6) &&
+	    !IN6_IS_ADDR_LINKLOCAL(&edge->attributes->standard.remote6))
+		return true;
+
+	if (CHECK_FLAG(edge->attributes->flags, LS_ATTR_NEIGH_ADDR) &&
+	    !CHECK_FLAG(edge->attributes->flags, LS_ATTR_LOCAL_ADDR))
+		return true;
+
+
+	if (edge->attributes->node_only)
+		return true;
+
 	return false;
 }
 
@@ -1280,6 +1294,30 @@ int bgp_ls_process_message(struct bgp *bgp, struct ls_message *msg)
 				if (edge->destination == NULL && reverse_edge->source) {
 					vertex = reverse_edge->source;
 					listnode_add_sort_nodup(vertex->incoming_edges, edge);
+					edge->destination = vertex;
+				}
+			}
+
+			/* For single-sided TE links, use remote_id from message
+			 * to find or create destination vertex if reverse edge
+			 * is not present in TED.
+			 */
+			if (!edge->destination && msg->remote_id.origin != LS_UNKNOWN) {
+				vertex = ls_find_vertex_by_id(bgp->ls_info->ted,
+							      msg->remote_id);
+				if (!vertex) {
+					const struct in_addr inaddr_any = {
+						.s_addr = INADDR_ANY};
+					struct ls_node *node;
+
+					node = ls_node_new(msg->remote_id, inaddr_any,
+							   in6addr_any);
+					vertex = ls_vertex_add(bgp->ls_info->ted,
+							       node);
+				}
+				if (vertex) {
+					listnode_add_sort_nodup(vertex->incoming_edges,
+								edge);
 					edge->destination = vertex;
 				}
 			}

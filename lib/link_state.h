@@ -185,6 +185,9 @@ struct ls_attributes {
 	char name[MAX_NAME_LENGTH];	/* Name of the Edge. Could be null */
 	uint32_t metric;		/* IGP standard metric */
 	uint16_t mt_id;			/* Multi-Topology ID (0=IPv4 default, 2=IPv6 unicast) */
+	bool node_only;		/* Edge identified by node pair only (no link descriptor) */
+	uint32_t src_node_key;	/* Node-only edge: hash of source node System ID */
+	uint32_t dst_node_key;	/* Node-only edge: hash of destination node System ID */
 	struct ls_standard {		/* Standard TE metrics */
 		uint32_t te_metric;		/* Traffic Engineering metric */
 		uint32_t admin_group;		/* Administrative Group */
@@ -406,14 +409,21 @@ struct ls_vertex {
 
 /* Link State Edge Key structure */
 struct ls_edge_key {
-	uint8_t family;
 	uint16_t mt_id;		/* Multi-Topology ID (0 = default/not applicable) */
-	union {
-		struct in_addr addr;
-		struct in6_addr addr6;
-		uint64_t link_id;
-	} k;
+	uint8_t family;		/* AF_UNSPEC: IP address key, AF_LOCAL: link_id key,
+				 * AF_KEY_NODE: node-pair only key (no link descriptor) */
+	struct in_addr local_addr;
+	struct in6_addr local_addr6;
+	struct in_addr remote_addr;
+	struct in6_addr remote_addr6;
+	uint64_t link_id;	/* local_id high 32 bits, remote_id low 32 bits */
 };
+
+/* Sentinel value indicating an uninitialized/invalid edge key */
+#define LS_KEY_INVALID	0xFF
+
+/* Edge key family for node-pair only identification (no link descriptors) */
+#define AF_KEY_NODE	2
 
 /* Link State Edge structure */
 PREDECL_RBTREE_UNIQ(edges);
@@ -457,14 +467,27 @@ macro_inline int edge_cmp(const struct ls_edge *edge1,
 		return numcmp(edge1->key.family, edge2->key.family);
 
 	switch (edge1->key.family) {
-	case AF_INET:
-		ret = memcmp(&edge1->key.k.addr, &edge2->key.k.addr, 4);
-		break;
-	case AF_INET6:
-		ret = memcmp(&edge1->key.k.addr6, &edge2->key.k.addr6, 16);
-		break;
 	case AF_LOCAL:
-		ret = numcmp(edge1->key.k.link_id, edge2->key.k.link_id);
+	case AF_KEY_NODE:
+		/* Link-ID based comparison (no IP addresses) */
+		ret = numcmp(edge1->key.link_id, edge2->key.link_id);
+		break;
+	case AF_UNSPEC:
+		/* Full address comparison (both local and remote) */
+		ret = memcmp(&edge1->key.local_addr, &edge2->key.local_addr,
+			     sizeof(struct in_addr));
+		if (ret != 0)
+			return ret;
+		ret = memcmp(&edge1->key.local_addr6, &edge2->key.local_addr6,
+			     sizeof(struct in6_addr));
+		if (ret != 0)
+			return ret;
+		ret = memcmp(&edge1->key.remote_addr, &edge2->key.remote_addr,
+			     sizeof(struct in_addr));
+		if (ret != 0)
+			return ret;
+		ret = memcmp(&edge1->key.remote_addr6, &edge2->key.remote_addr6,
+			     sizeof(struct in6_addr));
 		break;
 	default:
 		ret = 0;
@@ -655,6 +678,8 @@ extern int ls_vertex_same(struct ls_vertex *v1, struct ls_vertex *v2);
  */
 extern struct ls_edge *ls_edge_add(struct ls_ted *ted,
 				   struct ls_attributes *attributes);
+extern void ls_edge_connect_to(struct ls_ted *ted, struct ls_edge *edge);
+DECLARE_MTYPE(LS_DB);
 
 /**
  * Update the Link State Attributes information of an existing Edge. If there is

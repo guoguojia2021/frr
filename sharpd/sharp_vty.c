@@ -1043,8 +1043,8 @@ DEFUN (show_sharp_ted,
 				return CMD_WARNING_CONFIG_FAILED;
 			}
 			/* Get the Edge from the Link State Database */
-			ekey.family = AF_INET;
-			IPV4_ADDR_COPY(&ekey.k.addr, &ip_addr);
+			ekey.family = AF_UNSPEC;
+			ekey.local_addr = ip_addr;
 			edge = ls_find_edge_by_key(sg.ted, ekey);
 			if (!edge) {
 				vty_out(vty, "No edge found for ID %pI4\n",
