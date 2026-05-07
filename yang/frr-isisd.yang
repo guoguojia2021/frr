@@ -570,7 +570,7 @@ module frr-isisd {
             value 1;
           }
           enum "strict" {
-            description "Strict BFD mode (RFC 6213/RFC 9355) - BFD-enabled TLV is advertised and adjacency is blocked when BFD session is down";
+            description "Strict BFD mode (RFC 6213) - BFD-enabled TLV is advertised in Hello packets. When both ends use strict mode, if BFD session goes down, adjacency will not be re-established until BFD comes back up, preventing traffic blackholes. Strict mode is a local behavior and is not signaled in the TLV.";
             value 2;
           }
         }
@@ -580,7 +580,8 @@ module frr-isisd {
            Standard mode: BFD monitors the adjacency but does not advertise BFD-enabled TLV.
            Strict mode: BFD-enabled TLV (RFC 6213) is advertised in Hello packets. When both
            ends use strict mode, if BFD session goes down, adjacency will not be re-established
-           until BFD comes back up, preventing traffic blackholes.";
+           until BFD comes back up, preventing traffic blackholes. Strict mode is a local
+           behavior and is not signaled in the TLV.";
       }
       leaf profile {
         type string;

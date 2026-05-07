@@ -2031,19 +2031,16 @@ int send_hello(struct isis_circuit *circuit, int level)
 	if (circuit->ipv6_router)
 		isis_tlvs_add_ipv6_addresses(tlvs, circuit->ipv6_link);
 
-	/* Add BFD-enabled TLV if BFD is enabled (RFC 6213/RFC 9355)
+	/* Add BFD-enabled TLV if BFD is enabled (RFC 6213)
 	 * Both standard and strict BFD modes send the BFD-enabled TLV
-	 * so the neighbor knows BFD is active. The S bit indicates
-	 * strict mode.
+	 * so the neighbor knows BFD is active. Strict mode is a local
+	 * behavior and is not signaled in the TLV.
 	 */
 	if (circuit->bfd_config.mode != ISIS_BFD_MODE_DISABLED) {
 		bool bfd_ipv4 = circuit->ip_router;
 		bool bfd_ipv6 = circuit->ipv6_router;
-		bool strict = (circuit->bfd_config.mode == ISIS_BFD_MODE_STRICT);
 		if (bfd_ipv4 || bfd_ipv6)
-			isis_tlvs_set_bfd_enabled(tlvs, bfd_ipv4, bfd_ipv6,
-						  strict && bfd_ipv4,
-						  strict && bfd_ipv6);
+			isis_tlvs_set_bfd_enabled(tlvs, bfd_ipv4, bfd_ipv6);
 	}
 
 	/* RFC6119 section 4 define TLV 233 to provide Global IPv6 address */

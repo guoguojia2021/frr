@@ -25,7 +25,7 @@ struct thread_master;
 void isis_bfd_circuit_cmd(struct isis_circuit *circuit);
 void isis_bfd_init(struct thread_master *tm);
 
-/* RFC 6213/RFC 9355: BFD mode helpers */
+/* RFC 6213: BFD mode helpers */
 struct isis_adjacency;
 void isis_bfd_adj_establish(struct isis_adjacency *adj);
 bool isis_bfd_adj_blocked(struct isis_adjacency *adj);

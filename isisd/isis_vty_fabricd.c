@@ -355,7 +355,7 @@ DEFUN (isis_bfd_strict_mode,
        PROTO_NAME " bfd strict-mode",
        PROTO_HELP
        "Enable BFD support\n"
-       "Enable BFD strict mode per RFC 6213/RFC 9355\n")
+       "Enable BFD strict mode per RFC 6213\n")
 {
 	struct isis_circuit *circuit = isis_circuit_lookup(vty);
 

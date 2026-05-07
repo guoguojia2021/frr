@@ -284,7 +284,7 @@ void isis_adj_process_threeway(struct isis_adjacency *adj,
 		return;
 	}
 
-	/* RFC 6213/RFC 9355: BFD strict mode handling
+	/* RFC 6213: BFD strict mode handling
 	 * In strict BFD mode, start the BFD session as early as
 	 * possible (before the adjacency UP check) so that BFD
 	 * can begin establishing. Then check whether BFD session

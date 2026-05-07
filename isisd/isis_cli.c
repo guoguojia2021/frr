@@ -267,7 +267,7 @@ DEFPY_YANG(isis_bfd_strict_mode,
       "[no] isis bfd strict-mode",
       NO_STR PROTO_HELP
       "Enable BFD support\n"
-      "Enable BFD strict mode per RFC 6213/RFC 9355\n")
+      "Enable BFD strict mode per RFC 6213\n")
 {
 	const struct lyd_node *dnode;
 
@@ -292,7 +292,7 @@ DEFPY_YANG(isis_bfd_strict_mode_param,
       "[no] isis bfd strict-mode (2-255)$mul (50-60000)$rx (50-60000)$tx",
       NO_STR PROTO_HELP
       "Enable BFD support\n"
-      "Enable BFD strict mode per RFC 6213/RFC 9355\n"
+      "Enable BFD strict mode per RFC 6213\n"
       "Detect Multiplier\n"
       "Required min receive interval\n"
       "Desired min transmit interval\n")

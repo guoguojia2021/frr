@@ -110,9 +110,8 @@ struct isis_adjacency {
 	struct list *adj_sids; /* Segment Routing Adj-SIDs. */
 	uint32_t snmp_idx;
 	struct listnode *snmp_list_node;
-	/* BFD strict check - RFC 9355 */
+	/* BFD strict check - RFC 6213 */
 	bool bfd_enabled_received; /* Neighbor has BFD-enabled TLV */
-	bool bfd_strict_received;  /* Neighbor has BFD strict-mode flag */
 	bool bfd_strict_blocked;    /* Adjacency blocked by BFD strict check */
 	enum isis_bfd_mode bfd_negotiated_mode; /* Negotiated BFD mode with neighbor */
 };

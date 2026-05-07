@@ -91,7 +91,7 @@ enum isis_hello_padding {
 enum isis_bfd_mode {
 	ISIS_BFD_MODE_DISABLED,   /* BFD not enabled */
 	ISIS_BFD_MODE_STANDARD,   /* Standard BFD mode */
-	ISIS_BFD_MODE_STRICT,     /* Strict BFD mode (RFC 6213/RFC 9355) */
+	ISIS_BFD_MODE_STRICT,     /* Strict BFD mode (RFC 6213) */
 };
 
 struct isis_circuit {

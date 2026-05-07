@@ -57,7 +57,7 @@ static void adj_bfd_cb(struct bfd_session_params *bsp,
 			isis_adj_name(adj),
 			circuit->interface->name);
 
-		/* RFC 6213/RFC 9355: BFD strict mode handling
+		/* RFC 6213: BFD strict mode handling
 		 * If negotiated mode is strict and BFD session goes down,
 		 * block adjacency from being re-established until BFD
 		 * session comes back up.
@@ -78,7 +78,7 @@ static void adj_bfd_cb(struct bfd_session_params *bsp,
 			adj->bfd_strict_blocked = false;
 		}
 
-		/* RFC 6213/RFC 9355: In strict BFD mode, if the adjacency
+		/* RFC 6213: In strict BFD mode, if the adjacency
 		 * is not UP yet, trigger a hello to re-evaluate the
 		 * adjacency state. The next hello from the neighbor will
 		 * call isis_adj_process_threeway() which will now allow
@@ -316,7 +316,7 @@ void isis_bfd_init(struct thread_master *tm)
 	hook_register(isis_circuit_add_addr_hook, bfd_handle_circuit_add_addr);
 }
 
-/* RFC 6213/RFC 9355: BFD mode helpers
+/* RFC 6213: BFD mode helpers
  *
  * In strict BFD mode, the IS-IS adjacency must NOT go UP until
  * the BFD session is UP. BFD must be started as early as possible
@@ -341,10 +341,9 @@ void isis_bfd_recompute_negotiated_mode(struct isis_adjacency *adj)
 	enum isis_bfd_mode new_negotiated = ISIS_BFD_MODE_DISABLED;
 
 	if (adj->circuit->bfd_config.mode == ISIS_BFD_MODE_STRICT
-	    || adj->bfd_strict_received) {
-		/* Either side strict → negotiated as strict */
-		if (adj->bfd_enabled_received)
-			new_negotiated = ISIS_BFD_MODE_STRICT;
+	    && adj->bfd_enabled_received) {
+		/* Local strict + neighbor BFD enabled → strict */
+		new_negotiated = ISIS_BFD_MODE_STRICT;
 	} else if (adj->circuit->bfd_config.mode == ISIS_BFD_MODE_STANDARD
 		   && adj->bfd_enabled_received) {
 		new_negotiated = ISIS_BFD_MODE_STANDARD;

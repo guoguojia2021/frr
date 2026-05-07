@@ -309,11 +309,9 @@ struct isis_tlvs {
 	struct isis_threeway_adj *threeway_adj;
 	struct isis_router_cap *router_cap;
 	struct isis_spine_leaf *spine_leaf;
-	/* BFD-enabled flags for RFC 6213/RFC 9355 strict check */
+	/* BFD-enabled flags for RFC 6213 */
 	bool bfd_enabled_ipv4; /* BFD enabled for IPv4 */
 	bool bfd_enabled_ipv6; /* BFD enabled for IPv6 */
-	bool bfd_strict_ipv4;  /* BFD strict mode for IPv4 */
-	bool bfd_strict_ipv6;  /* BFD strict mode for IPv6 */
 };
 
 enum isis_tlv_context {
@@ -631,9 +629,8 @@ void isis_tlvs_add_spine_leaf(struct isis_tlvs *tlvs, uint8_t tier,
 struct isis_mt_router_info *
 isis_tlvs_lookup_mt_router_info(struct isis_tlvs *tlvs, uint16_t mtid);
 
-/* BFD-enabled TLV functions for RFC 6213/RFC 9355 strict check */
-void isis_tlvs_set_bfd_enabled(struct isis_tlvs *tlvs, bool ipv4, bool ipv6,
-			       bool strict_ipv4, bool strict_ipv6);
+/* BFD-enabled TLV functions for RFC 6213 */
+void isis_tlvs_set_bfd_enabled(struct isis_tlvs *tlvs, bool ipv4, bool ipv6);
 
 void isis_tlvs_set_purge_originator(struct isis_tlvs *tlvs,
 				    const uint8_t *generator,
