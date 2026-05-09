@@ -2626,6 +2626,8 @@ static void dplane_ctx_nexthop_fill_routeinfo(struct zebra_dplane_ctx *ctx, stru
 		SET_FLAG(flags, ZEBRA_FLAG_KERNEL_BYPASS);
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_FIB_BYPASS))
 		SET_FLAG(flags, ZEBRA_FLAG_FIB_BYPASS);
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINK_LOCAL))
+		SET_FLAG(flags, ZEBRA_FLAG_FPM_BYPASS);
 
 	nexthop_group_copy(&(ctx->u.rinfo.nhe.ng), &(nhe->nhg));
 

@@ -175,6 +175,12 @@ struct nhg_hash_entry {
  */
 #define NEXTHOP_GROUP_REINSTALL (1 << 17)
 
+/*
+ * This NHG is for link-local routes. Link-local NHGs are isolated
+ * from regular NHGs and are only referenced by their own routes.
+ */
+#define NEXTHOP_GROUP_LINK_LOCAL (1 << 18)
+
 };
 
 /* Upper 4 bits of the NHG are reserved for indicating the NHG type */

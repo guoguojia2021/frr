@@ -612,6 +612,7 @@ struct zapi_route {
 #define ZEBRA_FLAG_VRF_GROUP          0x4000
 #define ZEBRA_FLAG_FIB_BYPASS         0x8000
 #define ZEBRA_FLAG_HIGH_PRIORITY         0x10000
+#define ZEBRA_FLAG_FPM_BYPASS         0x20000
 
 	/* The older XXX_MESSAGE flags live here */
 	uint32_t message;

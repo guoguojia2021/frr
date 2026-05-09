@@ -726,6 +726,8 @@ struct nhg_hash_entry *zebra_nhe_copy(const struct nhg_hash_entry *orig,
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_BSID);
 	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_COLOR_ONLY))
 		SET_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY);
+	if (CHECK_FLAG(orig->flags, NEXTHOP_GROUP_LINK_LOCAL))
+		SET_FLAG(nhe->flags, NEXTHOP_GROUP_LINK_LOCAL);
 	/* Copy backup info also, if present */
 	if (orig->backup_info)
 		nhe->backup_info = nhg_backup_copy(orig->backup_info);
@@ -820,8 +822,11 @@ uint32_t zebra_nhg_hash_key(const void *arg)
 
 	key = jhash_3words(primary, backup, nhe->type, key);
 
-	key = jhash_3words(nhe->vrf_id, nhe->afi, CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY), key);
-
+	key = jhash_3words(nhe->vrf_id, nhe->afi,
+			   CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_COLOR_ONLY),
+			   key);
+	key = jhash_1word(CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINK_LOCAL),
+			   key);
 	return key;
 }
 
@@ -906,6 +911,11 @@ bool zebra_nhg_hash_equal(const void *arg1, const void *arg2)
 
 	if (CHECK_FLAG(nhe1->flags, NEXTHOP_GROUP_BSID) != CHECK_FLAG(nhe2->flags, NEXTHOP_GROUP_BSID))
 		return false;
+
+	if (CHECK_FLAG(nhe1->flags, NEXTHOP_GROUP_LINK_LOCAL) !=
+	    CHECK_FLAG(nhe2->flags, NEXTHOP_GROUP_LINK_LOCAL))
+		return false;
+
 	/* Nexthops should be in-order, so we simply compare them in-place */
 	for (nexthop1 = nhe1->nhg.nexthop, nexthop2 = nhe2->nhg.nexthop;
 	     nexthop1 && nexthop2;
@@ -4243,6 +4253,19 @@ void zebra_nhg_install_kernel(struct nhg_hash_entry *nhe)
 	if (nhe_resolve->pic_nhe)
 		zebra_nhg_install_kernel(nhe_resolve->pic_nhe);
 
+	/*
+	 * Link-local NHGs are local-only, no need to install to kernel.
+	 * Directly mark as installed and return.
+	 */
+	if (CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_LINK_LOCAL)) {
+		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
+			zlog_debug("%s: nhe %p (%pNG) is LINK_LOCAL, skipping kernel install, marking INSTALLED directly",
+				   __func__, nhe_resolve, nhe_resolve);
+		SET_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_INSTALLED);
+		zebra_nhg_handle_install(nhe_resolve, false);
+		return;
+	}
+
 	if (CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_VALID) &&
 	    (!CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_INSTALLED) ||
 	     CHECK_FLAG(nhe_resolve->flags, NEXTHOP_GROUP_REINSTALL)) &&
@@ -4365,6 +4388,16 @@ void zebra_nhg_seg_install_kernel(struct nhg_hash_entry *nhe)
 void zebra_nhg_uninstall_kernel(struct nhg_hash_entry *nhe)
 {
 	int ret = 0;
+
+	/* Link-local NHGs were never installed to kernel, skip deletion */
+	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_LINK_LOCAL)) {
+		if (IS_ZEBRA_DEBUG_NHG_DETAIL)
+			zlog_debug("%s: nhe %p (%pNG) is LINK_LOCAL, skipping kernel delete, uninstalling directly",
+				   __func__, nhe, nhe);
+		UNSET_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED);
+		zebra_nhg_handle_uninstall(nhe);
+		return;
+	}
 
 	if (CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_INSTALLED) || CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_QUEUED)
 		|| CHECK_FLAG(nhe->flags, NEXTHOP_GROUP_NOTIFY_FPM)) {

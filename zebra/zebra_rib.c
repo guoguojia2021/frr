@@ -4037,6 +4037,20 @@ int rib_add_multipath_nhe(afi_t afi, safi_t safi, struct prefix *p,
 			return -1;
 		}
 	} else {
+		/*
+		 * For link-local prefixes (fe80::/64), mark the NHG so it gets
+		 * isolated from regular NHGs in the hash table.
+		 */
+		if (p->family == AF_INET6 &&
+		    IN6_IS_ADDR_LINKLOCAL(&p->u.prefix6)) {
+			SET_FLAG(re_nhe->flags, NEXTHOP_GROUP_LINK_LOCAL);
+			if (IS_ZEBRA_DEBUG_RIB_DETAILED) {
+				char buf[PREFIX_STRLEN];
+				zlog_debug("%s: link-local prefix %s detected, marking NHG as LINK_LOCAL (bypass FPM)",
+					   __func__, prefix2str(p, buf, sizeof(buf)));
+			}
+		}
+
 		/* Lookup nhe from route information */
 		nhe = zebra_nhg_rib_find_nhe(re_nhe, afi);
 		if (!nhe) {

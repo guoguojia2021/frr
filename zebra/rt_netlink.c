@@ -2565,6 +2565,15 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 		return 0;
 	}
 
+	/* Link-local NHGs: install to kernel but bypass FPM */
+	if (CHECK_FLAG(flag, ZEBRA_FLAG_FPM_BYPASS) && fpm) {
+		if (IS_ZEBRA_DEBUG_KERNEL || IS_ZEBRA_DEBUG_NHG)
+			zlog_debug(
+				"%s: nhg_id %u (%s): link-local nexthop bypass FPM, ignoring",
+				__func__, id, zebra_route_string(type));
+		return 0;
+	}
+
 	label_buf[0] = '\0';
 
 	if (buflen < sizeof(*req))
