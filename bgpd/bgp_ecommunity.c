@@ -872,7 +872,10 @@ static struct ecommunity *ecommunity_str2com_internal(const char *str, int type,
 					tmp_val = (tmp_val << 8) + eval.val[i];
 					memset(&eval.val[i], 0, sizeof(eval.val[i]));
 				}
-				tmp_val = (tmp_val * 1000 * 1000 ) / 8;
+				uint64_t bw_bytes = ((uint64_t)tmp_val * 1000ULL * 1000ULL) / 8ULL;
+				if (bw_bytes > UINT32_MAX)
+					bw_bytes = UINT32_MAX;
+				tmp_val = (uint32_t)bw_bytes;
 				eval.val[4] = (tmp_val >> 24) & 0xff;
 				eval.val[5] = (tmp_val >> 16) & 0xff;
 				eval.val[6] = (tmp_val >> 8) & 0xff;
