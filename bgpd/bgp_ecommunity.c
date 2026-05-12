@@ -1594,7 +1594,7 @@ int ecommunity_fill_pbr_action(struct ecommunity_val *ecom_eval,
 		 * field of the associated MP_REACH_NLRI.
 		 */
 		struct ecommunity_ip *ip_ecom = (struct ecommunity_ip *)
-			ecom_eval + 2;
+			(ecom_eval->val + 2);
 
 		api->u.zr.redirect_ip_v4 = ip_ecom->ip;
 	} else
