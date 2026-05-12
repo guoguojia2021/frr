@@ -281,9 +281,15 @@ void path_zebra_add_sr_policy(struct srte_policy *policy,
 	zp.segment_list.type = ZEBRA_LSP_SRTE;
 	zp.segment_list.local_label = policy->binding_sid;
 	zp.segment_list.label_num = 0;
-	RB_FOREACH (segment, srte_segment_entry_head, &segment_list->segments)
+	RB_FOREACH (segment, srte_segment_entry_head, &segment_list->segments) {
+		if (zp.segment_list.label_num >= MPLS_MAX_LABELS) {
+			zlog_warn("SR-TE policy %s: segment list exceeds MPLS_MAX_LABELS (%d), truncating",
+				  policy->name, MPLS_MAX_LABELS);
+			break;
+		}
 		zp.segment_list.labels[zp.segment_list.label_num++] =
 			segment->sid_value;
+	}
 	policy->status = SRTE_POLICY_STATUS_GOING_UP;
 
 	prefix2str(&policy->endpoint, ep, sizeof(ep));
@@ -347,6 +353,11 @@ void path_zebra_encode_srv6_policy(struct srte_policy *policy,
 			continue;
 		}
 
+		if (cpath_count >= ZEBRA_SID_LIST_MAX_NUM) {
+			zlog_warn("SR-TE policy: SRV6 sidlist count exceeds max (%d), skipping remaining",
+				  ZEBRA_SID_LIST_MAX_NUM);
+			break;
+		}
 		if (cpath_count < candidate_group->up_cpath_num + zp->srv6_tunnel.path_num)
 		{
 			strlcpy(zp->srv6_tunnel.sidlists[cpath_count].sidlist_name, candidate->segment_list->name,
