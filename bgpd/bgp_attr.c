@@ -2234,12 +2234,13 @@ bgp_attr_cluster_list(struct bgp_attr_parser_args *args)
 	if (peer->discard_attrs[args->type])
 		goto cluster_list_ignore;
 
-	bgp_attr_set_cluster(
-		attr, cluster_parse((struct in_addr *)stream_pnt(peer->curr),
-				    length));
+	{
+		struct in_addr *cluster_buf = XMALLOC(MTYPE_TMP, length);
 
-	/* XXX: Fix cluster_parse to use stream API and then remove this */
-	stream_forward_getp(peer->curr, length);
+		stream_get(cluster_buf, peer->curr, length);
+		bgp_attr_set_cluster(attr, cluster_parse(cluster_buf, length));
+		XFREE(MTYPE_TMP, cluster_buf);
+	}
 
 	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST);
 
@@ -2481,6 +2482,13 @@ int bgp_mp_unreach_parse(struct bgp_attr_parser_args *args,
 	}
 
 	withdraw_len = length - BGP_MP_UNREACH_MIN_SIZE;
+
+	if (withdraw_len > STREAM_READABLE(s)) {
+		flog_err(EC_BGP_ATTR_LEN,
+			 "%s: MP_UNREACH_NLRI withdraw length %u exceeds readable stream %zu",
+			 peer->host, withdraw_len, STREAM_READABLE(s));
+		return BGP_ATTR_PARSE_ERROR_NOTIFYPLS;
+	}
 
 	mp_withdraw->afi = afi;
 	mp_withdraw->safi = safi;
