@@ -2734,6 +2734,7 @@ void bgp_fsm_nht_update(struct peer_connection *connection, bool has_valid_nexth
 			else if (CHECK_FLAG(connection->peer->flags, PEER_FLAG_TRACKING))
 				BGP_EVENT_ADD(connection, TCP_fatal_error);
 		}
+		break;
 	case Clearing:
 	case Deleted:
 	default:
