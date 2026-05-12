@@ -3277,10 +3277,16 @@ void bgp_packet_record_queue_show(struct peer *pstpeer, bool isoutque)
 				break;
 		}
 		for (int j = 0; j < size; j ++) {
-			strlenth += snprintf(str_pkt + strlenth, sizeof(str_pkt), "%.2x", pbuf[j]);
+			size_t remaining = sizeof(str_pkt) - strlenth;
+			if (remaining < 4)
+				break;
+			strlenth += snprintf(str_pkt + strlenth, remaining, "%.2x", pbuf[j]);
 			tmp_index ++;
 			if (tmp_index == 16) {
-				strlenth += snprintf(str_pkt + strlenth, sizeof(str_pkt), "%c", '\n');
+				remaining = sizeof(str_pkt) - strlenth;
+				if (remaining < 2)
+					break;
+				strlenth += snprintf(str_pkt + strlenth, remaining, "%c", '\n');
 				tmp_index = 0;
 			}
 		}
