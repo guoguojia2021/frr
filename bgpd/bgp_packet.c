@@ -750,7 +750,6 @@ static void bgp_write_notify(struct peer_connection *connection,
 
 	/* Type should be notify. */
 	atomic_fetch_add_explicit(&peer->notify_out, 1, memory_order_relaxed);
-	peer->notify_out++;
 
 	/* Double start timer. */
 	peer->v_start *= 2;
