@@ -428,7 +428,7 @@ bool ecommunity_node_target_match(struct ecommunity *ecom,
 	bool match = false;
 
 	if (!ecom || !ecom->size)
-		return NULL;
+		return false;
 
 	for (i = 0; i < ecom->size; i++) {
 		const uint8_t *pnt;
@@ -1339,8 +1339,6 @@ char *ecommunity_ecom2str(struct ecommunity *ecom, int format, int filter)
 						~ECOMMUNITY_ENCODE_TRANS_EXP,
 						ECOMMUNITY_ROUTE_TARGET,
 						ECOMMUNITY_FORMAT_DISPLAY);
-				snprintf(encbuf, sizeof(encbuf),
-					 "FS:redirect VRF %s", buf);
 				snprintf(encbuf, sizeof(encbuf),
 					 "FS:redirect VRF %s", buf);
 			} else if (type != ECOMMUNITY_ENCODE_TRANS_EXP)
