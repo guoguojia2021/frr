@@ -443,8 +443,6 @@ void bgp_timer_set(struct peer_connection *connection)
 		}
 		BGP_TIMER_OFF(connection->t_routeadv);
 		BGP_TIMER_OFF(connection->t_delayopen);
-		BGP_TIMER_OFF(connection->t_routeadv);
-		BGP_TIMER_OFF(connection->t_delayopen);
 		bgp_peer_adv_lprio_t_off(peer);
 		BGP_TIMER_OFF(peer->t_advertise_delay);
 		break;
