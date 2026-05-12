@@ -601,7 +601,7 @@ static int bgp_capability_llgr(struct peer *peer,
 
 	SET_FLAG(peer->cap, PEER_CAP_LLGR_RCV);
 
-	while (stream_get_getp(s) + 4 <= end) {
+	while (stream_get_getp(s) + 7 <= end) {
 		afi_t afi;
 		safi_t safi;
 		iana_afi_t pkt_afi = stream_getw(s);
@@ -969,6 +969,7 @@ static int bgp_capability_parse(struct peer *peer, size_t length,
 		case CAPABILITY_CODE_FQDN:
 		case CAPABILITY_CODE_ENHANCED_RR:
 		case CAPABILITY_CODE_EXT_MESSAGE:
+		case CAPABILITY_CODE_LLGR:
 			/* Check length. */
 			if (caphdr.length < cap_minsizes[caphdr.code]) {
 				zlog_info(
