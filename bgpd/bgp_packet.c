@@ -2106,6 +2106,12 @@ static int bgp_notify_receive(struct peer_connection *connection,
 		peer->notify.length = 0;
 	}
 
+	if (size < 2) {
+		flog_err(EC_BGP_NOTIFY_RCV,
+			 "%s [Error] NOTIFICATION packet too short (%d)",
+			 peer->host, size);
+		return BGP_Stop;
+	}
 	bgp_notify.code = stream_getc(peer->curr);
 	bgp_notify.subcode = stream_getc(peer->curr);
 	bgp_notify.length = size - 2;
