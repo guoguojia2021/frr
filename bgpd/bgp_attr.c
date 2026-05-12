@@ -457,16 +457,24 @@ static bool bgp_attr_aigp_get_tlv_metric(uint8_t *pnt, int length,
 	uint8_t tlv_type;
 	uint16_t tlv_length;
 
-	while (length) {
+	while (length > 0) {
+		if (length < 3)
+			return false;
+
 		tlv_type = *data;
 		ptr_get_be16(data + 1, &tlv_length);
-		(void)data;
+
+		if (tlv_length < 3 || tlv_length > (uint16_t)length)
+			return false;
 
 		/* The value field of the AIGP TLV is always 8 octets
 		 * long and its value is interpreted as an unsigned 64-bit
 		 * integer.
 		 */
 		if (tlv_type == BGP_AIGP_TLV_METRIC) {
+			if (tlv_length < 11)
+				return false;
+
 			(void)ptr_get_be64(data + 3, aigp);
 
 			/* If an AIGP attribute is received and its first AIGP
