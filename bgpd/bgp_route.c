@@ -678,11 +678,15 @@ bgp_static_check (struct bgp *bgp, struct bgp_path_info *pi,
 
 	/* Only consider "network" if it's up */
 	if (p->family == AF_INET) {
-		if (bgp_node_lookup(bgp->connected_table[AFI_IP], p)) {
+		struct bgp_dest *dest_tmp = bgp_node_lookup(bgp->connected_table[AFI_IP], p);
+		if (dest_tmp) {
+			bgp_dest_unlock_node(dest_tmp);
 			return 1;
 		}
 	} else if (p->family == AF_INET6) {
-		if (bgp_node_lookup(bgp->connected_table[AFI_IP6], p)) {
+		struct bgp_dest *dest_tmp = bgp_node_lookup(bgp->connected_table[AFI_IP6], p);
+		if (dest_tmp) {
+			bgp_dest_unlock_node(dest_tmp);
 			return 1;
 		}
 	}
