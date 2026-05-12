@@ -1309,7 +1309,17 @@ static int bgp_open_receive(struct peer_connection *connection,
 	uint8_t notify_data_remote_id[4];
 	uint8_t notify_data_holdtime[2];
 
-	/* Parse open packet. */
+	/* Parse open packet.
+	 * Minimum OPEN body: version(1) + AS(2) + holdtime(2) + BGP-ID(4) + optlen(1) = 10 */
+	if (STREAM_READABLE(peer->curr) < 10) {
+		flog_err(EC_BGP_PKT_OPEN,
+			 "%s: OPEN message too short (%zu bytes, need 10)",
+			 peer->host, STREAM_READABLE(peer->curr));
+		bgp_notify_send(connection, BGP_NOTIFY_OPEN_ERR,
+				BGP_NOTIFY_OPEN_MALFORMED_ATTR);
+		return BGP_Stop;
+	}
+
 	version = stream_getc(peer->curr);
 	memcpy(notify_data_remote_as, stream_pnt(peer->curr), 2);
 	remote_as = stream_getw(peer->curr);
