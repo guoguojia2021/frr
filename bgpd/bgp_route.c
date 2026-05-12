@@ -5531,17 +5531,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 			else
 				UNSET_FLAG(pi->flags, BGP_PATH_SUPERNET);
 		}
-		if (afi == AFI_IP && pi && CHECK_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_NEXT_HOP)))
-		{
-			pNht.family = AF_INET;
-			pNht.u.prefix4 = attr->nexthop;
-			pNht.prefixlen = IPV4_MAX_BITLEN;
-			if (prefix_match(&pNht, &dest->rn->p))
-				SET_FLAG(pi->flags, BGP_PATH_SUPERNET);
-			else
-				UNSET_FLAG(pi->flags, BGP_PATH_SUPERNET);
-		}
-		else if (afi == AFI_IP6 && pi && CHECK_FLAG(attr->flag, BGP_ATTR_NEXTHOP_AFI_IP6(attr)))
+		else if (afi == AFI_IP6 && pi && BGP_ATTR_NEXTHOP_AFI_IP6(attr))
 		{
 			pNht.family = AF_INET6;
 			pNht.u.prefix6 = attr->mp_nexthop_global;
@@ -6009,7 +5999,7 @@ int bgp_update(struct peer *peer, const struct prefix *p, uint32_t addpath_id,
 		else
 			UNSET_FLAG(new->flags, BGP_PATH_SUPERNET);
 	}
-	else if (afi == AFI_IP6 && new && CHECK_FLAG(attr->flag, BGP_ATTR_NEXTHOP_AFI_IP6(attr)))
+	else if (afi == AFI_IP6 && new && BGP_ATTR_NEXTHOP_AFI_IP6(attr))
 	{
 		pNht.family = AF_INET6;
 		pNht.u.prefix6 = attr->mp_nexthop_global;
