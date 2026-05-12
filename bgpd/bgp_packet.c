@@ -859,14 +859,14 @@ static void bgp_notify_send_internal(struct peer_connection *connection,
 						 data[i]);
 
 					strlcat(bgp_notify.data, c,
-						bgp_notify.length);
+						bgp_notify.length * 3);
 
 				} else {
 					first = 1;
 					snprintf(c, sizeof(c), "%02x", data[i]);
 
 					strlcpy(bgp_notify.data, c,
-						bgp_notify.length);
+						bgp_notify.length * 3);
 				}
 		}
 		bgp_notify_print(peer, &bgp_notify, "sending");
