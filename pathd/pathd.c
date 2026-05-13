@@ -112,6 +112,9 @@ static inline int srte_policy_candidate_compare(const struct srte_candidate *a,
 	ret = strcmp(a->name, b->name);
 	if(ret) return ret;
 
+	if (!a->policy || !b->policy)
+		return a->policy ? 1 : (b->policy ? -1 : 0);
+
 	if (a->policy->color > b->policy->color)
 		return 1;
 	if (a->policy->color < b->policy->color)
@@ -1261,6 +1264,11 @@ void srte_candidate_del(struct srte_candidate *candidate)
 {
 	struct srte_policy *srte_policy = candidate->policy;
 	struct srte_candidate_group *cpath_group;
+
+	if (candidate->hook_timer != NULL) {
+		thread_cancel(&candidate->hook_timer);
+		candidate->hook_timer = NULL;
+	}
 
 	{
 		char ep[46];
