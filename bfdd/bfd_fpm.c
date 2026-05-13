@@ -988,8 +988,8 @@ void bfd_fpm_peer_sendmsg(struct bfd_session *bfd, bool create)
 	data->ttl = (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MH))
 					 ? bfd->mh_ttl
 					 : 255;
-	strncpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
-	strncpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
+	strlcpy(data->bpc_vrfname, bfd->key.vrfname, MAXNAMELEN);
+	strlcpy(data->bpc_localif, bfd->key.ifname, MAXNAMELEN);
 
 	data->bpc_type = BPC_TYPE_CLASSIC_BFD;
 
@@ -1072,7 +1072,7 @@ void bfd_fpm_sbfd_reflector_sendmsg(struct sbfd_reflector *sr, bool create)
     data = (bfd_msg_data_t *)bfdsync_msg_data(hdr);
     data->discrs.my_discr = htonl(sr->discr);
 	inet_ntop(sr->family, &sr->local, data->bpc_local, sizeof(data->bpc_local));
-	strncpy(data->bpc_vrfname, VRF_DEFAULT_NAME, MAXNAMELEN);
+	strlcpy(data->bpc_vrfname, VRF_DEFAULT_NAME, MAXNAMELEN);
 	data->bpc_type = BPC_TYPE_SBFD_RFLT;
 
 	if (sr->family == AF_INET)
