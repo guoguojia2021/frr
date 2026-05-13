@@ -288,22 +288,20 @@ void sbfd_seglist_status_update(struct bfd_session_params *bsp,
 		 bsp->args.sbfd_my_discr);
 
 	sbfd_event = XCALLOC(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sizeof(struct srte_sbfd_event));
-    sbfd_event->segl = segl;
+	sbfd_event->segl = segl;
 	sbfd_event->policy = policy;
 	sbfd_event->my_discriminator = bsp->args.sbfd_my_discr;
 
 	if (bss->state == BSS_DOWN && bss->previous_state != BSS_DOWN) {
 		if (IS_PATHD_DEBUG_SBFD)
-			zlog_debug( "%s:  sidlist %s SBFD DOWN", __func__, segl->name);
-		// seglist sbfd down event
-        thread_add_event(master, sbfd_status_event, sbfd_event, BSS_DOWN, NULL);     		
-	}
-
-	if (bss->state == BSS_UP && bss->previous_state != BSS_UP) {
+			zlog_debug("%s:  sidlist %s SBFD DOWN", __func__, segl->name);
+		thread_add_event(master, sbfd_status_event, sbfd_event, BSS_DOWN, NULL);
+	} else if (bss->state == BSS_UP && bss->previous_state != BSS_UP) {
 		if (IS_PATHD_DEBUG_SBFD)
-			zlog_debug( "%s:  sidlist %s SBFD UP", __func__, segl->name);
-		// seglist sbfd up event
-        thread_add_event(master, sbfd_status_event, sbfd_event, BSS_UP, NULL);     		
+			zlog_debug("%s:  sidlist %s SBFD UP", __func__, segl->name);
+		thread_add_event(master, sbfd_status_event, sbfd_event, BSS_UP, NULL);
+	} else {
+		XFREE(MTYPE_PATH_SRPOLICY_SBFD_EVENT, sbfd_event);
 	}
 }
 
@@ -314,11 +312,17 @@ void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *po
 	struct in6_addr seglist[16];
 	char endpoint[46];
 
+	if (!policy->bfd_config) {
+		zlog_warn("%s: policy bfd_config is NULL for seglist %s",
+			  __func__, segl->name);
+		return;
+	}
+
 	prefix2str(&policy->endpoint, endpoint, sizeof(endpoint));
 	frrtrace(5, frr_pathd, sbfd_config_apply,
 		 segl->name, policy->color, endpoint,
-		 policy->bfd_config ? policy->bfd_config->is_echo : 0,
-		 policy->bfd_config ? policy->bfd_config->remote_disc : 0);
+		 policy->bfd_config->is_echo,
+		 policy->bfd_config->remote_disc);
 
 	/* Create new session and assign callback. */
 	struct srte_sbfd_session * sbs;
@@ -338,8 +342,13 @@ void sr_config_sbfd_apply(struct srte_segment_list *segl, struct srte_policy *po
 	sbfd_sess_set_srpolicy_info(sbs->session, policy->color, &policy->endpoint.u.prefix6);
 
     // get all seg
-	RB_FOREACH (s_entry, srte_segment_entry_head, &segl->segments) 
+	RB_FOREACH (s_entry, srte_segment_entry_head, &segl->segments)
 	{
+		if (seg_num >= 16) {
+			zlog_warn("S-BFD: segment list %s exceeds max 16 segments, truncating",
+				  segl->name);
+			break;
+		}
 		// copy sid to array
 		memcpy(&seglist[seg_num], &s_entry->srv6_sid_value.ipaddr_v6, sizeof(struct in6_addr));
 		seg_num++;
