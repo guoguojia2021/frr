@@ -2274,6 +2274,11 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	if (outer_dip && outer_dip->sa_sin.sin_family != AF_UNSPEC)
 		outer_family = outer_dip->sa_sin.sin_family;
 
+	if (seg_num > SRV6_MAX_SEGS) {
+		zlog_err("%s: seg_num %u exceeds SRV6_MAX_SEGS", __func__, seg_num);
+		return -1;
+	}
+
 	memset(sendbuf, 0, sizeof(sendbuf));
 	int total_len = 0;
 
@@ -2350,6 +2355,11 @@ int bp_raw_sbfd_red_send(int sd,  uint8_t *data, size_t datalen,
 	}
 
 	/* BFD payload*/
+	if (total_len + (int)datalen > (int)sizeof(sendbuf)) {
+		zlog_err("%s: packet too large (%d + %zu > %zu)",
+			 __func__, total_len, datalen, sizeof(sendbuf));
+		return -1;
+	}
 	payload = (uint8_t *)(sendbuf + total_len);
     memcpy(payload, data, datalen);
 	total_len += datalen;
