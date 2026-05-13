@@ -966,11 +966,12 @@ int pathd_srte_policy_candidate_path_segment_list_name_modify(
 
     /* new sidlist */
 	candidate->segment_list = srte_segment_list_find(segment_list_name);
-	refcounter_increase(candidate->segment_list);
-
-	candidate->lsp->segment_list = candidate->segment_list;
-	if (!candidate->segment_list)
+	if (!candidate->segment_list) {
+		candidate->lsp->segment_list = NULL;
 		return NB_OK;
+	}
+	refcounter_increase(candidate->segment_list);
+	candidate->lsp->segment_list = candidate->segment_list;
 
 	SET_FLAG(candidate->flags, F_CANDIDATE_MODIFIED);
 	SET_FLAG(candidate->segment_list->flags, F_SEGMENT_LIST_REF);
