@@ -569,6 +569,12 @@ static int _ptm_msg_read(struct stream *msg, int command, vrf_id_t vrf_id,
 	{
 		STREAM_GETC(msg, bpc->seg_num);
 
+		if (bpc->seg_num > SRV6_MAX_SEGS) {
+			zlog_err("ptm-read: seg_num %u exceeds SRV6_MAX_SEGS",
+				 bpc->seg_num);
+			return -1;
+		}
+
 		int i ;
 		for (i=0; i < bpc->seg_num; i++)
 		{
