@@ -121,19 +121,32 @@ static const char *bfd_mode_type_to_string(enum bfd_mode_type mode) {
 
 static char *sbfd_sidlist_to_string(struct in6_addr *sidlist, uint8_t segnum)
 {
-	static char buf[INET6_ADDRSTRLEN * SRV6_MAX_SEGS];
-	int pos = 0;
-	uint8_t i = 0;
+	static char buf[INET6_ADDRSTRLEN * SRV6_MAX_SEGS + SRV6_MAX_SEGS];
+	size_t pos = 0;
+	uint8_t i;
 	char addr_buf[INET6_ADDRSTRLEN];
 
 	memset(buf, 0, sizeof(buf));
 
-	pos = snprintf(buf, sizeof(buf), "%s",
-		       inet_ntop(AF_INET6, &sidlist[0], addr_buf, sizeof(addr_buf)));
+	if (segnum == 0)
+		return buf;
 
-	for (i = 1; i < segnum; i++)
-		pos += snprintf(buf + pos, sizeof(buf) - pos, ",%s",
-				inet_ntop(AF_INET6, &sidlist[i], addr_buf, sizeof(addr_buf)));
+	if (segnum > SRV6_MAX_SEGS)
+		segnum = SRV6_MAX_SEGS;
+
+	for (i = 0; i < segnum; i++) {
+		int ret;
+
+		if (i > 0 && pos < sizeof(buf))
+			buf[pos++] = ',';
+
+		ret = snprintf(buf + pos, sizeof(buf) - pos, "%s",
+			       inet_ntop(AF_INET6, &sidlist[i], addr_buf,
+					 sizeof(addr_buf)));
+		if (ret < 0 || pos + (size_t)ret >= sizeof(buf))
+			break;
+		pos += (size_t)ret;
+	}
 
 	return buf;
 }
