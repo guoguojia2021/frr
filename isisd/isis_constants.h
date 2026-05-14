@@ -168,6 +168,10 @@
 
 #define LLC_LEN 3
 
+/* Maximum raw PDU buffer size for stack-allocated copies.
+ * Covers jumbo frames (9216) with headroom. */
+#define ISIS_MAX_RAW_PDU_SIZE 16384
+
 /* we need to be aware of the fact we are using ISO sized
  * packets, using isomtu = mtu - LLC_LEN
  */

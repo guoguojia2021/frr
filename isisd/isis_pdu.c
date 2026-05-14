@@ -612,8 +612,15 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 	/* keep a copy of the raw pdu for NB notifications */
 	size_t pdu_start = stream_get_getp(circuit->rcv_stream);
 	size_t pdu_end = stream_get_endp(circuit->rcv_stream);
-	char raw_pdu[pdu_end - pdu_start];
+	size_t raw_pdu_len = pdu_end - pdu_start;
+	char raw_pdu[ISIS_MAX_RAW_PDU_SIZE];
 	bool p2p_hello = (pdu_type == P2P_HELLO);
+
+	if (raw_pdu_len > sizeof(raw_pdu)) {
+		zlog_warn("ISIS: oversized IIH PDU (%zu bytes), dropping",
+			  raw_pdu_len);
+		return ISIS_WARNING;
+	}
 	int level = p2p_hello ? 0
 			      : (pdu_type == L1_LAN_HELLO) ? ISIS_LEVEL1
 							   : ISIS_LEVEL2;
@@ -622,8 +629,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 			? "P2P IIH"
 			: (level == ISIS_LEVEL1) ? "L1 LAN IIH" : "L2 LAN IIH";
 
-	stream_get_from(raw_pdu, circuit->rcv_stream, pdu_start,
-			pdu_end - pdu_start);
+	stream_get_from(raw_pdu, circuit->rcv_stream, pdu_start, raw_pdu_len);
 	if (IS_DEBUG_ADJ_PACKETS) {
 		zlog_debug("ISIS-Adj (%s): Rcvd %s on %s, cirType %s, cirID %u",
 			   circuit->area->area_tag, pdu_name,
@@ -642,7 +648,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 			isis_notif_reject_adjacency(
 				circuit, "p2p hello on non p2p circuit",
-				raw_pdu, sizeof(raw_pdu));
+				raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 			return ISIS_WARNING;
 		}
@@ -653,7 +659,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 			isis_notif_reject_adjacency(
 				circuit, "lan hello on non broadcast circuit",
-				raw_pdu, sizeof(raw_pdu));
+				raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 			return ISIS_WARNING;
 		}
@@ -667,7 +673,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 			isis_notif_reject_adjacency(
 				circuit,
 				"LAN Hello received over circuit with externalDomain = true",
-				raw_pdu, sizeof(raw_pdu));
+				raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 			return ISIS_WARNING;
 		}
@@ -683,7 +689,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 			isis_notif_reject_adjacency(circuit,
 						    "Interface level mismatch",
-						    raw_pdu, sizeof(raw_pdu));
+						    raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 			return ISIS_WARNING;
 		}
@@ -713,7 +719,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 		update_rej_adj_count(circuit);
 #ifndef FABRICD
 		isis_notif_reject_adjacency(circuit, "Invalid PDU length",
-					    raw_pdu, sizeof(raw_pdu));
+					    raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		return ISIS_WARNING;
 	}
@@ -726,7 +732,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 		isis_notif_reject_adjacency(circuit,
 					    "LAN Hello with wrong IS-level",
-					    raw_pdu, sizeof(raw_pdu));
+					    raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		return ISIS_ERROR;
 	}
@@ -740,7 +746,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 		update_rej_adj_count(circuit);
 #ifndef FABRICD
 		isis_notif_reject_adjacency(circuit, "Failed to unpack TLVs",
-					    raw_pdu, sizeof(raw_pdu));
+					    raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -749,7 +755,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 		zlog_warn("No Area addresses TLV in %s", pdu_name);
 #ifndef FABRICD
 		/* send northbound notification */
-		isis_notif_area_mismatch(circuit, raw_pdu, sizeof(raw_pdu));
+		isis_notif_area_mismatch(circuit, raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -760,7 +766,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 		isis_notif_reject_adjacency(circuit,
 					    "No supported protocols TLV",
-					    raw_pdu, sizeof(raw_pdu));
+					    raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -774,15 +780,15 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 		/* send northbound notification */
 		stream_get_from(raw_pdu, circuit->rcv_stream, pdu_start,
-				pdu_end - pdu_start);
+				raw_pdu_len);
 		if (auth_code == ISIS_AUTH_FAILURE) {
 			update_rej_adj_count(circuit);
 			isis_notif_authentication_failure(circuit, raw_pdu,
-							  sizeof(raw_pdu));
+							  raw_pdu_len);
 		} else { /* AUTH_TYPE_FAILURE or NO_VALIDATOR */
 			update_rej_adj_count(circuit);
 			isis_notif_authentication_type_failure(circuit, raw_pdu,
-							       sizeof(raw_pdu));
+							       raw_pdu_len);
 		}
 #endif /* ifndef FABRICD */
 		goto out;
@@ -796,7 +802,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 		isis_notif_reject_adjacency(circuit,
 					    "Received IIH with our own sysid",
-					    raw_pdu, sizeof(raw_pdu));
+					    raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -814,7 +820,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 		}
 #ifndef FABRICD
 		/* send northbound notification */
-		isis_notif_area_mismatch(circuit, raw_pdu, sizeof(raw_pdu));
+		isis_notif_area_mismatch(circuit, raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -835,7 +841,7 @@ static int process_hello(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 		isis_notif_reject_adjacency(
 			circuit, "Neither IPv4 not IPv6 considered usable",
-			raw_pdu, sizeof(raw_pdu));
+			raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -869,10 +875,17 @@ static int process_lsp(uint8_t pdu_type, struct isis_circuit *circuit,
 	bool circuit_scoped;
 	size_t pdu_start = stream_get_getp(circuit->rcv_stream);
 	size_t pdu_end = stream_get_endp(circuit->rcv_stream);
-	char raw_pdu[pdu_end - pdu_start];
+	size_t raw_pdu_len = pdu_end - pdu_start;
+	char raw_pdu[ISIS_MAX_RAW_PDU_SIZE];
+
+	if (raw_pdu_len > sizeof(raw_pdu)) {
+		zlog_warn("ISIS: oversized LSP PDU (%zu bytes), dropping",
+			  raw_pdu_len);
+		return ISIS_WARNING;
+	}
 
 	stream_get_from(raw_pdu, circuit->rcv_stream, pdu_start,
-			pdu_end - pdu_start);
+			raw_pdu_len);
 
 	if (pdu_type == FS_LINK_STATE) {
 		if (!fabricd)
@@ -1003,7 +1016,7 @@ static int process_lsp(uint8_t pdu_type, struct isis_circuit *circuit,
 		}
 
 		isis_notif_lsp_error(circuit, hdr.lsp_id, raw_pdu,
-				     sizeof(raw_pdu), 0, 0);
+				     raw_pdu_len, 0, 0);
 #endif /* ifndef FABRICD */
 		goto out;
 	}
@@ -1036,7 +1049,7 @@ static int process_lsp(uint8_t pdu_type, struct isis_circuit *circuit,
 				circuit->area->auth_failures[1]++;
 			}
 			isis_notif_authentication_failure(circuit, raw_pdu,
-							  sizeof(raw_pdu));
+							  raw_pdu_len);
 		} else { /* AUTH_TYPE_FAILURE or NO_VALIDATOR */
 			circuit->auth_type_failures++;
 			if (circuit->is_type == IS_LEVEL_1) {
@@ -1048,7 +1061,7 @@ static int process_lsp(uint8_t pdu_type, struct isis_circuit *circuit,
 				circuit->area->auth_type_failures[1]++;
 			}
 			isis_notif_authentication_type_failure(circuit, raw_pdu,
-							       sizeof(raw_pdu));
+							       raw_pdu_len);
 		}
 #endif /* ifndef FABRICD */
 		goto out;
@@ -1345,7 +1358,14 @@ static int process_snp(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 	size_t pdu_start = stream_get_getp(circuit->rcv_stream);
 	size_t pdu_end = stream_get_endp(circuit->rcv_stream);
-	char raw_pdu[pdu_end - pdu_start];
+	size_t raw_pdu_len = pdu_end - pdu_start;
+	char raw_pdu[ISIS_MAX_RAW_PDU_SIZE];
+
+	if (raw_pdu_len > sizeof(raw_pdu)) {
+		zlog_warn("ISIS: oversized SNP PDU (%zu bytes), dropping",
+			  raw_pdu_len);
+		return ISIS_WARNING;
+	}
 #endif /* ifndef FABRICD */
 
 	bool is_csnp = (pdu_type == L1_COMPLETE_SEQ_NUM
@@ -1470,7 +1490,7 @@ static int process_snp(uint8_t pdu_type, struct isis_circuit *circuit,
 #ifndef FABRICD
 			/* send northbound notification */
 			stream_get_from(raw_pdu, circuit->rcv_stream, pdu_start,
-					pdu_end - pdu_start);
+					raw_pdu_len);
 			if (auth_code == ISIS_AUTH_FAILURE) {
 				circuit->auth_failures++;
 				if (circuit->is_type == IS_LEVEL_1) {
@@ -1482,7 +1502,7 @@ static int process_snp(uint8_t pdu_type, struct isis_circuit *circuit,
 					circuit->area->auth_failures[1]++;
 				}
 				isis_notif_authentication_failure(
-					circuit, raw_pdu, sizeof(raw_pdu));
+					circuit, raw_pdu, raw_pdu_len);
 			} else { /* AUTH_TYPE_FAILURE or NO_VALIDATOR */
 				circuit->auth_type_failures++;
 				if (circuit->is_type == IS_LEVEL_1) {
@@ -1494,7 +1514,7 @@ static int process_snp(uint8_t pdu_type, struct isis_circuit *circuit,
 					circuit->area->auth_type_failures[1]++;
 				}
 				isis_notif_authentication_type_failure(
-					circuit, raw_pdu, sizeof(raw_pdu));
+					circuit, raw_pdu, raw_pdu_len);
 			}
 #endif /* ifndef FABRICD */
 			goto out;
@@ -1681,10 +1701,17 @@ int isis_handle_pdu(struct isis_circuit *circuit, uint8_t *ssnpa)
 	int retval = ISIS_OK;
 	size_t pdu_start = stream_get_getp(circuit->rcv_stream);
 	size_t pdu_end = stream_get_endp(circuit->rcv_stream);
-	char raw_pdu[pdu_end - pdu_start];
+	size_t raw_pdu_len = pdu_end - pdu_start;
+	char raw_pdu[ISIS_MAX_RAW_PDU_SIZE];
+
+	if (raw_pdu_len > sizeof(raw_pdu)) {
+		zlog_warn("ISIS: oversized PDU (%zu bytes), dropping",
+			  raw_pdu_len);
+		return ISIS_WARNING;
+	}
 
 	stream_get_from(raw_pdu, circuit->rcv_stream, pdu_start,
-			pdu_end - pdu_start);
+			raw_pdu_len);
 
 	/* Verify that at least the 8 bytes fixed header have been received */
 	if (stream_get_endp(circuit->rcv_stream) < ISIS_FIXED_HDR_LEN) {
@@ -1724,7 +1751,7 @@ int isis_handle_pdu(struct isis_circuit *circuit, uint8_t *ssnpa)
 #ifndef FABRICD
 		/* send northbound notification */
 		isis_notif_version_skew(circuit, version1, raw_pdu,
-					sizeof(raw_pdu));
+					raw_pdu_len);
 #endif /* ifndef FABRICD */
 		pdu_counter_count_drop(circuit->area, pdu_type);
 		return ISIS_WARNING;
@@ -1748,7 +1775,7 @@ int isis_handle_pdu(struct isis_circuit *circuit, uint8_t *ssnpa)
 #ifndef FABRICD
 		/* send northbound notification */
 		isis_notif_id_len_mismatch(circuit, id_len, raw_pdu,
-					   sizeof(raw_pdu));
+					   raw_pdu_len);
 #endif /* ifndef FABRICD */
 		pdu_counter_count_drop(circuit->area, pdu_type);
 		return ISIS_ERROR;
@@ -1782,7 +1809,7 @@ int isis_handle_pdu(struct isis_circuit *circuit, uint8_t *ssnpa)
 #ifndef FABRICD
 		/* send northbound notification */
 		isis_notif_version_skew(circuit, version2, raw_pdu,
-					sizeof(raw_pdu));
+					raw_pdu_len);
 #endif /* ifndef FABRICD */
 		pdu_counter_count_drop(circuit->area, pdu_type);
 		return ISIS_WARNING;
@@ -1808,7 +1835,7 @@ int isis_handle_pdu(struct isis_circuit *circuit, uint8_t *ssnpa)
 #ifndef FABRICD
 		/* send northbound notification */
 		isis_notif_max_area_addr_mismatch(circuit, max_area_addrs,
-						  raw_pdu, sizeof(raw_pdu));
+						  raw_pdu, raw_pdu_len);
 #endif /* ifndef FABRICD */
 		pdu_counter_count_drop(circuit->area, pdu_type);
 		return ISIS_ERROR;
