@@ -225,13 +225,13 @@ void zebra_db_init(void)
 int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
 {
     char keyType[ZEBRA_DB_MAX_KEY_LEN] = {0};
-    char aliasKey[10] = {0};
+    char aliasKey[64] = {0};
     char result[ZEBRA_DB_MAX_KEY_LEN] = {0};
     char dbErrMsg[100] = {0};
     int errNo = 0;
     DB_Key_List *pKeyList = NULL;
     DB_Key_List *pKeyNode = NULL;
-    char aliasId[10] = {0};
+    char aliasId[64] = {0};
     char VRF_NAME[] = "vrf_name";
     char ALIAS_NAME[] = "alias_name";
     char VRF_NAMEID[] = "vrf_nameid";
@@ -257,7 +257,7 @@ int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
         }
     }
 
-    sscanf(vrfname, "Vrf%s", aliasId);
+    sscanf(vrfname, "Vrf%63s", aliasId);
 
     snprintf(keyType, ZEBRA_DB_MAX_KEY_LEN, "VRF_ALIAS|*");
     pKeyList = g_zebra_redis.redis_Db_GetKey(keyType, dbErrMsg, sizeof(dbErrMsg), REDIS_STATE_DB);
@@ -268,7 +268,7 @@ int zebra_Db_GetVrfAlias(const char *vrfname, char *aliasName, int aliasNameLen)
                                                                             dbErrMsg, sizeof(dbErrMsg), &errNo, REDIS_STATE_DB);
         if (strlen(result) && (strlen(result) == strlen(aliasId)) &&!strncmp(aliasId, result, strlen(result)))
         {
-            sscanf(pKeyList->key, "VRF_ALIAS|%s", aliasKey);
+            sscanf(pKeyList->key, "VRF_ALIAS|%63s", aliasKey);
             snprintf(aliasName, aliasNameLen, "%s", aliasKey);
             while(pKeyList)
             {
