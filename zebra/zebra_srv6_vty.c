@@ -307,35 +307,41 @@ static int zebra_show_sr_policy_walk(struct hash_bucket *hb, void *arg)
 		char binding_sid[16] = "-";
 		char segmentlist_old[4096] = {0};
 		char segmentlist[4096] = {0};
-		strcat(segmentlist_old, "[");
-		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num_old; i++) {
-			char buf[80] = {0};
-			char typebuf[2] = {0};
-			if (CHECK_FLAG(policy->srv6_segment_list.sidlists_old[i].flags, SRV6_SID_LIST_BACKUP))
-				strcat(typebuf, "B");
-			else
-				strcat(typebuf, "M");
+		int off;
 
-			sprintf(buf, "(%s-%u-%s)", policy->srv6_segment_list.sidlists_old[i].sidlist_name,
-				policy->srv6_segment_list.sidlists_old[i].my_discriminator, typebuf);
-			strcat(segmentlist_old, buf);
+		off = snprintf(segmentlist_old, sizeof(segmentlist_old), "[");
+		for (uint32_t i = 0;
+		     i < policy->srv6_segment_list.path_num_old
+		     && off < (int)sizeof(segmentlist_old) - 2;
+		     i++) {
+			const char *type =
+				CHECK_FLAG(policy->srv6_segment_list.sidlists_old[i].flags,
+					   SRV6_SID_LIST_BACKUP) ? "B" : "M";
+			off += snprintf(segmentlist_old + off,
+					sizeof(segmentlist_old) - off,
+					"(%s-%u-%s)",
+					policy->srv6_segment_list.sidlists_old[i].sidlist_name,
+					policy->srv6_segment_list.sidlists_old[i].my_discriminator,
+					type);
 		}
-		strcat(segmentlist_old, "]");
+		snprintf(segmentlist_old + off, sizeof(segmentlist_old) - off, "]");
 
-		strcat(segmentlist, "[");
-		for(uint32_t i = 0; i < policy->srv6_segment_list.path_num; i++) {
-			char buf[80] = {0};
-			char typebuf[2] = {0};
-			if (CHECK_FLAG(policy->srv6_segment_list.sidlists[i].flags, SRV6_SID_LIST_BACKUP))
-				strcat(typebuf, "B");
-			else
-				strcat(typebuf, "M");
-
-			sprintf(buf, "(%s-%u-%s)", policy->srv6_segment_list.sidlists[i].sidlist_name,
-				policy->srv6_segment_list.sidlists[i].my_discriminator, typebuf);
-			strcat(segmentlist, buf);
+		off = snprintf(segmentlist, sizeof(segmentlist), "[");
+		for (uint32_t i = 0;
+		     i < policy->srv6_segment_list.path_num
+		     && off < (int)sizeof(segmentlist) - 2;
+		     i++) {
+			const char *type =
+				CHECK_FLAG(policy->srv6_segment_list.sidlists[i].flags,
+					   SRV6_SID_LIST_BACKUP) ? "B" : "M";
+			off += snprintf(segmentlist + off,
+					sizeof(segmentlist) - off,
+					"(%s-%u-%s)",
+					policy->srv6_segment_list.sidlists[i].sidlist_name,
+					policy->srv6_segment_list.sidlists[i].my_discriminator,
+					type);
 		}
-		strcat(segmentlist, "]");
+		snprintf(segmentlist + off, sizeof(segmentlist) - off, "]");
 		inet_ntop(rn->p.family, &rn->p.u.prefix, endpoint, 60);
 
 		ttable_add_row(tt, "%s|%u|%s|%s|%s|%s|%s", endpoint, policy->color,
