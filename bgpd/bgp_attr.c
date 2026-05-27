@@ -4149,7 +4149,7 @@ static void bgp_packet_ls_attribute(struct stream *s, struct bgp *bgp, struct at
 
 	/* Write BGP-LS attribute header (RFC 9552 Section 4) */
 	attr_start = stream_get_endp(s);
-	stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_EXTLEN);
+	stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS | BGP_ATTR_FLAG_EXTLEN);
 	stream_putc(s, BGP_ATTR_LINK_STATE);
 	len_pos = stream_get_endp(s);
 	stream_putw(s, 0); /* Placeholder for extended length */
