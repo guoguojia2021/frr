@@ -322,7 +322,7 @@ int bgp_nlri_parse(struct peer *peer, struct attr *attr,
 	case SAFI_EVPN:
 		return bgp_nlri_parse_evpn(peer, attr, packet, mp_withdraw);
 	case SAFI_FLOWSPEC:
-		return bgp_nlri_parse_flowspec(peer, attr, packet, mp_withdraw);
+		return bgp_nlri_parse_flowspec(peer, mp_withdraw ? NULL: attr, packet);
 	case SAFI_BGP_LS:
 		return bgp_nlri_parse_ls(peer, mp_withdraw ? NULL : attr, packet);
 	}

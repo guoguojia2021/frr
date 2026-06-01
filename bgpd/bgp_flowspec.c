@@ -95,7 +95,7 @@ static int bgp_fs_nlri_validate(uint8_t *nlri_content, uint32_t len,
 }
 
 int bgp_nlri_parse_flowspec(struct peer *peer, struct attr *attr,
-			    struct bgp_nlri *packet, int withdraw)
+			    struct bgp_nlri *packet)
 {
 	uint8_t *pnt;
 	uint8_t *lim;
@@ -181,14 +181,19 @@ int bgp_nlri_parse_flowspec(struct peer *peer, struct attr *attr,
 					ecommunity_strfree(&s);
 			}
 			snprintf(local_string, sizeof(local_string),
-				 "FS Rx %s %s %s %s", withdraw ?
+				 "FS Rx %s %s %s %s", attr ?
 				 "Withdraw":"Update",
 				 afi2str(afi), return_string,
 				 attr != NULL ? ec_string : "");
 			zlog_info("%s", local_string);
 		}
-		/* Process the route. */
-		if (!withdraw)
+		/* Process the route.
+		 * When attr is NULL on an update, the attribute parsing
+		 * returned treat-as-withdraw (RFC 7606) via NLRI_ATTR_ARG,
+		 * so convert the update into a withdraw to avoid NULL
+		 * dereferences downstream in bgp_update().
+		 */
+		if (attr)
 			ret = bgp_update(peer, &p, 0, attr,
 					 afi, safi,
 					 ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
