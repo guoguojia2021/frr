@@ -2846,6 +2846,9 @@ void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 		return;
 	}
 
+	if (zp.endpoint.family != AF_INET && zp.endpoint.family != AF_INET6)
+		return;
+
     old_policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
     if (!old_policy)
 	{
@@ -2885,6 +2888,9 @@ void zread_srv6_policy_delete(ZAPI_HANDLER_ARGS)
 				   __func__);
 		return;
 	}
+	if (zp.endpoint.family != AF_INET && zp.endpoint.family != AF_INET6)
+		return;
+
     policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
 	if (!policy)
 		return;
