@@ -270,10 +270,18 @@ int bgp_flowspec_op_decode(enum bgp_flowspec_util_nlri_t type,
 	do {
 		if (loop > BGP_PBR_MATCH_VAL_MAX)
 			*error = -2;
+		if (offset >= max_len) {
+			*error = -1;
+			break;
+		}
 		hex2bin(&nlri_ptr[offset], op);
 		offset++;
 		len = 2*op[2]+op[3];
 		value_size = 1 << len;
+		if (offset + value_size > max_len) {
+			*error = -1;
+			break;
+		}
 		value = hexstr2num(&nlri_ptr[offset], value_size);
 		/* can not be < and > at the same time */
 		if (op[5] == 1 && op[6] == 1)
@@ -389,6 +397,10 @@ int bgp_flowspec_bitmask_decode(enum bgp_flowspec_util_nlri_t type,
 	do {
 		if (loop > BGP_PBR_MATCH_VAL_MAX)
 			*error = -2;
+		if (offset >= max_len) {
+			*error = -1;
+			break;
+		}
 		hex2bin(&nlri_ptr[offset], op);
 		/* if first element, AND bit can not be set */
 		if (op[1] == 1 && loop == 0)
@@ -396,6 +408,10 @@ int bgp_flowspec_bitmask_decode(enum bgp_flowspec_util_nlri_t type,
 		offset++;
 		len = 2 * op[2] + op[3];
 		value_size = 1 << len;
+		if (offset + value_size > max_len) {
+			*error = -1;
+			break;
+		}
 		value = hexstr2num(&nlri_ptr[offset], value_size);
 		switch (type) {
 		case BGP_FLOWSPEC_RETURN_STRING:
