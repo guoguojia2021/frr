@@ -196,6 +196,10 @@ int bgp_flowspec_ip_address(enum bgp_flowspec_util_nlri_t type,
 	offset++;
 	prefix_local.family = afi2family(afi);
 	if (prefix_local.family == AF_INET6) {
+		if (offset >= max_len) {
+			*error = -1;
+			return offset;
+		}
 		prefix_offset = nlri_ptr[offset];
 		if (ipv6_offset)
 			*ipv6_offset = prefix_offset;
