@@ -186,6 +186,10 @@ int bgp_flowspec_ip_address(enum bgp_flowspec_util_nlri_t type,
 
 	*error = 0;
 	memset(&prefix_local, 0, sizeof(struct prefix));
+	if (max_len == 0) {
+		*error = -1;
+		return 0;
+	}
 	/* read the prefix length */
 	prefix_local.prefixlen = nlri_ptr[offset];
 	psize = PSIZE(prefix_local.prefixlen);
@@ -208,6 +212,8 @@ int bgp_flowspec_ip_address(enum bgp_flowspec_util_nlri_t type,
 	 */
 	if (psize > (ssize_t)sizeof(prefix_local.u))
 		*error = -1;
+	if (*error)
+		return offset;
 	memcpy(&prefix_local.u.prefix, &nlri_ptr[offset], psize);
 	offset += psize;
 	switch (type) {
