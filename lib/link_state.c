@@ -1428,6 +1428,7 @@ stream_failure:
 	/* Clean memory allocation */
 	if (attr->srlgs != NULL)
 		XFREE(MTYPE_LS_DB, attr->srlgs);
+	admin_group_term(&attr->ext_admin_group);
 	XFREE(MTYPE_LS_DB, attr);
 	return NULL;
 
