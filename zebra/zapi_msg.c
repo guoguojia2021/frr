@@ -2849,6 +2849,12 @@ void zread_srv6_policy_set(ZAPI_HANDLER_ARGS)
 	if (zp.endpoint.family != AF_INET && zp.endpoint.family != AF_INET6)
 		return;
 
+	if ((zp.endpoint.family == AF_INET &&
+	     zp.endpoint.prefixlen > IPV4_MAX_BITLEN) ||
+	    (zp.endpoint.family == AF_INET6 &&
+	     zp.endpoint.prefixlen > IPV6_MAX_BITLEN))
+		return;
+
     old_policy = zebra_sr_policy_lookup_by_prefix(&zp.endpoint, zp.color);
     if (!old_policy)
 	{

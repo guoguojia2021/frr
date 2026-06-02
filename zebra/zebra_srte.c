@@ -1332,6 +1332,8 @@ void zebra_bsid_route_add(struct zebra_sr_policy *policy,
 	/* Set the prefix based on the binding SID format */
     p.family = AF_INET6;
     p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
+	if (p.prefixlen > IPV6_MAX_BITLEN)
+		return;
 
 	memcpy(&p.u.prefix6, &zp->bsid.sid_v6.ipaddr_v6,
 		sizeof(struct in6_addr));
@@ -1443,7 +1445,8 @@ void zebra_bsid_route_del(struct zebra_sr_policy *policy,
 	/* Set up the prefix based on the binding SID format */
     p.family = AF_INET6;
     p.prefixlen = ctx->block_bits_length + ctx->node_bits_length + ctx->function_bits_length;
-
+	if (p.prefixlen > IPV6_MAX_BITLEN)
+		return;
 
 	memcpy(&p.u.prefix6, &zp->bsid.sid_v6.ipaddr_v6,
 		sizeof(struct in6_addr));
@@ -1451,7 +1454,7 @@ void zebra_bsid_route_del(struct zebra_sr_policy *policy,
     def_vrf = vrf_lookup_by_name(VRF_DEFAULT_NAME);
     zvrf = zebra_vrf_lookup_by_id(def_vrf->vrf_id);
     if (!zvrf) {
-        return ;
+        return;
     }
 
 	table_id = zvrf->table_id;
