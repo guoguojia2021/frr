@@ -1886,16 +1886,19 @@ struct ls_vertex *ls_msg2vertex(struct ls_ted *ted, struct ls_message *msg,
 		vertex = ls_vertex_update(ted, node);
 		if (vertex)
 			vertex->status = SYNC;
+		msg->data.node = NULL;
 		break;
 	case LS_MSG_EVENT_ADD:
 		vertex = ls_vertex_add(ted, node);
 		if (vertex)
 			vertex->status = NEW;
+		msg->data.node = NULL;
 		break;
 	case LS_MSG_EVENT_UPDATE:
 		vertex = ls_vertex_update(ted, node);
 		if (vertex)
 			vertex->status = UPDATE;
+		msg->data.node = NULL;
 		break;
 	case LS_MSG_EVENT_DELETE:
 		vertex = ls_find_vertex_by_id(ted, node->adv);
@@ -1926,16 +1929,19 @@ struct ls_edge *ls_msg2edge(struct ls_ted *ted, struct ls_message *msg,
 		edge = ls_edge_update(ted, attr);
 		if (edge)
 			edge->status = SYNC;
+		msg->data.attr = NULL;
 		break;
 	case LS_MSG_EVENT_ADD:
 		edge = ls_edge_add(ted, attr);
 		if (edge)
 			edge->status = NEW;
+		msg->data.attr = NULL;
 		break;
 	case LS_MSG_EVENT_UPDATE:
 		edge = ls_edge_update(ted, attr);
 		if (edge)
 			edge->status = UPDATE;
+		msg->data.attr = NULL;
 		break;
 	case LS_MSG_EVENT_DELETE:
 		edge = ls_find_edge_by_source(ted, attr);
@@ -1966,16 +1972,19 @@ struct ls_subnet *ls_msg2subnet(struct ls_ted *ted, struct ls_message *msg,
 		subnet = ls_subnet_update(ted, pref);
 		if (subnet)
 			subnet->status = SYNC;
+		msg->data.prefix = NULL;
 		break;
 	case LS_MSG_EVENT_ADD:
 		subnet = ls_subnet_add(ted, pref);
 		if (subnet)
 			subnet->status = NEW;
+		msg->data.prefix = NULL;
 		break;
 	case LS_MSG_EVENT_UPDATE:
 		subnet = ls_subnet_update(ted, pref);
 		if (subnet)
 			subnet->status = UPDATE;
+		msg->data.prefix = NULL;
 		break;
 	case LS_MSG_EVENT_DELETE: {
 		uint16_t mt_id = 0;
@@ -2043,18 +2052,16 @@ void ls_delete_msg(struct ls_message *msg)
 	if (msg == NULL)
 		return;
 
-	if (msg->event == LS_MSG_EVENT_DELETE) {
-		switch (msg->type) {
-		case LS_MSG_TYPE_NODE:
-			ls_node_del(msg->data.node);
-			break;
-		case LS_MSG_TYPE_ATTRIBUTES:
-			ls_attributes_del(msg->data.attr);
-			break;
-		case LS_MSG_TYPE_PREFIX:
-			ls_prefix_del(msg->data.prefix);
-			break;
-		}
+	switch (msg->type) {
+	case LS_MSG_TYPE_NODE:
+		ls_node_del(msg->data.node);
+		break;
+	case LS_MSG_TYPE_ATTRIBUTES:
+		ls_attributes_del(msg->data.attr);
+		break;
+	case LS_MSG_TYPE_PREFIX:
+		ls_prefix_del(msg->data.prefix);
+		break;
 	}
 
 	XFREE(MTYPE_LS_DB, msg);
