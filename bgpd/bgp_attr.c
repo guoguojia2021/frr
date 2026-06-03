@@ -3178,7 +3178,8 @@ static bgp_attr_parse_ret_t bgp_attr_psid_sub(uint8_t type, uint16_t length,
 
 	/* Placeholder code for the SRv6 L3 Service type */
 	else if (type == BGP_PREFIX_SID_SRV6_L3_SERVICE) {
-		if (STREAM_READABLE(peer->curr) < length) {
+		if (STREAM_READABLE(peer->curr) < length
+			|| length < BGP_PREFIX_SID_SRV6_L3_SERVICE_MIN_LENGTH) {
 			flog_err(
 				EC_BGP_ATTR_LEN,
 				"Prefix SID SRv6 L3-Service length is %hu, but only %zu bytes remain",
