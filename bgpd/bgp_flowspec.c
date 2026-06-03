@@ -205,6 +205,7 @@ int bgp_nlri_parse_flowspec(struct peer *peer, struct attr *attr,
 					   afi, safi,
 					   ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL,
 					   NULL, NULL, 0, NULL);
+		XFREE(MTYPE_TMP, temp);
 		if (ret) {
 			flog_err(EC_BGP_FLOWSPEC_INSTALLATION,
 				 "Flowspec NLRI failed to be %s.",
