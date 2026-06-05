@@ -512,13 +512,13 @@ static bool bgp_attr_aigp_valid(uint8_t *pnt, int length)
 	uint8_t tlv_type;
 	uint16_t tlv_length;
 
-	if (length < 3) {
-		zlog_err("Bad AIGP attribute length (MUST be minimum 3): %u",
-			 length);
-		return false;
-	}
-
 	while (length) {
+		if (length < 3) {
+			zlog_err("Bad AIGP attribute length (MUST be minimum 3): %u",
+				 length);
+			return false;
+		}
+
 		tlv_type = *data;
 		ptr_get_be16(data + 1, &tlv_length);
 		(void)data;
