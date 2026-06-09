@@ -1435,7 +1435,7 @@ static bgp_size_t bmp_packet_attribute(struct stream *s, struct attr *attr,
 		int ret;
 
 		attr_start = stream_get_endp(s);
-		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS | BGP_ATTR_FLAG_EXTLEN);
+		stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_EXTLEN);
 		stream_putc(s, BGP_ATTR_LINK_STATE);
 		len_pos = stream_get_endp(s);
 		stream_putw(s, 0); /* Placeholder for extended length */
