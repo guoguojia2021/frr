@@ -2571,7 +2571,7 @@ ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
 			zlog_debug(
 				"%s: nhg_id %u (%s): link-local nexthop bypass FPM, ignoring",
 				__func__, id, zebra_route_string(type));
-		return 0;
+		return -2;
 	}
 
 	label_buf[0] = '\0';
