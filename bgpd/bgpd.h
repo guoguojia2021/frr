@@ -2301,14 +2301,18 @@ struct bgp_nlri {
 #define BGP_AIGP_TLV_METRIC_DESC "Accumulated IGP Metric"
 
 
-/* bgpd.h */
-#define BGP_LS_NLRI_MIN_SIZE       17   /* Absolute minimum (Node NLRI) */
-#define BGP_LS_NLRI_NODE_TYPICAL   37   /* Typical Node NLRI */
-#define BGP_LS_NLRI_LINK_TYPICAL   101  /* Typical Link NLRI */
-#define BGP_LS_NLRI_PREFIX_TYPICAL 61   /* Typical IPv4 Prefix NLRI */
-
-/* Use the largest typical size to be safe */
-#define BGP_LS_NLRI_TYPICAL_SIZE  BGP_LS_NLRI_LINK_TYPICAL
+/*
+ * Maximum possible BGP-LS NLRI size (Link NLRI, worst case):
+ *   4  (NLRI type+len header)
+ *   9  (Protocol-ID 1 + Identifier 8)
+ *   40 (Local Node Descriptor: TLV-hdr 4 + AS 8 + BGP-LS-ID 8 + OSPF-area 8
+ *       + IGP-Router-ID 12)
+ *   40 (Remote Node Descriptor: same as local)
+ *   112 (Link Descriptors: Link-ID 12 + IPv4-intf 8 + IPv4-neigh 8
+ *        + IPv6-intf 20 + IPv6-neigh 20 + MT-ID 36 + Remote-AS 8)
+ * Total ~205 bytes; use 512 with margin.
+ */
+#define BGP_LS_NLRI_MAX_SIZE      512
 
 /* Flag for peer_clear_soft().  */
 enum bgp_clear_type {
